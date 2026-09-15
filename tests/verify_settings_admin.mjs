@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { defaultDb, migrateDb } from '../logic.js';
+import { defaultDb, migrateDb } from '../apps/legacy-preview/logic.js';
 
-const app=fs.readFileSync('./app.js','utf8');
-const css=fs.readFileSync('./styles/styles.css','utf8');
+const app=fs.readFileSync('./apps/legacy-preview/app.js','utf8');
+const css=fs.readFileSync('./apps/legacy-preview/styles/styles.css','utf8');
 let passed=0,total=0;
 function check(name, fn){ total++; try{ fn(); passed++; console.log('PASS',name); }catch(err){ console.error('FAIL',name,'-',err.message); process.exitCode=1; } }
 

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const root = new URL('../', import.meta.url);
 const read = name => fs.readFileSync(new URL(name, root), 'utf8');
-const html = read('index.html');
+const html = read('apps/legacy-preview/index.html');
 assert.equal(fs.existsSync(new URL('ABRIR-DENTY.bat', root)), false, 'No debe existir ABRIR-DENTY.bat');
 assert.ok(!html.includes('ABRIR-DENTY.bat'), 'index no debe pedir un BAT');
 assert.ok(!html.includes('type="module" src="/app.js"'), 'index no debe depender de módulos ES para arrancar');

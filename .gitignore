@@ -1,7 +1,7 @@
 .worktrees/
 node_modules/
 package-lock.json
-package.json
+dist/
 __pycache__/
 *.pyc
 work-app-check.js

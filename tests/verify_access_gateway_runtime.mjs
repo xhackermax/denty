@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const html=fs.readFileSync('index.html','utf8');
-const app=fs.readFileSync('app.js','utf8');
-const bundle=fs.readFileSync('denty-app.bundle.js','utf8');
+const html=fs.readFileSync('apps/legacy-preview/index.html','utf8');
+const app=fs.readFileSync('apps/legacy-preview/app.js','utf8');
+const bundle=fs.readFileSync('apps/legacy-preview/denty-app.bundle.js','utf8');
 
 const extract=(re,label)=>{
   const m=app.match(re); assert.ok(m,`${label} no encontrado`); return m[0];

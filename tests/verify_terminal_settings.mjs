@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const app=fs.readFileSync('app.js','utf8');
+const app=fs.readFileSync('apps/legacy-preview/app.js','utf8');
 let n=0,total=0;
 function check(name,fn){total++;try{fn();n++;console.log('PASS',name)}catch(e){console.error('FAIL',name,'-',e.message);process.exitCode=1}}
 check('settings navigation includes payments and terminals',()=>assert.match(app,/Pagos y datáfonos/));

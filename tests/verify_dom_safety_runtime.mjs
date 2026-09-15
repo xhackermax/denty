@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const app=fs.readFileSync('app.js','utf8');
+const app=fs.readFileSync('apps/legacy-preview/app.js','utf8');
 function extractFunction(name){
   const start=app.indexOf(`function ${name}(`); assert.ok(start>=0,`${name} no encontrado`);
   const brace=app.indexOf('{',start); let depth=0;

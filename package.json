@@ -1,0 +1,23 @@
+{
+  "name": "denty",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Denty clinical management platform monorepo.",
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --filter @denty/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "legacy:build": "node apps/legacy-preview/build-static-bundle.mjs",
+    "legacy:test": "node tests/verify_static_page.mjs && node tests/verify_access_gateway_runtime.mjs && node tests/verify_settings_admin.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "vitest": "^2.1.8"
+  }
+}

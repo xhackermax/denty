@@ -1,3 +1,6 @@
+# Denty - Documentacion funcional y tecnica
+
+> Estado actual: Denty fue reorganizado como monorepo profesional. La nueva base de desarrollo vive en `apps/web`, `apps/api` y `packages/*`. La preview autonoma anterior se conserva en `apps/legacy-preview` para no perder funcionalidad mientras se migra por fases.
 # Denty Web Preview 1.7.2 · Documentación funcional y técnica
 
 > Documento de referencia para futuras actualizaciones. La interfaz visible se define principalmente en `index.html` y `app.js`; la lógica de dominio vive en `logic.js`; el NLU/voz vive en `voice-router.js`. `denty-app.bundle.js` es **generado** y no debe editarse a mano.

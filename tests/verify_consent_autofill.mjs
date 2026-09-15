@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { defaultDb, migrateDb, createPatient, createConsentDocument, patientFullName } from '../logic.js';
+import { defaultDb, migrateDb, createPatient, createConsentDocument, patientFullName } from '../apps/legacy-preview/logic.js';
 
 const REQUIRED_CONSENTS = [
   'CI Tratamiento de imagenes',

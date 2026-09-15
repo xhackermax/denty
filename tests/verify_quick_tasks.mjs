@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-const app=readFileSync('app.js','utf8');
-const html=readFileSync('index.html','utf8');
+const app=readFileSync('apps/legacy-preview/app.js','utf8');
+const html=readFileSync('apps/legacy-preview/index.html','utf8');
 
 const checks=[
   ['quick task dialog is present',()=>assert.ok(html.includes('id="quickTaskModal"'))],

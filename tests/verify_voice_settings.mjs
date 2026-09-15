@@ -1,7 +1,7 @@
-import { defaultDb, migrateDb } from '../logic.js';
+import { defaultDb, migrateDb } from '../apps/legacy-preview/logic.js';
 import fs from 'node:fs';
 
-const app = fs.readFileSync('./app.js','utf8');
+const app = fs.readFileSync('./apps/legacy-preview/app.js','utf8');
 const readme = fs.readFileSync('./README.md','utf8');
 let passed=0, total=0;
 function check(name, condition){ total++; if(condition){ passed++; console.log('PASS',name); } else { console.error('FAIL',name); process.exitCode=1; } }

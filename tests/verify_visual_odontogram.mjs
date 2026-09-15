@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
 const root = new URL('../', import.meta.url);
-const app = readFileSync(new URL('./app.js', root), 'utf8');
+const app = readFileSync(new URL('./apps/legacy-preview/app.js', root), 'utf8');
 const css = [
-  readFileSync(new URL('./styles/styles.css', root), 'utf8'),
-  existsSync(new URL('./styles/visual-polish.css', root)) ? readFileSync(new URL('./styles/visual-polish.css', root), 'utf8') : ''
+  readFileSync(new URL('./apps/legacy-preview/styles/styles.css', root), 'utf8'),
+  existsSync(new URL('./apps/legacy-preview/styles/visual-polish.css', root)) ? readFileSync(new URL('./apps/legacy-preview/styles/visual-polish.css', root), 'utf8') : ''
 ].join('\n');
 
 const checks = [

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { defaultDb, createPatient, ensureOdontogram } from '../logic.js';
+import { defaultDb, createPatient, ensureOdontogram } from '../apps/legacy-preview/logic.js';
 
-assert.ok(existsSync('./voice-router.js'), 'voice-router.js must exist');
-const { parseVoiceCommand, validateStructuredCommand, executeVoiceCommand } = await import('../voice-router.js');
+assert.ok(existsSync('./apps/legacy-preview/voice-router.js'), 'voice-router.js must exist');
+const { parseVoiceCommand, validateStructuredCommand, executeVoiceCommand } = await import('../apps/legacy-preview/voice-router.js');
 
 let passed = 0;
 function test(name, fn){

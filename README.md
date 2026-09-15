@@ -1,46 +1,44 @@
-# Denty Web Preview 1.7.2 · Página Autónoma
+# Denty
 
-Esta build está pensada para **probar y configurar Denty directamente desde la página**. No incluye ni necesita `ABRIR-DENTY.bat`.
+Denty es una plataforma de gestion para clinicas dentales. El proyecto queda reorganizado como monorepo profesional para separar interfaz, API, dominio, datos de prueba, voz y persistencia.
 
-## Abrir la preview
+## Estructura
 
-Puedes abrir `index.html` directamente en un navegador moderno o desplegar la carpeta/ZIP en un hosting estático como Vercel. La página carga `denty-app.bundle.js`, un bundle local generado desde los módulos fuente, por lo que la navegación principal no depende de iniciar `server.py`.
+- `apps/web`: nueva aplicacion principal en React, TypeScript y Vite.
+- `apps/api`: base de API con Fastify para integraciones reales.
+- `apps/legacy-preview`: preview estatica anterior, conservada para comparar y no perder funcionalidad.
+- `packages/domain`: modelos, permisos, consentimientos y calculos compartidos.
+- `packages/fixtures`: datos demo conectados para desarrollo y pruebas.
+- `packages/ui`: navegacion y primitives compartidas.
+- `packages/voice`: parser local de comandos de voz.
+- `packages/db`: configuracion inicial de persistencia y Prisma.
+- `tests`: verificaciones de la preview heredada y comportamiento critico.
+- `docs`: documentacion funcional, arquitectura y planes de evolucion.
 
-## Preview autónoma
-
-- Puerta de acceso Administrador / Usuario / Paciente.
-- Pacientes, ficha, odontograma y periodoncia.
-- Agenda, tareas, laboratorio, presupuestos y finanzas.
-- Ajustes editables.
-- Voz/NLU por reglas locales cuando el navegador soporta reconocimiento.
-- Cobro por tarjeta con **datáfono virtual de preview** cuando no existe backend de pagos.
-- Persistencia local; si el navegador bloquea `localStorage`, Denty continúa en memoria durante esa sesión.
-
-## Integraciones reales
-
-`server.py` se conserva como componente opcional para futuras integraciones reales que no deben exponer secretos en el navegador: SumUp físico, IA externa/MCP y sincronización. Su ausencia no debe bloquear la preview.
-
-## Documentación
-
-- `docs/DOCUMENTACION-DENTY.md`: mapa funcional y técnico completo.
-- `docs/UI-MAP.json`: inventario estructurado de vistas, paneles, datos e intenciones de voz.
-- `docs/REGLAS-DE-ACTUALIZACION.md`: reglas para que las próximas iteraciones no vuelvan a introducir botones muertos, dependencias ocultas o configuraciones decorativas.
-
-## Desarrollo
-
-Después de modificar `logic.js`, `voice-router.js` o `app.js` ejecuta:
+## Comandos
 
 ```bash
-node build-static-bundle.mjs
-node tests/verify_static_page.mjs
+pnpm install
+pnpm dev
+pnpm build
+pnpm test
 ```
 
-`denty-app.bundle.js` es generado. No debe editarse manualmente.
+Para regenerar y comprobar la preview anterior:
 
-## Estado pendiente
+```bash
+pnpm legacy:build
+pnpm legacy:test
+```
 
-Todavía faltan autenticación real con usuario/contraseña, portal del paciente, fichaje ligado a sesión autenticada, sincronización clínica real y backend multiusuario seguro. La documentación marca estas áreas como pendientes para evitar confundir una pantalla preparada con una función terminada.
+## Decisiones principales
 
-## Backend opcional para pruebas avanzadas
+- La app nueva se despliega desde `apps/web/dist`.
+- Vercel construye con `pnpm build`.
+- Los roles se gestionan desde `packages/domain`: el usuario operativo puede trabajar con pacientes, agenda, laboratorios, documentacion clinica y finanzas; solo el administrador puede modificar ajustes, usuarios y auditoria.
+- Los consentimientos se generan con datos de paciente, doctor, sede y fecha, dejando solo la firma pendiente.
+- La preview vieja no se borra: queda aislada en `apps/legacy-preview` para seguir verificando lo que ya funcionaba durante la migracion.
 
-La preview no necesita backend para abrirse. Si en una fase de desarrollo quieres probar una LLM local, `server.py` sigue admitiendo Ollama mediante variables de entorno como `DENTY_AI_PROVIDER=ollama` y `DENTY_AI_MODEL=qwen2.5:3b`. Para un conector MCP, la URL se mantiene fuera del navegador mediante `DENTY_MCP_URL` y, si procede, `DENTY_MCP_TOKEN`. Estas opciones son auxiliares y no forman parte del arranque normal de la preview.
+## Estado
+
+La base nueva ya esta preparada para evolucionar hacia producto real. La preview anterior sigue disponible mientras se migran pantallas una por una a React y API segura.

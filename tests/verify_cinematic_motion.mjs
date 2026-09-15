@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
 const root = new URL('../', import.meta.url);
-const index = readFileSync(new URL('./index.html', root), 'utf8');
-const app = readFileSync(new URL('./app.js', root), 'utf8');
-const motion = existsSync(new URL('./scripts/cinematic-motion.js', root)) ? readFileSync(new URL('./scripts/cinematic-motion.js', root), 'utf8') : '';
+const index = readFileSync(new URL('./apps/legacy-preview/index.html', root), 'utf8');
+const app = readFileSync(new URL('./apps/legacy-preview/app.js', root), 'utf8');
+const motion = existsSync(new URL('./apps/legacy-preview/scripts/cinematic-motion.js', root)) ? readFileSync(new URL('./apps/legacy-preview/scripts/cinematic-motion.js', root), 'utf8') : '';
 const css = [
-  existsSync(new URL('./styles/cinematic-motion.css', root)) ? readFileSync(new URL('./styles/cinematic-motion.css', root), 'utf8') : '',
-  existsSync(new URL('./styles/visual-polish.css', root)) ? readFileSync(new URL('./styles/visual-polish.css', root), 'utf8') : ''
+  existsSync(new URL('./apps/legacy-preview/styles/cinematic-motion.css', root)) ? readFileSync(new URL('./apps/legacy-preview/styles/cinematic-motion.css', root), 'utf8') : '',
+  existsSync(new URL('./apps/legacy-preview/styles/visual-polish.css', root)) ? readFileSync(new URL('./apps/legacy-preview/styles/visual-polish.css', root), 'utf8') : ''
 ].join('\n');
 
 const checks = [

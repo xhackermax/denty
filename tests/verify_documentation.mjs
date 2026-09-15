@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const app=fs.readFileSync('app.js','utf8');
+const app=fs.readFileSync('apps/legacy-preview/app.js','utf8');
 const doc=fs.readFileSync('docs/DOCUMENTACION-DENTY.md','utf8');
 const map=JSON.parse(fs.readFileSync('docs/UI-MAP.json','utf8'));
 const keys=[...app.matchAll(/\['(clinic|doctors|sites|tariffs|labs|consents|docs|users|appearance|payments|servers|sync|localai|mcp|backup)'\s*,/g)].map(m=>m[1]);

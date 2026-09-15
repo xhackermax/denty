@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { defaultDb, migrateDb, saveDb, DB_KEY, PREVIOUS_KEYS } from '../logic.js';
-const app=fs.readFileSync('app.js','utf8');
+import { defaultDb, migrateDb, saveDb, DB_KEY, PREVIOUS_KEYS } from '../apps/legacy-preview/logic.js';
+const app=fs.readFileSync('apps/legacy-preview/app.js','utf8');
 let n=0;
 function ok(name,fn){ try{fn();n++;console.log('PASS',name);}catch(e){console.error('FAIL',name,e.message);process.exitCode=1;} }
 

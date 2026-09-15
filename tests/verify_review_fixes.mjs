@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
-const app = fs.readFileSync(new URL('../app.js', import.meta.url), 'utf8');
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const css = fs.readFileSync(new URL('../styles/styles.css', import.meta.url), 'utf8');
+const app = fs.readFileSync(new URL('../apps/legacy-preview/app.js', import.meta.url), 'utf8');
+const html = fs.readFileSync(new URL('../apps/legacy-preview/index.html', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../apps/legacy-preview/styles/styles.css', import.meta.url), 'utf8');
 
 assert.match(app, /function toast\(text\)\{\s*const el=\$\('#toast'\);\s*if\(!el\) return;/, 'toast debe tolerar que #toast no exista');
 assert.match(app, /function bindClick\(selector, handler\)/, 'debe existir helper null-safe para clicks estáticos');

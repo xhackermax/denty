@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
 const root = new URL('../', import.meta.url);
-const app = readFileSync(new URL('./app.js', root), 'utf8');
-const logic = readFileSync(new URL('./logic.js', root), 'utf8');
+const app = readFileSync(new URL('./apps/legacy-preview/app.js', root), 'utf8');
+const logic = readFileSync(new URL('./apps/legacy-preview/logic.js', root), 'utf8');
 const serverExists = existsSync(new URL('./server.py', root));
 const server = serverExists ? readFileSync(new URL('./server.py', root), 'utf8') : '';
 

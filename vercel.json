@@ -1,1 +1,18 @@
-{"cleanUrls":true,"headers":[{"source":"/(.*)","headers":[{"key":"Cache-Control","value":"public, max-age=0, must-revalidate"}]}]}
+{
+  "version": 2,
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "buildCommand": "pnpm build",
+  "outputDirectory": "apps/web/dist",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ]
+}
