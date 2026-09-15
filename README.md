@@ -4,7 +4,7 @@ Denty es una plataforma de gestion para clinicas dentales. El proyecto queda reo
 
 ## Estructura
 
-- `apps/web`: nueva aplicacion principal en React, TypeScript y Vite.
+- `apps/web`: aplicacion principal en Next.js App Router, TypeScript y estructura `src/app`.
 - `apps/api`: base de API con Fastify para integraciones reales.
 - `apps/legacy-preview`: preview estatica anterior, conservada para comparar y no perder funcionalidad.
 - `packages/domain`: modelos, permisos, consentimientos y calculos compartidos.

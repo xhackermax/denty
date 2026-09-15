@@ -2,8 +2,8 @@
   "version": 2,
   "cleanUrls": true,
   "trailingSlash": false,
-  "buildCommand": "pnpm build",
-  "outputDirectory": "apps/web/dist",
+  "buildCommand": "pnpm --filter @denty/web build",
+  "outputDirectory": "apps/web/out",
   "headers": [
     {
       "source": "/(.*)",
