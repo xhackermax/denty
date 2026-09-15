@@ -322,3 +322,146 @@ html[data-theme="dark"]{--ink:#dceef4;--muted:#9ab0ba;--line:#294956;--soft:#102
     grid-template-columns: 1fr;
   }
 }
+
+.patient-portal {
+  display: grid;
+  gap: 16px;
+}
+.patient-portal-mode #drawer,
+.patient-portal-mode #scrim,
+.patient-portal-mode .bottom-nav,
+.patient-portal-mode #drawerOpen,
+.patient-portal-mode #searchToggle,
+.patient-portal-mode #undoBtn,
+.patient-portal-mode #voiceBtn,
+.patient-portal-mode #quickAddBtn {
+  display: none !important;
+}
+.patient-portal-mode .topbar {
+  justify-content: center;
+}
+.patient-portal-mode .brand {
+  margin-right: 0;
+}
+.patient-portal-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0 4px;
+}
+.patient-portal-top span {
+  color: #078194;
+  font-weight: 900;
+}
+.patient-portal-top h1 {
+  margin-top: 4px;
+}
+.patient-portal-top p {
+  margin: 0;
+  color: #6c818a;
+  font-size: 20px;
+}
+.patient-portal-hero,
+.patient-portal-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+.patient-portal-hero {
+  border-color: #9be1ec;
+  background: linear-gradient(180deg, #ffffff, #f1fbfe);
+}
+.patient-portal-hero > .section-title > strong {
+  display: grid;
+  place-items: center;
+  min-width: 76px;
+  min-height: 58px;
+  border-radius: 8px;
+  background: #e3f8fc;
+  color: #087e92;
+  font-size: 24px;
+}
+.portal-decision {
+  border: 1px solid #bfe7d1;
+  background: #f3fff8;
+  border-radius: 8px;
+  padding: 14px;
+}
+.portal-decision small {
+  display: block;
+  color: #58736b;
+  font-weight: 850;
+  margin-bottom: 4px;
+}
+.portal-decision strong {
+  font-size: 22px;
+}
+.payment-simulator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px dashed #c6e5ee;
+  border-radius: 8px;
+  background: #fbfeff;
+}
+.payment-simulator b {
+  flex-basis: 100%;
+}
+.payment-simulator span {
+  border: 1px solid #d8e9ef;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 850;
+}
+.payment-simulator span.active {
+  background: #e6faff;
+  color: #078194;
+  border-color: #9be1ec;
+}
+.payment-simulator p {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  color: #5f747d;
+}
+.smart-slots,
+.patient-tasks,
+.portal-media-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.smart-slots span,
+.patient-tasks span {
+  display: block;
+  padding: 11px 13px;
+  border: 1px solid #dbeaf0;
+  border-radius: 8px;
+  background: #fbfeff;
+  font-weight: 800;
+}
+.patient-portal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.patient-portal ul {
+  margin: 12px 0 0;
+  padding-left: 22px;
+  color: #415d68;
+}
+.patient-portal h3 {
+  margin: 16px 0 6px;
+}
+@media (max-width: 760px) {
+  .patient-portal-top,
+  .patient-portal-grid {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+}

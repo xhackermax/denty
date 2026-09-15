@@ -22,7 +22,7 @@ const storage = (()=>{
   }
 })();
 let db = loadDb(storage);
-let state = {view:'today', date: today(), patientId:null, patientTab:'resumen', agendaView:'doctors', trash:false, selectedTooth:null, selectedSurface:null, settingsPanel:'clinic', settingsEditType:null, settingsEditId:null, odontoToolBase:'filling', odontoToolCode:'filling', odontoLegendState:{}, odontoFilter:'all', odontoMode:'restorative'};
+let state = {view:'today', date: today(), patientId:null, patientTab:'resumen', patientPortalTab:'inicio', agendaView:'doctors', trash:false, selectedTooth:null, selectedSurface:null, settingsPanel:'clinic', settingsEditType:null, settingsEditId:null, odontoToolBase:'filling', odontoToolCode:'filling', odontoLegendState:{}, odontoFilter:'all', odontoMode:'restorative'};
 let importRows = [];
 let importMapping = {};
 let recognition = null;
@@ -75,6 +75,18 @@ function emp(id){ return db.employees.find(e=>Number(e.id)===Number(id)); }
 function currentPatient(){ return patient(state.patientId) || activePatients()[0] || null; }
 function applyPreviewRouteFromQuery(){
   const params=new URLSearchParams(window.location.search||'');
+  if(params.has('patient-portal')){
+    selectedPortal='patient';
+    safePortalStorage('set','patient');
+    const p=portalPatient();
+    state.view='patientPortal';
+    state.patientId=p.id;
+    state.patientPortalTab='inicio';
+    const gateway=$('#accountGateway'), shell=$('#appShell');
+    if(gateway) gateway.hidden=true;
+    if(shell){ shell.classList.remove('account-gated'); if(selectedPortal==='patient') shell.classList.add('patient-portal-mode'); else shell.classList.remove('patient-portal-mode'); shell.setAttribute('aria-hidden','false'); }
+    return;
+  }
   if(!params.has('treatment-panel')) return;
   let p=currentPatient();
   if(!p){
@@ -89,7 +101,7 @@ const VIEW_PERMISSION={patients:'pacientes',patientDetail:'pacientes',agenda:'ag
 const ADMIN_ONLY_VIEWS = new Set(['settings','staff','import']);
 function isAdminOnlyView(view){ return ADMIN_ONLY_VIEWS.has(view); }
 function isAdminPortal(){ return selectedPortal==='admin' || db.currentUser?.role==='admin'; }
-function canOpenView(view){ const area=VIEW_PERMISSION[view]; if(isAdminOnlyView(view) && !isAdminPortal()) return false; return !area || canAccess(area); }
+function canOpenView(view){ if(selectedPortal==='patient') return view==='patientPortal'; const area=VIEW_PERMISSION[view]; if(isAdminOnlyView(view) && !isAdminPortal()) return false; return !area || canAccess(area); }
 function setView(view, extras={}){ if(!canOpenView(view)){ closeDrawer(); toast(isAdminOnlyView(view)?'Solo administrador puede abrir esta seccion':'Tu usuario no tiene permiso para abrir esta seccion'); return; } state = {...state, ...extras, view}; closeDrawer(); render(); window.scrollTo({top:0,behavior:'smooth'}); }
 
 function render(){
@@ -100,6 +112,7 @@ function render(){
   if(state.view==='today') main.innerHTML=renderToday();
   else if(state.view==='patients') main.innerHTML=renderPatients();
   else if(state.view==='patientDetail') main.innerHTML=renderPatientDetail();
+  else if(state.view==='patientPortal') main.innerHTML=renderPatientPortal();
   else if(state.view==='agenda') main.innerHTML=renderAgenda();
   else if(state.view==='tasks') main.innerHTML=renderTasks();
   else if(state.view==='odontogram') main.innerHTML=renderOdontogram();
@@ -139,7 +152,7 @@ function showAccountChooser(){
   if(gateway) gateway.hidden=false;
   if(chooser) chooser.hidden=false;
   if(stage) stage.hidden=true;
-  if(shell){ shell.classList.add('account-gated'); shell.setAttribute('aria-hidden','true'); }
+  if(shell){ shell.classList.add('account-gated'); shell.classList.remove('patient-portal-mode'); shell.setAttribute('aria-hidden','true'); }
 }
 function showAccountAccess(type){
   const portal=ACCOUNT_PORTALS[type]; if(!portal) return;
@@ -154,8 +167,8 @@ function showAccountAccess(type){
   description.textContent=portal.description;
   status.textContent=portal.status;
   hint.textContent=portal.hint;
-  btn.disabled=selectedPortal==='patient';
-  btn.textContent=selectedPortal==='patient'?'Portal pr처ximamente':'Continuar a Denty';
+  btn.disabled=false;
+  btn.textContent=selectedPortal==='patient'?'Entrar a Denty Paciente':'Continuar a Denty';
 }
 function applyPortalRole(type){
   if(type==='admin'){
@@ -171,11 +184,11 @@ function applyPortalRole(type){
 }
 function enterSelectedPortal(){
   if(!selectedPortal) return showAccountChooser();
-  if(selectedPortal==='patient') return;
-  applyPortalRole(selectedPortal);
+  if(selectedPortal==='patient'){ db.currentUser={id:'patient-preview',name:'Paciente',role:'patient'}; state.view='patientPortal'; state.patientPortalTab='inicio'; persist(); }
+  else applyPortalRole(selectedPortal);
   const gateway=$('#accountGateway'), shell=$('#appShell');
   if(gateway) gateway.hidden=true;
-  if(shell){ shell.classList.remove('account-gated'); shell.setAttribute('aria-hidden','false'); }
+  if(shell){ shell.classList.remove('account-gated'); if(selectedPortal==='patient') shell.classList.add('patient-portal-mode'); else shell.classList.remove('patient-portal-mode'); shell.setAttribute('aria-hidden','false'); }
   syncNav();
   window.scrollTo({top:0,behavior:'auto'});
 }
@@ -1213,7 +1226,29 @@ function renderPatientRiskStrip(p){
   const tone=r.alerts.length?'danger':(r.unsigned.length?'warn':'ok');
   return `<div class="patient-risk-strip ${tone}"><div><b>${r.alerts.length?'Atencion clinica activa':'Seguridad clinica'}</b><span>${r.alerts.length?`${r.alerts.length} alerta(s) activa(s)`:r.unsigned.length?`${r.unsigned.length} documento(s) pendiente(s) de firma`:'Sin alertas activas ni consentimientos pendientes'}</span></div><div class="risk-pills"><span>${r.due} cita(s) futura(s)</span><span>${r.unsigned.length} consentimiento(s) pendiente(s)</span><span>${r.alerts.length} alerta(s)</span></div></div>`;
 }
-function renderPatientDetail(){
+function portalPatient(){
+  let p=currentPatient();
+  if(!p){ p=createPatient(db,{first_name:'Paciente',last_name:'Demo',phone:'',email:'',ficha:'DEMO'}); persist(); }
+  return p;
+}
+function renderPatientPortalMoney(s){
+  const months=6;
+  const monthly=s.pending>0?Math.ceil(s.pending/months):0;
+  return `<article class="patient-portal-card"><div class="section-title"><div><h2>Mi economia del tratamiento</h2><p>Separamos deuda real de tratamiento futuro para que se entienda mejor.</p></div><button class="ghost mini">Opciones de pago</button></div><div class="treatment-money-grid"><div><small>Tratamiento total</small><strong>${s.total.toFixed(2)} EUR</strong></div><div><small>Ya realizado</small><strong>${s.treatmentRealized.toFixed(2)} EUR</strong></div><div><small>Ya pagado</small><strong>${s.paid.toFixed(2)} EUR</strong></div><div><small>Pendiente de pago</small><strong>${s.pending.toFixed(2)} EUR</strong></div><div><small>Tratamiento futuro</small><strong>${s.future.toFixed(2)} EUR</strong></div><div><small>Simulacion</small><strong>${monthly.toFixed(2)} EUR/mes</strong></div></div><div class="payment-simulator"><b>Como prefieres pagarlo</b><span>Pago completo</span><span>3 meses</span><span class="active">6 meses</span><span>12 meses</span><p>Tu eleccion: ${monthly.toFixed(2)} EUR/mes x ${months}. No activa pagos recurrentes sin consentimiento explicito.</p></div></article>`;
+}
+function renderPatientPortal(){
+  const p=portalPatient();
+  const s=patientTreatmentSnapshot(p);
+  const nextLabel=s.next?`${s.next.date} � ${s.next.start_time||''}`:'Sin cita programada';
+  const timeline=s.steps.length?s.steps:[
+    {title:'Diagnostico',phase:'Diagnostico',status:'completada',detail:'Entender tu situacion antes de decidir.'},
+    {title:'Higiene periodontal',phase:'Base clinica',status:'en curso',detail:'Preparar la boca para que el resto avance mejor.'},
+    {title:'Ortodoncia',phase:'Movimiento',status:'pendiente',detail:'Controlar que los movimientos se producen antes de la siguiente fase.'},
+    {title:'Implante 46',phase:'Rehabilitacion',status:'requiere decision',detail:'Recuperar la muela inferior derecha con una pieza fija.'},
+    {title:'Corona definitiva',phase:'Finalizacion',status:'pendiente',detail:'Colocar el nuevo diente cuando la base este preparada.'}
+  ];
+  return `<section class="patient-portal"><div class="patient-portal-top"><div><span>Denty Paciente</span><h1>Buenos dias, ${esc(p.first_name||'Paciente')}</h1><p>Tu tratamiento, citas, dinero y decisiones en un solo recorrido.</p></div><button class="ghost" id="patientPortalExit">Cambiar cuenta</button></div><article class="patient-portal-hero"><div class="section-title"><div><h2>Tu tratamiento ahora</h2><p>${esc(s.current?.title||s.phase||'Plan clinico activo')}</p></div><strong>${s.progress}%</strong></div><div class="treatment-progress-bar"><span style="width:${s.progress}%"></span></div><div class="treatment-now-grid"><div><small>Fase actual</small><strong>${esc(s.current?.phase||s.phase||'Plan activo')}</strong><span>${esc(s.current?.detail||'Seguimiento clinico en curso.')}</span></div><div><small>Finalizacion estimada</small><strong>${esc(s.estimatedDate||'Pendiente')}</strong><span>Depende de asistencia, pruebas y respuesta clinica.</span></div><div><small>Proxima cita</small><strong>${esc(nextLabel)}</strong><span>${s.next?esc(s.next.reason||'Revision'):'Agenda la siguiente visita'}</span><button class="primary mini" data-patient-portal-tab="citas">Necesito cambiarla</button></div></div><div class="treatment-impact"><strong>Impacto estimado</strong><p>Si retrasas la proxima revision, la finalizacion podria moverse entre 2 y 3 semanas. Explicamos consecuencias clinicas sin culpabilizar.</p></div><div class="portal-decision"><small>Proxima decision util</small><strong>${esc(s.decision)}</strong></div></article>${renderPatientPortalMoney(s)}<article class="patient-portal-card"><div class="section-title"><div><h2>Mi tratamiento</h2><p>Linea temporal viva: que estamos haciendo y por que existe este orden.</p></div><button class="ghost mini">Ver planificacion</button></div><div class="treatment-timeline">${timeline.map((step,i)=>`<div class="timeline-phase ${i<1?'done':i===1?'current':'pending'}"><span>${i+1}</span><div><strong>${esc(step.title)}</strong><small>${esc(step.status||'pendiente')} � ${esc(step.detail||step.phase||'')}</small></div></div>`).join('')}</div></article><article class="patient-portal-card appointment-intelligence"><h2>Cambiar cita inteligentemente</h2><p>Antes de mover una cita mostramos huecos compatibles, motivo del cambio e impacto temporal clinico.</p><div class="smart-slots"><span>Martes 16:30 � Impacto: ninguno</span><span>Jueves 12:00 � Impacto estimado: +2 dias</span><span>Martes siguiente � Impacto estimado: +7 a +14 dias</span></div><small>La politica economica de cancelacion tardia se muestra aparte del coste temporal del tratamiento.</small></article><article class="patient-portal-card"><h2>Por que me recomiendan esto</h2><p>Recuperar la muela inferior derecha ayuda a volver a masticar correctamente en esa zona.</p><ul><li>Los dientes vecinos estan sanos.</li><li>Buscamos una solucion fija.</li><li>No queremos tallar dientes sanos si existe una alternativa mejor.</li></ul></article><div class="patient-portal-grid"><article class="patient-portal-card"><h2>Que tengo que hacer yo</h2><div class="patient-tasks"><span>Confirmar tu proxima cita.</span><span>Higiene interdental diaria.</span><span>Traer dudas antes de aceptar el presupuesto.</span></div><h3>Responsabilidad de la clinica</h3><p>Planificar, explicar alternativas y avisarte si una fase cambia.</p></article><article class="patient-portal-card"><h2>Mi sonrisa</h2><p>Escaparate para fotos, evolucion, simulacion y herramientas externas.</p><div class="portal-media-actions"><button class="ghost">Ver evolucion</button><button class="ghost">Smilecloud</button><button class="ghost">ArchForm</button><button class="ghost">Documentos</button></div></article></div></section>`;
+}function renderPatientDetail(){
   const p=patient(state.patientId);
   if(!p) return `<button class="ghost" data-go="patients">Pacientes</button><div class="empty-state">Paciente no encontrado.</div>`;
   const apps=db.appointments.filter(a=>Number(a.patient_id)===Number(p.id));
