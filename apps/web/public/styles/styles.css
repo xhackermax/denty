@@ -791,31 +791,31 @@ html[data-theme="dark"] .drawer-nav button.soft,html[data-theme="dark"] .drawer-
 .drawer footer{font-size:12px;line-height:1.45;padding-top:14px;margin-top:16px;color:#8b929a}
 .drawer-nav button:hover,.drawer-nav button:focus-visible,.drawer-nav button.soft,.drawer-nav button.active{background:#f6f7f8;color:#111827}
 
-/* Rainbow order without red-family hues: gold to violet, repeated consistently. Icons stay monochrome. */
+/* Cool navigation system: no yellow/gold title or menu accents. Icons stay monochrome. */
 .drawer-nav button:nth-child(7n+1) .inline-icon-label>span:last-child,
 .bottom-nav button:nth-child(7n+1) b,
 .patient-portal-nav button:nth-child(7n+1) .inline-icon-label>span:last-child,
-.account-choice:nth-child(7n+1) strong{color:#9a6700}
+.account-choice:nth-child(7n+1) strong{color:#334155}
 .drawer-nav button:nth-child(7n+2) .inline-icon-label>span:last-child,
 .bottom-nav button:nth-child(7n+2) b,
 .patient-portal-nav button:nth-child(7n+2) .inline-icon-label>span:last-child,
-.account-choice:nth-child(7n+2) strong{color:#4d7c0f}
+.account-choice:nth-child(7n+2) strong{color:#047857}
 .drawer-nav button:nth-child(7n+3) .inline-icon-label>span:last-child,
 .bottom-nav button:nth-child(7n+3) b,
 .patient-portal-nav button:nth-child(7n+3) .inline-icon-label>span:last-child,
-.account-choice:nth-child(7n+3) strong{color:#047857}
+.account-choice:nth-child(7n+3) strong{color:#0e7490}
 .drawer-nav button:nth-child(7n+4) .inline-icon-label>span:last-child,
 .bottom-nav button:nth-child(7n+4) b,
-.patient-portal-nav button:nth-child(7n+4) .inline-icon-label>span:last-child{color:#0e7490}
+.patient-portal-nav button:nth-child(7n+4) .inline-icon-label>span:last-child{color:#175cd3}
 .drawer-nav button:nth-child(7n+5) .inline-icon-label>span:last-child,
 .bottom-nav button:nth-child(7n+5) b,
-.patient-portal-nav button:nth-child(7n+5) .inline-icon-label>span:last-child{color:#175cd3}
+.patient-portal-nav button:nth-child(7n+5) .inline-icon-label>span:last-child{color:#4338ca}
 .drawer-nav button:nth-child(7n+6) .inline-icon-label>span:last-child,
 .bottom-nav button:nth-child(7n+6) b,
-.patient-portal-nav button:nth-child(7n+6) .inline-icon-label>span:last-child{color:#4338ca}
+.patient-portal-nav button:nth-child(7n+6) .inline-icon-label>span:last-child{color:#6d28d9}
 .drawer-nav button:nth-child(7n+7) .inline-icon-label>span:last-child,
 .bottom-nav button:nth-child(7n+7) b,
-.patient-portal-nav button:nth-child(7n+7) .inline-icon-label>span:last-child{color:#6d28d9}
+.patient-portal-nav button:nth-child(7n+7) .inline-icon-label>span:last-child{color:#475569}
 
 .bottom-nav{padding:6px 8px;border-radius:24px}
 .bottom-nav button{padding:6px 3px;border-radius:16px;gap:3px;color:#111827}
@@ -841,25 +841,25 @@ html[data-theme="dark"] .bottom-nav .nav-icon .denty-icon,
 html[data-theme="dark"] .patient-portal-nav button .denty-icon{color:#f5f7f8}
 html[data-theme="dark"] .drawer-nav button:nth-child(7n+1) .inline-icon-label>span:last-child,
 html[data-theme="dark"] .bottom-nav button:nth-child(7n+1) b,
-html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+1) .inline-icon-label>span:last-child{color:#f4c95d}
+html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+1) .inline-icon-label>span:last-child{color:#cbd5e1}
 html[data-theme="dark"] .drawer-nav button:nth-child(7n+2) .inline-icon-label>span:last-child,
 html[data-theme="dark"] .bottom-nav button:nth-child(7n+2) b,
-html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+2) .inline-icon-label>span:last-child{color:#a3e635}
+html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+2) .inline-icon-label>span:last-child{color:#6ee7b7}
 html[data-theme="dark"] .drawer-nav button:nth-child(7n+3) .inline-icon-label>span:last-child,
 html[data-theme="dark"] .bottom-nav button:nth-child(7n+3) b,
-html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+3) .inline-icon-label>span:last-child{color:#6ee7b7}
+html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+3) .inline-icon-label>span:last-child{color:#67e8f9}
 html[data-theme="dark"] .drawer-nav button:nth-child(7n+4) .inline-icon-label>span:last-child,
 html[data-theme="dark"] .bottom-nav button:nth-child(7n+4) b,
-html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+4) .inline-icon-label>span:last-child{color:#67e8f9}
+html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+4) .inline-icon-label>span:last-child{color:#93c5fd}
 html[data-theme="dark"] .drawer-nav button:nth-child(7n+5) .inline-icon-label>span:last-child,
 html[data-theme="dark"] .bottom-nav button:nth-child(7n+5) b,
-html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+5) .inline-icon-label>span:last-child{color:#93c5fd}
+html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+5) .inline-icon-label>span:last-child{color:#a5b4fc}
 html[data-theme="dark"] .drawer-nav button:nth-child(7n+6) .inline-icon-label>span:last-child,
 html[data-theme="dark"] .bottom-nav button:nth-child(7n+6) b,
-html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+6) .inline-icon-label>span:last-child{color:#a5b4fc}
+html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+6) .inline-icon-label>span:last-child{color:#c4b5fd}
 html[data-theme="dark"] .drawer-nav button:nth-child(7n+7) .inline-icon-label>span:last-child,
 html[data-theme="dark"] .bottom-nav button:nth-child(7n+7) b,
-html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+7) .inline-icon-label>span:last-child{color:#c4b5fd}
+html[data-theme="dark"] .patient-portal-nav button:nth-child(7n+7) .inline-icon-label>span:last-child{color:#94a3b8}
 html[data-theme="dark"] .bottom-nav button.active,
 html[data-theme="dark"] .patient-portal-nav button.active{background:#17252c;color:#f5f7f8;border-color:#31444d;box-shadow:inset 0 0 0 1px #31444d}
 
