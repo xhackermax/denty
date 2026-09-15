@@ -32,7 +32,7 @@ Después de modificar `logic.js`, `voice-router.js` o `app.js` ejecuta:
 
 ```bash
 node build-static-bundle.mjs
-node verify_static_page.mjs
+node tests/verify_static_page.mjs
 ```
 
 `denty-app.bundle.js` es generado. No debe editarse manualmente.

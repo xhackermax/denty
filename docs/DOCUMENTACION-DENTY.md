@@ -12,8 +12,8 @@ Denty 1.7.2 es una preview web autónoma para probar navegación, flujos, formul
 - Script ejecutado por la página: `denty-app.bundle.js`.
 - Fuentes que generan el bundle: `logic.js` + `voice-router.js` + `app.js`.
 - Regeneración: `node build-static-bundle.mjs`.
-- Estilos: `styles.css`, `phase1.css`, `phase2.css`, `phase3.css`, `phase4.css`, `visual-polish.css`, `cinematic-motion.css`.
-- Animación opcional: `cinematic-motion.js`. Si GSAP no está disponible, la interfaz sigue funcionando sin animaciones avanzadas.
+- Estilos: `styles/styles.css`, `styles/phase1.css`, `styles/phase2.css`, `styles/phase3.css`, `styles/phase4.css`, `styles/visual-polish.css`, `styles/cinematic-motion.css`.
+- Animación opcional: `scripts/cinematic-motion.js`. Si GSAP no está disponible, la interfaz sigue funcionando sin animaciones avanzadas.
 
 ## 2. Arquitectura de la página
 
@@ -396,19 +396,19 @@ La interfaz está preparada, pero la sincronización clínica real exige backend
 - `denty-app.bundle.js`: archivo generado para preview autónoma.
 - `build-static-bundle.mjs`: generador del bundle.
 - `server.py`: integraciones opcionales de backend.
-- `styles.css` + `phase*.css` + `visual-polish.css`: estilos.
-- `cinematic-motion.js/css`: mejora visual opcional.
-- `verify_*.mjs` / `verify_*.py`: regresiones.
+- `styles/`: estilos de la preview.
+- `scripts/cinematic-motion.js` + `styles/cinematic-motion.css`: mejora visual opcional.
+- `tests/verify_*.mjs` / `tests/verify_*.py`: regresiones.
 - `docs/UI-MAP.json`: mapa estructurado para automatización y futuras ediciones.
 
 ## 12. Procedimiento obligatorio para futuras actualizaciones
 
 1. Modificar **fuentes**, nunca `denty-app.bundle.js` a mano.
-2. Si cambia comportamiento, añadir/actualizar una prueba `verify_*.mjs` o `verify_*.py`.
+2. Si cambia comportamiento, añadir/actualizar una prueba `tests/verify_*.mjs` o `tests/verify_*.py`.
 3. Ejecutar la prueba y comprobar que falla por la causa esperada antes del cambio cuando sea una función nueva/bug.
 4. Implementar en `logic.js`, `voice-router.js`, `app.js`, HTML/CSS según responsabilidad.
 5. Ejecutar `node build-static-bundle.mjs`.
-6. Ejecutar `node verify_static_page.mjs` y las regresiones relevantes.
+6. Ejecutar `node tests/verify_static_page.mjs` y las regresiones relevantes.
 7. Actualizar `docs/DOCUMENTACION-DENTY.md` y `docs/UI-MAP.json` si cambian pantallas, datos, botones o dependencias.
 8. Empaquetar solo después de verificar el ZIP descomprimido.
 

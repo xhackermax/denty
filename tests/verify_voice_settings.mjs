@@ -1,4 +1,4 @@
-import { defaultDb, migrateDb } from './logic.js';
+import { defaultDb, migrateDb } from '../logic.js';
 import fs from 'node:fs';
 
 const app = fs.readFileSync('./app.js','utf8');

@@ -57,7 +57,7 @@ const checks=[
   ['single gateway implementation',!html.includes('data-denty-gateway-bootstrap')],
   ['app guards sessionStorage',/function safePortalStorage[\s\S]{0,500}try\s*\{/.test(app)],
   ['page loads generated bundle deferred',html.includes('src="./denty-app.bundle.js" defer')&&bundle.includes('window.DentyAppReady=true')],
-  ['assets are relative',html.includes('href="./styles.css"')&&html.includes('src="./denty-logo.png"')]
+  ['assets are relative',html.includes('href="./styles/styles.css"')&&html.includes('src="./assets/denty-logo.png"')]
 ];
 for(const [name,ok] of checks){assert.ok(ok,name);console.log('✓',name);}
 console.log('✓ real app gateway click simulation: Administrador → Continuar');

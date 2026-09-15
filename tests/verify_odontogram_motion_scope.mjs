@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const root = new URL('.', import.meta.url);
+const root = new URL('../', import.meta.url);
 const app = readFileSync(new URL('./app.js', root), 'utf8');
-const motion = readFileSync(new URL('./cinematic-motion.js', root), 'utf8');
-const css = readFileSync(new URL('./cinematic-motion.css', root), 'utf8');
+const motion = readFileSync(new URL('./scripts/cinematic-motion.js', root), 'utf8');
+const css = readFileSync(new URL('./styles/cinematic-motion.css', root), 'utf8');
 
 const checks = [
   ['render tracks previous view', app.includes('previousViewForMotion')],

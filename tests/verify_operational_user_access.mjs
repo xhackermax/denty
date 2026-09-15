@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { defaultDb, migrateDb } from './logic.js';
+import { defaultDb, migrateDb } from '../logic.js';
 
 const app = fs.readFileSync('./app.js', 'utf8');
 let passed = 0, total = 0;

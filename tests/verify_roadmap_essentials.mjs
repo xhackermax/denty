@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
-const root = new URL('.', import.meta.url);
+const root = new URL('../', import.meta.url);
 const app = readFileSync(new URL('./app.js', root), 'utf8');
 const logic = readFileSync(new URL('./logic.js', root), 'utf8');
 const serverExists = existsSync(new URL('./server.py', root));

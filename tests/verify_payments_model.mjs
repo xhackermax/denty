@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { defaultDb, migrateDb, isSettledPayment, paymentAmountForBudget } from './logic.js';
+import { defaultDb, migrateDb, isSettledPayment, paymentAmountForBudget } from '../logic.js';
 let passed=0,total=0;
 function check(name,fn){ total++; try{fn();passed++;console.log('PASS',name);}catch(e){console.error('FAIL',name,'-',e.message);process.exitCode=1;} }
 

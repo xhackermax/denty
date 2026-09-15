@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { defaultDb, migrateDb, saveDb, DB_KEY, PREVIOUS_KEYS } from './logic.js';
+import { defaultDb, migrateDb, saveDb, DB_KEY, PREVIOUS_KEYS } from '../logic.js';
 const app=fs.readFileSync('app.js','utf8');
 let n=0;
 function ok(name,fn){ try{fn();n++;console.log('PASS',name);}catch(e){console.error('FAIL',name,e.message);process.exitCode=1;} }
@@ -14,6 +14,6 @@ ok('consent activation affects new documents',()=>assert.match(app,/db\.consents
 ok('clinic agenda settings drive agenda grid',()=>{assert.match(app,/ag\.day_start/);assert.match(app,/db\.settings\?\.slotMinutes/);});
 ok('clinic default duration drives new appointment end time',()=>assert.match(app,/defaultDuration=Number\(db\.settings\?\.agenda\?\.default_duration/));
 ok('lab directory drives lab work form',()=>{assert.match(app,/activeLabs=\(db\.labs/);assert.match(app,/name="lab_id"/);});
-ok('role permissions gate navigation',()=>assert.match(app,/if\(area&&!canAccess\(area\)\)/));
+ok('role permissions gate navigation',()=>{ assert.match(app,/function canOpenView\(view\)/); assert.match(app,/!area \|\| canAccess\(area\)/); });
 console.log(`\n${n}/10 settings effect checks passed`);
 if(process.exitCode) process.exit(process.exitCode);

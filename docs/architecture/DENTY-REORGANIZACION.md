@@ -15,7 +15,7 @@ El producto ya cubre muchos flujos reales de clinica:
 - ajustes de clinica, doctores, sedes, tarifas, laboratorios, usuarios y permisos;
 - voz / NLU local;
 - preview de pagos con datafono virtual;
-- pruebas de regresion `verify_*`.
+- pruebas de regresion `tests/verify_*`.
 
 La preview actual es valiosa porque permite probar Denty sin backend. Esa capacidad debe conservarse durante la migracion.
 
@@ -94,7 +94,7 @@ Motivo: permite empezar localmente sin complicar instalacion y pasar a una base 
 - Vitest para dominio y utilidades.
 - Testing Library para componentes.
 - Playwright para flujos completos.
-- Mantener tests `verify_*` durante la transicion y migrarlos por area.
+- Mantener tests `tests/verify_*` durante la transicion y migrarlos por area.
 
 ### Tooling
 
@@ -275,7 +275,7 @@ Resultado: repo ordenado, sin cambio funcional visible.
 ### Fase 1 - Dominio extraido
 
 - Extraer permisos, pacientes, consentimientos y utilidades base a `packages/domain`.
-- Crear tests Vitest equivalentes a `verify_*`.
+- Crear tests Vitest equivalentes a `tests/verify_*`.
 - Mantener `logic.js` como adaptador temporal si hace falta.
 
 Resultado: reglas importantes testeables fuera de UI.
@@ -379,7 +379,7 @@ Durante la migracion:
 
 - `index.html`, `app.js`, `logic.js`, `voice-router.js` y `denty-app.bundle.js` se mantienen.
 - No se rompe `node build-static-bundle.mjs`.
-- Los scripts `verify_*` siguen siendo la red de seguridad.
+- Los scripts `tests/verify_*` siguen siendo la red de seguridad.
 - Las nuevas pruebas no sustituyen a las antiguas hasta cubrir el mismo comportamiento.
 
 ## 13. Decision recomendada
