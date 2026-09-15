@@ -17,5 +17,7 @@ assert.match(app, /data-ptab="presupuestos"/, 'debe enlazar con presupuestos');
 assert.match(app, /data-ptab="archivos"/, 'debe enlazar con archivos clinicos');
 assert.match(app, /applyPreviewRouteFromQuery/, 'debe permitir abrir el panel directamente desde una URL local');
 assert.match(app, /treatment-panel/, 'la URL local de prueba debe abrir la pestaña tratamiento');
+assert.match(app, /first_name:'Paciente',last_name:'Demo'/, 'la URL local debe tener paciente demo si el navegador no tiene datos');
+assert.match(app, /applyPreviewRouteFromQuery\(\);\s*render\(\);/, 'debe reaplicar la ruta tras entrar por la puerta de acceso');
 
 console.log('verify_patient_treatment_panel: OK');

@@ -76,8 +76,11 @@ function currentPatient(){ return patient(state.patientId) || activePatients()[0
 function applyPreviewRouteFromQuery(){
   const params=new URLSearchParams(window.location.search||'');
   if(!params.has('treatment-panel')) return;
-  const p=currentPatient();
-  if(!p) return;
+  let p=currentPatient();
+  if(!p){
+    p=createPatient(db,{first_name:'Paciente',last_name:'Demo',phone:'',email:'',ficha:'DEMO'});
+    persist();
+  }
   state.view='patientDetail';
   state.patientId=p.id;
   state.patientTab='tratamiento';
