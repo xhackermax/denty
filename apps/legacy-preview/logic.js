@@ -198,6 +198,8 @@ export function defaultDb(){
     ],
     odontograms: {},
     appointments: [],
+    agendaBlocks: [],
+    appointmentMoves: [],
     treatmentPlans: [],
     clinicalPlanItems: [],
     clinicalAlternativeGroups: [],
@@ -251,7 +253,7 @@ export function migrateDb(input){
   const base = defaultDb();
   const db = {...base, ...(input||{})};
   db.version='1.3.3';
-  for (const key of ['patients','users','cabinets','appointments','treatmentPlans','clinicalPlanItems','clinicalAlternativeGroups','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','consent_history','consents','procedures','clinicalAlerts','comments','files','tasks','templates','auditLog']) {
+  for (const key of ['patients','users','cabinets','appointments','agendaBlocks','appointmentMoves','treatmentPlans','clinicalPlanItems','clinicalAlternativeGroups','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','consent_history','consents','procedures','clinicalAlerts','comments','files','tasks','templates','auditLog']) {
     if(!Array.isArray(db[key])) db[key]=clone(base[key]||[]);
   }
   db.rolePermissions = {...base.rolePermissions, ...(db.rolePermissions||{})};
@@ -288,8 +290,10 @@ export function migrateDb(input){
     id: p.id, ficha: p.ficha || p.historia || '', first_name: p.first_name || p.firstName || p.nombre || '', last_name: p.last_name || p.lastName || p.apellidos || '', dni:p.dni||'', phone:p.phone||p.telefono||'', email:p.email||'', birth_date:p.birth_date||p.birthDate||'', archived:!!p.archived, created_at:p.created_at||p.createdAt||new Date().toISOString()
   })).filter(p=>p.id!=null);
   db.appointments = db.appointments.map(a => ({
-    id:a.id, patient_id:Number(a.patient_id||a.patientId||0), employee_id:Number(a.employee_id||a.doctorId||1), cabinet_id:Number(a.cabinet_id||1), chain_id:a.chain_id||'', date:a.date||today(), start_time:a.start_time||a.time||'10:00', end_time:a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)), duration_minutes:Number(a.duration_minutes||a.duration||durationMinutes(a.start_time||a.time||'10:00', a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)))), status:a.status||'programada', title:a.title||'Cita dental', site:a.site||'', confirmed:!!(a.confirmed||a.status==='confirmada'), availability_status:a.availability_status||a.availability724?.level||'ok', availability_message:a.availability_message||'', arrived_at:a.arrived_at||a.check_in_at||a.checked_in_at||'', chair_at:a.chair_at||'', absent_at:a.absent_at||'', completed_at:a.completed_at||'', updated_at:a.updated_at||a.updatedAt||''
+    id:a.id, patient_id:Number(a.patient_id||a.patientId||0), employee_id:Number(a.employee_id||a.doctorId||1), cabinet_id:Number(a.cabinet_id||1), site_id:a.site_id??null, chain_id:a.chain_id||'', treatment_plan_id:a.treatment_plan_id??null, clinical_item_id:a.clinical_item_id??null, sequence_index:a.sequence_index??null, sequence_total:a.sequence_total??null, rescheduled_from_id:a.rescheduled_from_id??null, date:a.date||today(), start_time:a.start_time||a.time||'10:00', end_time:a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)), duration_minutes:Number(a.duration_minutes||a.duration||durationMinutes(a.start_time||a.time||'10:00', a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)))), status:a.status||'programada', title:a.title||'Cita dental', site:a.site||'', confirmed:!!(a.confirmed||a.status==='confirmada'), availability_status:a.availability_status||a.availability724?.level||'ok', availability_message:a.availability_message||'', arrived_at:a.arrived_at||a.check_in_at||a.checked_in_at||'', chair_at:a.chair_at||'', absent_at:a.absent_at||'', completed_at:a.completed_at||'', cancelled_at:a.cancelled_at||'', cancel_reason:a.cancel_reason||'', updated_at:a.updated_at||a.updatedAt||''
   })).filter(a=>a.id!=null);
+  db.agendaBlocks = db.agendaBlocks.map((b,i)=>({id:b.id??(i+1),scope:b.scope||'employee',employee_id:b.employee_id??null,cabinet_id:b.cabinet_id??null,site_id:b.site_id??null,date:b.date||today(),start_time:b.start_time||'09:00',end_time:b.end_time||addMinutes(b.start_time||'09:00',Number(b.duration_minutes||60)),reason:b.reason||'Bloqueo',created_by:b.created_by||'',created_at:b.created_at||new Date().toISOString()}));
+  db.appointmentMoves = db.appointmentMoves.map((m,i)=>({id:m.id??(i+1),type:m.type||'move',appointment_id:m.appointment_id??null,patient_id:m.patient_id??null,before:m.before||null,after:m.after||null,actor:m.actor||'system',reason:m.reason||'',created_at:m.created_at||new Date().toISOString()}));
   db.employees = seedByName(db.employees.map((e,i)=>({
     id:e.id??(i+1), name:e.name||e.title||'Empleado', role:e.role||'odontólogo', doctor_id:e.doctor_id??e.doctorId??null, site:e.site||base.sites.find(s=>Number(s.id)===Number(e.site_id))?.name||'Sin sede', site_id:e.site_id??null, phone:e.phone||'', email:e.email||'', active:e.active!==false, color:e.color||DOCTOR_COLORS[i%DOCTOR_COLORS.length]
   })), base.employees);
@@ -310,7 +314,7 @@ export function migrateDb(input){
     site_id:p.site_id??null, completed_at:p.completed_at||(p.status&&p.status!=='paid'?'':p.created_at||''), failure_reason:p.failure_reason||''
   }));
   db.doctors = db.employees.filter(e=>String(e.role||'').includes('odont')).map(e=>({id:e.doctor_id||e.id,name:e.name,color:e.color,active:e.active,site_id:e.site_id}));
-  const maxId = Math.max(0,...['patients','appointments','treatmentPlans','clinicalPlanItems','clinicalAlternativeGroups','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','clinicalAlerts','comments','files','tasks','templates','procedures','consents','users','cabinets'].flatMap(k => (db[k]||[]).map(x=>Number(x.id)||0)));
+  const maxId = Math.max(0,...['patients','appointments','agendaBlocks','appointmentMoves','treatmentPlans','clinicalPlanItems','clinicalAlternativeGroups','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','clinicalAlerts','comments','files','tasks','templates','procedures','consents','users','cabinets'].flatMap(k => (db[k]||[]).map(x=>Number(x.id)||0)));
   db.nextId = Math.max(Number(db.nextId||1), maxId+1);
   return db;
 }
@@ -562,6 +566,59 @@ export function appointmentAvailability(db, appt){
   const cab = cabinetConflict(db,{...appt,start_time:start,end_time:end});
   if(cab) return {status:'conflict', message:`Solape en gabinete ${appt.cabinet_id||1}`};
   return {status:'ok', message:`${emp.name} disponible`};
+}
+
+export function agendaSlotKey({date,start_time,employee_id,cabinet_id}={}){
+  return `${date||''}|${start_time||''}|e:${employee_id||''}|c:${cabinet_id||''}`;
+}
+
+function agendaMoveAudit(db, type, before, after, actor='system', reason=''){
+  db.appointmentMoves = Array.isArray(db.appointmentMoves) ? db.appointmentMoves : [];
+  const entry = {
+    id:id(db),
+    type,
+    appointment_id:after?.id||before?.id||null,
+    patient_id:after?.patient_id||before?.patient_id||null,
+    before:before?{...before}:null,
+    after:after?{...after}:null,
+    actor,
+    reason,
+    created_at:new Date().toISOString()
+  };
+  db.appointmentMoves.push(entry);
+  return entry;
+}
+
+export function agendaValidateMove(db, appointment, patch={}){
+  const candidate = {...appointment, ...patch};
+  if(candidate.start_time && !candidate.end_time && candidate.duration_minutes) candidate.end_time = addMinutes(candidate.start_time, Number(candidate.duration_minutes));
+  if(candidate.start_time && candidate.end_time) candidate.duration_minutes = durationMinutes(candidate.start_time, candidate.end_time) || Number(candidate.duration_minutes||40);
+  const availability = appointmentAvailability(db, candidate);
+  return {ok:availability.status==='ok', status:availability.status, message:availability.message, appointment:candidate};
+}
+
+export function agendaMoveAppointment(db, appointmentId, patch={}, actor='system'){
+  const appt = (db.appointments||[]).find(a=>Number(a.id)===Number(appointmentId));
+  if(!appt) throw new Error('Cita no encontrada');
+  const before = {...appt};
+  const validation = agendaValidateMove(db, appt, patch);
+  if(!validation.ok) throw new Error(validation.message || 'Movimiento no disponible');
+  Object.assign(appt, validation.appointment, {updated_at:new Date().toISOString()});
+  agendaMoveAudit(db, 'move', before, {...appt}, actor);
+  return appt;
+}
+
+export function agendaResizeAppointment(db, appointmentId, duration_minutes, actor='system'){
+  const appt = (db.appointments||[]).find(a=>Number(a.id)===Number(appointmentId));
+  if(!appt) throw new Error('Cita no encontrada');
+  const duration = Math.max(10, Number(duration_minutes||appt.duration_minutes||40));
+  const patch = {duration_minutes:duration, end_time:addMinutes(appt.start_time||'10:00', duration)};
+  const before = {...appt};
+  const validation = agendaValidateMove(db, appt, patch);
+  if(!validation.ok) throw new Error(validation.message || 'Duracion no disponible');
+  Object.assign(appt, validation.appointment, {updated_at:new Date().toISOString()});
+  agendaMoveAudit(db, 'resize', before, {...appt}, actor);
+  return appt;
 }
 
 function portalShiftIsoDate(date, days){
