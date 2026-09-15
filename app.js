@@ -1479,7 +1479,6 @@ function printClinicalDocument(value){
   $('#browserPrintBtn').onclick=()=>window.print();
 }
 function downloadClinicalPdf(value){
-  if(!requirePin('exportar PDF clinico')) return;
   const [kind,id]=String(value).split(':');
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>Denty PDF</title><style>body{font-family:Arial,sans-serif;color:#172f3d;padding:28px}pre{white-space:pre-wrap;font-family:inherit}.finance-summary{display:flex;gap:12px}.finance-summary div{border:1px solid #ddd;padding:10px}</style></head><body>${printableDocumentHtml(kind,Number(id))}</body></html>`;
   const blob=new Blob([html],{type:'text/html'});
