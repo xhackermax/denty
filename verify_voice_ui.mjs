@@ -13,7 +13,7 @@ const checks=[
     const start=app.indexOf('async function runCommand('); const end=app.indexOf('function startSpeech',start); const body=app.slice(start,end);
     assert.ok(body.indexOf('parseVoiceCommand')>=0); assert.ok(body.indexOf('requestExternalVoiceInterpret')>body.indexOf('parseVoiceCommand'));
   }],
-  ['external AI responses are schema validated',()=>assert.match(app,/validateStructuredCommand\(.*external|validateStructuredCommand\(externalCommand/)],
+  ['external AI responses are schema validated',()=>{ const start=app.indexOf('async function runCommand('); const end=app.indexOf('function syncVoiceButtons',start); const body=app.slice(start,end); assert.ok(body.indexOf('requestExternalVoiceInterpret')>=0); assert.ok(body.indexOf('validateStructuredCommand(command)')>body.indexOf('requestExternalVoiceInterpret')); assert.ok(body.indexOf('executeVoiceCommand')>body.indexOf('validateStructuredCommand(command)')); }],
   ['AI fallback sends minimum context rather than the full db',()=>{
     const start=app.indexOf('async function requestExternalVoiceInterpret'); const end=app.indexOf('async function runCommand',start); const body=app.slice(start,end);
     assert.ok(body.includes('patient_id')); assert.ok(body.includes('view')); assert.ok(!body.includes('JSON.stringify(db)'));

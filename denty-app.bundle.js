@@ -1048,7 +1048,7 @@ function requirePin(action='accion sensible'){ if(pinUnlocked||!db.security?.pin
 function snapshot(action='snapshot', patientId=null){ lastSnapshot = JSON.stringify(db); recordAudit(action, patientId); }
 function undo(){ if(!lastSnapshot) return toast('Nada que deshacer todavía'); db = JSON.parse(lastSnapshot); persist(); lastSnapshot=null; render(); toast('Deshecho'); }
 function esc(s){ return String(s??'').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch])); }
-function toast(text){ const el=$('#toast'); el.textContent=text; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2300); }
+function toast(text){ const el=$('#toast'); if(!el) return; el.textContent=text; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2300); }
 function speak(text){ try{ if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(text); u.lang='es-ES'; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch{} }
 function formData(form){ return Object.fromEntries(new FormData(form).entries()); }
 function activePatients(){ return db.patients.filter(p=>!p.archived); }
@@ -1106,16 +1106,17 @@ function showAccountChooser(){
 }
 function showAccountAccess(type){
   const portal=ACCOUNT_PORTALS[type]; if(!portal) return;
+  const chooser=$('#accountChooser'), stage=$('#accountAccessStage'), icon=$('#accountAccessIcon'), title=$('#accountAccessTitle'), description=$('#accountAccessDescription'), status=$('#accountAccessStatus'), hint=$('#accountAccessHint'), btn=$('#accountContinue');
+  if(!chooser||!stage||!icon||!title||!description||!status||!hint||!btn) return;
   selectedPortal=type;
   safePortalStorage('set',type);
-  $('#accountChooser').hidden=true;
-  $('#accountAccessStage').hidden=false;
-  $('#accountAccessIcon').textContent=portal.icon;
-  $('#accountAccessTitle').textContent=portal.title;
-  $('#accountAccessDescription').textContent=portal.description;
-  $('#accountAccessStatus').textContent=portal.status;
-  $('#accountAccessHint').textContent=portal.hint;
-  const btn=$('#accountContinue');
+  chooser.hidden=true;
+  stage.hidden=false;
+  icon.textContent=portal.icon;
+  title.textContent=portal.title;
+  description.textContent=portal.description;
+  status.textContent=portal.status;
+  hint.textContent=portal.hint;
   btn.disabled=selectedPortal==='patient';
   btn.textContent=selectedPortal==='patient'?'Portal próximamente':'Continuar a Denty';
 }
@@ -1127,22 +1128,23 @@ function enterSelectedPortal(){
   if(shell){ shell.classList.remove('account-gated'); shell.setAttribute('aria-hidden','false'); }
   window.scrollTo({top:0,behavior:'auto'});
 }
+function bindClick(selector, handler){ const el=$(selector); if(el) el.onclick=handler; return el; }
 function bindAccountGateway(){
   $$('[data-account-type]').forEach(btn=>btn.onclick=()=>showAccountAccess(btn.dataset.accountType));
-  if($('#accountBack')) $('#accountBack').onclick=showAccountChooser;
-  if($('#accountContinue')) $('#accountContinue').onclick=enterSelectedPortal;
+  bindClick('#accountBack',showAccountChooser);
+  bindClick('#accountContinue',enterSelectedPortal);
   showAccountChooser();
 }
 
 function bindTop(){
-  $('#drawerOpen').onclick=openDrawer; $('#drawerClose').onclick=closeDrawer; $('#scrim').onclick=closeDrawer;
-  $('#quickAddBtn').onclick=()=>{ if(state.view==='agenda') openAppointmentModal(); else openPatientModal(); };
-  $('#searchToggle').onclick=()=>setView('patients'); $('#undoBtn').onclick=undo;
-  if($('#globalVoiceBtn')) $('#globalVoiceBtn').onclick=startSpeech;
+  bindClick('#drawerOpen',openDrawer); bindClick('#drawerClose',closeDrawer); bindClick('#scrim',closeDrawer);
+  bindClick('#quickAddBtn',()=>{ if(state.view==='agenda') openAppointmentModal(); else openPatientModal(); });
+  bindClick('#searchToggle',()=>setView('patients')); bindClick('#undoBtn',undo);
+  bindClick('#globalVoiceBtn',startSpeech);
   $$('[data-go]').forEach(el=>el.onclick=()=>setView(el.dataset.go, {settingsPanel:el.dataset.panel||state.settingsPanel}));
 }
-function openDrawer(){ $('#drawer').classList.add('open'); $('#drawer').setAttribute('aria-hidden','false'); $('#scrim').classList.add('show'); }
-function closeDrawer(){ $('#drawer').classList.remove('open'); $('#drawer').setAttribute('aria-hidden','true'); $('#scrim').classList.remove('show'); }
+function openDrawer(){ const drawer=$('#drawer'), scrim=$('#scrim'); if(drawer){ drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); } if(scrim) scrim.classList.add('show'); }
+function closeDrawer(){ const drawer=$('#drawer'), scrim=$('#scrim'); if(drawer){ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); } if(scrim) scrim.classList.remove('show'); }
 
 function renderToday(){
   const c=agendaCounters(db,today());
@@ -1857,7 +1859,38 @@ function openAppointmentModal(pref={}){
 }
 function legacyOpenConsentModal(){ const p=patient(state.patientId); if(!p)return; const modal=$('#consentModal'); modal.innerHTML=`<form id="consentForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Nuevo consentimiento</h2><button class="icon-btn" value="cancel">×</button></div><label class="field">Plantilla<select name="consent_id">${db.consents.filter(c=>c.active!==false).map(c=>`<option value="${c.id}">${esc(c.title)} · v${esc(c.version||1)}</option>`).join('')}</select></label><div class="consent-help">Consentimientos definidos con diagnóstico, beneficios, riesgos, alternativas, cuidados y firma.</div><label class="field">Título<input name="title" value="Consentimiento informado"></label><button class="primary">Crear documento</button></form>`; modal.showModal(); $('#consentForm').onsubmit=e=>{ e.preventDefault(); const d=formData(e.target); snapshot(); const doc=createConsentDocument(db,{patient_id:p.id,consent_id:Number(d.consent_id),title:d.title}); persist(); modal.close(); state.patientTab='documentos'; render(); toast('Documento creado'); openSignatureModal(doc.id); }; }
 function viewDoc(docId){ const d=db.documents.find(x=>Number(x.id)===Number(docId)); if(!d)return; const modal=$('#consentModal'); modal.innerHTML=`<form method="dialog" class="modal-card"><div class="modal-title"><h2>${esc(d.title)}</h2><button class="icon-btn">×</button></div><p>${esc(d.text)}</p><div class="${d.status==='firmado'?'ok-banner':'warn-banner'}">Estado: ${esc(d.status)} ${d.hash?'· hash '+esc(d.hash):''}</div>${d.signature_data?`<img class="doc-signature" src="${esc(d.signature_data)}" alt="Firma">`:''}</form>`; modal.showModal(); }
-function openSignatureModal(docId){ const doc=db.documents.find(d=>Number(d.id)===Number(docId)); if(!doc)return; const modal=$('#signatureModal'); modal.innerHTML=`<form id="signatureForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Firmar documento</h2><button class="icon-btn" value="cancel">×</button></div><p>${esc(doc.title)}</p><div class="consent-scroll">${esc(doc.text)}</div><canvas id="signatureCanvas" class="signature-pad" width="620" height="240"></canvas><label class="field">Nombre firmante<input name="signer_name" value="${esc(patientFullName(patient(doc.patient_id)))}"></label><label class="accept-line"><input name="accepted" type="checkbox" required> He leído y acepto este consentimiento informado</label><div class="toolbar"><button type="button" class="ghost" id="clearSignature">Limpiar</button><button class="primary">Guardar firma</button></div></form>`; modal.showModal(); const canvas=$('#signatureCanvas'), ctx=canvas.getContext('2d'); ctx.lineWidth=4; ctx.lineCap='round'; ctx.strokeStyle='#153b4b'; let drawing=false; const pos=e=>{ const r=canvas.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return {x:(p.clientX-r.left)*(canvas.width/r.width), y:(p.clientY-r.top)*(canvas.height/r.height)}; }; const start=e=>{drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault();}; const move=e=>{ if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault();}; const end=()=>{drawing=false;}; canvas.addEventListener('pointerdown',start); canvas.addEventListener('pointermove',move); canvas.addEventListener('pointerup',end); canvas.addEventListener('pointerleave',end); $('#clearSignature').onclick=()=>ctx.clearRect(0,0,canvas.width,canvas.height); $('#signatureForm').onsubmit=e=>{ e.preventDefault(); snapshot(); const fd=formData(e.target); signDocument(db,docId,{signature_data:canvas.toDataURL('image/png'),signer_name:fd.signer_name,accepted:!!fd.accepted,device_info:navigator.userAgent||'navegador'}); persist(); modal.close(); state.patientTab='documentos'; render(); toast('Documento firmado'); }; }
+function prepareSignatureCanvas(canvas){
+  if(!canvas || typeof canvas.getContext!=='function') return null;
+  const ctx=canvas.getContext('2d'); if(!ctx) return null;
+  const rect=canvas.getBoundingClientRect();
+  const dpr=Math.max(1,Math.min(3,Number(window.devicePixelRatio)||1));
+  const cssWidth=Math.max(1,Math.round(rect.width||620));
+  const cssHeight=Math.max(1,Math.round(rect.height||240));
+  canvas.width=Math.round(cssWidth*dpr);
+  canvas.height=Math.round(cssHeight*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.lineWidth=4; ctx.lineCap='round'; ctx.strokeStyle='#153b4b';
+  return {ctx, point:(event)=>{ const r=canvas.getBoundingClientRect(); const p=event.touches?event.touches[0]:event; return {x:p.clientX-r.left,y:p.clientY-r.top}; }};
+}
+function clearSignatureCanvas(canvas,ctx){
+  if(!canvas||!ctx) return;
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.restore();
+}
+function openSignatureModal(docId){
+  const doc=db.documents.find(d=>Number(d.id)===Number(docId)); if(!doc)return;
+  const modal=$('#signatureModal'); if(!modal) return;
+  modal.innerHTML=`<form id="signatureForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Firmar documento</h2><button class="icon-btn" value="cancel" aria-label="Cerrar firma">×</button></div><p>${esc(doc.title)}</p><div class="consent-scroll">${esc(doc.text)}</div><canvas id="signatureCanvas" class="signature-pad" aria-label="Área de firma"></canvas><label class="field">Nombre firmante<input name="signer_name" value="${esc(patientFullName(patient(doc.patient_id)))}"></label><label class="accept-line"><input name="accepted" type="checkbox" required> He leído y acepto este consentimiento informado</label><div class="toolbar"><button type="button" class="ghost" id="clearSignature">Limpiar</button><button class="primary">Guardar firma</button></div></form>`;
+  modal.showModal();
+  const canvas=$('#signatureCanvas'), prepared=prepareSignatureCanvas(canvas); if(!prepared){ modal.close(); toast('No se pudo inicializar la firma'); return; }
+  const {ctx,point}=prepared; let drawing=false;
+  const startDraw=e=>{drawing=true; const p=point(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault();};
+  const move=e=>{ if(!drawing)return; const p=point(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault();};
+  const endDraw=()=>{drawing=false;};
+  canvas.addEventListener('pointerdown',startDraw); canvas.addEventListener('pointermove',move); canvas.addEventListener('pointerup',endDraw); canvas.addEventListener('pointerleave',endDraw);
+  bindClick('#clearSignature',()=>clearSignatureCanvas(canvas,ctx));
+  const form=$('#signatureForm'); if(!form) return;
+  form.onsubmit=e=>{ e.preventDefault(); snapshot(); const fd=formData(e.target); signDocument(db,docId,{signature_data:canvas.toDataURL('image/png'),signer_name:fd.signer_name,accepted:!!fd.accepted,device_info:navigator.userAgent||'navegador'}); persist(); modal.close(); state.patientTab='documentos'; render(); toast('Documento firmado'); };
+}
 async function requestExternalVoiceInterpret(text, source='typed'){
   const voice=db.settings?.voice||{};
   const mode=voice.ai_mode||'auto';

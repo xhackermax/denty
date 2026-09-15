@@ -117,42 +117,10 @@
     <dialog class="modal" id="appointmentModal"></dialog>
     <dialog class="modal" id="quickTaskModal"></dialog>
     <dialog class="modal" id="consentModal"></dialog>
-    <dialog class="modal" id="signatureModal"><canvas id="signatureCanvas" width="620" height="240"></canvas></dialog>
+    <dialog class="modal" id="signatureModal"></dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
-
-  <script data-denty-gateway-bootstrap>
-    (()=>{
-      const portals={
-        admin:{title:'Cuenta Administrador',icon:'⌘',description:'Acceso a la gestión completa de Denty y de la clínica.',status:'Acceso de administrador preparado',hint:'En la siguiente fase pedirá el usuario y la contraseña del administrador.'},
-        user:{title:'Cuenta Usuario',icon:'●',description:'Acceso para odontólogos, higienistas, auxiliares, recepción y demás personal.',status:'Acceso de usuario preparado',hint:'El fichaje quedará ligado a la identidad que inicie sesión.'},
-        patient:{title:'Cuenta Paciente',icon:'♡',description:'Acceso independiente para pacientes, separado de la aplicación clínica.',status:'Portal del paciente en preparación',hint:'Por seguridad, esta cuenta todavía no entra en la aplicación clínica.'}
-      };
-      let selected=null;
-      const byId=id=>document.getElementById(id);
-      const remember=(value)=>{ try{ if(value) sessionStorage.setItem('denty.selectedPortal',value); else sessionStorage.removeItem('denty.selectedPortal'); }catch{} };
-      const choose=(type)=>{
-        const p=portals[type]; if(!p) return; selected=type; remember(type);
-        byId('accountChooser').hidden=true; byId('accountAccessStage').hidden=false;
-        byId('accountAccessIcon').textContent=p.icon; byId('accountAccessTitle').textContent=p.title;
-        byId('accountAccessDescription').textContent=p.description; byId('accountAccessStatus').textContent=p.status; byId('accountAccessHint').textContent=p.hint;
-        const cont=byId('accountContinue'); cont.disabled=type==='patient'; cont.textContent=type==='patient'?'Portal próximamente':'Continuar a Denty';
-      };
-      const reset=()=>{ selected=null; remember(null); byId('accountChooser').hidden=false; byId('accountAccessStage').hidden=true; };
-      document.querySelectorAll('[data-account-type]').forEach(btn=>btn.addEventListener('click',()=>choose(btn.dataset.accountType)));
-      byId('accountBack')?.addEventListener('click',reset);
-      byId('accountContinue')?.addEventListener('click',()=>{
-        if(!selected||selected==='patient') return;
-        if(!window.DentyAppReady){
-          byId('accountAccessStatus').textContent='Denty no terminó de cargar';
-          byId('accountAccessHint').textContent='Recarga esta página. La preview está diseñada para funcionar directamente desde el navegador.';
-          return;
-        }
-        byId('accountGateway').hidden=true; const shell=byId('appShell'); shell?.classList.remove('account-gated'); shell?.setAttribute('aria-hidden','false');
-      });
-    })();
-  </script>
-  <script src="./denty-app.bundle.js"></script>
+  <script src="./denty-app.bundle.js" defer></script>
   <script src="./cinematic-motion.js" defer></script>
 </body>
 </html>
