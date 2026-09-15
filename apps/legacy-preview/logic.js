@@ -179,13 +179,15 @@ export function defaultDb(){
     patients: [],
     users: [
       {id:11,name:'Administrador clinico',role:'admin',active:true,pin_required:true},
-      {id:12,name:'Odontologo',role:'dentist',active:true,pin_required:false},
-      {id:13,name:'Recepcion',role:'reception',active:true,pin_required:false}
+      {id:12,name:'Dr. Máximo',role:'dentist',employee_id:1,active:true,pin_required:false},
+      {id:13,name:'Recepción / Secretaría',role:'reception',active:true,pin_required:false}
     ],
     rolePermissions: {
       admin:['pacientes','agenda','clinica','finanzas','ajustes','copias'],
       dentist:['pacientes','agenda','clinica','finanzas','documentos'],
-      reception:['pacientes','agenda','finanzas']
+      reception:['pacientes','agenda','finanzas'],
+      secretary:['pacientes','agenda','finanzas'],
+      secretaria:['pacientes','agenda','finanzas']
     },
     currentUser:{id:11,role:'admin',name:'Administrador clinico'},
     security:{admin_pin_hash:'1234-preview', pin_enabled:true},
@@ -197,6 +199,8 @@ export function defaultDb(){
     odontograms: {},
     appointments: [],
     treatmentPlans: [],
+    clinicalPlanItems: [],
+    clinicalAlternativeGroups: [],
     employees,
     doctors: employees.filter(e=>String(e.role||'').includes('odont')).map(e=>({id:e.doctor_id||e.id,name:e.name,color:e.color,active:e.active,site_id:e.site_id})),
     sites,
@@ -214,6 +218,7 @@ export function defaultDb(){
     comments: [],
     files: [],
     tasks: [],
+    patientPortal: {},
     auditLog: [],
     templates: [
       {id:101,title:'Primera visita',category:'Diagnóstico',text:'Motivo de consulta:\nExploración clínica:\nPruebas complementarias:\nDiagnóstico:\nPlan recomendado:'},
@@ -246,16 +251,20 @@ export function migrateDb(input){
   const base = defaultDb();
   const db = {...base, ...(input||{})};
   db.version='1.3.3';
-  for (const key of ['patients','users','cabinets','appointments','treatmentPlans','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','consent_history','consents','procedures','clinicalAlerts','comments','files','tasks','templates','auditLog']) {
+  for (const key of ['patients','users','cabinets','appointments','treatmentPlans','clinicalPlanItems','clinicalAlternativeGroups','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','consent_history','consents','procedures','clinicalAlerts','comments','files','tasks','templates','auditLog']) {
     if(!Array.isArray(db[key])) db[key]=clone(base[key]||[]);
   }
   db.rolePermissions = {...base.rolePermissions, ...(db.rolePermissions||{})};
-  for (const role of ['dentist','reception']) {
+  for (const role of ['dentist','reception','secretary','secretaria']) {
     const permissions = new Set([...(base.rolePermissions[role]||[]), ...(db.rolePermissions[role]||[])]);
     permissions.delete('ajustes');
     permissions.delete('copias');
     db.rolePermissions[role] = [...permissions];
   }
+  db.users = db.users.map(u=>{
+    const baseUser=(base.users||[]).find(x=>Number(x.id)===Number(u.id));
+    return {...baseUser,...u,employee_id:u.employee_id??u.employeeId??baseUser?.employee_id??null};
+  });
   db.security = {...base.security, ...(db.security||{})};
   db.currentUser = {...base.currentUser, ...(db.currentUser||{})};
   const incomingSettings=db.settings||{};
@@ -274,11 +283,12 @@ export function migrateDb(input){
   };
   db.settings.clinic=db.settings.clinicProfile.name;
   db.odontograms = db.odontograms || {};
+  db.patientPortal = (db.patientPortal && typeof db.patientPortal==='object' && !Array.isArray(db.patientPortal)) ? db.patientPortal : {};
   db.patients = db.patients.map(p => ({
     id: p.id, ficha: p.ficha || p.historia || '', first_name: p.first_name || p.firstName || p.nombre || '', last_name: p.last_name || p.lastName || p.apellidos || '', dni:p.dni||'', phone:p.phone||p.telefono||'', email:p.email||'', birth_date:p.birth_date||p.birthDate||'', archived:!!p.archived, created_at:p.created_at||p.createdAt||new Date().toISOString()
   })).filter(p=>p.id!=null);
   db.appointments = db.appointments.map(a => ({
-    id:a.id, patient_id:Number(a.patient_id||a.patientId||0), employee_id:Number(a.employee_id||a.doctorId||1), cabinet_id:Number(a.cabinet_id||1), chain_id:a.chain_id||'', date:a.date||today(), start_time:a.start_time||a.time||'10:00', end_time:a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)), duration_minutes:Number(a.duration_minutes||a.duration||durationMinutes(a.start_time||a.time||'10:00', a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)))), status:a.status||'programada', title:a.title||'Cita dental', site:a.site||'', confirmed:!!(a.confirmed||a.status==='confirmada'), availability_status:a.availability_status||a.availability724?.level||'ok', availability_message:a.availability_message||''
+    id:a.id, patient_id:Number(a.patient_id||a.patientId||0), employee_id:Number(a.employee_id||a.doctorId||1), cabinet_id:Number(a.cabinet_id||1), chain_id:a.chain_id||'', date:a.date||today(), start_time:a.start_time||a.time||'10:00', end_time:a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)), duration_minutes:Number(a.duration_minutes||a.duration||durationMinutes(a.start_time||a.time||'10:00', a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)))), status:a.status||'programada', title:a.title||'Cita dental', site:a.site||'', confirmed:!!(a.confirmed||a.status==='confirmada'), availability_status:a.availability_status||a.availability724?.level||'ok', availability_message:a.availability_message||'', arrived_at:a.arrived_at||a.check_in_at||a.checked_in_at||'', chair_at:a.chair_at||'', absent_at:a.absent_at||'', completed_at:a.completed_at||'', updated_at:a.updated_at||a.updatedAt||''
   })).filter(a=>a.id!=null);
   db.employees = seedByName(db.employees.map((e,i)=>({
     id:e.id??(i+1), name:e.name||e.title||'Empleado', role:e.role||'odontólogo', doctor_id:e.doctor_id??e.doctorId??null, site:e.site||base.sites.find(s=>Number(s.id)===Number(e.site_id))?.name||'Sin sede', site_id:e.site_id??null, phone:e.phone||'', email:e.email||'', active:e.active!==false, color:e.color||DOCTOR_COLORS[i%DOCTOR_COLORS.length]
@@ -300,7 +310,7 @@ export function migrateDb(input){
     site_id:p.site_id??null, completed_at:p.completed_at||(p.status&&p.status!=='paid'?'':p.created_at||''), failure_reason:p.failure_reason||''
   }));
   db.doctors = db.employees.filter(e=>String(e.role||'').includes('odont')).map(e=>({id:e.doctor_id||e.id,name:e.name,color:e.color,active:e.active,site_id:e.site_id}));
-  const maxId = Math.max(0,...['patients','appointments','treatmentPlans','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','clinicalAlerts','comments','files','tasks','templates','procedures','consents','users','cabinets'].flatMap(k => (db[k]||[]).map(x=>Number(x.id)||0)));
+  const maxId = Math.max(0,...['patients','appointments','treatmentPlans','clinicalPlanItems','clinicalAlternativeGroups','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','clinicalAlerts','comments','files','tasks','templates','procedures','consents','users','cabinets'].flatMap(k => (db[k]||[]).map(x=>Number(x.id)||0)));
   db.nextId = Math.max(Number(db.nextId||1), maxId+1);
   return db;
 }
@@ -361,7 +371,7 @@ export function restorePatient(db, patientId){ const p=db.patients.find(x=>Numbe
 function defaultPerioFlags(){ return {mv:false,v:false,dv:false,ml:false,lp:false,dl:false}; }
 function defaultPerioBlock(){ return {depths:{mv:'',v:'',dv:'',ml:'',lp:'',dl:''}, recession:{mv:'',v:'',dv:'',ml:'',lp:'',dl:''}, bleeding:defaultPerioFlags(), suppuration:defaultPerioFlags(), plaque:defaultPerioFlags(), furcation:'0', mobility:'0'}; }
 function defaultPositionBlock(){ return {mesialization:false, distalization:false, extrusion:false, intrusion:false, rotation:false, vestibuloversion:false, linguoversion:false, recessionVisible:false, mobility:'0'}; }
-function defaultToothRecord(){ return {status:'healthy', surfaces:{}, periodontal:defaultPerioBlock(), position:defaultPositionBlock()}; }
+function defaultToothRecord(){ return {status:'healthy', whole_states:[], surfaces:{}, periodontal:defaultPerioBlock(), position:defaultPositionBlock()}; }
 export function ensureOdontogram(db, patientId){
   const key = String(patientId||'demo');
   if(!db.odontograms) db.odontograms={};
@@ -370,6 +380,11 @@ export function ensureOdontogram(db, patientId){
     if(typeof db.odontograms[key][t] === 'string') db.odontograms[key][t] = {status:db.odontograms[key][t], surfaces:{}};
     if(!db.odontograms[key][t]) db.odontograms[key][t] = defaultToothRecord();
     if(!db.odontograms[key][t].surfaces) db.odontograms[key][t].surfaces = {};
+    if(!Array.isArray(db.odontograms[key][t].whole_states)){
+      const legacyStatus=String(db.odontograms[key][t].status||'healthy');
+      db.odontograms[key][t].whole_states = (legacyStatus && legacyStatus!=='healthy') ? [legacyStatus] : [];
+    }
+    db.odontograms[key][t].whole_states = [...new Set(db.odontograms[key][t].whole_states.map(String).filter(Boolean))];
     if(!db.odontograms[key][t].periodontal) db.odontograms[key][t].periodontal = defaultPerioBlock();
     if(!db.odontograms[key][t].periodontal.depths) db.odontograms[key][t].periodontal.depths = {mv:'',v:'',dv:'',ml:'',lp:'',dl:''};
     if(!db.odontograms[key][t].periodontal.recession) db.odontograms[key][t].periodontal.recession = {mv:'',v:'',dv:'',ml:'',lp:'',dl:''};
@@ -414,6 +429,37 @@ export function statusTone(code){
   if(String(code).endsWith('_bad') || code==='implant_review') return 'blue-red';
   return 'blue';
 }
+
+export function wholeToothStateFamily(code){
+  const s=String(code||'');
+  if(s.startsWith('crown')) return 'crown';
+  if(s.startsWith('endo')) return 'endo';
+  if(s.startsWith('post')) return 'post';
+  if(s.startsWith('implant')) return 'implant';
+  if(s.startsWith('prosthesis')) return 'prosthesis';
+  if(s.startsWith('removable')) return 'removable';
+  return s;
+}
+export function toothWholeStates(record){
+  const states=Array.isArray(record?.whole_states)?record.whole_states.map(String).filter(Boolean):[];
+  const legacy=String(record?.status||'healthy');
+  if(legacy!=='healthy' && !states.includes(legacy)) states.push(legacy);
+  return [...new Set(states)];
+}
+function syncPrimaryToothStatus(record, preferred=''){
+  const states=[...new Set((Array.isArray(record?.whole_states)?record.whole_states:[]).map(String).filter(code=>code&&code!=='healthy'))];
+  record.whole_states=states;
+  if(preferred && states.includes(preferred)) record.status=preferred;
+  else record.status=states.at(-1)||'healthy';
+  return record;
+}
+export function removeToothWholeState(db, patientId, tooth, code){
+  const t=String(tooth), od=ensureOdontogram(db,patientId);
+  if(!FDI_ALL.includes(t)) throw new Error('Diente FDI no válido');
+  const family=wholeToothStateFamily(code);
+  od[t].whole_states=toothWholeStates(od[t]).filter(existing=>wholeToothStateFamily(existing)!==family);
+  return syncPrimaryToothStatus(od[t]);
+}
 export function setToothLegendState(db, patientId, tooth, code, surface=''){
   const t=String(tooth);
   const od=ensureOdontogram(db, patientId);
@@ -422,12 +468,30 @@ export function setToothLegendState(db, patientId, tooth, code, surface=''){
     const s=normalizeSurfaceForTooth(t, surface || (code==='caries' || code.startsWith('filling') ? occlusalSurfaceForTooth(t) : ''));
     if(!s) throw new Error('Superficie no válida');
     od[t].surfaces[s]=code;
-    if(od[t].status==='missing') od[t].status='healthy';
+    if(toothWholeStates(od[t]).includes('missing')){
+      od[t].whole_states=toothWholeStates(od[t]).filter(x=>x!=='missing');
+      syncPrimaryToothStatus(od[t]);
+    }
     return od[t];
   }
   if(WHOLE_TOOTH_CODES.has(code)){
+    if(code==='healthy'){
+      od[t].whole_states=[];
+      od[t].surfaces={};
+      od[t].status='healthy';
+      return od[t];
+    }
+    if(code==='missing'){
+      od[t].whole_states=['missing'];
+      od[t].surfaces={};
+      od[t].status='missing';
+      return od[t];
+    }
+    const family=wholeToothStateFamily(code);
+    const states=toothWholeStates(od[t]).filter(existing=>existing!=='healthy'&&existing!=='missing'&&wholeToothStateFamily(existing)!==family);
+    states.push(code);
+    od[t].whole_states=[...new Set(states)];
     od[t].status=code;
-    if(code==='missing') od[t].surfaces={};
     return od[t];
   }
   throw new Error('Estado odontológico no válido');
@@ -440,9 +504,9 @@ export function clearToothSurface(db, patientId, tooth, surface){
 }
 
 export function toothStatusNext(current){ return STATUS_ORDER[(STATUS_ORDER.indexOf(current)+1) % STATUS_ORDER.length] || 'healthy'; }
-export function setToothPrimaryState(db, patientId, tooth, status){ if(!FDI_ALL.includes(String(tooth))) throw new Error('Diente FDI no válido'); const od=ensureOdontogram(db,patientId); od[String(tooth)].status=status; return od[String(tooth)]; }
+export function setToothPrimaryState(db, patientId, tooth, status){ return setToothLegendState(db,patientId,tooth,status); }
 export function setToothSurfaceState(db, patientId, tooth, surface, status){ if(!FDI_ALL.includes(String(tooth))) throw new Error('Diente FDI no válido'); const s=normalizeSurfaceForTooth(tooth, surface); if(!s) throw new Error('Superficie no válida'); const od=ensureOdontogram(db, patientId); od[String(tooth)].surfaces[s]=status; return od[String(tooth)]; }
-export function markArcadeMissing(db, patientId, arcade){ const arr=arcade==='superior'?FDI_UPPER:FDI_LOWER; const od=ensureOdontogram(db, patientId); arr.forEach(t=>{ od[t].status='missing'; od[t].surfaces={}; }); return arr; }
+export function markArcadeMissing(db, patientId, arcade){ const arr=arcade==='superior'?FDI_UPPER:FDI_LOWER; arr.forEach(t=>setToothLegendState(db,patientId,t,'missing')); return arr; }
 
 export function splitName(full){
   const parts = titleCase(full).split(/\s+/).filter(Boolean);
@@ -500,9 +564,341 @@ export function appointmentAvailability(db, appt){
   return {status:'ok', message:`${emp.name} disponible`};
 }
 
+function portalShiftIsoDate(date, days){
+  if(!date) return '';
+  const d=new Date(String(date)+'T12:00:00');
+  if(Number.isNaN(d.getTime())) return '';
+  d.setDate(d.getDate()+Number(days||0));
+  return d.toISOString().slice(0,10);
+}
+function portalDaysBetween(fromDate, toDate){
+  if(!fromDate||!toDate) return 0;
+  const a=new Date(String(fromDate)+'T12:00:00'), b=new Date(String(toDate)+'T12:00:00');
+  if(Number.isNaN(a.getTime())||Number.isNaN(b.getTime())) return 0;
+  return Math.round((b-a)/86400000);
+}
+export function ensurePatientPortalState(db, patientId){
+  if(!db.patientPortal || typeof db.patientPortal!=='object' || Array.isArray(db.patientPortal)) db.patientPortal={};
+  const key=String(Number(patientId)||patientId||'0');
+  const current=(db.patientPortal[key] && typeof db.patientPortal[key]==='object')?db.patientPortal[key]:{};
+  const next={
+    payment_months:Math.max(1,Number(current.payment_months||6)),
+    appointment_changes:Array.isArray(current.appointment_changes)?current.appointment_changes:[],
+    waiting_list:Array.isArray(current.waiting_list)?current.waiting_list:[],
+    checkins:Array.isArray(current.checkins)?current.checkins:[],
+    preparation:(current.preparation && typeof current.preparation==='object' && !Array.isArray(current.preparation))?current.preparation:{},
+    support_requests:Array.isArray(current.support_requests)?current.support_requests:[],
+    education_links:Array.isArray(current.education_links)?current.education_links:[],
+    smilecloud_url:String(current.smilecloud_url||''),
+    archform_url:String(current.archform_url||'')
+  };
+  db.patientPortal[key]=next;
+  return next;
+}
+const PATIENT_PORTAL_FINDING_COPY = Object.freeze({
+  caries:{title:'Caries detectada',message:'Hay una zona del diente que necesita valoración o tratamiento restaurador.',tone:'danger'},
+  extraction:{title:'Extracción indicada',message:'La clínica ha marcado este diente para valorar o realizar una extracción.',tone:'danger'},
+  endo_indicated:{title:'Endodoncia indicada',message:'La clínica ha indicado valorar o realizar tratamiento de conductos.',tone:'danger'},
+  filling_pending:{title:'Empaste pendiente',message:'Hay una restauración planificada que todavía no figura como completada.',tone:'warn'},
+  crown_pending:{title:'Corona pendiente',message:'Hay una corona planificada que todavía no figura como completada.',tone:'warn'},
+  post_pending:{title:'Perno pendiente',message:'Hay una reconstrucción con perno pendiente dentro del plan.',tone:'warn'},
+  implant_indicated:{title:'Implante indicado',message:'El plan clínico contempla valorar o colocar un implante en esta zona.',tone:'warn'},
+  prosthesis_pending:{title:'Prótesis fija pendiente',message:'Hay una fase protésica fija pendiente en esta zona.',tone:'warn'},
+  removable_pending:{title:'Prótesis removible pendiente',message:'Hay una fase de prótesis removible pendiente.',tone:'warn'},
+  filling_bad:{title:'Empaste a revisar',message:'Una restauración existente ha sido marcada por la clínica para revisión.',tone:'warn'},
+  crown_bad:{title:'Corona a revisar',message:'Una corona existente ha sido marcada por la clínica para revisión.',tone:'warn'},
+  endo_bad:{title:'Endodoncia a revisar',message:'Una endodoncia existente ha sido marcada por la clínica para revisión.',tone:'warn'},
+  post_bad:{title:'Perno a revisar',message:'Una reconstrucción con perno ha sido marcada para revisión.',tone:'warn'},
+  implant_review:{title:'Implante a revisar',message:'El implante ha sido marcado por la clínica para una revisión específica.',tone:'warn'},
+  prosthesis_bad:{title:'Prótesis fija a revisar',message:'La prótesis fija ha sido marcada para revisión.',tone:'warn'},
+  removable_bad:{title:'Prótesis removible a revisar',message:'La prótesis removible ha sido marcada para revisión.',tone:'warn'},
+  missing:{title:'Diente ausente',message:'Esta pieza figura como ausente en tu odontograma.',tone:'info'}
+});
+export function patientPortalDentalFindings(db, patientId){
+  const od=ensureOdontogram(db,patientId);
+  const findings=[];
+  const actionable=code=>!!PATIENT_PORTAL_FINDING_COPY[code];
+  for(const tooth of FDI_ALL){
+    const record=od[tooth]||{};
+    const surfacesByCode=new Map();
+    for(const [surface,code] of Object.entries(record.surfaces||{})){
+      if(!actionable(code)) continue;
+      if(!surfacesByCode.has(code)) surfacesByCode.set(code,[]);
+      surfacesByCode.get(code).push(surface);
+    }
+    for(const [code,surfaces] of surfacesByCode){
+      const copy=PATIENT_PORTAL_FINDING_COPY[code];
+      findings.push({tooth,code,surfaces:[...surfaces],title:copy.title,message:copy.message,tone:copy.tone,scope:'surface'});
+    }
+    for(const code of toothWholeStates(record)){
+      if(!actionable(code)) continue;
+      const copy=PATIENT_PORTAL_FINDING_COPY[code];
+      findings.push({tooth,code,surfaces:[],title:copy.title,message:copy.message,tone:copy.tone,scope:'tooth'});
+    }
+  }
+  const rank={danger:0,warn:1,info:2};
+  return findings.sort((a,b)=>(rank[a.tone]??9)-(rank[b.tone]??9)||Number(a.tooth)-Number(b.tooth)||a.code.localeCompare(b.code));
+}
+
+export function patientPortalDelayDays(changes=[]){
+  return (Array.isArray(changes)?changes:[]).reduce((sum,change)=>sum+Math.max(0,Number(change?.impact_days||0)),0);
+}
+export function patientPortalProjectedDate(baseDate, changes=[]){
+  if(!baseDate) return '';
+  return portalShiftIsoDate(baseDate,patientPortalDelayDays(changes));
+}
+export function patientPortalPaymentPlan(amount, months=6){
+  const total=Math.max(0,Number(amount||0));
+  const count=Math.max(1,Math.floor(Number(months||1)));
+  const monthly=Number((total/count).toFixed(2));
+  const lastPayment=Number(Math.max(0,total-(monthly*(count-1))).toFixed(2));
+  return {total,months:count,monthly,last_payment:lastPayment};
+}
+export function patientPortalHealth({hasNextAppointment=false,unsignedCount=0,delayDays=0,clinicalAlertsCount=0}={}){
+  if(Number(clinicalAlertsCount)>0 || !hasNextAppointment || Number(delayDays)>=14){
+    return {tone:'danger',label:'Plan en riesgo',message:!hasNextAppointment?'Tu plan necesita una próxima cita para seguir avanzando.':'Hay un punto que necesita revisión de la clínica antes de seguir según lo previsto.'};
+  }
+  if(Number(unsignedCount)>0 || Number(delayDays)>0){
+    return {tone:'warn',label:'Necesita atención',message:Number(delayDays)>0?'Has acumulado retraso respecto a la planificación inicial.':'Tienes una decisión o documento pendiente antes de la siguiente fase.'};
+  }
+  return {tone:'ok',label:'En plazo',message:'Tu tratamiento avanza según la planificación disponible.'};
+}
+export function patientPortalRescheduleCandidates(db, appointment, {days=21,max=6,step=20}={}){
+  if(!appointment?.date || !appointment?.employee_id) return [];
+  const duration=Math.max(10,Number(appointment.duration_minutes||durationMinutes(appointment.start_time,appointment.end_time)||40));
+  const options=[];
+  for(let offset=1; offset<=Math.max(1,Number(days||21)) && options.length<Math.max(1,Number(max||6)); offset++){
+    const date=portalShiftIsoDate(appointment.date,offset);
+    const shifts=employeeShiftsForDate(db,appointment.employee_id,date);
+    for(const shift of shifts){
+      for(let cursor=minutes(shift.start_time); cursor+duration<=minutes(shift.end_time); cursor+=Math.max(10,Number(step||20))){
+        const start=minutesToTime(cursor), end=minutesToTime(cursor+duration);
+        const candidate={...appointment,date,start_time:start,end_time:end,duration_minutes:duration};
+        const availability=appointmentAvailability(db,candidate);
+        if(availability.status!=='ok') continue;
+        options.push({date,start_time:start,end_time:end,impact_days:Math.max(0,portalDaysBetween(appointment.date,date)),availability_status:'ok',availability_message:availability.message});
+        if(options.length>=Math.max(1,Number(max||6))) break;
+      }
+      if(options.length>=Math.max(1,Number(max||6))) break;
+    }
+  }
+  return options;
+}
+export function patientPortalWaitingRoom(db, patientId, date=today()){
+  const appointments=appointmentsForDate(db,date);
+  const own=appointments.find(a=>Number(a.patient_id)===Number(patientId));
+  if(!own) return {checked_in:false,ahead:0,eta_min:0,eta_max:0,label:'Sin cita hoy',appointment:null};
+  const waitingStatuses=new Set(['espera','en espera','en_gabinete','en gabinete','en tratamiento']);
+  const checkedIn=waitingStatuses.has(normalizeText(own.status).replace(/ /g,'_')) || normalizeText(own.status)==='espera';
+  if(!checkedIn) return {checked_in:false,ahead:0,eta_min:0,eta_max:0,label:'Aún no has hecho check-in',appointment:own};
+  const ahead=appointments.filter(a=>String(a.id)!==String(own.id) && minutes(a.start_time)<=minutes(own.start_time) && waitingStatuses.has(normalizeText(a.status).replace(/ /g,'_'))).length;
+  return {checked_in:true,ahead,eta_min:ahead*12,eta_max:ahead*20,label:ahead===0?'Eres el siguiente':`${ahead} paciente${ahead===1?'':'s'} por delante`,appointment:own};
+}
+
 export function simpleHash(input){ let h1=0x811c9dc5, h2=0x45d9f3b; const s=String(input||''); for(let i=0;i<s.length;i++){ h1^=s.charCodeAt(i); h1=Math.imul(h1,0x01000193); h2^=s.charCodeAt(i); h2=Math.imul(h2,0x27d4eb2d); } return ((h1>>>0).toString(16).padStart(8,'0')+(h2>>>0).toString(16).padStart(8,'0')); }
 
 export const PLAN_PRIORITY_RANK = {urgente:0, alta:1, media:2, baja:3};
+export const CLINICAL_PHASES = Object.freeze({
+  acute:{key:'acute',rank:1,label:'Dolor / infección / control agudo',patient_label:'Resolver primero dolor, infección o focos activos'},
+  periodontal:{key:'periodontal',rank:2,label:'Control periodontal',patient_label:'Estabilizar encías y soporte de los dientes'},
+  disease:{key:'disease',rank:3,label:'Caries / saneamiento',patient_label:'Eliminar caries y problemas restauradores activos'},
+  missing:{key:'missing',rank:4,label:'Dientes ausentes / planificación',patient_label:'Decidir cómo reponer los dientes que faltan'},
+  rehab:{key:'rehab',rank:5,label:'Rehabilitación / ortodoncia / prótesis',patient_label:'Realizar la rehabilitación definitiva'}
+});
+function normClinical(value){ return normalizeText(value||''); }
+export function canonicalClinicalTreatment(value){
+  const n=normClinical(value);
+  if(/reendo|retrat.*endo/.test(n)) return 'reendodoncia';
+  if(/endo|conducto|nervio/.test(n)) return 'endodoncia';
+  if(/extrac|exodon/.test(n)) return 'extraccion';
+  if(/raspado|alisado|periodont|curetaje/.test(n)) return 'tratamiento periodontal';
+  if(/limpieza|profilaxis|tartrect/.test(n)) return 'limpieza';
+  if(/empaste|obtur|restaur|composite|resina/.test(n)) return 'restauracion';
+  if(/perno|poste|munon/.test(n)) return 'perno';
+  if(/corona.*implante/.test(n)) return 'corona sobre implante';
+  if(/corona/.test(n)) return 'corona';
+  if(/maryland/.test(n)) return 'puente maryland';
+  if(/puente/.test(n)) return 'puente fijo';
+  if(/remov|flexite|esquelet/.test(n)) return 'protesis removible';
+  if(/implante/.test(n)) return 'implante';
+  if(/alineador|ortodon/.test(n)) return 'ortodoncia';
+  if(/provisional|essix/.test(n)) return 'provisional';
+  return String(value||'').trim() || 'tratamiento';
+}
+export function clinicalPriorityFor(item={}){
+  const t=normClinical(item.treatment), c=normClinical(item.clinical_cause||item.clinicalCause), s=normClinical(item.source_text||item.sourceText), svc=normClinical(item.service_name||item.serviceName), all=[t,c,s,svc].join(' ');
+  if(item.kind==='missing_assessment') return {...CLINICAL_PHASES.missing,reason:'Ausencia dentaria registrada; primero se valora cómo reponerla tras estabilizar enfermedad activa.'};
+  if(/\b(dolor|doloroso|infeccion|infectad|absceso|flemon|celulitis|supuracion|fistula|pulpitis|necrosis|exposicion pulpar|lesion apical|lesion periapical|urgencia)\b/.test(all)) return {...CLINICAL_PHASES.acute,reason:'Dolor, infección o patología pulpar/periapical registrada.'};
+  if(/\b(endodoncia|reendodoncia|pulpotomia|extraccion)\b/.test(t)) return {...CLINICAL_PHASES.acute,reason:'Control de foco o tratamiento pulpar/quirúrgico indicado.'};
+  if(/\b(periodont\w*|gingiv\w*|profilaxis profunda|raspado|curetaje|limpieza)\b/.test(all)) return {...CLINICAL_PHASES.periodontal,reason:'Conviene estabilizar el periodonto antes de la rehabilitación definitiva.'};
+  if(/\b(caries|empaste|obturacion|restauracion|resina|composite|sellante)\b/.test(all)) return {...CLINICAL_PHASES.disease,reason:'Saneamiento de caries o restauración activa antes de la fase definitiva.'};
+  if(/\b(implante|corona|puente|protesis|ortodoncia|alineador|carilla|perno|poste|provisional|incrustacion|inlay|onlay|overlay|ferula)\b/.test(all)) return {...CLINICAL_PHASES.rehab,reason:'Rehabilitación definitiva después de controlar enfermedad activa y preparar los soportes.'};
+  return {...CLINICAL_PHASES.disease,reason:'Tratamiento pendiente sin una prioridad clínica más específica registrada.'};
+}
+function clinicalPatientCopy(item={}){
+  const t=canonicalClinicalTreatment(item.treatment), tooth=String(item.tooth||'').trim(), suffix=tooth?` ${tooth}`:'';
+  const map={
+    endodoncia:[`Tratar el interior del diente${suffix}`,'Primero hay que resolver el problema pulpar o del interior del diente antes de reconstruirlo definitivamente.'],
+    reendodoncia:[`Repetir el tratamiento del interior del diente${suffix}`,'Se necesita controlar primero el problema endodóntico antes de avanzar a la restauración definitiva.'],
+    extraccion:[`Retirar el diente${suffix}`,'La pieza se ha indicado para extracción; la reposición, si procede, se planifica después.'],
+    'tratamiento periodontal':['Estabilizar las encías y el soporte dental','Controlar la salud periodontal reduce el riesgo de rehabilitar sobre tejidos inflamados o inestables.'],
+    limpieza:['Mejorar la salud de encías y la higiene','Esta fase prepara la boca y facilita valorar cómo responden los tejidos.'],
+    restauracion:[`Reparar el diente${suffix}`,'Las caries y restauraciones activas se resuelven antes de la rehabilitación definitiva.'],
+    perno:[`Reconstruir el soporte del diente${suffix}`,'Este paso prepara el soporte necesario antes de colocar la restauración definitiva cuando está indicado.'],
+    corona:[`Proteger el diente${suffix} con una corona`,'La corona es una fase de rehabilitación definitiva y se realiza después de estabilizar y reconstruir el diente.'],
+    'corona sobre implante':[`Colocar el diente definitivo sobre el implante${suffix}`,'La prótesis definitiva va después de que el implante y los tejidos estén preparados según el criterio del profesional.'],
+    implante:[`Reponer el diente ausente${suffix} con un implante`,'El implante forma parte de la rehabilitación de una ausencia y requiere valorar previamente tejidos, hueso, oclusión y alternativas.'],
+    'puente fijo':[`Reponer el espacio${suffix} con un puente fijo`,'Es una opción fija que depende del estado y pronóstico de los dientes que servirán de apoyo.'],
+    'puente maryland':[`Reponer el espacio${suffix} con un puente adhesivo`,'Es una opción más conservadora en determinados casos, pero su indicación depende de la zona y la mordida.'],
+    'protesis removible':['Reponer los dientes con una prótesis removible','Es una alternativa que se puede retirar y cuyo diseño depende del soporte dental, encías y mordida.'],
+    ortodoncia:['Mover los dientes de forma planificada','La ortodoncia requiere una boca estable y controles periódicos para avanzar según la planificación.'],
+    provisional:['Usar una solución provisional','Sirve como solución temporal mientras se completa o decide la rehabilitación definitiva.']
+  };
+  return map[t] || [item.title||`${t}${suffix}`, clinicalPriorityFor(item).reason];
+}
+function procedureMatchForClinical(db,treatment){
+  const t=canonicalClinicalTreatment(treatment), ps=(db.procedures||[]).filter(x=>x.active!==false), by=(...terms)=>ps.find(p=>terms.some(term=>normClinical(p.name).includes(normClinical(term))));
+  if(t==='corona') return by('corona sobre diente natural');
+  if(t==='corona sobre implante') return by('corona definitiva sobre implante','corona sobre implante');
+  if(t==='puente fijo') return by('puente sobre dientes naturales');
+  if(t==='protesis removible') return by('protesis parcial','flexite');
+  if(t==='implante') return by('implante sin corona','planificacion implantologica');
+  if(t==='ortodoncia') return by('alineadores');
+  if(t==='provisional') return by('protesis provisional');
+  return null;
+}
+function clinicalDependencyExplanation(before,after){
+  const a=canonicalClinicalTreatment(before?.treatment), b=canonicalClinicalTreatment(after?.treatment);
+  if((a==='endodoncia'||a==='reendodoncia')&&b==='perno') return 'El soporte del diente se prepara después de completar el tratamiento endodóntico.';
+  if((a==='endodoncia'||a==='reendodoncia'||a==='perno'||a==='restauracion')&&b==='corona') return 'La corona definitiva se coloca después de estabilizar y reconstruir el diente.';
+  if(a==='implante'&&b==='corona sobre implante') return 'La prótesis definitiva va después del implante y de la fase clínica que el profesional haya indicado.';
+  if(a==='extraccion'&&b==='implante') return 'La reposición del diente se planifica después de la extracción y de reevaluar el sitio.';
+  return `Este paso necesita que antes se complete “${before?.title||before?.treatment||'el paso anterior'}”.`;
+}
+export function createClinicalPlanItem(db,input={}){
+  if(!input.patient_id) throw new Error('Falta paciente');
+  db.clinicalPlanItems=Array.isArray(db.clinicalPlanItems)?db.clinicalPlanItems:[];
+  const treatment=canonicalClinicalTreatment(input.treatment||input.title), tooth=String(input.tooth||''), surfaces=[...(input.surfaces||[])].map(String), sourceKey=input.source_key||'';
+  if(sourceKey){ const existing=db.clinicalPlanItems.find(x=>Number(x.patient_id)===Number(input.patient_id)&&x.source_key===sourceKey&&x.active!==false&&x.status!=='cancelled'); if(existing) return existing; }
+  const procedure=input.procedure_id?(db.procedures||[]).find(x=>Number(x.id)===Number(input.procedure_id)):procedureMatchForClinical(db,treatment);
+  const seed={...input,treatment,clinical_cause:input.clinical_cause||'',source_text:input.source_text||'',service_id:procedure?.id||input.service_id||null,service_name:procedure?.name||input.service_name||'',price:Number(input.price??procedure?.price??0),duration:Number(input.duration??procedure?.duration??30)};
+  const pr=clinicalPriorityFor(seed), [patientTitle,patientReason]=clinicalPatientCopy(seed), now=new Date().toISOString();
+  const item={id:id(db),patient_id:Number(input.patient_id),tooth,surfaces,treatment,title:input.title||`${procedure?.name||treatment}${tooth?` · ${tooth}`:''}`,clinical_cause:seed.clinical_cause,source_text:seed.source_text,service_id:seed.service_id,service_name:seed.service_name,price:seed.price,visits:Number(input.visits||1),duration:seed.duration,status:input.status||'planned',active:input.active!==false,phase_key:pr.key,phase_rank:pr.rank,phase_label:pr.label,priority_reason:pr.reason,manual_depends_on:[...(input.depends_on||[])].map(Number),inferred_depends_on:[],depends_on:[...(input.depends_on||[])].map(Number),patient_title:input.patient_title||patientTitle,patient_reason:input.patient_reason||patientReason,clinician_note:input.clinician_note||'',source:input.source||'clinical_plan_web',source_key:sourceKey,alternative_group_id:input.alternative_group_id||null,alternative_option_id:input.alternative_option_id||null,created_at:now,updated_at:now};
+  db.clinicalPlanItems.push(item); return item;
+}
+export function inferClinicalDependencies(db,patient_id){
+  const items=(db.clinicalPlanItems||[]).filter(x=>Number(x.patient_id)===Number(patient_id)&&x.active!==false&&!['cancelled','cancelado'].includes(normClinical(x.status)));
+  const byTooth=new Map(); for(const item of items){ const k=String(item.tooth||''); if(!byTooth.has(k)) byTooth.set(k,[]); byTooth.get(k).push(item); }
+  for(const item of items){ item.manual_depends_on=Array.isArray(item.manual_depends_on)?item.manual_depends_on:[...(item.depends_on||[])]; item.inferred_depends_on=[]; }
+  const find=(xs,treatments)=>xs.find(x=>treatments.includes(canonicalClinicalTreatment(x.treatment)));
+  for(const xs of byTooth.values()){
+    if(!xs[0]?.tooth) continue;
+    const endo=find(xs,['endodoncia','reendodoncia']), post=find(xs,['perno']), crown=find(xs,['corona']), extraction=find(xs,['extraccion']), implant=find(xs,['implante']), implantCrown=find(xs,['corona sobre implante']);
+    if(endo&&post) post.inferred_depends_on.push(endo.id);
+    if(crown){ if(post) crown.inferred_depends_on.push(post.id); else if(endo) crown.inferred_depends_on.push(endo.id); }
+    if(extraction&&implant) implant.inferred_depends_on.push(extraction.id);
+    if(implant&&implantCrown) implantCrown.inferred_depends_on.push(implant.id);
+  }
+  for(const item of items) item.depends_on=[...new Set([...(item.manual_depends_on||[]),...(item.inferred_depends_on||[])].map(Number))];
+  return items;
+}
+export function clinicalPlanGraph(db,patient_id){
+  const items=inferClinicalDependencies(db,patient_id), byId=new Map(items.map(x=>[Number(x.id),x])), indegree=new Map(items.map(x=>[Number(x.id),0])), edges=new Map(items.map(x=>[Number(x.id),[]]));
+  for(const item of items){ for(const dep of item.depends_on||[]){ if(!byId.has(Number(dep))) continue; indegree.set(Number(item.id),(indegree.get(Number(item.id))||0)+1); edges.get(Number(dep)).push(Number(item.id)); } }
+  const cmp=(a,b)=>Number(a.phase_rank||9)-Number(b.phase_rank||9)||String(a.tooth||'').localeCompare(String(b.tooth||''))||Number(a.id)-Number(b.id);
+  const ready=items.filter(x=>indegree.get(Number(x.id))===0).sort(cmp), ordered=[];
+  while(ready.length){ const item=ready.shift(); ordered.push(item); for(const childId of edges.get(Number(item.id))||[]){ indegree.set(childId,indegree.get(childId)-1); if(indegree.get(childId)===0){ ready.push(byId.get(childId)); ready.sort(cmp); } } }
+  const warnings=[]; if(ordered.length!==items.length){ warnings.push('Hay dependencias circulares en el plan clínico.'); for(const item of items.filter(x=>!ordered.includes(x)).sort(cmp)) ordered.push(item); }
+  const projected=ordered.map(item=>({...item,dependency_explanations:(item.depends_on||[]).map(dep=>byId.get(Number(dep))).filter(Boolean).map(dep=>({item_id:dep.id,title:dep.title,reason:clinicalDependencyExplanation(dep,item)}))}));
+  const phaseMap=new Map(); for(const item of projected){ if(!phaseMap.has(item.phase_rank)) phaseMap.set(item.phase_rank,{rank:item.phase_rank,key:item.phase_key,label:item.phase_label,items:[]}); phaseMap.get(item.phase_rank).items.push(item); }
+  return {items:projected,phases:[...phaseMap.values()].sort((a,b)=>a.rank-b.rank),warnings};
+}
+export function patientClinicalPlanProjection(db,patient_id){
+  const graph=clinicalPlanGraph(db,patient_id), completed=x=>['completed','completado','hecho','finalizado','realizada'].includes(normClinical(x.status));
+  const items=graph.items.map((item,index)=>{ const previous=graph.items.slice(0,index).filter(x=>Number(x.phase_rank)<Number(item.phase_rank)||item.depends_on?.includes(x.id)).at(-1); const dependencyWhy=item.dependency_explanations?.[0]?.reason; return {...item,patient_title:item.patient_title||clinicalPatientCopy(item)[0],patient_explanation:item.patient_reason||clinicalPatientCopy(item)[1],why_order:dependencyWhy||item.priority_reason||clinicalPriorityFor(item).reason,after:previous?.patient_title||previous?.title||'',completed:completed(item)}; });
+  return {items,phases:graph.phases.map(p=>({...p,patient_label:CLINICAL_PHASES[p.key]?.patient_label||p.label,items:items.filter(x=>x.phase_rank===p.rank)})),warnings:graph.warnings,progress:items.length?Math.round(items.filter(x=>x.completed).length/items.length*100):0,alternatives:(db.clinicalAlternativeGroups||[]).filter(g=>Number(g.patient_id)===Number(patient_id)&&g.status!=='closed')};
+}
+const ALT_CONTEXT_LABELS=Object.freeze({tooth_or_zone:'Diente o zona confirmados',adjacent_teeth:'Estado de dientes vecinos revisado',periodontal_context:'Estado periodontal revisado',bone_context_if_implant_considered:'Hueso valorado si se contempla implante',occlusion:'Mordida / oclusión revisada',patient_priorities:'Prioridades del paciente registradas'});
+export function clinicalAlternativeContextLabel(key){ return ALT_CONTEXT_LABELS[key]||key; }
+function missingToothOptionTemplates(tooth){
+  return [
+    {key:'implant',title:'Implante + corona',summary:'Solución fija independiente de los dientes vecinos cuando el caso es clínicamente apto.',pros:['No necesita tallar los dientes vecinos si están sanos.','Es una solución fija.','Permite reponer una pieza de forma independiente.'],cons:['Requiere cirugía.','Necesita valorar hueso, tejidos, salud general y mantenimiento.','El tiempo total puede ser mayor y depende de la evolución clínica.'],maintenance:'Higiene específica y revisiones periódicas.',invasiveness:'Cirugía implantológica.',stability:'Fija; depende de osteointegración, tejidos y mantenimiento.',time_relative:'Habitualmente más fases que un puente, según el caso.',cost_relative:'Habitualmente coste inicial mayor que una solución removible.',reversibility:'Limitada una vez realizada la cirugía.',limitations:'No todos los pacientes o zonas son candidatos sin estudios previos.',required_context:['tooth_or_zone','periodontal_context','bone_context_if_implant_considered','occlusion','patient_priorities'],plan:[{treatment:'implante',title:`Implante ${tooth}`},{treatment:'corona sobre implante',title:`Corona sobre implante ${tooth}`}]},
+    {key:'fixed_bridge',title:'Puente fijo',summary:'Solución fija apoyada en dientes vecinos cuando esos dientes son adecuados para servir de pilares.',pros:['Es fijo.','No requiere colocar un implante.','Puede tener un recorrido clínico más corto en determinados casos.'],cons:['Puede requerir tallar dientes vecinos.','El pronóstico depende también de los dientes pilares.','Necesita higiene específica bajo el póntico.'],maintenance:'Higiene bajo el puente y controles de pilares.',invasiveness:'Preparación de dientes pilares cuando está indicada.',stability:'Fija; depende del soporte de los pilares y la oclusión.',time_relative:'Puede ser más corto que una rehabilitación implantológica en algunos casos.',cost_relative:'Depende del número de unidades y materiales.',reversibility:'La preparación dentaria no es reversible.',limitations:'No es apropiado si los pilares no tienen buen pronóstico o la distribución de cargas no es adecuada.',required_context:['tooth_or_zone','adjacent_teeth','periodontal_context','occlusion','patient_priorities'],plan:[{treatment:'puente fijo',title:`Puente fijo para ausencia ${tooth}`}]},
+    {key:'maryland',title:'Puente adhesivo (Maryland)',summary:'Opción fija y más conservadora en casos seleccionados.',pros:['Suele requerir menos preparación que un puente convencional.','No requiere implante.','Puede ser útil en determinadas zonas y situaciones.'],cons:['La retención puede ser menor que en otras soluciones fijas.','No es adecuado para todas las zonas o cargas.','Puede descementarse y requerir mantenimiento.'],maintenance:'Controles de adhesión, oclusión e higiene.',invasiveness:'Generalmente conservadora, según diseño.',stability:'Depende mucho de adhesión, esmalte disponible y oclusión.',time_relative:'A menudo pocas fases cuando está indicado.',cost_relative:'Variable según diseño y material.',reversibility:'Más conservador que un puente convencional en muchos casos.',limitations:'Indicaciones limitadas por posición, mordida y dientes de apoyo.',required_context:['tooth_or_zone','adjacent_teeth','periodontal_context','occlusion','patient_priorities'],plan:[{treatment:'puente maryland',title:`Puente Maryland para ausencia ${tooth}`}]},
+    {key:'removable',title:'Prótesis removible',summary:'Solución que el paciente puede retirar y que puede reponer una o varias ausencias.',pros:['Evita cirugía implantológica.','Puede reponer varias ausencias en una misma prótesis.','Suele permitir opciones con menor coste inicial.'],cons:['No es fija.','Requiere adaptación, retirada e higiene diaria.','Puede tener mayor volumen y apoyarse en dientes o mucosa.'],maintenance:'Retirada, limpieza y revisiones de ajuste y soporte.',invasiveness:'Generalmente menor cirugía; puede requerir preparación de apoyos.',stability:'Menor sensación de fijación que una solución fija.',time_relative:'Depende del diseño, registros y laboratorio.',cost_relative:'Suele tener menor coste inicial que rehabilitaciones fijas complejas.',reversibility:'Alta comparada con opciones fijas.',limitations:'Confort, retención y estética dependen del diseño y anatomía.',required_context:['tooth_or_zone','periodontal_context','occlusion','patient_priorities'],plan:[{treatment:'protesis removible',title:`Prótesis removible para ausencia ${tooth}`}]},
+    {key:'provisional',title:'Solución provisional',summary:'Opción temporal mientras se completa el diagnóstico o la rehabilitación definitiva.',pros:['Permite cubrir temporalmente una ausencia.','Da tiempo para completar otras fases clínicas.'],cons:['No es la solución definitiva.','Durabilidad y función son más limitadas.','Puede necesitar ajustes o reposición.'],maintenance:'Uso y cuidado según el tipo de provisional.',invasiveness:'Depende del provisional elegido.',stability:'Temporal.',time_relative:'Pensada para una fase transitoria.',cost_relative:'Coste adicional temporal, variable.',reversibility:'Alta.',limitations:'No debe confundirse con la rehabilitación definitiva.',required_context:['tooth_or_zone','patient_priorities'],plan:[{treatment:'provisional',title:`Provisional para ausencia ${tooth}`}]}
+  ];
+}
+export function createClinicalAlternativeGroup(db,{patient_id,title='Alternativas de tratamiento',context='',options=[],required_context=[]}={}){
+  if(!patient_id) throw new Error('Falta paciente'); db.clinicalAlternativeGroups=Array.isArray(db.clinicalAlternativeGroups)?db.clinicalAlternativeGroups:[];
+  const group={id:id(db),patient_id:Number(patient_id),title,context,status:'open',required_context:[...required_context],context_checks:{},patient_preference:null,approved_option_id:null,approved_at:'',clinician_note:'',created_at:new Date().toISOString(),options:options.map(o=>({id:id(db),clinician_status:o.clinician_status||'candidate',...clone(o)}))}; db.clinicalAlternativeGroups.push(group); return group;
+}
+export function createMissingToothAlternatives(db,{patient_id,tooth}={}){
+  const existing=(db.clinicalAlternativeGroups||[]).find(g=>Number(g.patient_id)===Number(patient_id)&&g.kind==='missing_tooth'&&String(g.tooth)===String(tooth)&&g.status!=='closed'); if(existing) return existing;
+  const group=createClinicalAlternativeGroup(db,{patient_id,title:`Cómo reponer el diente ${tooth}`,context:`Ausencia registrada en ${tooth}. Las opciones dependen de tejidos, dientes vecinos, hueso, mordida y prioridades del paciente.`,options:missingToothOptionTemplates(String(tooth))}); group.kind='missing_tooth'; group.tooth=String(tooth); return group;
+}
+export function updateClinicalAlternativeContext(db,{group_id,key,value}){ const group=(db.clinicalAlternativeGroups||[]).find(g=>Number(g.id)===Number(group_id)); if(!group) throw new Error('Grupo de alternativas no encontrado'); group.context_checks={...(group.context_checks||{}),[key]:!!value}; group.updated_at=new Date().toISOString(); return group; }
+export function setPatientAlternativePreference(db,{group_id,option_id,patient_id}){ const group=(db.clinicalAlternativeGroups||[]).find(g=>Number(g.id)===Number(group_id)&&Number(g.patient_id)===Number(patient_id)); if(!group) throw new Error('Grupo de alternativas no encontrado'); const option=group.options.find(o=>Number(o.id)===Number(option_id)); if(!option) throw new Error('Alternativa no encontrada'); group.patient_preference={option_id:option.id,recorded_at:new Date().toISOString(),status:'preference_only'}; group.updated_at=new Date().toISOString(); return group; }
+export function approveClinicalAlternativeOption(db,{group_id,option_id,clinician_note=''}){
+  const group=(db.clinicalAlternativeGroups||[]).find(g=>Number(g.id)===Number(group_id)); if(!group) throw new Error('Grupo de alternativas no encontrado'); const option=group.options.find(o=>Number(o.id)===Number(option_id)); if(!option) throw new Error('Alternativa no encontrada');
+  const missing=(option.required_context||[]).filter(key=>group.context_checks?.[key]!==true); if(missing.length) throw new Error(`Faltan datos clínicos requeridos: ${missing.map(clinicalAlternativeContextLabel).join(', ')}`);
+  for(const item of (db.clinicalPlanItems||[]).filter(x=>Number(x.alternative_group_id)===Number(group.id)&&x.active!==false&&Number(x.alternative_option_id)!==Number(option.id))){ item.active=false; item.status='cancelled'; item.updated_at=new Date().toISOString(); }
+  const existing=(db.clinicalPlanItems||[]).filter(x=>Number(x.alternative_group_id)===Number(group.id)&&Number(x.alternative_option_id)===Number(option.id)&&x.active!==false), created=[]; let previous=null;
+  if(existing.length) created.push(...existing); else for(const spec of option.plan||[]){ const item=createClinicalPlanItem(db,{patient_id:group.patient_id,tooth:group.tooth||'',...spec,depends_on:previous?[previous.id]:[],alternative_group_id:group.id,alternative_option_id:option.id,source:'clinical_alternative'}); created.push(item); previous=item; }
+  group.approved_option_id=option.id; group.approved_at=new Date().toISOString(); group.clinician_note=clinician_note; group.status='clinically_validated'; option.clinician_status='approved'; group.updated_at=group.approved_at; return {group,option,created_items:created};
+}
+export function syncClinicalPlanFromOdontogram(db,patient_id){
+  const od=ensureOdontogram(db,patient_id), created=[], alternatives=[], expected=new Set();
+  const create=(tooth,treatment,code,extra={})=>{
+    const source_key=`odontogram:${patient_id}:${tooth}:${code}`; expected.add(source_key);
+    const existing=(db.clinicalPlanItems||[]).find(x=>Number(x.patient_id)===Number(patient_id)&&x.source_key===source_key);
+    if(existing){ existing.active=true; if(['cancelled','cancelado'].includes(normClinical(existing.status))) existing.status='planned'; if(extra.surfaces) existing.surfaces=[...extra.surfaces]; if(extra.source_text) existing.source_text=extra.source_text; existing.updated_at=new Date().toISOString(); return existing; }
+    const item=createClinicalPlanItem(db,{patient_id,tooth,treatment,source:'odontogram_sync',source_key,source_text:STATUS_LABELS[code]||code,...extra}); created.push(item); return item;
+  };
+  for(const [tooth,rec] of Object.entries(od)){
+    const whole=[...(rec.whole_states||[])];
+    for(const code of whole){
+      if(code==='endo_indicated') create(tooth,'endodoncia',code,{title:`Endodoncia ${tooth}`});
+      else if(code==='endo_bad') create(tooth,'reendodoncia',code,{title:`Retratamiento endodóntico ${tooth}`});
+      else if(code==='crown_pending'||code==='crown_bad') create(tooth,'corona',code,{title:`Corona ${tooth}`});
+      else if(code==='post_pending'||code==='post_bad') create(tooth,'perno',code,{title:`Perno / reconstrucción ${tooth}`});
+      else if(code==='implant_indicated') create(tooth,'implante',code,{title:`Implante ${tooth}`});
+      else if(code==='prosthesis_pending'||code==='prosthesis_bad') create(tooth,'puente fijo',code,{title:`Prótesis fija ${tooth}`});
+      else if(code==='removable_pending'||code==='removable_bad') create(tooth,'protesis removible',code,{title:`Prótesis removible ${tooth}`});
+      else if(code==='extraction') create(tooth,'extraccion',code,{title:`Extracción ${tooth}`});
+      else if(code==='missing'){ const g=createMissingToothAlternatives(db,{patient_id,tooth}); if(!alternatives.includes(g)) alternatives.push(g); }
+    }
+    const surfaceCodes=Object.entries(rec.surfaces||{}); const active=surfaceCodes.filter(([,code])=>['caries','filling_pending','filling_bad'].includes(code)); if(active.length){ const surfaces=active.map(([s])=>s); create(tooth,'restauracion','surface-restoration',{title:`Restauración ${tooth}`,surfaces,source_text:`Superficies ${surfaces.join(', ')}`}); }
+  }
+  const resolvedStatus=(item)=>{
+    const rec=od[String(item.tooth||'')]; if(!rec) return false; const whole=new Set(rec.whole_states||[]), t=canonicalClinicalTreatment(item.treatment);
+    if((t==='endodoncia'||t==='reendodoncia')&&whole.has('endo')) return true;
+    if(t==='corona'&&whole.has('crown')) return true;
+    if(t==='perno'&&whole.has('post')) return true;
+    if(t==='implante'&&whole.has('implant')) return true;
+    if(t==='puente fijo'&&whole.has('prosthesis')) return true;
+    if(t==='protesis removible'&&whole.has('removable')) return true;
+    if(t==='extraccion'&&whole.has('missing')) return true;
+    if(t==='restauracion'){ const values=Object.values(rec.surfaces||{}); return values.length>0 && values.every(code=>!['caries','filling_pending','filling_bad'].includes(code)); }
+    return false;
+  };
+  for(const item of (db.clinicalPlanItems||[]).filter(x=>Number(x.patient_id)===Number(patient_id)&&x.source==='odontogram_sync'&&x.active!==false)){
+    if(expected.has(item.source_key)) continue;
+    if(resolvedStatus(item)){ item.status='completed'; item.completed_at=item.completed_at||new Date().toISOString(); item.updated_at=new Date().toISOString(); }
+    else if(!['completed','completado'].includes(normClinical(item.status))){ item.active=false; item.status='cancelled'; item.updated_at=new Date().toISOString(); }
+  }
+  inferClinicalDependencies(db,patient_id); return {created,alternatives,graph:clinicalPlanGraph(db,patient_id)};
+}
+export function syncClinicalPlanBudget(db,patient_id){
+  const items=clinicalPlanGraph(db,patient_id).items.filter(x=>x.active!==false&&!['completed','completado','cancelled','cancelado'].includes(normClinical(x.status))); db.budgets=Array.isArray(db.budgets)?db.budgets:[];
+  let budget=db.budgets.find(b=>Number(b.patient_id)===Number(patient_id)&&b.source==='clinical_plan'&&b.status!=='archivado'); const total=items.reduce((sum,x)=>sum+Number(x.price||0),0);
+  const payload=items.map(x=>({clinical_plan_item_id:x.id,title:x.title,tooth:x.tooth,price:Number(x.price||0),status:x.status}));
+  if(!budget){ budget={id:id(db),patient_id:Number(patient_id),title:'Plan clínico · presupuesto borrador',total,pending:total,source:'clinical_plan',status:'borrador',items:payload,created_at:new Date().toISOString()}; db.budgets.push(budget); }
+  else { budget.total=total; budget.pending=Math.max(0,total-paymentAmountForBudget(db,budget.id)); budget.items=payload; budget.updated_at=new Date().toISOString(); }
+  return budget;
+}
+export function setClinicalPlanItemStatus(db,item_id,status){ const item=(db.clinicalPlanItems||[]).find(x=>Number(x.id)===Number(item_id)); if(!item) throw new Error('Tratamiento no encontrado'); item.status=status; item.updated_at=new Date().toISOString(); return item; }
+
 export function defaultPlanSteps(kind='general'){
   const k=normalizeText(kind);
   if(k.includes('impl')) return [
@@ -532,12 +928,22 @@ export function createTreatmentPlan(db,{patient_id,title='',priority='media',dea
   if(!patient_id) throw new Error('Falta paciente'); if(!db.treatmentPlans) db.treatmentPlans=[];
   const effectiveKind=kind||type||'general';
   const rawSteps = steps.length ? steps : (items.length ? items.map(x=>({title:String(x)})) : defaultPlanSteps(effectiveKind));
-  const planSteps=rawSteps.map((s,i)=>{ const txt=s.title||String(s)||'Paso clínico'; const c=classifyTreatmentPriority(txt); return {id:id(db), title:txt, phase:s.phase||c.phase, priority:Number(s.priority_level||c.level), priority_label:s.priority||priority, deadline:s.deadline||deadline||'', deadline_days:Number(s.deadline_days||c.deadline_days), order:Number(s.order||i+1), duration:Number(s.duration||45), reason:s.reason||txt, detail:s.detail||'', status:s.status||'pendiente', appointment_id:s.appointment_id||null}; }).sort((a,b)=>a.priority-b.priority||a.order-b.order);
+  const planSteps=rawSteps.map((s,i)=>{ const txt=s.title||String(s)||'Paso clínico'; const c=classifyTreatmentPriority(txt); return {id:id(db), title:txt, phase:s.phase||c.phase, priority:Number(s.priority_level||c.level), priority_label:s.priority||priority, deadline:s.deadline||deadline||'', deadline_days:Number(s.deadline_days||c.deadline_days), order:Number(s.order||i+1), duration:Number(s.duration||45), reason:s.reason||txt, detail:s.detail||'', status:s.status||'pendiente', appointment_id:s.appointment_id||null}; }).sort((a,b)=>a.order-b.order||Number(a.id)-Number(b.id));
   const plan={id:id(db), patient_id:Number(patient_id), type:effectiveKind, title:title||'Plan de tratamiento', priority, deadline, status:'activo', hierarchy:'Denty clinical priority v1.3', created_at:new Date().toISOString(), steps:planSteps};
   db.treatmentPlans.push(plan); return plan;
 }
 export function treatmentPlanHierarchy(db, patient_id){
-  return (db.treatmentPlans||[]).filter(p=>Number(p.patient_id)===Number(patient_id)).sort((a,b)=>(PLAN_PRIORITY_RANK[a.priority]??9)-(PLAN_PRIORITY_RANK[b.priority]??9)||String(a.deadline||'9999-12-31').localeCompare(String(b.deadline||'9999-12-31'))||Number(a.id)-Number(b.id)).map(plan=>({...plan, steps:[...(plan.steps||[])].sort((a,b)=>(PLAN_PRIORITY_RANK[a.priority]??9)-(PLAN_PRIORITY_RANK[b.priority]??9)||String(a.deadline||plan.deadline||'9999-12-31').localeCompare(String(b.deadline||plan.deadline||'9999-12-31'))||Number(a.order||0)-Number(b.order||0))}));
+  return (db.treatmentPlans||[]).filter(p=>Number(p.patient_id)===Number(patient_id)).sort((a,b)=>(PLAN_PRIORITY_RANK[a.priority]??9)-(PLAN_PRIORITY_RANK[b.priority]??9)||String(a.deadline||'9999-12-31').localeCompare(String(b.deadline||'9999-12-31'))||Number(a.id)-Number(b.id)).map(plan=>({...plan, steps:[...(plan.steps||[])].sort((a,b)=>Number(a.order||0)-Number(b.order||0)||Number(a.id||0)-Number(b.id||0))}));
+}
+export function patientTreatmentRoute(db, patient_id){
+  const clinical=(db.clinicalPlanItems||[]).some(x=>Number(x.patient_id)===Number(patient_id)&&x.active!==false&&!['cancelled','cancelado'].includes(normalizeText(x.status||'')));
+  if(clinical) return patientClinicalPlanProjection(db,patient_id).items.map((item,index)=>({...item,clinical_title:item.title,title:item.patient_title||item.title,order:index+1,phase:item.phase_label,detail:item.patient_explanation,reason:item.why_order,deadline:item.deadline||''}));
+  const cancelled=value=>['cancelado','cancelada','archivado','archivada'].includes(normalizeText(value||''));
+  return treatmentPlanHierarchy(db,patient_id)
+    .filter(plan=>!cancelled(plan.status))
+    .flatMap(plan=>(plan.steps||[])
+      .filter(step=>!cancelled(step.status))
+      .map(step=>({...step,plan_id:plan.id,plan_title:plan.title,plan_priority:plan.priority,plan_status:plan.status,deadline:step.deadline||plan.deadline||''})));
 }
 export function schedulePlanStepToAgenda(db,{plan_id,step_id,date,start_time='10:00',employee_id,site=''}){
   const plan=(db.treatmentPlans||[]).find(p=>Number(p.id)===Number(plan_id)); if(!plan) throw new Error('Plan no encontrado');
@@ -568,6 +974,57 @@ function renderConsentDocumentText(db, consent, patientId){
   return `DATOS DEL CONSENTIMIENTO\nPaciente: ${patientName}\nDoctor/a responsable: ${doctorName}\nCentro/Sede: ${siteName}\nFecha: ${formatConsentDate()}\n\n${consent?.text||''}\n\nFirma del paciente: pendiente de firma digital.`;
 }
 export function createConsentDocument(db,{patient_id,consent_id,title}){ const c=db.consents.find(x=>Number(x.id)===Number(consent_id))||db.consents[0]; if(!patient_id) throw new Error('Falta paciente'); const doc={id:id(db),patient_id:Number(patient_id),consent_id:c?.id||null,title:title||c?.title||'Consentimiento',version:c?.version||1,text:renderConsentDocumentText(db,c,patient_id),status:'borrador',created_at:new Date().toISOString(),signature_data:'',signer_name:'',accepted:false,locked_at:'',hash:'',signature_audit:null}; db.documents.push(doc); return doc; }
+export function attendanceAppointmentIsEligible(appointment, issuedDate=today()){
+  if(!appointment) return false;
+  const status=normalizeText(appointment.status||'');
+  const attended=['realizada','realizado','completada','completado','finalizada','finalizado','attended','completed'].includes(status);
+  return attended && String(appointment.date||'')<=String(issuedDate||today());
+}
+function certificateLongDate(date){
+  const raw=String(date||today());
+  const d=new Date(raw+'T12:00:00');
+  if(Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
+}
+function certificateProcedureLabel(appointment, includeProcedure){
+  if(!includeProcedure) return 'atención odontológica';
+  const raw=String(appointment?.reason||appointment?.title||appointment?.detail||'atención odontológica').trim();
+  return raw || 'atención odontológica';
+}
+export function attendanceCertificateText(db,{patient_id,appointment_id,include_procedure=false,issued_date=today()}={}){
+  const p=(db.patients||[]).find(x=>Number(x.id)===Number(patient_id));
+  if(!p) throw new Error('Paciente no encontrado');
+  const appointment=(db.appointments||[]).find(x=>Number(x.id)===Number(appointment_id)&&Number(x.patient_id)===Number(patient_id));
+  if(!appointment) throw new Error('Cita no encontrada');
+  if(!attendanceAppointmentIsEligible(appointment,issued_date)) throw new Error('La cita debe constar como realizada antes de emitir el justificante');
+  const profile=db.settings?.clinicProfile||{};
+  const site=(db.sites||[]).find(s=>Number(s.id)===Number(appointment.site_id)) || (db.sites||[]).find(s=>Number(s.id)===Number(profile.default_site_id)) || null;
+  const clinicName=String(profile.name||db.settings?.clinic||site?.name||'Centro dental').trim();
+  const centerAddress=String(site?.address||profile.address||'').trim();
+  const centerLabel=centerAddress?`${clinicName}, sito en ${centerAddress}`:clinicName;
+  const visitDate=certificateLongDate(appointment.date);
+  const issueDate=certificateLongDate(issued_date);
+  const sameDay=String(appointment.date)===String(issued_date);
+  const start=String(appointment.start_time||'').trim();
+  const end=String(appointment.end_time||'').trim() || (start&&Number(appointment.duration_minutes||appointment.duration)>0?addMinutes(start,Number(appointment.duration_minutes||appointment.duration)):'');
+  const timePhrase=start ? ` La asistencia consta registrada desde las ${start}${end?` hasta las ${end}`:''} horas.` : '';
+  const dni=String(p.dni||'').trim();
+  const idPhrase=dni?`, con DNI/NIE ${dni}`:'';
+  const attendanceDay=sameDay?`en el día de hoy, ${visitDate}`:`el día ${visitDate}`;
+  const procedure=certificateProcedureLabel(appointment,include_procedure);
+  const placeSource=String(site?.city||profile.city||centerAddress||'').trim();
+  const issuePlace=(placeSource.split(',').pop()||placeSource).split('·').pop()?.trim() || clinicName;
+  const contact=[profile.phone?`Tel. ${profile.phone}`:'',profile.email||''].filter(Boolean).join(' · ');
+  return `JUSTIFICANTE DE ASISTENCIA\n\nD./D.ª ${patientFullName(p)}${idPhrase} ha acudido ${attendanceDay}, a ${centerLabel}, para la realización de ${procedure}.${timePhrase}\n\nY para que conste, a petición de la persona interesada, se expide el presente justificante en ${issuePlace}, a ${issueDate}.\n\nEste documento acredita exclusivamente la asistencia al centro en la fecha y horario indicados.\n\nFirma y sello del centro\n${clinicName}${profile.address?`\n${profile.address}`:''}${contact?`\n${contact}`:''}`;
+}
+export function createAttendanceCertificateDocument(db,{patient_id,appointment_id,include_procedure=false,issued_date=today()}={}){
+  const text=attendanceCertificateText(db,{patient_id,appointment_id,include_procedure,issued_date});
+  const appointment=(db.appointments||[]).find(x=>Number(x.id)===Number(appointment_id));
+  const doc={id:id(db),patient_id:Number(patient_id),appointment_id:Number(appointment_id),type:'attendance_certificate',title:'Justificante de asistencia',version:1,text,status:'emitido',created_at:new Date().toISOString(),issued_date:String(issued_date||today()),visit_date:String(appointment?.date||''),include_procedure:!!include_procedure,signature_data:'',signer_name:'',accepted:true,locked_at:'',hash:simpleHash(text),signature_audit:null};
+  db.documents=db.documents||[];
+  db.documents.push(doc);
+  return doc;
+}
 export function signDocument(db, docId, {signature_data, signer_name, accepted=false, device_info=''}){ const doc=db.documents.find(d=>Number(d.id)===Number(docId)); if(!doc) throw new Error('Documento no encontrado'); if(doc.locked_at) throw new Error('Documento firmado y bloqueado'); if(!signature_data) throw new Error('Falta la firma'); if(!accepted) throw new Error('Falta aceptar el consentimiento'); doc.signature_data=signature_data; doc.signer_name=signer_name||''; doc.accepted=true; doc.status='firmado'; doc.signed_at=new Date().toISOString(); doc.locked_at=doc.signed_at; doc.signature_audit={device_info, signed_at:doc.signed_at, consent_version:doc.version, text_length:String(doc.text||'').length}; doc.hash=simpleHash(JSON.stringify({id:doc.id,patient_id:doc.patient_id,title:doc.title,text:doc.text,signed_at:doc.signed_at,signer_name:doc.signer_name,signature_data,accepted:true,device_info})); db.consent_history=Array.isArray(db.consent_history)?db.consent_history:[]; db.consent_history.push({id:id(db),document_id:doc.id,patient_id:doc.patient_id,version:doc.version,hash:doc.hash,locked_at:doc.locked_at,action:'signed'}); return doc; }
 export function patientDetailActions(){ return [
   {id:'appointment',label:'Nueva cita'}, {id:'work',label:'Nuevo trabajo'}, {id:'budget',label:'Nuevo presupuesto'}, {id:'payment',label:'Registrar pago'}, {id:'odontogram',label:'Odontograma'}, {id:'documents',label:'Documentos firmados'}, {id:'alerts',label:'Alertas'}, {id:'files',label:'Archivos'}
@@ -599,7 +1056,7 @@ export function runAction(db, text, context={}){
   }
   if(/\b(protesis|protetica|rehabilita|rehabilitacion|planifica|planificar)\b/.test(norm)){
     const teeth=parseFdiRange(text); if(!teeth) return {type:'NEEDS_MORE_INFO',message:'¿Qué dientes o qué tramo quieres planificar?',speak:true,trace:{...trace,INTENT:'planificar_protesis'}};
-    const patientId=context.patientId||context.patient_id||(db.patients.find(p=>!p.archived)||{}).id; if(patientId){ const od=ensureOdontogram(db,patientId); teeth.forEach(t=>od[t].status='prosthesis'); }
+    const patientId=context.patientId||context.patient_id||(db.patients.find(p=>!p.archived)||{}).id; if(patientId){ const od=ensureOdontogram(db,patientId); teeth.forEach(t=>setToothLegendState(db,patientId,t,'prosthesis')); }
     return {type:'EXECUTED',message:`Plan protésico preparado para ${teeth.join(', ')}`,teeth,speak:true,trace:{...trace,INTENT:'planificar_protesis',TOOL:'odontogramRange',READBACK:'✓'}};
   }
   if(/\b(odontograma|dientes?)\b/.test(norm)&&context.patientId) return {type:'OPEN',target:'odontogram',message:'Abriendo odontograma',patient_id:context.patientId,trace:{...trace,INTENT:'abrir_odontograma'}};
@@ -640,7 +1097,7 @@ export function safeSaveDb(db, storage, reason='autosave'){
   return migrated;
 }
 
-export const CLINICAL_PHASES = [
+export const LEGACY_CLINICAL_PHASES = [
   {key:'urgency', label:'Urgencia / dolor / infección', rank:1, deadline_days:0},
   {key:'etiologic', label:'Control etiológico y periodontal', rank:2, deadline_days:7},
   {key:'restorative', label:'Restauradora / endodoncia', rank:3, deadline_days:21},
@@ -650,12 +1107,12 @@ export const CLINICAL_PHASES = [
 ];
 export function classifyTreatmentPriority(text=''){
   const n=normalizeText(String(text));
-  if(/dolor|absceso|infeccion|flem[oó]n|urgenc|supur/.test(n)) return {level:1, phase:CLINICAL_PHASES[0].label, deadline_days:0};
-  if(/period|raspado|sarro|bolsa|higiene|placa|gingiv/.test(n)) return {level:2, phase:CLINICAL_PHASES[1].label, deadline_days:7};
-  if(/endo|caries|obtur|reconstru|perno/.test(n)) return {level:3, phase:CLINICAL_PHASES[2].label, deadline_days:21};
-  if(/implante|extracci|exodon|injerto|seno|cirug/.test(n)) return {level:4, phase:CLINICAL_PHASES[3].label, deadline_days:45};
-  if(/corona|puente|protesis|provisional|locator|barra/.test(n)) return {level:5, phase:CLINICAL_PHASES[4].label, deadline_days:90};
-  return {level:6, phase:CLINICAL_PHASES[5].label, deadline_days:180};
+  if(/dolor|absceso|infeccion|flem[oó]n|urgenc|supur/.test(n)) return {level:1, phase:LEGACY_CLINICAL_PHASES[0].label, deadline_days:0};
+  if(/period|raspado|sarro|bolsa|higiene|placa|gingiv/.test(n)) return {level:2, phase:LEGACY_CLINICAL_PHASES[1].label, deadline_days:7};
+  if(/endo|caries|obtur|reconstru|perno/.test(n)) return {level:3, phase:LEGACY_CLINICAL_PHASES[2].label, deadline_days:21};
+  if(/implante|extracci|exodon|injerto|seno|cirug/.test(n)) return {level:4, phase:LEGACY_CLINICAL_PHASES[3].label, deadline_days:45};
+  if(/corona|puente|protesis|provisional|locator|barra/.test(n)) return {level:5, phase:LEGACY_CLINICAL_PHASES[4].label, deadline_days:90};
+  return {level:6, phase:LEGACY_CLINICAL_PHASES[5].label, deadline_days:180};
 }
 function defaultPlanItems(type='general'){
   const t=normalizeText(type);

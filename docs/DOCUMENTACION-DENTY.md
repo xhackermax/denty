@@ -39,13 +39,13 @@ El estado de navegación no debe mezclarse con la identidad futura del usuario. 
 - `[data-account-type="patient"]`: Cuenta Paciente.
 - `#accountAccessStage`: segunda pantalla de la puerta.
 - `#accountBack`: volver al selector.
-- `#accountContinue`: continuar al shell clínico para Administrador/Usuario.
+- `#accountContinue`: continuar al shell clínico para Administrador/Usuario o entrar al portal separado de Denty Paciente.
 
 ### Estado actual
 
 - Administrador: entra a la aplicación clínica de preview.
 - Usuario: entra a la aplicación clínica de preview.
-- Paciente: muestra su antesala pero no entra al área clínica. El portal paciente está pendiente.
+- Paciente: entra en **Denty Paciente**, un portal separado de la aplicación clínica con tratamiento, citas, simulación de pagos, documentos, sala de espera, lista de espera y soporte. En esta fase es una preview local; la autenticación segura, pagos recurrentes, acceso familiar delegado e integraciones autenticadas externas requieren backend.
 - Usuario/contraseña: pendiente de implementar.
 - Fichaje ligado a identidad autenticada: pendiente de implementar.
 

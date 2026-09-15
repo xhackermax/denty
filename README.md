@@ -42,3 +42,15 @@ pnpm legacy:test
 ## Estado
 
 La base nueva ya esta preparada para evolucionar hacia producto real. La preview anterior sigue disponible mientras se migran pantallas una por una a React y API segura.
+
+## IA local y MCP
+
+La preview puede usar reglas locales y, opcionalmente, un proveedor de IA ejecutado en el servidor local. Para **Ollama**, configura `DENTY_AI_PROVIDER=ollama` en el proceso que ejecuta `server.py`; las credenciales y la comunicación con el modelo permanecen del lado servidor y no se guardan en el navegador.
+
+La integración MCP es también opcional. `server.py` actúa como adaptador y solo se activa cuando existe `DENTY_MCP_URL`; un token, si se necesita, se configura del lado servidor. La respuesta externa debe superar la validación de intenciones de Denty antes de poder modificar datos clínicos.
+
+## Preview de Denty Paciente
+
+La cuenta Administrador y la cuenta Paciente utilizan el mismo conjunto de datos clínicos del navegador, pero mantienen identidades de sesión separadas por pestaña. Esto permite abrir Denty Clínica en una pestaña y Denty Paciente en otra, modificar odontograma, citas, presupuestos o estados desde la clínica y reflejar el cambio en la vista del paciente sin convertir el rol activo en un dato compartido.
+
+Esta separación prepara la migración futura al servidor local: la interfaz seguirá consumiendo una única fuente clínica, mientras autenticación, permisos y persistencia pasarán a la API/SQLite del servidor.
