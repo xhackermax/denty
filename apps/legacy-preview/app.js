@@ -246,12 +246,67 @@ function legacyRenderPatientDetail(){
   <div class="patient-primary-actions"><button class="primary" id="patientNewAppointment">Nueva cita</button><button class="ghost" id="patientNewPlan">Plan tratamiento</button><button class="ghost" id="patientNewWork">Nuevo trabajo</button><button class="ghost" id="patientNewBudget">Nuevo presupuesto</button><button class="ghost" id="patientPayment">Registrar pago</button></div>
   <div class="action-grid">${patientDetailActions().filter(a=>!['appointment','work','budget','payment'].includes(a.id)).map(a=>`<button class="${a.id==='odontogram'?'primary':'ghost'}" data-patient-action="${a.id}" id="${a.id==='odontogram'?'patientOpenOdontogram':a.id==='documents'?'patientOpenDocuments':''}">${esc(a.label)}</button>`).join('')}<button class="danger" id="archivePatientBtn">Archivar paciente</button></div></article>
   <article class="card denty-box"><h2>Denty Box Ambiental</h2><p>Acciones rápidas, notas y comandos del paciente.</p><button class="ghost" data-go="assistant">Abrir comandos</button></article>
-  <div class="tabs">${['resumen','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div>
+  <div class="tabs">${['resumen','tratamiento','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div>
   <div id="patientTabBody">${renderPatientTab(p)}</div></section>`;
+}
+function treatmentDatePlus(dateValue, days){
+  if(!dateValue) return '';
+  const date=new Date(`${dateValue}T12:00:00`);
+  if(Number.isNaN(date.getTime())) return '';
+  date.setDate(date.getDate()+Number(days||0));
+  return date.toISOString().slice(0,10);
+}
+function treatmentDoneStatus(value){
+  const n=normalizeText(value||'');
+  return ['hecho','completado','terminado','entregado','done','finalizado'].some(x=>n.includes(x));
+}
+function treatmentStepStatus(step, index, currentIndex){
+  if(treatmentDoneStatus(step.status)) return 'done';
+  if(index===currentIndex) return 'current';
+  return 'pending';
+}
+function patientTreatmentSnapshot(p){
+  const patientId=Number(p.id);
+  const apps=db.appointments.filter(a=>Number(a.patient_id)===patientId).sort((a,b)=>(a.date+a.start_time).localeCompare(b.date+b.start_time));
+  const next=apps.find(a=>a.date>=today());
+  const rows=budgetFinancialRows(patientId);
+  const total=rows.reduce((s,b)=>s+Number(b.total||0),0);
+  const paid=rows.reduce((s,b)=>s+Number(b.paid||0),0);
+  const pending=rows.reduce((s,b)=>s+Number(b.pending||0),0);
+  const plans=treatmentPlanHierarchy(db,patientId);
+  const steps=plans.flatMap(plan=>(plan.steps||[]).map(step=>({...step,plan_title:plan.title,deadline:step.deadline||plan.deadline})));
+  const doneCount=steps.filter(step=>treatmentDoneStatus(step.status)).length;
+  const currentIndex=Math.max(0,steps.findIndex(step=>!treatmentDoneStatus(step.status)));
+  const current=steps[currentIndex]||null;
+  const progress=steps.length?Math.max(5,Math.round(doneCount/steps.length*100)):(total?Math.max(10,Math.min(90,Math.round((paid/total)*100))):15);
+  const estimatedDate=(steps.map(s=>s.deadline).filter(Boolean).sort().at(-1)) || treatmentDatePlus(next?.date,56);
+  const unsigned=(db.documents||[]).filter(d=>Number(d.patient_id)===patientId&&d.status!=='firmado');
+  const phase=current?.phase||next?.reason||plans[0]?.title||'Plan clinico activo';
+  const treatmentRealized=steps.length?Math.round((total||paid||0)*(doneCount/Math.max(steps.length,1))):paid;
+  const future=Math.max(0,(total||pending||0)-treatmentRealized);
+  let decision='Confirmar la siguiente cita para que el plan no se desordene.';
+  if(unsigned.length) decision='Firmar o revisar el consentimiento pendiente antes de continuar.';
+  else if(pending>0) decision='Elegir forma de pago o registrar el siguiente abono.';
+  else if(!next) decision='Agendar la proxima fase del tratamiento.';
+  return {apps,next,rows,total,paid,pending,plans,steps,doneCount,currentIndex,current,progress,estimatedDate,unsigned,phase,treatmentRealized,future,decision};
+}
+function renderTreatmentControlPanel(p){
+  const s=patientTreatmentSnapshot(p);
+  const timeline=s.steps.length?s.steps:[
+    {title:'Diagnostico y pruebas',phase:'Diagnostico',status:s.progress>20?'hecho':'actual'},
+    {title:'Tratamiento principal',phase:'Tratamiento',status:s.progress>55?'hecho':'actual'},
+    {title:'Rehabilitacion y ajustes',phase:'Rehabilitacion',status:'pendiente'},
+    {title:'Revision final',phase:'Mantenimiento',status:'pendiente'}
+  ];
+  const currentIndex=s.steps.length?s.currentIndex:timeline.findIndex(step=>!treatmentDoneStatus(step.status));
+  const delayDate=s.estimatedDate?treatmentDatePlus(s.estimatedDate,14):'';
+  const nextLabel=s.next?`${s.next.date} ${s.next.start_time||''}`:'Sin cita programada';
+  return `<article class="card treatment-control-panel"><div class="section-title"><div><h2>Tu tratamiento ahora</h2><p>${esc(patientFullName(p))} � ${esc(s.phase)}</p></div><span class="priority-badge media">${s.progress}%</span></div><div class="treatment-progress-bar" aria-label="Progreso del tratamiento"><span style="width:${s.progress}%"></span></div><div class="treatment-now-grid"><div><small>Fase actual</small><strong>${esc(s.current?.title||s.phase)}</strong><span>${esc(s.current?.detail||'Plan activo con seguimiento clinico.')}</span></div><div><small>Proxima cita</small><strong>${esc(nextLabel)}</strong><span>${s.next?esc(s.next.reason||'Revision planificada'):'Agenda la siguiente visita'}</span><button class="ghost mini" data-ptab="agenda">Ver agenda</button></div><div><small>Finalizacion estimada</small><strong>${esc(s.estimatedDate||'Pendiente')}</strong><span>Puede cambiar segun asistencia, pruebas y respuesta clinica.</span></div></div><div class="treatment-impact"><strong>Impacto de retrasar</strong><p>Si se retrasa la proxima visita, la finalizacion podria moverse ${delayDate?`hasta ${esc(delayDate)}`:'entre 2 y 3 semanas'} y algunas pruebas podrian repetirse.</p></div><div class="treatment-money-grid"><div><small>Total aceptado</small><strong>${s.total.toFixed(2)} EUR</strong></div><div><small>Ya realizado</small><strong>${s.treatmentRealized.toFixed(2)} EUR</strong></div><div><small>Ya pagado</small><strong>${s.paid.toFixed(2)} EUR</strong></div><div><small>Pendiente de pago</small><strong>${s.pending.toFixed(2)} EUR</strong></div><div><small>Tratamiento futuro</small><strong>${s.future.toFixed(2)} EUR</strong></div></div><div class="toolbar"><button class="ghost" data-ptab="presupuestos">Ver presupuestos</button><button class="ghost" data-ptab="archivos">Archivos clinicos</button><button class="ghost" data-ptab="planificacion">Planificacion</button></div><section class="treatment-decision"><small>Proxima decision</small><strong>${esc(s.decision)}</strong><div class="toolbar"><button class="primary mini" data-ptab="agenda">Resolver ahora</button><button class="ghost mini" data-ptab="documentos">Documentos</button></div></section><div class="treatment-timeline">${timeline.map((step,index)=>`<div class="timeline-phase ${treatmentStepStatus(step,index,currentIndex)}"><span>${index+1}</span><div><strong>${esc(step.title||step.phase||'Fase')}</strong><small>${esc(step.phase||'Tratamiento')} � ${esc(step.status||'pendiente')}</small></div></div>`).join('')}</div></article>`;
 }
 function renderPatientTab(p){
   const id=p.id;
   if(state.patientTab==='resumen') return `<div class="card flat"><div class="section-title"><h2>Estado del caso</h2><button class="ghost" data-patient-action="odontogram">Abrir odontograma</button></div><div class="list"><div>📄 Documentos firmados: <strong>${db.documents.filter(d=>d.patient_id===id&&d.status==='firmado').length}</strong></div><div>🧩 Trabajos activos: <strong>${db.works.filter(w=>w.patient_id===id).length}</strong></div><div>📁 Archivos: <strong>${db.files.filter(f=>f.patient_id===id).length}</strong></div></div><div style="margin-top:14px">${miniOdonto(id)}</div></div>`;
+  if(state.patientTab==='tratamiento') return renderTreatmentControlPanel(p);
   if(state.patientTab==='planificacion') return renderPlanningTab(p);
   if(state.patientTab==='agenda'){ const aps=db.appointments.filter(a=>Number(a.patient_id)===Number(id)).sort((a,b)=>(b.date+b.start_time).localeCompare(a.date+a.start_time)); return `<div class="toolbar"><button class="primary" id="tabNewAppointment">+ Cita del paciente</button></div>${aps.length?aps.map(apptCard).join(''):'<div class="empty-state">Sin citas.</div>'}`; }
   if(state.patientTab==='trabajos') return renderPatientWorksTab(p);
@@ -1154,7 +1209,7 @@ function renderPatientDetail(){
   const works=db.works.filter(w=>Number(w.patient_id)===Number(p.id));
   const pending=db.budgets.filter(b=>Number(b.patient_id)===Number(p.id)).reduce((s,b)=>s+Number(b.pending||b.total||0),0);
   const next=apps.filter(a=>a.date>=today()).sort((a,b)=>(a.date+a.start_time).localeCompare(b.date+b.start_time))[0];
-  return `<section><button class="ghost" data-go="patients">Pacientes</button><article class="card patient-profile"><div class="patient-hero"><div class="avatar">${esc(initials(p))}</div><div><h1>${esc(patientFullName(p))}</h1><div class="patient-meta"><span>Tel. ${esc(p.phone||'-')}</span><span>${esc(p.email||'Sin email')}</span>${p.ficha?`<span>Ficha ${esc(p.ficha)}</span>`:''}</div></div></div>${renderPatientRiskStrip(p)}<div class="stats-grid"><div class="metric"><div class="k">Proxima cita</div><div class="v" style="font-size:22px">${next?esc(next.date+' '+next.start_time):'Sin cita'}</div></div><div class="metric"><div class="k">Trabajos activos</div><div class="v">${works.length}</div></div><div class="metric"><div class="k">Pendiente</div><div class="v money">${pending.toFixed(2)} EUR</div></div><div class="metric"><div class="k">Docs firmados</div><div class="v">${docs.filter(d=>d.status==='firmado').length}</div></div></div><div class="patient-primary-actions"><button class="primary" id="patientNewAppointment">Nueva cita</button><button class="ghost" id="patientNewPlan">Plan tratamiento</button><button class="ghost" id="patientNewWork">Nuevo trabajo</button><button class="ghost" id="patientNewBudget">Nuevo presupuesto</button><button class="ghost" id="patientPayment">Registrar pago</button></div><div class="action-grid">${patientDetailActions().filter(a=>!['appointment','work','budget','payment'].includes(a.id)).map(a=>`<button class="${a.id==='odontogram'?'primary':'ghost'}" data-patient-action="${a.id}" id="${a.id==='odontogram'?'patientOpenOdontogram':a.id==='documents'?'patientOpenDocuments':''}">${esc(a.label)}</button>`).join('')}<button class="danger" id="archivePatientBtn">Archivar paciente</button></div></article><article class="card denty-box"><h2>Denty Box Ambiental</h2><p>Acciones rapidas, notas y comandos del paciente.</p><button class="ghost" data-go="assistant">Abrir comandos</button></article><div class="tabs">${['resumen','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos','imprimir'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div><div id="patientTabBody">${renderPatientTab(p)}</div></section>`;
+  return `<section><button class="ghost" data-go="patients">Pacientes</button><article class="card patient-profile"><div class="patient-hero"><div class="avatar">${esc(initials(p))}</div><div><h1>${esc(patientFullName(p))}</h1><div class="patient-meta"><span>Tel. ${esc(p.phone||'-')}</span><span>${esc(p.email||'Sin email')}</span>${p.ficha?`<span>Ficha ${esc(p.ficha)}</span>`:''}</div></div></div>${renderPatientRiskStrip(p)}<div class="stats-grid"><div class="metric"><div class="k">Proxima cita</div><div class="v" style="font-size:22px">${next?esc(next.date+' '+next.start_time):'Sin cita'}</div></div><div class="metric"><div class="k">Trabajos activos</div><div class="v">${works.length}</div></div><div class="metric"><div class="k">Pendiente</div><div class="v money">${pending.toFixed(2)} EUR</div></div><div class="metric"><div class="k">Docs firmados</div><div class="v">${docs.filter(d=>d.status==='firmado').length}</div></div></div><div class="patient-primary-actions"><button class="primary" id="patientNewAppointment">Nueva cita</button><button class="ghost" id="patientNewPlan">Plan tratamiento</button><button class="ghost" id="patientNewWork">Nuevo trabajo</button><button class="ghost" id="patientNewBudget">Nuevo presupuesto</button><button class="ghost" id="patientPayment">Registrar pago</button></div><div class="action-grid">${patientDetailActions().filter(a=>!['appointment','work','budget','payment'].includes(a.id)).map(a=>`<button class="${a.id==='odontogram'?'primary':'ghost'}" data-patient-action="${a.id}" id="${a.id==='odontogram'?'patientOpenOdontogram':a.id==='documents'?'patientOpenDocuments':''}">${esc(a.label)}</button>`).join('')}<button class="danger" id="archivePatientBtn">Archivar paciente</button></div></article><article class="card denty-box"><h2>Denty Box Ambiental</h2><p>Acciones rapidas, notas y comandos del paciente.</p><button class="ghost" data-go="assistant">Abrir comandos</button></article><div class="tabs">${['resumen','tratamiento','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos','imprimir'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div><div id="patientTabBody">${renderPatientTab(p)}</div></section>`;
 }
 function renderAgendaSafetyBanner(){
   const day=db.appointments.filter(a=>a.date===state.date);

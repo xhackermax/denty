@@ -211,3 +211,114 @@ html[data-theme="dark"]{--ink:#dceef4;--muted:#9ab0ba;--line:#294956;--soft:#102
     grid-template-columns: 1fr;
   }
 }
+
+.treatment-control-panel {
+  display: grid;
+  gap: 16px;
+}
+.treatment-progress-bar {
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e3f1f5;
+  border: 1px solid #cae7ee;
+}
+.treatment-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #13a7c1, #1ca36e);
+}
+.treatment-now-grid,
+.treatment-money-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.treatment-now-grid > div,
+.treatment-money-grid > div,
+.treatment-decision {
+  border: 1px solid #d9edf3;
+  background: #fbfeff;
+  border-radius: 8px;
+  padding: 14px;
+}
+.treatment-now-grid small,
+.treatment-money-grid small,
+.treatment-decision small {
+  display: block;
+  color: #687f89;
+  font-weight: 850;
+  margin-bottom: 5px;
+}
+.treatment-now-grid strong,
+.treatment-money-grid strong,
+.treatment-decision strong {
+  display: block;
+  color: #173f50;
+  font-size: 20px;
+  line-height: 1.15;
+}
+.treatment-now-grid span {
+  display: block;
+  color: #657b85;
+  font-size: 14px;
+  margin-top: 5px;
+}
+.treatment-impact {
+  border: 1px solid #f3d49a;
+  background: #fff8e9;
+  border-radius: 8px;
+  padding: 14px;
+  color: #715118;
+}
+.treatment-impact p {
+  margin: 4px 0 0;
+}
+.treatment-timeline {
+  display: grid;
+  gap: 10px;
+}
+.timeline-phase {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #dbeaf0;
+  background: #fff;
+  border-radius: 8px;
+  padding: 11px;
+}
+.timeline-phase span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e7f7fb;
+  color: #0a7184;
+  font-weight: 900;
+}
+.timeline-phase.done {
+  border-color: #c3ecd3;
+  background: #f4fff8;
+}
+.timeline-phase.done span {
+  background: #d7f5e4;
+  color: #146b43;
+}
+.timeline-phase.current {
+  border-color: #91dcea;
+  box-shadow: 0 8px 22px rgba(15, 165, 191, .11);
+}
+.timeline-phase small {
+  display: block;
+  color: #70858d;
+  margin-top: 2px;
+}
+@media (max-width: 720px) {
+  .treatment-now-grid,
+  .treatment-money-grid {
+    grid-template-columns: 1fr;
+  }
+}
