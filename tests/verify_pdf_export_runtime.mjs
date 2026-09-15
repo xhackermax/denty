@@ -15,9 +15,16 @@ function extractFunction(name){
   throw new Error(`${name} incompleta`);
 }
 
-const source = [extractFunction('requirePin'), extractFunction('downloadClinicalPdf')].join('\n');
+const source = [
+  extractFunction('requirePin'),
+  extractFunction('plainTextForPdf'),
+  extractFunction('pdfEscape'),
+  extractFunction('buildSimplePdf'),
+  extractFunction('downloadClinicalPdf')
+].join('\n');
 let clickedDownload = null;
 let auditRecord = null;
+let createdBlob = null;
 const context = {
   db:{security:{pin_enabled:true,admin_pin_hash:'1234-preview'},auditLog:[]},
   state:{patientId:1},
@@ -27,7 +34,7 @@ const context = {
   persist(){},
   recordAudit(action, patientId, detail){ auditRecord = {action, patientId, detail}; },
   printableDocumentHtml(kind, id){ return `<section>${kind}:${id}</section>`; },
-  Blob: class { constructor(parts, options){ this.parts = parts; this.options = options; } },
+  Blob: class { constructor(parts, options){ this.parts = parts; this.options = options; createdBlob = this; } },
   URL:{createObjectURL(){ return 'blob:denty-pdf'; }, revokeObjectURL(){}},
   setTimeout(fn){ fn(); },
   document:{createElement(tag){ return {tag, set href(v){ this._href=v; }, get href(){ return this._href; }, set download(v){ this._download=v; }, get download(){ return this._download; }, click(){ clickedDownload = {href:this.href, download:this.download}; }}; }}
@@ -36,6 +43,8 @@ vm.createContext(context);
 vm.runInContext(source, context);
 
 assert.doesNotThrow(() => vm.runInContext("downloadClinicalPdf('doc:42')", context));
-assert.deepEqual(clickedDownload, {href:'blob:denty-pdf', download:'denty-doc-42.pdf.html'});
+assert.deepEqual(clickedDownload, {href:'blob:denty-pdf', download:'denty-doc-42.pdf'});
+assert.equal(createdBlob.options.type, 'application/pdf');
+assert.match(String(createdBlob.parts[0]), /^%PDF-/);
 assert.deepEqual(auditRecord, {action:'document.pdf.export', patientId:1, detail:'doc:42'});
 console.log('verify_pdf_export_runtime: OK');

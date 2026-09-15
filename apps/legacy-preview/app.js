@@ -207,7 +207,7 @@ function renderTasks(){
 }
 function openQuickTaskModal(){
   const modal=$('#quickTaskModal');
-  modal.innerHTML=`<form method="dialog" class="modal-card quick-task-modal"><div class="modal-title"><div><h2>¿Qué quieres hacer?</h2><p>Acciones rápidas de Denty</p></div><button class="icon-btn" value="cancel" aria-label="Cerrar">×</button></div>${quickTaskButtons()}</form>`;
+  modal.innerHTML=`<form method="dialog" class="modal-card quick-task-modal"><div class="modal-title"><div><h2>¿Qué quieres hacer?</h2><p>Acciones rápidas de Denty</p></div><button class="icon-btn" type="button" data-dialog-close  value="cancel" aria-label="Cerrar">×</button></div>${quickTaskButtons()}</form>`;
   modal.showModal();
   $$('[data-quick-task]',modal).forEach(btn=>btn.onclick=()=>{
     const action=btn.dataset.quickTask; modal.close();
@@ -271,7 +271,7 @@ function legacyRenderPlanningTab(p){
 function openTreatmentPlanModal(){
   const p=patient(state.patientId); if(!p)return toast('Elige paciente');
   const modal=$('#consentModal');
-  modal.innerHTML=`<form id="planForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Nuevo plan de tratamiento</h2><button class="icon-btn" value="cancel">×</button></div><div class="form-grid"><label class="field">Tipo<select name="kind"><option value="general">General</option><option value="implantes">Implantes</option><option value="endo">Endodoncia</option><option value="perio">Periodontal</option></select></label><label class="field">Prioridad<select name="priority"><option value="urgente">Urgente</option><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select></label><label class="field">Plazo clínico<input name="deadline" type="date" value="${today()}"></label></div><label class="field">Título del plan<input name="title" value="Plan integral ${esc(patientFullName(p))}"></label><p class="tiny">Denty crea pasos por jerarquía: urgencia/diagnóstico → tratamiento causal → rehabilitación → control/mantenimiento.</p><button class="primary">Crear plan</button></form>`;
+  modal.innerHTML=`<form id="planForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Nuevo plan de tratamiento</h2><button class="icon-btn" type="button" data-dialog-close value="cancel">×</button></div><div class="form-grid"><label class="field">Tipo<select name="kind"><option value="general">General</option><option value="implantes">Implantes</option><option value="endo">Endodoncia</option><option value="perio">Periodontal</option></select></label><label class="field">Prioridad<select name="priority"><option value="urgente">Urgente</option><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select></label><label class="field">Plazo clínico<input name="deadline" type="date" value="${today()}"></label></div><label class="field">Título del plan<input name="title" value="Plan integral ${esc(patientFullName(p))}"></label><p class="tiny">Denty crea pasos por jerarquía: urgencia/diagnóstico → tratamiento causal → rehabilitación → control/mantenimiento.</p><button class="primary">Crear plan</button></form>`;
   modal.showModal();
   $('#planForm').onsubmit=e=>{ e.preventDefault(); const d=formData(e.target); snapshot(); createTreatmentPlan(db,{patient_id:p.id,title:d.title,priority:d.priority,deadline:d.deadline,kind:d.kind}); persist(); modal.close(); state.patientTab='planificacion'; render(); toast('Plan creado por jerarquía clínica'); };
 }
@@ -279,7 +279,7 @@ function schedulePlanStep(key){
   const [planId, stepId]=String(key).split(':').map(Number);
   const modal=$('#appointmentModal'); const p=patient(state.patientId); if(!p)return;
   const plan=(db.treatmentPlans||[]).find(x=>Number(x.id)===planId); const step=plan?.steps?.find(x=>Number(x.id)===stepId); if(!step)return toast('Paso no encontrado');
-  modal.innerHTML=`<form id="scheduleStepForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Agendar paso</h2><button class="icon-btn" value="cancel">×</button></div><p><strong>${esc(step.title)}</strong><br><small>${esc(step.phase)} · ${esc(step.reason)}</small></p><div class="form-grid"><label class="field">Doctor<select name="employee_id">${db.employees.filter(e=>e.active!==false).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select></label><label class="field">Fecha<input name="date" type="date" value="${state.date||today()}"></label><label class="field">Hora<input name="start_time" type="time" value="10:00"></label><label class="field">Sede<input name="site" value="${esc(db.sites?.[0]?.name||'')}"></label></div><label class="field">Motivo de visita<input name="reason" value="${esc(step.reason||step.title)}"></label><label class="field">Detalle clínico de la cita<textarea name="detail">${esc(step.detail||'')}</textarea></label><button class="primary">Agendar en la cita</button></form>`;
+  modal.innerHTML=`<form id="scheduleStepForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Agendar paso</h2><button class="icon-btn" type="button" data-dialog-close value="cancel">×</button></div><p><strong>${esc(step.title)}</strong><br><small>${esc(step.phase)} · ${esc(step.reason)}</small></p><div class="form-grid"><label class="field">Doctor<select name="employee_id">${db.employees.filter(e=>e.active!==false).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select></label><label class="field">Fecha<input name="date" type="date" value="${state.date||today()}"></label><label class="field">Hora<input name="start_time" type="time" value="10:00"></label><label class="field">Sede<input name="site" value="${esc(db.sites?.[0]?.name||'')}"></label></div><label class="field">Motivo de visita<input name="reason" value="${esc(step.reason||step.title)}"></label><label class="field">Detalle clínico de la cita<textarea name="detail">${esc(step.detail||'')}</textarea></label><button class="primary">Agendar en la cita</button></form>`;
   modal.showModal();
   $('#scheduleStepForm').onsubmit=e=>{ e.preventDefault(); const d=formData(e.target); snapshot(); step.reason=d.reason; step.detail=d.detail; schedulePlanStepToAgenda(db,{plan_id:planId,step_id:stepId,date:d.date,start_time:d.start_time,employee_id:Number(d.employee_id),site:d.site}); persist(); modal.close(); state.patientTab='agenda'; render(); toast('Paso añadido a la agenda'); };
 }
@@ -290,8 +290,40 @@ function legacyRenderDocumentsTab(p){
 }
 function legacyRenderAlertsTab(p){ const list=db.clinicalAlerts.filter(a=>Number(a.patient_id)===Number(p.id)); return `<div class="toolbar"><button class="primary" id="addAlert">+ Alerta clínica</button></div>${list.map(a=>`<div class="danger-banner"><strong>${esc(a.type||'Alerta')}</strong><div>${esc(a.text||'')}</div></div>`).join('')||'<div class="empty-state">Sin alertas clínicas.</div>'}`; }
 function renderCommentsTab(p){ const list=db.comments.filter(c=>Number(c.patient_id)===Number(p.id)); return `<div class="toolbar"><button class="primary" id="addComment">+ Comentario</button></div>${list.map(c=>`<div class="card flat"><strong>${c.pinned?'📌 ':''}${esc(c.category||'Comentario')}</strong><p>${esc(c.text)}</p></div>`).join('')||'<div class="empty-state">Sin comentarios.</div>'}`; }
-function renderFilesTab(p){ const list=db.files.filter(f=>Number(f.patient_id)===Number(p.id)); return `<div class="toolbar"><button class="primary" id="addFile">+ Archivo</button></div>${list.map(f=>`<div class="list-item"><span>📁</span><span><strong>${esc(f.title)}</strong><small>${esc(f.type||'archivo')}</small></span></div>`).join('')||'<div class="empty-state">Sin archivos.</div>'}`; }
-
+function fileCategoryLabel(value){
+  return ({
+    photo:'Fotografia clinica',
+    radiography:'Radiografia',
+    cbct:'CBCT / DICOM',
+    lab:'Analisis medico',
+    pdf:'PDF escaneado',
+    other:'Otro archivo'
+  })[value] || 'Archivo clinico';
+}
+function fileKind(file){
+  const name=String(file?.name||'').toLowerCase();
+  const type=String(file?.type||'').toLowerCase();
+  if(type.startsWith('image/')) return 'imagen';
+  if(type.includes('pdf') || name.endsWith('.pdf')) return 'pdf';
+  if(name.endsWith('.dcm') || name.endsWith('.dicom') || name.endsWith('.nii') || name.endsWith('.nrrd')) return 'dicom/cbct';
+  return type || 'archivo';
+}
+function fileSizeLabel(bytes){
+  const n=Number(bytes)||0;
+  if(n>=1024*1024) return `${(n/(1024*1024)).toFixed(1)} MB`;
+  if(n>=1024) return `${Math.round(n/1024)} KB`;
+  return `${n} B`;
+}
+function renderFilePreview(f){
+  if((f.mime||'').startsWith('image/') && f.data_url) return `<img class="file-thumb" src="${esc(f.data_url)}" alt="${esc(f.title)}">`;
+  if((f.mime||'').includes('pdf') || String(f.original_name||'').toLowerCase().endsWith('.pdf')) return `<span class="file-thumb file-thumb-pdf">PDF</span>`;
+  if(String(f.kind||'').includes('dicom') || String(f.category||'')==='cbct') return `<span class="file-thumb file-thumb-scan">3D</span>`;
+  return `<span class="file-thumb">??</span>`;
+}
+function renderFilesTab(p){
+  const list=db.files.filter(f=>Number(f.patient_id)===Number(p.id)).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
+  return `<div class="card flat file-import-panel"><div class="section-title"><h2>Archivos del paciente</h2><p>Importa fotografias, radiografias, CBCT/DICOM, analisis medicos o PDF escaneados.</p></div><div class="form-grid"><label class="field">Tipo de archivo<select id="patientFileCategory"><option value="photo">Fotografia clinica</option><option value="radiography">Radiografia</option><option value="cbct">CBCT / DICOM</option><option value="lab">Analisis medico</option><option value="pdf">PDF escaneado</option><option value="other">Otro archivo</option></select></label><label class="field">Notas clinicas<input id="patientFileNotes" placeholder="Ej. panoramica inicial, analitica prequirurgica"></label></div><label class="file-drop-zone" for="patientFileInput"><strong>Seleccionar archivos</strong><span>Imagenes, PDF, DICOM/CBCT o documentos escaneados</span><input id="patientFileInput" type="file" multiple accept="image/*,application/pdf,.pdf,.dcm,.dicom,.nii,.nrrd,.zip"></label><div class="toolbar"><button class="primary" id="importPatientFiles">Importar a la ficha</button></div></div>${list.length?`<div class="file-grid">${list.map(f=>`<article class="file-card">${renderFilePreview(f)}<div><strong>${esc(f.title)}</strong><small>${esc(fileCategoryLabel(f.category))} � ${esc(f.kind||f.type||'archivo')} � ${esc(fileSizeLabel(f.size))}</small><small>${esc(f.original_name||'')} ${f.created_at?'� '+new Date(f.created_at).toLocaleString('es-ES'):''}</small>${f.notes?`<p>${esc(f.notes)}</p>`:''}<div class="toolbar">${f.data_url?`<a class="ghost button-link" href="${esc(f.data_url)}" target="_blank" rel="noreferrer" download="${esc(f.original_name||f.title)}">Abrir / descargar</a>`:''}</div></div></article>`).join('')}</div>`:'<div class="empty-state">Sin archivos. Importa fotografias, radiografias, CBCT o PDFs desde el boton superior.</div>'}`;
+}
 function miniOdonto(patientId){ const od=ensureOdontogram(db,patientId); const arc=arr=>`<div class="mini-arcade">${arr.map(t=>`<span class="mini-tooth ${esc(statusTone(od[t].status))}" title="${t}"></span>`).join('')}</div>`; return `<div class="mini-odonto">${arc(FDI_UPPER)}${arc(FDI_LOWER)}</div>`; }
 function toothKind(tooth){ const n=Number(String(tooth).slice(1)); if([1,2].includes(n))return'incisor'; if(n===3)return'canine'; if([4,5].includes(n))return'premolar'; return'molar'; }
 function toothGeometry(kind, tooth=''){
@@ -797,7 +829,7 @@ function bindScreen(){
   $$('[data-view-doc]').forEach(b=>b.onclick=()=>viewDoc(Number(b.dataset.viewDoc)));
   if($('#addAlert')) $('#addAlert').onclick=()=>{ const text=prompt('Alerta clinica'); if(text){ snapshot('clinical_alert.create',state.patientId); db.clinicalAlerts.push({id:id(db),patient_id:state.patientId,type:'Alerta clinica',severity:'alta',text,active:true,created_at:new Date().toISOString()}); persist(); render(); }};
   if($('#addComment')) $('#addComment').onclick=()=>{ const text=prompt('Comentario'); if(text){ snapshot(); db.comments.push({id:id(db),patient_id:state.patientId,category:'General',text,created_at:new Date().toISOString()}); persist(); render(); }};
-  if($('#addFile')) $('#addFile').onclick=()=>{ const title=prompt('Nombre del archivo'); if(title){ snapshot(); db.files.push({id:id(db),patient_id:state.patientId,title,type:'referencia'}); persist(); render(); }};
+  if($('#importPatientFiles')) $('#importPatientFiles').onclick=()=>importPatientFiles();
   if($('#odontogramPatient')) $('#odontogramPatient').onchange=e=>{ state.patientId=Number(e.target.value); render(); };
   bindOdonto();
   if($('#openAppointmentModal')) $('#openAppointmentModal').onclick=()=>openAppointmentModal();
@@ -850,6 +882,47 @@ function cycleLegend(base){
   state.odontoToolBase=base; state.odontoToolCode=legendVariant(base,idx);
   render(); toast(`${legendLabel(base,idx)} · ${legendStateText(base,idx)}`);
 }
+async function readFileAsDataUrl(file){
+  return await new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.onerror=()=>reject(reader.error||new Error('No se pudo leer el archivo'));
+    reader.readAsDataURL(file);
+  });
+}
+async function importPatientFiles(){
+  const input=$('#patientFileInput');
+  const files=Array.from(input?.files||[]);
+  if(!files.length) return toast('Selecciona uno o varios archivos');
+  const category=$('#patientFileCategory')?.value||'other';
+  const notes=$('#patientFileNotes')?.value||'';
+  snapshot('patient_file.import',state.patientId);
+  try{
+    for(const file of files){
+      const dataUrl=await readFileAsDataUrl(file);
+      db.files.push({
+        id:id(db),
+        patient_id:Number(state.patientId),
+        title:file.name.replace(/\.[^.]+$/,''),
+        original_name:file.name,
+        type:fileKind(file),
+        kind:fileKind(file),
+        mime:file.type||'',
+        size:file.size||0,
+        category,
+        notes,
+        data_url:dataUrl,
+        created_at:new Date().toISOString()
+      });
+    }
+    recordAudit('patient_file.import',state.patientId,`${files.length} archivo(s)`);
+    persist();
+    render();
+    toast(`${files.length} archivo(s) importado(s)`);
+  }catch(err){
+    toast(err?.message||'No se pudo importar el archivo');
+  }
+}
 function bindOdonto(){
   $$('[data-odonto-mode]').forEach(b=>b.onclick=()=>{ state.odontoMode=b.dataset.odontoMode; render(); });
   $$('[data-select-tooth]').forEach(b=>b.onclick=()=>{ state.selectedTooth=String(b.dataset.selectTooth); render(); });
@@ -882,9 +955,9 @@ function togglePositionFlag(tooth, key){ const p=currentPatient(); if(!p) return
 function updatePositionSelect(tooth, key, value){ const p=currentPatient(); if(!p) return; snapshot(); const rec=ensureOdontogram(db,p.id)[String(tooth)]; rec.position[key]=value; state.selectedTooth=String(tooth); persist(); render(); }
 function legacyMarkMissing(arcade){ const p=currentPatient(); if(!p)return toast('Primero elige un paciente'); const arr=arcade==='superior'?FDI_UPPER:FDI_LOWER; const od=ensureOdontogram(db,p.id); const hasData=arr.some(t=>od[t].status!=='healthy'||Object.keys(od[t].surfaces||{}).length); if(hasData&&!confirm(`La arcada ${arcade} tiene registros. ¿Marcarla completa como ausente?`)) return; snapshot(); markArcadeMissing(db,p.id,arcade); persist(); render(); toast(`Arcada ${arcade} marcada ausente`); }
 function cycleSelected(){ const p=currentPatient(); if(!p||!state.selectedTooth) return toast('Selecciona un diente'); snapshot(); const od=ensureOdontogram(db,p.id); setToothPrimaryState(db,p.id,state.selectedTooth,toothStatusNext(od[state.selectedTooth].status)); persist(); render(); }
-function openToothStateSheet(tooth){ const p=currentPatient(); if(!p)return; const modal=$('#consentModal'); const groups=[['Presencia',['healthy','missing','extraction','caries']],['Correcto',['filling','crown','endo','post','implant','prosthesis','removable']],['Insatisfactorio / revisar',['filling_bad','crown_bad','endo_bad','post_bad','implant_review','prosthesis_bad','removable_bad']],['Pendiente / indicado',['filling_pending','crown_pending','endo_indicated','post_pending','implant_indicated','prosthesis_pending','removable_pending']]]; modal.innerHTML=`<form method="dialog" class="modal-card"><div class="modal-title"><h2>Diente ${tooth}</h2><button class="icon-btn">×</button></div>${groups.map(([title,codes])=>`<h3>${title}</h3><div class="form-grid">${codes.map(code=>`<button class="ghost state-choice tone-${statusTone(code)}" value="${code}">${legendSymbol(code)} ${esc(STATUS_LABELS[code]||code)}</button>`).join('')}</div>`).join('')}</form>`; modal.showModal(); $$('button[value]',modal).forEach(b=>b.onclick=e=>{ e.preventDefault(); snapshot(); setToothLegendState(db,p.id,tooth,b.value); persist(); modal.close(); state.selectedTooth=tooth; render(); }); }
+function openToothStateSheet(tooth){ const p=currentPatient(); if(!p)return; const modal=$('#consentModal'); const groups=[['Presencia',['healthy','missing','extraction','caries']],['Correcto',['filling','crown','endo','post','implant','prosthesis','removable']],['Insatisfactorio / revisar',['filling_bad','crown_bad','endo_bad','post_bad','implant_review','prosthesis_bad','removable_bad']],['Pendiente / indicado',['filling_pending','crown_pending','endo_indicated','post_pending','implant_indicated','prosthesis_pending','removable_pending']]]; modal.innerHTML=`<form method="dialog" class="modal-card"><div class="modal-title"><h2>Diente ${tooth}</h2><button class="icon-btn" type="button" data-dialog-close>×</button></div>${groups.map(([title,codes])=>`<h3>${title}</h3><div class="form-grid">${codes.map(code=>`<button class="ghost state-choice tone-${statusTone(code)}" value="${code}">${legendSymbol(code)} ${esc(STATUS_LABELS[code]||code)}</button>`).join('')}</div>`).join('')}</form>`; modal.showModal(); $$('button[value]',modal).forEach(b=>b.onclick=e=>{ e.preventDefault(); snapshot(); setToothLegendState(db,p.id,tooth,b.value); persist(); modal.close(); state.selectedTooth=tooth; render(); }); }
 
-function openPatientModal(existing=null){ const modal=$('#patientModal'); modal.innerHTML=`<form id="patientForm" method="dialog" class="modal-card"><div class="modal-title"><h2>${existing?'Editar':'Nuevo'} paciente</h2><button class="icon-btn" value="cancel">×</button></div><section class="ai-card"><h3>✦ Asistente IA proactivo</h3><p>Detecta lo que falta, pregunta y escucha automáticamente después de cada respuesta.</p><span>10 datos por completar</span><button type="button" id="patientConversation" class="primary">🎙️ Conversación automática</button></section><div class="form-grid"><label class="field">Nombre<input name="first_name" value="${esc(existing?.first_name||'')}" required></label><label class="field">Apellidos<input name="last_name" value="${esc(existing?.last_name||'')}"></label><label class="field">Teléfono<input name="phone" value="${esc(existing?.phone||'')}"></label><label class="field">Email<input name="email" type="email" value="${esc(existing?.email||'')}"></label><label class="field">Fecha nacimiento<input name="birth_date" type="date" value="${esc(existing?.birth_date||'')}"></label><label class="field">Nº historia / ID<input name="ficha" value="${esc(existing?.ficha||'')}"></label><label class="field">DNI / NIE<input name="dni" value="${esc(existing?.dni||'')}"></label></div><button class="primary" type="submit">Guardar paciente</button></form>`; modal.showModal(); $('#patientConversation').onclick=()=>{ modal.close(); setView('assistant'); startSpeech(); }; $('#patientForm').onsubmit=e=>{ e.preventDefault(); const d=formData(e.target); snapshot(); if(existing){ Object.assign(existing,{first_name:d.first_name,last_name:d.last_name,phone:d.phone,email:d.email,birth_date:d.birth_date,ficha:d.ficha,dni:d.dni}); persist(); modal.close(); render(); toast('Paciente actualizado'); } else { const p=createPatient(db,d); persist(); modal.close(); state.patientId=p.id; state.patientTab='resumen'; setView('patientDetail'); toast('Paciente guardado'); } }; }
+function openPatientModal(existing=null){ const modal=$('#patientModal'); modal.innerHTML=`<form id="patientForm" method="dialog" class="modal-card"><div class="modal-title"><h2>${existing?'Editar':'Nuevo'} paciente</h2><button class="icon-btn" type="button" data-dialog-close value="cancel">×</button></div><section class="ai-card"><h3>✦ Asistente IA proactivo</h3><p>Detecta lo que falta, pregunta y escucha automáticamente después de cada respuesta.</p><span>10 datos por completar</span><button type="button" id="patientConversation" class="primary">🎙️ Conversación automática</button></section><div class="form-grid"><label class="field">Nombre<input name="first_name" value="${esc(existing?.first_name||'')}" required></label><label class="field">Apellidos<input name="last_name" value="${esc(existing?.last_name||'')}"></label><label class="field">Teléfono<input name="phone" value="${esc(existing?.phone||'')}"></label><label class="field">Email<input name="email" type="email" value="${esc(existing?.email||'')}"></label><label class="field">Fecha nacimiento<input name="birth_date" type="date" value="${esc(existing?.birth_date||'')}"></label><label class="field">Nº historia / ID<input name="ficha" value="${esc(existing?.ficha||'')}"></label><label class="field">DNI / NIE<input name="dni" value="${esc(existing?.dni||'')}"></label></div><button class="primary" type="submit">Guardar paciente</button></form>`; modal.showModal(); $('#patientConversation').onclick=()=>{ modal.close(); setView('assistant'); startSpeech(); }; $('#patientForm').onsubmit=e=>{ e.preventDefault(); const d=formData(e.target); snapshot(); if(existing){ Object.assign(existing,{first_name:d.first_name,last_name:d.last_name,phone:d.phone,email:d.email,birth_date:d.birth_date,ficha:d.ficha,dni:d.dni}); persist(); modal.close(); render(); toast('Paciente actualizado'); } else { const p=createPatient(db,d); persist(); modal.close(); state.patientId=p.id; state.patientTab='resumen'; setView('patientDetail'); toast('Paciente guardado'); } }; }
 function openAppointmentModal(pref={}){
   if(!activePatients().length){ toast('Primero crea un paciente'); return openPatientModal(); }
   const defaultDuration=Number(db.settings?.agenda?.default_duration||40);
@@ -892,15 +965,15 @@ function openAppointmentModal(pref={}){
   const defaultSiteId=Number(pref.site_id||db.settings?.clinicProfile?.default_site_id||db.sites?.[0]?.id||0);
   const defaultSite=db.sites.find(x=>Number(x.id)===defaultSiteId);
   const modal=$('#appointmentModal');
-  modal.innerHTML=`<form id="appointmentForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Nueva cita</h2><button class="icon-btn" value="cancel">×</button></div><div class="form-grid"><label class="field">Paciente<select name="patient_id">${activePatients().map(p=>`<option value="${p.id}" ${Number(pref.patient_id||state.patientId)===Number(p.id)?'selected':''}>${esc(patientFullName(p))}</option>`).join('')}</select></label><label class="field">Doctor / empleado<select name="employee_id">${db.employees.filter(e=>e.active!==false).map(e=>`<option value="${e.id}" ${Number(pref.employee_id)===Number(e.id)?'selected':''}>${esc(e.name)}</option>`).join('')}</select></label><label class="field">Sede<select name="site_id">${db.sites.filter(s=>s.active!==false).map(x=>`<option value="${x.id}" ${Number(x.id)===defaultSiteId?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label><label class="field">Gabinete<select name="cabinet_id">${(db.cabinets||[]).filter(c=>c.active!==false).map(c=>`<option value="${c.id}" ${Number(pref.cabinet_id||1)===Number(c.id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label><label class="field">Fecha<input name="date" type="date" value="${pref.date||state.date}"></label><label class="field">Inicio<input name="start_time" type="time" value="${startTime}"></label><label class="field">Fin<input name="end_time" type="time" value="${pref.end_time||addMinutes(startTime,defaultDuration)}"></label><label class="field">Estado<select name="status"><option>programada</option><option>confirmada</option><option>espera</option><option>cancelada</option></select></label></div><label class="field">Motivo de visita<input name="title" value="${esc(pref.title||'Revisión')}"></label><label class="field">Detalle clínico de la cita<textarea name="detail" placeholder="Qué se va a hacer, dientes, material, fase del plan...">${esc(pref.detail||'')}</textarea></label><div id="availabilityBox" class="warn-banner">Calculando disponibilidad…</div><label><input name="confirmed" type="checkbox"> Confirmada por el paciente</label><button class="primary" type="submit">Crear cita</button></form>`;
+  modal.innerHTML=`<form id="appointmentForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Nueva cita</h2><button class="icon-btn" type="button" data-dialog-close value="cancel">×</button></div><div class="form-grid"><label class="field">Paciente<select name="patient_id">${activePatients().map(p=>`<option value="${p.id}" ${Number(pref.patient_id||state.patientId)===Number(p.id)?'selected':''}>${esc(patientFullName(p))}</option>`).join('')}</select></label><label class="field">Doctor / empleado<select name="employee_id">${db.employees.filter(e=>e.active!==false).map(e=>`<option value="${e.id}" ${Number(pref.employee_id)===Number(e.id)?'selected':''}>${esc(e.name)}</option>`).join('')}</select></label><label class="field">Sede<select name="site_id">${db.sites.filter(s=>s.active!==false).map(x=>`<option value="${x.id}" ${Number(x.id)===defaultSiteId?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label><label class="field">Gabinete<select name="cabinet_id">${(db.cabinets||[]).filter(c=>c.active!==false).map(c=>`<option value="${c.id}" ${Number(pref.cabinet_id||1)===Number(c.id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label><label class="field">Fecha<input name="date" type="date" value="${pref.date||state.date}"></label><label class="field">Inicio<input name="start_time" type="time" value="${startTime}"></label><label class="field">Fin<input name="end_time" type="time" value="${pref.end_time||addMinutes(startTime,defaultDuration)}"></label><label class="field">Estado<select name="status"><option>programada</option><option>confirmada</option><option>espera</option><option>cancelada</option></select></label></div><label class="field">Motivo de visita<input name="title" value="${esc(pref.title||'Revisión')}"></label><label class="field">Detalle clínico de la cita<textarea name="detail" placeholder="Qué se va a hacer, dientes, material, fase del plan...">${esc(pref.detail||'')}</textarea></label><div id="availabilityBox" class="warn-banner">Calculando disponibilidad…</div><label><input name="confirmed" type="checkbox"> Confirmada por el paciente</label><button class="primary" type="submit">Crear cita</button></form>`;
   modal.showModal(); const form=$('#appointmentForm');
   const syncCabinets=()=>{ const sid=Number(form.elements.site_id.value); const current=String(form.elements.cabinet_id.value||''); [...form.elements.cabinet_id.options].forEach(o=>{ const c=db.cabinets.find(x=>Number(x.id)===Number(o.value)); o.hidden=!!c&&Number(c.site_id)!==sid; }); if(![...form.elements.cabinet_id.options].some(o=>o.value===current&&!o.hidden)){ const first=[...form.elements.cabinet_id.options].find(o=>!o.hidden); if(first) form.elements.cabinet_id.value=first.value; } };
   const refresh=()=>{ syncCabinets(); const d=formData(form); const av=appointmentAvailability(db,d); $('#availabilityBox').className=av.status==='ok'?'ok-banner':av.status==='conflict'?'danger-banner':'warn-banner'; $('#availabilityBox').textContent=av.message; return av; };
   ['employee_id','site_id','cabinet_id','date','start_time','end_time'].forEach(n=>form.elements[n].onchange=refresh); refresh();
   form.onsubmit=e=>{ e.preventDefault(); const d=formData(form); const av=refresh(); if(av.status!=='ok'&&!confirm(av.message+'\n\n¿Guardar igualmente?')) return; const site=db.sites.find(x=>Number(x.id)===Number(d.site_id)); snapshot('appointment.create',Number(d.patient_id)); db.appointments.push({id:id(db),patient_id:Number(d.patient_id),employee_id:Number(d.employee_id),cabinet_id:Number(d.cabinet_id||1),site_id:Number(d.site_id||0),chain_id:pref.chain_id||'',date:d.date,start_time:d.start_time,end_time:d.end_time,duration_minutes:durationMinutes(d.start_time,d.end_time),title:d.title,reason:d.title,detail:d.detail,status:d.status,site:site?.name||'',confirmed:!!d.confirmed,availability_status:av.status,availability_message:av.status==='ok'?'':av.message,created_at:new Date().toISOString()}); persist(); modal.close(); render(); toast(av.status==='ok'?'Cita guardada':'Cita guardada con aviso'); };
 }
-function legacyOpenConsentModal(){ const p=patient(state.patientId); if(!p)return; const modal=$('#consentModal'); modal.innerHTML=`<form id="consentForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Nuevo consentimiento</h2><button class="icon-btn" value="cancel">×</button></div><label class="field">Plantilla<select name="consent_id">${db.consents.filter(c=>c.active!==false).map(c=>`<option value="${c.id}">${esc(c.title)} · v${esc(c.version||1)}</option>`).join('')}</select></label><div class="consent-help">Consentimientos definidos con diagnóstico, beneficios, riesgos, alternativas, cuidados y firma.</div><label class="field">Título<input name="title" value="Consentimiento informado"></label><button class="primary">Crear documento</button></form>`; modal.showModal(); $('#consentForm').onsubmit=e=>{ e.preventDefault(); const d=formData(e.target); snapshot(); const doc=createConsentDocument(db,{patient_id:p.id,consent_id:Number(d.consent_id),title:d.title}); persist(); modal.close(); state.patientTab='documentos'; render(); toast('Documento creado'); openSignatureModal(doc.id); }; }
-function viewDoc(docId){ const d=db.documents.find(x=>Number(x.id)===Number(docId)); if(!d)return; const modal=$('#consentModal'); modal.innerHTML=`<form method="dialog" class="modal-card"><div class="modal-title"><h2>${esc(d.title)}</h2><button class="icon-btn">×</button></div><p>${esc(d.text)}</p><div class="${d.status==='firmado'?'ok-banner':'warn-banner'}">Estado: ${esc(d.status)} ${d.hash?'· hash '+esc(d.hash):''}</div>${d.signature_data?`<img class="doc-signature" src="${esc(d.signature_data)}" alt="Firma">`:''}</form>`; modal.showModal(); }
+function legacyOpenConsentModal(){ const p=patient(state.patientId); if(!p)return; const modal=$('#consentModal'); modal.innerHTML=`<form id="consentForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Nuevo consentimiento</h2><button class="icon-btn" type="button" data-dialog-close value="cancel">×</button></div><label class="field">Plantilla<select name="consent_id">${db.consents.filter(c=>c.active!==false).map(c=>`<option value="${c.id}">${esc(c.title)} · v${esc(c.version||1)}</option>`).join('')}</select></label><div class="consent-help">Consentimientos definidos con diagnóstico, beneficios, riesgos, alternativas, cuidados y firma.</div><label class="field">Título<input name="title" value="Consentimiento informado"></label><button class="primary">Crear documento</button></form>`; modal.showModal(); $('#consentForm').onsubmit=e=>{ e.preventDefault(); const d=formData(e.target); snapshot(); const doc=createConsentDocument(db,{patient_id:p.id,consent_id:Number(d.consent_id),title:d.title}); persist(); modal.close(); state.patientTab='documentos'; render(); toast('Documento creado'); openSignatureModal(doc.id); }; }
+function viewDoc(docId){ const d=db.documents.find(x=>Number(x.id)===Number(docId)); if(!d)return; const modal=$('#consentModal'); modal.innerHTML=`<form method="dialog" class="modal-card"><div class="modal-title"><h2>${esc(d.title)}</h2><button class="icon-btn" type="button" data-dialog-close>×</button></div><p>${esc(d.text)}</p><div class="${d.status==='firmado'?'ok-banner':'warn-banner'}">Estado: ${esc(d.status)} ${d.hash?'· hash '+esc(d.hash):''}</div>${d.signature_data?`<img class="doc-signature" src="${esc(d.signature_data)}" alt="Firma">`:''}</form>`; modal.showModal(); }
 function prepareSignatureCanvas(canvas){
   if(!canvas || typeof canvas.getContext!=='function') return null;
   const ctx=canvas.getContext('2d'); if(!ctx) return null;
@@ -921,7 +994,7 @@ function clearSignatureCanvas(canvas,ctx){
 function openSignatureModal(docId){
   const doc=db.documents.find(d=>Number(d.id)===Number(docId)); if(!doc)return;
   const modal=$('#signatureModal'); if(!modal) return;
-  modal.innerHTML=`<form id="signatureForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Firmar documento</h2><button class="icon-btn" value="cancel" aria-label="Cerrar firma">×</button></div><p>${esc(doc.title)}</p><div class="consent-scroll">${esc(doc.text)}</div><canvas id="signatureCanvas" class="signature-pad" aria-label="Área de firma"></canvas><label class="field">Nombre firmante<input name="signer_name" value="${esc(patientFullName(patient(doc.patient_id)))}"></label><label class="accept-line"><input name="accepted" type="checkbox" required> He leído y acepto este consentimiento informado</label><div class="toolbar"><button type="button" class="ghost" id="clearSignature">Limpiar</button><button class="primary">Guardar firma</button></div></form>`;
+  modal.innerHTML=`<form id="signatureForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Firmar documento</h2><button class="icon-btn" type="button" data-dialog-close value="cancel" aria-label="Cerrar firma">×</button></div><p>${esc(doc.title)}</p><div class="consent-scroll">${esc(doc.text)}</div><canvas id="signatureCanvas" class="signature-pad" aria-label="Área de firma"></canvas><label class="field">Nombre firmante<input name="signer_name" value="${esc(patientFullName(patient(doc.patient_id)))}"></label><label class="accept-line"><input name="accepted" type="checkbox" required> He leído y acepto este consentimiento informado</label><div class="toolbar"><button type="button" class="ghost" id="clearSignature">Limpiar</button><button class="primary">Guardar firma</button></div></form>`;
   modal.showModal();
   const canvas=$('#signatureCanvas'), prepared=prepareSignatureCanvas(canvas); if(!prepared){ modal.close(); toast('No se pudo inicializar la firma'); return; }
   const {ctx,point}=prepared; let drawing=false;
@@ -1107,7 +1180,7 @@ function openConsentModal(){
   const p=patient(state.patientId);
   if(!p) return;
   const modal=$('#consentModal');
-  modal.innerHTML=`<form id="consentForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Nuevo consentimiento</h2><button class="icon-btn" value="cancel">x</button></div><label class="field">Plantilla<select name="consent_id">${db.consents.filter(c=>c.active!==false).map(c=>`<option value="${c.id}">${esc(c.title)} · v${esc(c.version||1)}</option>`).join('')}</select></label><div class="consent-help">Incluye diagnostico, beneficios, riesgos, alternativas, cuidados y firmante responsable.</div><div class="consent-checklist editor"><label><input name="accepted_info" type="checkbox" required> Informacion explicada al paciente</label><label><input name="accepted_risks" type="checkbox" required> Riesgos y alternativas revisados</label><label><input name="accepted_privacy" type="checkbox" required> Uso y custodia del documento aceptados</label></div><label class="field">Titulo<input name="title" value="Consentimiento informado"></label><button class="primary">Crear documento</button></form>`;
+  modal.innerHTML=`<form id="consentForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Nuevo consentimiento</h2><button class="icon-btn" type="button" data-dialog-close value="cancel">x</button></div><label class="field">Plantilla<select name="consent_id">${db.consents.filter(c=>c.active!==false).map(c=>`<option value="${c.id}">${esc(c.title)} · v${esc(c.version||1)}</option>`).join('')}</select></label><div class="consent-help">Incluye diagnostico, beneficios, riesgos, alternativas, cuidados y firmante responsable.</div><div class="consent-checklist editor"><label><input name="accepted_info" type="checkbox" required> Informacion explicada al paciente</label><label><input name="accepted_risks" type="checkbox" required> Riesgos y alternativas revisados</label><label><input name="accepted_privacy" type="checkbox" required> Uso y custodia del documento aceptados</label></div><label class="field">Titulo<input name="title" value="Consentimiento informado"></label><button class="primary">Crear documento</button></form>`;
   modal.showModal();
   $('#consentForm').onsubmit=e=>{ e.preventDefault(); const d=formData(e.target); snapshot('consent.create',p.id); const doc=createConsentDocument(db,{patient_id:p.id,consent_id:Number(d.consent_id),title:d.title}); doc.accepted_info=!!d.accepted_info; doc.accepted_risks=!!d.accepted_risks; doc.accepted_privacy=!!d.accepted_privacy; persist(); modal.close(); state.patientTab='documentos'; render(); toast('Documento creado'); openSignatureModal(doc.id); };
 }
@@ -1171,7 +1244,7 @@ function openBudgetModal(){
   const p=currentPatient();
   if(!p) return toast('Primero elige un paciente');
   const modal=$('#consentModal');
-  modal.innerHTML=`<form id="budgetForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Nuevo presupuesto</h2><button class="icon-btn" value="cancel">x</button></div><label class="field">Tratamiento<select name="procedure_id">${procedureOptions()}</select></label><div class="form-grid"><label class="field">Diente<input name="tooth" placeholder="36"></label><label class="field">Cantidad<input name="qty" type="number" min="1" value="1"></label></div><label class="field">Titulo<input name="title" value="Presupuesto ${esc(patientFullName(p))}"></label><button class="primary">Crear presupuesto</button></form>`;
+  modal.innerHTML=`<form id="budgetForm" method="dialog" class="modal-card"><div class="modal-title"><h2>Nuevo presupuesto</h2><button class="icon-btn" type="button" data-dialog-close value="cancel">x</button></div><label class="field">Tratamiento<select name="procedure_id">${procedureOptions()}</select></label><div class="form-grid"><label class="field">Diente<input name="tooth" placeholder="36"></label><label class="field">Cantidad<input name="qty" type="number" min="1" value="1"></label></div><label class="field">Titulo<input name="title" value="Presupuesto ${esc(patientFullName(p))}"></label><button class="primary">Crear presupuesto</button></form>`;
   modal.showModal();
   $('#budgetForm').onsubmit=e=>{ e.preventDefault(); const d=formData(e.target); const pr=db.procedures.find(x=>Number(x.id)===Number(d.procedure_id)); const total=Number(pr?.price||0)*Number(d.qty||1); snapshot('budget.create',p.id); db.budgets.push({id:id(db),patient_id:p.id,procedure_id:Number(d.procedure_id),title:d.title||pr?.name||'Presupuesto',tooth:d.tooth,total,pending:total,source:'catalogo',created_at:new Date().toISOString()}); persist(); modal.close(); state.patientTab='presupuestos'; render(); toast('Presupuesto creado'); };
 }
@@ -1345,7 +1418,7 @@ function openPaymentModal(prefBudgetId=null,prefPatientId=null,pref={}){
   const patientOptions=activePatients().map(p=>`<option value="${p.id}" ${Number(p.id)===selectedPatientId?'selected':''}>${esc(patientFullName(p))}</option>`).join('');
   const siteOptions=(db.sites||[]).filter(s=>s.active!==false).map(s=>`<option value="${s.id}" ${Number(s.id)===paymentSiteId()?'selected':''}>${esc(s.name)}</option>`).join('');
   const allBudgetOptions=()=>`<option value="">Cobro directo / sin presupuesto</option>${budgetFinancialRows().map(b=>`<option value="${b.id}" data-patient="${b.patient_id}" ${Number(prefBudgetId)===Number(b.id)?'selected':''}>${esc(patientFullName(patient(b.patient_id)))} · ${esc(b.title)} · pendiente ${b.pending.toFixed(2)} EUR</option>`).join('')}`;
-  modal.innerHTML=`<form id="paymentForm" class="modal-card payment-modal"><div class="modal-title"><div><h2>Cobrar</h2><small>El pago con tarjeta solo se registra cuando el datáfono lo confirma.</small></div><button class="icon-btn" type="button" id="closePaymentModal">x</button></div><label class="field">Paciente<select name="patient_id">${patientOptions}</select></label><label class="field">Presupuesto opcional<select name="budget_id">${allBudgetOptions()}</select></label><div class="form-grid"><label class="field">Importe<input name="amount" type="number" min="0.01" step="0.01" value=""></label><label class="field">Método<select name="method"><option value="tarjeta">Tarjeta · datáfono</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="financiacion">Financiación</option></select></label><label class="field">Sede<select name="site_id">${siteOptions}</select></label><label class="field">Concepto<input name="concept" value="Cobro clínica"></label></div><div id="terminalPaymentPanel" class="terminal-payment" hidden><label class="field">Datáfono<select name="reader_id"><option value="">Buscando…</option></select></label><div id="terminalPaymentStatus" class="terminal-payment-status muted"><strong>Preparando terminal…</strong><span>Conectando con Denty Local.</span></div><button type="button" class="danger" id="cancelTerminalPaymentBtn" hidden>Cancelar en datáfono</button></div><button class="primary" id="paymentSubmitBtn">Cobrar en datáfono</button></form>`;
+  modal.innerHTML=`<form id="paymentForm" class="modal-card payment-modal"><div class="modal-title"><div><h2>Cobrar</h2><small>El pago con tarjeta solo se registra cuando el datáfono lo confirma.</small></div><button class="icon-btn" type="button" data-dialog-close id="closePaymentModal">x</button></div><label class="field">Paciente<select name="patient_id">${patientOptions}</select></label><label class="field">Presupuesto opcional<select name="budget_id">${allBudgetOptions()}</select></label><div class="form-grid"><label class="field">Importe<input name="amount" type="number" min="0.01" step="0.01" value=""></label><label class="field">Método<select name="method"><option value="tarjeta">Tarjeta · datáfono</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="financiacion">Financiación</option></select></label><label class="field">Sede<select name="site_id">${siteOptions}</select></label><label class="field">Concepto<input name="concept" value="Cobro clínica"></label></div><div id="terminalPaymentPanel" class="terminal-payment" hidden><label class="field">Datáfono<select name="reader_id"><option value="">Buscando…</option></select></label><div id="terminalPaymentStatus" class="terminal-payment-status muted"><strong>Preparando terminal…</strong><span>Conectando con Denty Local.</span></div><button type="button" class="danger" id="cancelTerminalPaymentBtn" hidden>Cancelar en datáfono</button></div><button class="primary" id="paymentSubmitBtn">Cobrar en datáfono</button></form>`;
   modal.showModal();
   const form=$('#paymentForm'), patientSelect=form.elements.patient_id, budgetSelect=form.elements.budget_id, amount=form.elements.amount, method=form.elements.method, site=form.elements.site_id;
   const syncBudgets=()=>{ const pid=Number(patientSelect.value), current=String(budgetSelect.value||''); [...budgetSelect.options].forEach(opt=>{opt.hidden=!!opt.dataset.patient&&Number(opt.dataset.patient)!==pid;}); const selected=[...budgetSelect.options].find(o=>o.value===current&&!o.hidden); if(!selected) budgetSelect.value=''; const b=budgetFinancialRows(pid).find(x=>Number(x.id)===Number(budgetSelect.value)); if(b&&!amount.value) amount.value=b.pending.toFixed(2); };
@@ -1366,7 +1439,7 @@ function openWorkModal(pref={}){
   const activeLabs=(db.labs||[]).filter(l=>l.active!==false);
   const preferredLab=activeLabs.find(l=>Number(l.id)===Number(pref.lab_id))||activeLabs.find(l=>normalizeText(l.name)===normalizeText(pref.lab||''))||activeLabs[0];
   const modal=$('#consentModal');
-  modal.innerHTML=`<form id="workForm" method="dialog" class="modal-card"><div class="modal-title"><h2>${pref.status==='recibido'?'Recibir trabajo del laboratorio':'Nuevo trabajo laboratorio'}</h2><button class="icon-btn" value="cancel">x</button></div><label class="field">Paciente<select name="patient_id">${activePatients().map(p=>`<option value="${p.id}" ${Number(p.id)===selectedPatientId?'selected':''}>${esc(patientFullName(p))}</option>`).join('')}</select></label><label class="field">Trabajo<input name="title" value="${esc(pref.title||'Trabajo protésico')}"></label><div class="form-grid"><label class="field">Laboratorio<select name="lab_id">${activeLabs.map(l=>`<option value="${l.id}" ${Number(l.id)===Number(preferredLab?.id)?'selected':''}>${esc(l.name)}</option>`).join('')||'<option value="">Sin laboratorio configurado</option>'}</select></label><label class="field">Fecha prevista<input name="due_date" type="date" value="${esc(pref.due_date||today())}"></label></div><label class="field">Estado<select name="status">${['recibido','enviado','prueba','terminado','entregado'].map(status=>`<option value="${status}" ${(pref.status||'recibido')===status?'selected':''}>${status[0].toUpperCase()+status.slice(1)}</option>`).join('')}</select></label><button class="primary">Guardar trabajo</button></form>`;
+  modal.innerHTML=`<form id="workForm" method="dialog" class="modal-card"><div class="modal-title"><h2>${pref.status==='recibido'?'Recibir trabajo del laboratorio':'Nuevo trabajo laboratorio'}</h2><button class="icon-btn" type="button" data-dialog-close value="cancel">x</button></div><label class="field">Paciente<select name="patient_id">${activePatients().map(p=>`<option value="${p.id}" ${Number(p.id)===selectedPatientId?'selected':''}>${esc(patientFullName(p))}</option>`).join('')}</select></label><label class="field">Trabajo<input name="title" value="${esc(pref.title||'Trabajo protésico')}"></label><div class="form-grid"><label class="field">Laboratorio<select name="lab_id">${activeLabs.map(l=>`<option value="${l.id}" ${Number(l.id)===Number(preferredLab?.id)?'selected':''}>${esc(l.name)}</option>`).join('')||'<option value="">Sin laboratorio configurado</option>'}</select></label><label class="field">Fecha prevista<input name="due_date" type="date" value="${esc(pref.due_date||today())}"></label></div><label class="field">Estado<select name="status">${['recibido','enviado','prueba','terminado','entregado'].map(status=>`<option value="${status}" ${(pref.status||'recibido')===status?'selected':''}>${status[0].toUpperCase()+status.slice(1)}</option>`).join('')}</select></label><button class="primary">Guardar trabajo</button></form>`;
   modal.showModal();
   $('#workForm').onsubmit=e=>{ e.preventDefault(); const d=formData(e.target); const pid=Number(d.patient_id); const lab=db.labs.find(l=>Number(l.id)===Number(d.lab_id)); snapshot('lab_work.create',pid); db.works.push({id:id(db),patient_id:pid,title:d.title,lab_id:lab?.id||null,lab:lab?.name||'',status:d.status,due_date:d.due_date,received_at:d.status==='recibido'?new Date().toISOString():null,created_at:new Date().toISOString()}); persist(); modal.close(); if(state.view==='patientDetail'&&Number(state.patientId)===pid) state.patientTab='trabajos'; render(); toast(d.status==='recibido'?'Trabajo de laboratorio recibido':'Trabajo creado'); };
 }
@@ -1474,23 +1547,54 @@ function printClinicalDocument(value){
   const [kind,id]=String(value).split(':');
   const html=printableDocumentHtml(kind,Number(id));
   const modal=$('#consentModal');
-  modal.innerHTML=`<form method="dialog" class="modal-card print-preview-modal"><div class="modal-title"><h2>Vista imprimible</h2><button class="icon-btn" value="cancel">x</button></div><div class="print-document">${html}</div><button class="primary" type="button" id="browserPrintBtn">Imprimir / guardar PDF</button></form>`;
+  modal.innerHTML=`<form method="dialog" class="modal-card print-preview-modal"><div class="modal-title"><h2>Vista imprimible</h2><button class="icon-btn" type="button" data-dialog-close value="cancel">x</button></div><div class="print-document">${html}</div><button class="primary" type="button" id="browserPrintBtn">Imprimir / guardar PDF</button></form>`;
   modal.showModal();
   $('#browserPrintBtn').onclick=()=>window.print();
 }
+function plainTextForPdf(html){
+  const container=document.createElement('div');
+  container.innerHTML=html;
+  return (container.textContent||'Denty').replace(/\s+/g,' ').trim();
+}
+function pdfEscape(text){ return String(text||'').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)'); }
+function buildSimplePdf(text){
+  const lines=String(text||'Denty').match(/.{1,86}(\s|$)/g)||['Denty'];
+  const bodyLines=lines.slice(0,46).map((line,i)=>`BT /F1 10 Tf 50 ${780-(i*15)} Td (${pdfEscape(line.trim())}) Tj ET`).join('\n');
+  const objects=[
+    '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
+    '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj',
+    '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj',
+    '4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj',
+    `5 0 obj << /Length ${bodyLines.length} >> stream\n${bodyLines}\nendstream endobj`
+  ];
+  let pdf='%PDF-1.4\n';
+  const offsets=[0];
+  for(const obj of objects){ offsets.push(pdf.length); pdf+=obj+'\n'; }
+  const xrefStart=pdf.length;
+  pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
+  for(let i=1;i<offsets.length;i++) pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+  pdf+=`trailer << /Root 1 0 R /Size ${objects.length+1} >>\nstartxref\n${xrefStart}\n%%EOF`;
+  return pdf;
+}
 function downloadClinicalPdf(value){
   const [kind,id]=String(value).split(':');
-  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Denty PDF</title><style>body{font-family:Arial,sans-serif;color:#172f3d;padding:28px}pre{white-space:pre-wrap;font-family:inherit}.finance-summary{display:flex;gap:12px}.finance-summary div{border:1px solid #ddd;padding:10px}</style></head><body>${printableDocumentHtml(kind,Number(id))}</body></html>`;
-  const blob=new Blob([html],{type:'text/html'});
+  const html=printableDocumentHtml(kind,Number(id));
+  const pdf=buildSimplePdf(plainTextForPdf(html));
+  const blob=new Blob([pdf],{type:'application/pdf'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;
-  a.download=`denty-${kind}-${id}.pdf.html`;
+  a.download=`denty-${kind}-${id}.pdf`;
   a.click();
   setTimeout(()=>URL.revokeObjectURL(url),500);
   recordAudit('document.pdf.export', state.patientId, value);
   persist();
 }
-
+document.addEventListener('click', event => {
+  const closeButton = event.target?.closest?.('[data-dialog-close]');
+  if (!closeButton) return;
+  event.preventDefault();
+  closeButton.closest('dialog')?.close();
+});
 bindAccountGateway(); bindTop(); applyAppearance(); render();
 window.DentyAppReady=true;
