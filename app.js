@@ -74,7 +74,11 @@ function patient(id){ return db.patients.find(p=>Number(p.id)===Number(id)); }
 function emp(id){ return db.employees.find(e=>Number(e.id)===Number(id)); }
 function currentPatient(){ return patient(state.patientId) || activePatients()[0] || null; }
 const VIEW_PERMISSION={patients:'pacientes',patientDetail:'pacientes',agenda:'agenda',odontogram:'clinica',jobs:'clinica',finances:'finanzas',staff:'ajustes',templates:'documentos',assistant:'clinica',import:'ajustes'};
-function setView(view, extras={}){ const area=VIEW_PERMISSION[view]; if(area&&!canAccess(area)){ closeDrawer(); toast('Tu usuario no tiene permiso para abrir esta sección'); return; } state = {...state, ...extras, view}; closeDrawer(); render(); window.scrollTo({top:0,behavior:'smooth'}); }
+const ADMIN_ONLY_VIEWS = new Set(['settings','staff','import']);
+function isAdminOnlyView(view){ return ADMIN_ONLY_VIEWS.has(view); }
+function isAdminPortal(){ return selectedPortal==='admin' || db.currentUser?.role==='admin'; }
+function canOpenView(view){ const area=VIEW_PERMISSION[view]; if(isAdminOnlyView(view) && !isAdminPortal()) return false; return !area || canAccess(area); }
+function setView(view, extras={}){ if(!canOpenView(view)){ closeDrawer(); toast(isAdminOnlyView(view)?'Solo administrador puede abrir esta seccion':'Tu usuario no tiene permiso para abrir esta seccion'); return; } state = {...state, ...extras, view}; closeDrawer(); render(); window.scrollTo({top:0,behavior:'smooth'}); }
 
 function render(){
   syncNav();
@@ -104,7 +108,10 @@ function render(){
 function animatePageTransition(main){ if(!main) return; main.classList.remove('page-transition-enter'); void main.offsetWidth; main.classList.add('page-transition-enter'); }
 function addCinematicDepthScene(main){ if(!main||state.view==='odontogram') return; const section=main.querySelector('section'); if(!section||section.querySelector('.cinematic-depth-scene')) return; section.insertAdjacentHTML('afterbegin','<div class="cinematic-depth-scene" aria-hidden="true"><span class="depth-plane depth-plane-a"></span><span class="depth-plane depth-plane-b"></span><span class="depth-line depth-line-a"></span><span class="depth-line depth-line-b"></span></div>'); }
 function setupScrollReveal(root=document){ const nodes=$$('section > .card, section > article, .patient-card, .appt-card, .finance-row, .lab-work-card, .clinical-legend-card', root); nodes.forEach((el,i)=>{ el.classList.add('scroll-reveal'); el.style.setProperty('--reveal-delay', `${Math.min(i,10)*28}ms`); }); if(!('IntersectionObserver' in window)){ nodes.forEach(el=>el.classList.add('visible')); return; } const io=new IntersectionObserver(entries=>{ entries.forEach(entry=>{ if(entry.isIntersecting){ entry.target.classList.add('visible'); io.unobserve(entry.target); } }); },{threshold:.08, rootMargin:'0px 0px -30px 0px'}); nodes.forEach(el=>io.observe(el)); }
-function syncNav(){ $$('.bottom-nav button').forEach(b=>b.classList.toggle('active', b.dataset.go===state.view || (state.view==='patientDetail'&&b.dataset.go==='patients') || (state.view==='odontogram'&&b.dataset.go==='patients'))); }
+function syncNav(){
+  $$('.bottom-nav button').forEach(b=>b.classList.toggle('active', b.dataset.go===state.view || (state.view==='patientDetail'&&b.dataset.go==='patients') || (state.view==='odontogram'&&b.dataset.go==='patients')));
+  $$('[data-go]').forEach(el=>{ if(isAdminOnlyView(el.dataset.go)) el.hidden=!isAdminPortal(); });
+}
 function safePortalStorage(action, value=null){
   try{
     if(action==='set') sessionStorage.setItem('denty.selectedPortal',value);
@@ -138,12 +145,26 @@ function showAccountAccess(type){
   btn.disabled=selectedPortal==='patient';
   btn.textContent=selectedPortal==='patient'?'Portal próximamente':'Continuar a Denty';
 }
+function applyPortalRole(type){
+  if(type==='admin'){
+    const admin=(db.users||[]).find(u=>u.active!==false&&u.role==='admin') || {id:11,name:'Administrador clinico',role:'admin'};
+    db.currentUser={id:admin.id,name:admin.name,role:'admin'};
+  } else if(selectedPortal==='user' || type==='user'){
+    const user=(db.users||[]).find(u=>u.active!==false&&u.role!=='admin') || {id:12,name:'Usuario operativo',role:'dentist'};
+    db.currentUser={id:user.id,name:user.name,role:user.role};
+    if(isAdminOnlyView(state.view)) state.view='today';
+    pinUnlocked=false;
+  }
+  persist();
+}
 function enterSelectedPortal(){
   if(!selectedPortal) return showAccountChooser();
   if(selectedPortal==='patient') return;
+  applyPortalRole(selectedPortal);
   const gateway=$('#accountGateway'), shell=$('#appShell');
   if(gateway) gateway.hidden=true;
   if(shell){ shell.classList.remove('account-gated'); shell.setAttribute('aria-hidden','false'); }
+  syncNav();
   window.scrollTo({top:0,behavior:'auto'});
 }
 function bindClick(selector, handler){ const el=$(selector); if(el) el.onclick=handler; return el; }
@@ -687,9 +708,12 @@ function renderSettingsAdminPanel(kind){
   if(kind==='backup') return renderBackupSettingsEditor();
   return renderClinicSettingsEditor();
 }
-function renderSettings(){
+function renderRestrictedAccess(){
+  return `<section><div class="page-head"><div><h1>Acceso restringido</h1><p>Solo administrador puede modificar ajustes de la clinica.</p></div></div><article class="card"><p>Esta cuenta puede trabajar con pacientes, agenda, laboratorios y finanzas, pero no cambiar configuracion administrativa.</p><button class="primary" data-go="today">Volver a Hoy</button></article></section>`;
+}
+function renderSettings(){ if(!canAccess('ajustes')) return renderRestrictedAccess();
   const nav=SETTINGS_ADMIN_ITEMS.map(([key,icon,label])=>`<button type="button" class="settings-nav-item ${state.settingsPanel===key?'active':''}" data-settings-panel="${key}"><span>${icon}</span><b>${esc(label)}</b></button>`).join('');
-  return `<section><div class="page-head"><div><h1>Ajustes</h1><p>${esc(labelForPanel(state.settingsPanel))} · editable y persistente</p></div></div><div class="settings-admin-layout"><aside class="settings-admin-nav">${nav}</aside><div class="settings-admin-main">${renderSettingsAdminPanel(state.settingsPanel)}</div></div></section>`;
+  return `<section><div class="page-head"><div><h1>Ajustes</h1><p>${esc(labelForPanel(state.settingsPanel))} � editable y persistente</p></div></div><div class="settings-admin-layout"><aside class="settings-admin-nav">${nav}</aside><div class="settings-admin-main">${renderSettingsAdminPanel(state.settingsPanel)}</div></div></section>`;
 }
 function applyAppearance(){
   const pref=db.settings?.appearance||'light';

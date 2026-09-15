@@ -14,6 +14,7 @@ const source=[
   extract(/function safePortalStorage\([\s\S]*?\n\}/,'safePortalStorage'),
   extract(/function showAccountChooser\([\s\S]*?\n\}/,'showAccountChooser'),
   extract(/function showAccountAccess\([\s\S]*?\n\}/,'showAccountAccess'),
+  extract(/function applyPortalRole\([\s\S]*?\n\}/,'applyPortalRole'),
   extract(/function enterSelectedPortal\([\s\S]*?\n\}/,'enterSelectedPortal'),
   extract(/function bindClick\([\s\S]*?\n\}/,'bindClick'),
   extract(/function bindAccountGateway\([\s\S]*?\n\}/,'bindAccountGateway'),
@@ -39,7 +40,7 @@ const context={
   console,
 };
 vm.createContext(context);
-vm.runInContext(`const $=(sel)=>document.querySelector(sel); const $$=(sel)=>Array.from(document.querySelectorAll(sel)); let selectedPortal=null; ${source}; bindAccountGateway();`,context);
+vm.runInContext(`const $=(sel)=>document.querySelector(sel); const $$=(sel)=>Array.from(document.querySelectorAll(sel)); let selectedPortal=null; let pinUnlocked=true; const state={view:'today'}; const db={users:[{id:11,name:'Administrador clinico',role:'admin',active:true},{id:12,name:'Odontologo',role:'dentist',active:true}],currentUser:null}; function persist(){} function syncNav(){} function isAdminOnlyView(view){ return ['settings','staff','import'].includes(view); } ${source}; bindAccountGateway();`,context);
 buttons[0].click();
 assert.equal(elements.accountChooser.hidden,true);
 assert.equal(elements.accountAccessStage.hidden,false);
@@ -47,6 +48,10 @@ assert.match(elements.accountAccessTitle.textContent,/Administrador/);
 elements.accountContinue.click();
 assert.equal(elements.accountGateway.hidden,true);
 assert.equal(elements.appShell.attributes['aria-hidden'],'false');
+assert.equal(vm.runInContext('db.currentUser.role', context), 'admin');
+buttons[1].click();
+elements.accountContinue.click();
+assert.equal(vm.runInContext('db.currentUser.role', context), 'dentist');
 
 const checks=[
   ['single gateway implementation',!html.includes('data-denty-gateway-bootstrap')],

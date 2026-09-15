@@ -164,8 +164,8 @@ export function defaultDb(){
     ],
     rolePermissions: {
       admin:['pacientes','agenda','clinica','finanzas','ajustes','copias'],
-      dentist:['pacientes','agenda','clinica','documentos'],
-      reception:['pacientes','agenda','cobros_basicos']
+      dentist:['pacientes','agenda','clinica','finanzas','documentos'],
+      reception:['pacientes','agenda','finanzas']
     },
     currentUser:{id:11,role:'admin',name:'Administrador clinico'},
     security:{admin_pin_hash:'1234-preview', pin_enabled:true},
@@ -230,6 +230,12 @@ export function migrateDb(input){
     if(!Array.isArray(db[key])) db[key]=clone(base[key]||[]);
   }
   db.rolePermissions = {...base.rolePermissions, ...(db.rolePermissions||{})};
+  for (const role of ['dentist','reception']) {
+    const permissions = new Set([...(base.rolePermissions[role]||[]), ...(db.rolePermissions[role]||[])]);
+    permissions.delete('ajustes');
+    permissions.delete('copias');
+    db.rolePermissions[role] = [...permissions];
+  }
   db.security = {...base.security, ...(db.security||{})};
   db.currentUser = {...base.currentUser, ...(db.currentUser||{})};
   const incomingSettings=db.settings||{};
