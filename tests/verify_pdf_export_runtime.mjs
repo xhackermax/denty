@@ -18,7 +18,9 @@ function extractFunction(name){
 const source = [
   extractFunction('requirePin'),
   extractFunction('plainTextForPdf'),
+  extractFunction('pdfAscii'),
   extractFunction('pdfEscape'),
+  extractFunction('splitPdfLines'),
   extractFunction('buildSimplePdf'),
   extractFunction('downloadClinicalPdf')
 ].join('\n');
@@ -33,8 +35,9 @@ const context = {
   toast(){},
   persist(){},
   recordAudit(action, patientId, detail){ auditRecord = {action, patientId, detail}; },
-  printableDocumentHtml(kind, id){ return `<section>${kind}:${id}</section>`; },
+  printableDocumentHtml(kind, id){ return `<section>${kind}:${id} Paciente María López · diagnóstico clínico</section>`; },
   Blob: class { constructor(parts, options){ this.parts = parts; this.options = options; createdBlob = this; } },
+  TextEncoder,
   URL:{createObjectURL(){ return 'blob:denty-pdf'; }, revokeObjectURL(){}},
   setTimeout(fn){ fn(); },
   document:{createElement(tag){ return {tag, set href(v){ this._href=v; }, get href(){ return this._href; }, set download(v){ this._download=v; }, get download(){ return this._download; }, click(){ clickedDownload = {href:this.href, download:this.download}; }}; }}
@@ -45,6 +48,10 @@ vm.runInContext(source, context);
 assert.doesNotThrow(() => vm.runInContext("downloadClinicalPdf('doc:42')", context));
 assert.deepEqual(clickedDownload, {href:'blob:denty-pdf', download:'denty-doc-42.pdf'});
 assert.equal(createdBlob.options.type, 'application/pdf');
-assert.match(String(createdBlob.parts[0]), /^%PDF-/);
+assert.ok(ArrayBuffer.isView(createdBlob.parts[0]), 'PDF debe generarse como bytes, no como texto UTF-16');
+const pdfText = new TextDecoder('latin1').decode(createdBlob.parts[0]);
+assert.match(pdfText, /^%PDF-/);
+assert.match(pdfText, /%%EOF$/);
+assert.ok(!pdfText.includes('María'), 'el stream PDF debe normalizar caracteres no ASCII');
 assert.deepEqual(auditRecord, {action:'document.pdf.export', patientId:1, detail:'doc:42'});
 console.log('verify_pdf_export_runtime: OK');

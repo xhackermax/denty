@@ -2584,27 +2584,57 @@ function plainTextForPdf(html){
   container.innerHTML=html;
   return (container.textContent||'Denty').replace(/\s+/g,' ').trim();
 }
-function pdfEscape(text){ return String(text||'').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)'); }
+function pdfAscii(text){
+  return String(text||'')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^\x20-\x7E\n\r\t]/g,' ');
+}
+function pdfEscape(text){ return pdfAscii(text).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)'); }
+function splitPdfLines(text, max=86){
+  const words=pdfAscii(text).split(/\s+/).filter(Boolean);
+  const lines=[];
+  let line='';
+  for(const word of words){
+    const next=line ? `${line} ${word}` : word;
+    if(next.length>max){ if(line) lines.push(line); line=word.slice(0,max); }
+    else line=next;
+  }
+  if(line) lines.push(line);
+  return lines.length ? lines : ['Denty'];
+}
 function buildSimplePdf(text){
-  const lines=String(text||'Denty').match(/.{1,86}(\s|$)/g)||['Denty'];
-  const bodyLines=lines.slice(0,46).map((line,i)=>`BT /F1 10 Tf 50 ${780-(i*15)} Td (${pdfEscape(line.trim())}) Tj ET`).join('\n');
+  const encoder=new TextEncoder();
+  const lines=splitPdfLines(text).slice(0,46);
+  const bodyLines=lines.map((line,i)=>`BT /F1 10 Tf 50 ${780-(i*15)} Td (${pdfEscape(line)}) Tj ET`).join('\n');
+  const contentBytes=encoder.encode(bodyLines);
   const objects=[
     '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
     '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj',
     '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj',
     '4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj',
-    `5 0 obj << /Length ${bodyLines.length} >> stream\n${bodyLines}\nendstream endobj`
+    `5 0 obj << /Length ${contentBytes.length} >> stream\n${bodyLines}\nendstream endobj`
   ];
-  let pdf='%PDF-1.4\n';
-  const offsets=[0];
-  for(const obj of objects){ offsets.push(pdf.length); pdf+=obj+'\n'; }
-  const xrefStart=pdf.length;
-  pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
-  for(let i=1;i<offsets.length;i++) pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
-  pdf+=`trailer << /Root 1 0 R /Size ${objects.length+1} >>\nstartxref\n${xrefStart}\n%%EOF`;
+  const chunks=[encoder.encode('%PDF-1.4\n')];
+  const offsets=[];
+  let byteOffset=chunks[0].length;
+  for(const obj of objects){
+    offsets.push(byteOffset);
+    const bytes=encoder.encode(obj+'\n');
+    chunks.push(bytes);
+    byteOffset+=bytes.length;
+  }
+  const xrefStart=byteOffset;
+  let xref=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
+  for(const offset of offsets) xref+=String(offset).padStart(10,'0')+' 00000 n \n';
+  xref+=`trailer << /Root 1 0 R /Size ${objects.length+1} >>\nstartxref\n${xrefStart}\n%%EOF`;
+  chunks.push(encoder.encode(xref));
+  const total=chunks.reduce((sum,chunk)=>sum+chunk.length,0);
+  const pdf=new Uint8Array(total);
+  let pos=0;
+  for(const chunk of chunks){ pdf.set(chunk,pos); pos+=chunk.length; }
   return pdf;
-}
-function downloadClinicalPdf(value){
+}function downloadClinicalPdf(value){
   const [kind,id]=String(value).split(':');
   const html=printableDocumentHtml(kind,Number(id));
   const pdf=buildSimplePdf(plainTextForPdf(html));
