@@ -1,27 +1,48 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 
-const html = fs.readFileSync('index.html','utf8');
-const app = fs.readFileSync('app.js','utf8');
-const launcher = fs.readFileSync('ABRIR-DENTY.bat','utf8');
+const html=fs.readFileSync('index.html','utf8');
+const app=fs.readFileSync('app.js','utf8');
+const bundle=fs.readFileSync('denty-app.bundle.js','utf8');
+const script=html.match(/<script data-denty-gateway-bootstrap>([\s\S]*?)<\/script>/)?.[1];
+assert.ok(script,'bootstrap inline no encontrado');
 
-const checks = [
-  ['gateway has inline fallback binding independent of app module', () => assert.match(html, /data-denty-gateway-bootstrap/)],
-  ['fallback binds account buttons', () => assert.ok(html.includes("document.querySelectorAll('[data-account-type]')"))],
-  ['fallback can open selected access stage', () => assert.match(html, /accountAccessStage[\s\S]{0,2500}hidden\s*=\s*false/)],
-  ['app does not directly depend on sessionStorage for gateway clicks', () => {
-    const block = app.slice(app.indexOf('function showAccountChooser'), app.indexOf('function bindTop'));
-    assert.ok(!/sessionStorage\.(?:setItem|removeItem)/.test(block), 'gateway still calls sessionStorage directly');
-  }],
-  ['gateway storage helper is guarded', () => assert.match(app, /function safePortalStorage[\s\S]{0,500}try\s*\{/)],
-  ['gateway explains when the main module did not initialize', () => assert.ok(html.includes('Denty necesita iniciar el servidor local'))],
-  ['Windows launcher starts local server', () => { assert.ok(launcher.includes('python server.py')); assert.ok(launcher.includes('http://127.0.0.1:8765')); }]
-];
-
-let passed=0;
-for (const [name, fn] of checks) {
-  try { fn(); passed++; console.log('✓', name); }
-  catch (err) { console.error('✗', name); console.error(err.message); process.exitCode=1; }
+function el(id=''){
+  const handlers={}; const classes=new Set();
+  return {id,hidden:false,textContent:'',disabled:false,dataset:{},attributes:{},
+    classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),contains:x=>classes.has(x)},
+    addEventListener:(type,fn)=>handlers[type]=fn,
+    click:()=>handlers.click?.(),
+    setAttribute:(k,v)=>{this?.attributes&&(this.attributes[k]=v)},
+    _handlers:handlers,
+  };
 }
-console.log(`${passed}/${checks.length} runtime gateway checks passed`);
-if (process.exitCode) process.exit(process.exitCode);
+const ids=['accountGateway','accountChooser','accountAccessStage','accountAccessIcon','accountAccessTitle','accountAccessDescription','accountAccessStatus','accountAccessHint','accountContinue','accountBack','appShell'];
+const elements=Object.fromEntries(ids.map(id=>[id,el(id)]));
+elements.accountAccessStage.hidden=true; elements.appShell.setAttribute=(k,v)=>elements.appShell.attributes[k]=v;
+const buttons=['admin','user','patient'].map(type=>{const b=el();b.dataset.accountType=type;return b;});
+const storage=new Map();
+const context={
+  document:{getElementById:id=>elements[id]||null,querySelectorAll:sel=>sel==='[data-account-type]'?buttons:[]},
+  sessionStorage:{setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k),getItem:k=>storage.get(k)||null},
+  window:{DentyAppReady:true,scrollTo:()=>{}},
+};
+vm.runInNewContext(script,context);
+buttons[0].click();
+assert.equal(elements.accountChooser.hidden,true);
+assert.equal(elements.accountAccessStage.hidden,false);
+assert.match(elements.accountAccessTitle.textContent,/Administrador/);
+elements.accountContinue.click();
+assert.equal(elements.accountGateway.hidden,true);
+assert.equal(elements.appShell.attributes['aria-hidden'],'false');
+
+const checks=[
+  ['app guards sessionStorage',/function safePortalStorage[\s\S]{0,500}try\s*\{/.test(app)],
+  ['no BAT instructions',!html.includes('ABRIR-DENTY.bat')&&!fs.existsSync('ABRIR-DENTY.bat')],
+  ['page loads generated bundle',html.includes('src="./denty-app.bundle.js"')&&bundle.includes('window.DentyAppReady=true')],
+  ['assets are relative',html.includes('href="./styles.css"')&&html.includes('src="./denty-logo.png"')]
+];
+for(const [name,ok] of checks){assert.ok(ok,name);console.log('✓',name);}
+console.log('✓ real bootstrap click simulation: Administrador → Continuar');
+console.log(`${checks.length+1}/${checks.length+1} runtime gateway checks passed`);

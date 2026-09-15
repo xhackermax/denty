@@ -1,1 +1,7 @@
 .worktrees/
+node_modules/
+package-lock.json
+package.json
+__pycache__/
+*.pyc
+work-app-check.js

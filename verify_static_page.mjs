@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const root = new URL('./', import.meta.url);
+const read = name => fs.readFileSync(new URL(name, root), 'utf8');
+const html = read('index.html');
+assert.equal(fs.existsSync(new URL('ABRIR-DENTY.bat', root)), false, 'No debe existir ABRIR-DENTY.bat');
+assert.ok(!html.includes('ABRIR-DENTY.bat'), 'index no debe pedir un BAT');
+assert.ok(!html.includes('type="module" src="/app.js"'), 'index no debe depender de módulos ES para arrancar');
+assert.match(html, /<script src="\.\/denty-app\.bundle\.js"/,'index debe cargar el bundle clásico relativo');
+assert.match(html, /href="\.\/styles\.css"/,'CSS debe usar rutas relativas');
+assert.match(html, /src="\.\/denty-logo\.png"/,'logo debe usar ruta relativa');
+assert.ok(fs.existsSync(new URL('docs/DOCUMENTACION-DENTY.md', root)), 'Debe existir documentación principal');
+assert.ok(fs.existsSync(new URL('docs/UI-MAP.json', root)), 'Debe existir mapa de interfaz estructurado');
+console.log('verify_static_page: OK');

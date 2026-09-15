@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const app=fs.readFileSync('app.js','utf8');
+const doc=fs.readFileSync('docs/DOCUMENTACION-DENTY.md','utf8');
+const map=JSON.parse(fs.readFileSync('docs/UI-MAP.json','utf8'));
+const keys=[...app.matchAll(/\['(clinic|doctors|sites|tariffs|labs|consents|docs|users|appearance|payments|servers|sync|localai|mcp|backup)'\s*,/g)].map(m=>m[1]);
+const settings=[...new Set(keys)].sort();
+const documented=map.settings_panels.map(x=>x.key).sort();
+assert.deepEqual(documented,settings,'UI-MAP debe contener todos los paneles de Ajustes');
+for(const label of ['Puerta de acceso','Hoy (`state.view = today`)','Pacientes (`patients`)','Odontograma (`odontogram`)','Agenda (`agenda`)','Tareas (`tasks`)','Fichaje (`staff`)','Finanzas (`finances`)','Ajustes','Modelo de datos','Procedimiento obligatorio para futuras actualizaciones']) assert.ok(doc.includes(label),`Falta sección documental: ${label}`);
+assert.equal(map.runtime,'denty-app.bundle.js');
+assert.ok(map.known_pending.includes('authenticated_clocking'));
+console.log(`verify_documentation: OK · ${settings.length} paneles de Ajustes documentados`);

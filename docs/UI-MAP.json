@@ -1,0 +1,55 @@
+{
+  "version": "1.7.2",
+  "entry": "index.html",
+  "runtime": "denty-app.bundle.js",
+  "generated_from": ["logic.js", "voice-router.js", "app.js"],
+  "gateway": {
+    "id": "accountGateway",
+    "portals": [
+      {"key":"admin","label":"Cuenta Administrador","status":"preview-access"},
+      {"key":"user","label":"Cuenta Usuario","status":"preview-access"},
+      {"key":"patient","label":"Cuenta Paciente","status":"planned-portal"}
+    ]
+  },
+  "shell": {
+    "topbar": ["drawerOpen","searchToggle","undoBtn","globalVoiceBtn","quickAddBtn"],
+    "drawer": true,
+    "bottom_nav": ["today","patients","agenda","tasks","settings"],
+    "modals": ["patientModal","appointmentModal","quickTaskModal","consentModal","signatureModal"]
+  },
+  "views": [
+    {"key":"today","renderer":"renderToday","data":["appointments","patients"]},
+    {"key":"patients","renderer":"renderPatients","data":["patients"]},
+    {"key":"patientDetail","renderer":"renderPatientDetail","data":["patients","appointments","works","budgets","documents","clinicalAlerts","comments","files","treatmentPlans"]},
+    {"key":"odontogram","renderer":"renderOdontogram","data":["odontograms"]},
+    {"key":"agenda","renderer":"renderAgenda","data":["appointments","employees","shifts","absences","sites","cabinets"]},
+    {"key":"tasks","renderer":"renderTasks","data":["tasks"]},
+    {"key":"assistant","renderer":"renderAssistant","data":["patients","settings.voice"]},
+    {"key":"templates","renderer":"renderTemplates","data":["templates"]},
+    {"key":"staff","renderer":"renderStaff","data":["employees","shifts","absences"],"status":"admin-only-currently-not-authenticated-clock"},
+    {"key":"jobs","renderer":"renderJobsDashboard","data":["works","labs","patients"]},
+    {"key":"finances","renderer":"renderFinancesDashboard","data":["budgets","payments","patients"]},
+    {"key":"import","renderer":"renderImport","data":["patients"]},
+    {"key":"settings","renderer":"renderSettings","data":["settings","users","employees","sites","cabinets","procedures","labs","consents","templates"]}
+  ],
+  "settings_panels": [
+    {"key":"clinic","renderer":"renderClinicSettingsEditor"},
+    {"key":"doctors","renderer":"renderDoctorsSettingsEditor"},
+    {"key":"sites","renderer":"renderSitesSettingsEditor"},
+    {"key":"tariffs","renderer":"renderTariffsSettingsEditor"},
+    {"key":"labs","renderer":"renderLabsSettingsEditor"},
+    {"key":"consents","renderer":"renderConsentsSettingsEditor"},
+    {"key":"docs","renderer":"renderDocsSettingsEditor"},
+    {"key":"users","renderer":"renderUsersSettingsEditor"},
+    {"key":"appearance","renderer":"renderAppearanceSettingsEditor"},
+    {"key":"payments","renderer":"renderPaymentsSettingsEditor","preview_fallback":"browser virtual reader"},
+    {"key":"servers","renderer":"renderServerSettingsEditor","optional":true},
+    {"key":"sync","renderer":"renderSyncSettingsEditor","optional_backend":true},
+    {"key":"localai","renderer":"settingsCatalogList(localai)","local_rules":true},
+    {"key":"mcp","renderer":"renderMcpSettingsEditor","optional_backend":true},
+    {"key":"backup","renderer":"renderBackupSettingsEditor"}
+  ],
+  "voice_intents": ["patient.select","patient.create","odontogram.set","odontogram.batch","periodontal.update","appointment.create","comment.add","alert.add","budget.create","payment.record","lab.receive","task.create","navigation.open"],
+  "data_collections": ["patients","users","cabinets","odontograms","appointments","treatmentPlans","employees","doctors","sites","shifts","absences","works","labs","budgets","payments","documents","consent_history","consents","procedures","clinicalAlerts","comments","files","tasks","auditLog","templates","settings"],
+  "known_pending": ["real_login","patient_portal","authenticated_clocking","secure_multiuser_backend","real_sync"]
+}

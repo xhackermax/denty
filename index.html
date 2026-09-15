@@ -4,22 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#f8fdff" />
-  <title>Denty Web Preview 1.7.1 Accesos</title>
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="stylesheet" href="/styles.css" />
-  <link rel="stylesheet" href="/phase1.css" />
-  <link rel="stylesheet" href="/phase2.css" />
-  <link rel="stylesheet" href="/phase3.css" />
-  <link rel="stylesheet" href="/phase4.css" />
-  <link rel="stylesheet" href="/visual-polish.css" />
-  <link rel="stylesheet" href="/cinematic-motion.css" />
+  <title>Denty Web Preview 1.7.2 Página Autónoma</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./phase1.css" />
+  <link rel="stylesheet" href="./phase2.css" />
+  <link rel="stylesheet" href="./phase3.css" />
+  <link rel="stylesheet" href="./phase4.css" />
+  <link rel="stylesheet" href="./visual-polish.css" />
+  <link rel="stylesheet" href="./cinematic-motion.css" />
 </head>
 <body>
   <div class="account-gateway" id="accountGateway" aria-label="Acceso a Denty">
     <div class="account-gateway-bg" aria-hidden="true"></div>
     <section class="account-gateway-panel" id="accountChooser">
       <div class="account-gateway-brand">
-        <img src="/denty-logo.png" alt="Denty" class="account-gateway-logo">
+        <img src="./denty-logo.png" alt="Denty" class="account-gateway-logo">
         <div><strong>Denty<span class="brand-dot"></span></strong><p>Selecciona cómo quieres acceder</p></div>
       </div>
       <div class="account-choice-grid" role="list" aria-label="Tipos de cuenta">
@@ -59,7 +59,7 @@
   <div class="app-shell account-gated" id="appShell" aria-hidden="true">
     <header class="topbar">
       <button class="icon-btn" id="drawerOpen" aria-label="Abrir menú">☰</button>
-      <div class="brand" role="banner"><img class="brand-logo" src="/denty-logo.png" alt="Denty"><strong>Denty<span class="brand-dot"></span></strong></div>
+      <div class="brand" role="banner"><img class="brand-logo" src="./denty-logo.png" alt="Denty"><strong>Denty<span class="brand-dot"></span></strong></div>
       <button class="icon-btn" id="searchToggle" aria-label="Buscar">⌕</button>
       <button class="icon-btn" id="undoBtn" aria-label="Deshacer">↶</button>
       <button class="icon-btn global-voice" id="globalVoiceBtn" aria-label="Hablar con Denty" aria-pressed="false">🎙️</button>
@@ -68,7 +68,7 @@
 
     <aside class="drawer" id="drawer" aria-hidden="true">
       <div class="drawer-card">
-        <div class="drawer-brand"><img class="brand-logo big" src="/denty-logo.png" alt="Denty"><div><strong>Denty<span class="brand-dot"></span></strong><p>Paciente, agenda, trabajos y cobros conectados</p></div><button class="icon-btn" id="drawerClose" aria-label="Cerrar menú">×</button></div>
+        <div class="drawer-brand"><img class="brand-logo big" src="./denty-logo.png" alt="Denty"><div><strong>Denty<span class="brand-dot"></span></strong><p>Paciente, agenda, trabajos y cobros conectados</p></div><button class="icon-btn" id="drawerClose" aria-label="Cerrar menú">×</button></div>
         <h2>Menú</h2>
         <nav class="drawer-nav" aria-label="Menú principal">
           <button data-go="settings" data-panel="doctors">👩‍⚕️ Doctores y horarios</button>
@@ -98,7 +98,7 @@
           <button data-go="staff">🕘 Fichaje</button>
           <button data-go="roadmap">🧭 Próximas mejoras</button>
         </nav>
-        <footer>Denty Web Preview 1.7.1 Accesos · TPV real + Voz + administración editable + Recovery + NLU dental</footer>
+        <footer>Denty Web Preview 1.7.2 Página Autónoma · TPV real + Voz + administración editable + Recovery + NLU dental</footer>
       </div>
     </aside>
     <div class="scrim" id="scrim"></div>
@@ -144,17 +144,15 @@
       byId('accountContinue')?.addEventListener('click',()=>{
         if(!selected||selected==='patient') return;
         if(!window.DentyAppReady){
-          byId('accountAccessStatus').textContent='Denty necesita iniciar el servidor local';
-          byId('accountAccessHint').textContent='Ejecuta ABRIR-DENTY.bat y vuelve a entrar desde http://127.0.0.1:8765. La selección de cuenta sí está funcionando.';
+          byId('accountAccessStatus').textContent='Denty no terminó de cargar';
+          byId('accountAccessHint').textContent='Recarga esta página. La preview está diseñada para funcionar directamente desde el navegador.';
           return;
         }
         byId('accountGateway').hidden=true; const shell=byId('appShell'); shell?.classList.remove('account-gated'); shell?.setAttribute('aria-hidden','false');
       });
     })();
   </script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/gsap.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/ScrollTrigger.min.js"></script>
-  <script type="module" src="/app.js"></script>
-  <script src="/cinematic-motion.js" defer></script>
+  <script src="./denty-app.bundle.js"></script>
+  <script src="./cinematic-motion.js" defer></script>
 </body>
 </html>
