@@ -73,6 +73,15 @@ function activePatients(){ return db.patients.filter(p=>!p.archived); }
 function patient(id){ return db.patients.find(p=>Number(p.id)===Number(id)); }
 function emp(id){ return db.employees.find(e=>Number(e.id)===Number(id)); }
 function currentPatient(){ return patient(state.patientId) || activePatients()[0] || null; }
+function applyPreviewRouteFromQuery(){
+  const params=new URLSearchParams(window.location.search||'');
+  if(!params.has('treatment-panel')) return;
+  const p=currentPatient();
+  if(!p) return;
+  state.view='patientDetail';
+  state.patientId=p.id;
+  state.patientTab='tratamiento';
+}
 const VIEW_PERMISSION={patients:'pacientes',patientDetail:'pacientes',agenda:'agenda',odontogram:'clinica',jobs:'clinica',finances:'finanzas',staff:'ajustes',templates:'documentos',assistant:'clinica',import:'ajustes'};
 const ADMIN_ONLY_VIEWS = new Set(['settings','staff','import']);
 function isAdminOnlyView(view){ return ADMIN_ONLY_VIEWS.has(view); }
@@ -1681,5 +1690,5 @@ document.addEventListener('click', event => {
   event.preventDefault();
   closeButton.closest('dialog')?.close();
 });
-bindAccountGateway(); bindTop(); applyAppearance(); render();
+bindAccountGateway(); bindTop(); applyAppearance(); applyPreviewRouteFromQuery(); render();
 window.DentyAppReady=true;

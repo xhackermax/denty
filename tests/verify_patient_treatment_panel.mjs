@@ -15,5 +15,7 @@ assert.match(app, /timeline-phase/, 'debe mostrar fases del tratamiento');
 assert.match(app, /data-ptab="agenda"/, 'debe enlazar con agenda');
 assert.match(app, /data-ptab="presupuestos"/, 'debe enlazar con presupuestos');
 assert.match(app, /data-ptab="archivos"/, 'debe enlazar con archivos clinicos');
+assert.match(app, /applyPreviewRouteFromQuery/, 'debe permitir abrir el panel directamente desde una URL local');
+assert.match(app, /treatment-panel/, 'la URL local de prueba debe abrir la pestaña tratamiento');
 
 console.log('verify_patient_treatment_panel: OK');
