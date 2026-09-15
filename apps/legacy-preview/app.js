@@ -5,6 +5,8 @@ import {
   setToothSurfaceState, markArcadeMissing, createPatient, archivePatient, restorePatient, patientDetailActions,
   legendVariant, legendLabel, legendStateText, legendNextIndex, statusTone, normalizeSurfaceForTooth,
   agendaByDoctors, agendaByHours, agendaCounters, appointmentAvailability, durationMinutes, addMinutes,
+  agendaMoveAppointment, agendaResizeAppointment, agendaCreateBlock, agendaCancelAppointment,
+  agendaWaitingListMatches, agendaRescheduleOptions, agendaCascadeSuggestions, agendaPlanClinicalSequence,
   createConsentDocument, signDocument, createAttendanceCertificateDocument, attendanceAppointmentIsEligible, createTreatmentPlan, treatmentPlanHierarchy, patientTreatmentRoute, schedulePlanStepToAgenda, csvRows, patientFromRow, runAction,
   clinicalPlanGraph, patientClinicalPlanProjection, createClinicalPlanItem, syncClinicalPlanFromOdontogram, syncClinicalPlanBudget,
   createMissingToothAlternatives, clinicalAlternativeContextLabel, updateClinicalAlternativeContext, approveClinicalAlternativeOption,
@@ -784,7 +786,7 @@ function agendaAppointmentData(){ return agendaColumnsForCurrentUser(state.date)
 function apptCard(a,{compact=false}={}){
   const p=a.patient||patient(a.patient_id), e=a.employee||emp(a.employee_id), meta=agendaStatusMeta(a), conflict=a.availability_status&&a.availability_status!=='ok';
   const accent=agendaDoctorAccent(a._agendaIndex??Math.max(0,db.employees.findIndex(x=>Number(x.id)===Number(e?.id))));
-  return `<button type="button" class="agenda-appointment-card tone-${meta.tone} ${conflict?'has-warning':''} ${compact?'compact':''}" data-agenda-open="${a.id}" style="--agenda-accent:${accent}"><span class="agenda-appt-time">${esc(a.start_time||'')}<small>${esc(a.end_time||'')}</small></span><span class="agenda-appt-main"><strong>${esc(p?patientFullName(p):'Sin paciente')}</strong><small>${esc(a.title||a.reason||'Cita dental')}</small>${compact?'':`<span>${esc(e?.name||'Sin profesional')}${a.site?` · ${esc(a.site)}`:''}</span>`}</span><span class="agenda-status-pill tone-${meta.tone}">${esc(meta.label)}</span>${conflict?'<span class="agenda-warning-dot" title="Revisar disponibilidad">!</span>':''}</button>`;
+  return `<button type="button" class="agenda-appointment-card tone-${meta.tone} ${conflict?'has-warning':''} ${compact?'compact':''}" data-agenda-open="${a.id}" style="--agenda-accent:${accent}"><span class="agenda-appt-time">${esc(a.start_time||'')}<small>${esc(a.end_time||'')}</small></span><span class="agenda-appt-main"><strong>${esc(p?patientFullName(p):'Sin paciente')}</strong><small>${esc(a.title||a.reason||'Cita dental')}</small>${compact?'':`<span>${esc(e?.name||'Sin profesional')}${a.site?` · ${esc(a.site)}`:''}</span>`}</span><span class="agenda-status-pill tone-${meta.tone}">${esc(meta.label)}</span>${conflict?'<span class="agenda-warning-dot" title="Revisar disponibilidad">!</span>':''}${compact?'':`<span class="agenda-resize-controls"><span role="button" tabindex="0" data-agenda-resize="-10" data-agenda-id="${a.id}">-10 min</span><span role="button" tabindex="0" data-agenda-resize="10" data-agenda-id="${a.id}">+10 min</span></span>`}</button>`;
 }
 function renderAgendaByDoctors(){
   const data=agendaColumnsForCurrentUser(state.date);
@@ -807,7 +809,7 @@ function slotCell(time, employeeId){ return `<button class="slot-cell empty" dat
 function renderAgendaQuickPanel(){
   const a=db.appointments.find(x=>Number(x.id)===Number(state.agendaQuickId)); if(!a) return '';
   const p=patient(a.patient_id), e=emp(a.employee_id), meta=agendaStatusMeta(a), duration=durationMinutes(a.start_time,a.end_time)||Number(a.duration_minutes||0);
-  return `<aside class="agenda-quick-panel" aria-label="Detalle rápido de cita"><div class="agenda-quick-backdrop" data-agenda-close></div><div class="agenda-quick-card"><header><div><span class="agenda-status-pill tone-${meta.tone}">${esc(meta.label)}</span><h2>${esc(p?patientFullName(p):'Sin paciente')}</h2><p>${esc(a.title||a.reason||'Cita dental')}</p></div><button class="icon-btn" type="button" data-agenda-close aria-label="Cerrar">×</button></header><div class="agenda-quick-facts"><div><small>Horario</small><strong>${esc(a.start_time||'')}–${esc(a.end_time||'')}</strong><span>${duration?duration+' min':''}</span></div><div><small>Profesional</small><strong>${esc(e?.name||'Sin profesional')}</strong><span>${esc(a.site||e?.site||'Sin sede')}</span></div></div>${a.detail?`<div class="agenda-quick-note"><small>Detalle</small><p>${esc(a.detail)}</p></div>`:''}<div class="agenda-quick-actions"><button type="button" data-agenda-action="confirm" data-agenda-id="${a.id}">Confirmar</button><button type="button" data-agenda-action="arrival" data-agenda-id="${a.id}">Ha llegado</button><button type="button" data-agenda-action="cabinet" data-agenda-id="${a.id}">A gabinete</button><button type="button" data-agenda-action="absent" data-agenda-id="${a.id}">Ausente / NPA</button><button type="button" data-agenda-action="complete" data-agenda-id="${a.id}">Completar</button></div><div class="agenda-quick-footer"><button class="ghost" type="button" data-agenda-action="reschedule" data-agenda-id="${a.id}">Reprogramar</button>${p?`<button class="ghost" type="button" data-agenda-action="patient" data-agenda-id="${a.id}">Abrir ficha</button>`:''}</div></div></aside>`;
+  return `<aside class="agenda-quick-panel" aria-label="Detalle rápido de cita"><div class="agenda-quick-backdrop" data-agenda-close></div><div class="agenda-quick-card"><header><div><span class="agenda-status-pill tone-${meta.tone}">${esc(meta.label)}</span><h2>${esc(p?patientFullName(p):'Sin paciente')}</h2><p>${esc(a.title||a.reason||'Cita dental')}</p></div><button class="icon-btn" type="button" data-agenda-close aria-label="Cerrar">×</button></header><div class="agenda-quick-facts"><div><small>Horario</small><strong>${esc(a.start_time||'')}–${esc(a.end_time||'')}</strong><span>${duration?duration+' min':''}</span></div><div><small>Profesional</small><strong>${esc(e?.name||'Sin profesional')}</strong><span>${esc(a.site||e?.site||'Sin sede')}</span></div></div>${a.detail?`<div class="agenda-quick-note"><small>Detalle</small><p>${esc(a.detail)}</p></div>`:''}<div class="agenda-quick-actions"><button type="button" data-agenda-action="confirm" data-agenda-id="${a.id}">Confirmar</button><button type="button" data-agenda-action="arrival" data-agenda-id="${a.id}">Ha llegado</button><button type="button" data-agenda-action="cabinet" data-agenda-id="${a.id}">A gabinete</button><button type="button" data-agenda-action="absent" data-agenda-id="${a.id}">Ausente / NPA</button><button type="button" data-agenda-action="complete" data-agenda-id="${a.id}">Completar</button></div><div class="agenda-quick-footer"><button class="ghost" type="button" data-agenda-action="reschedule" data-agenda-id="${a.id}">Reprogramar</button><button class="ghost" type="button" data-agenda-action="cancel" data-agenda-id="${a.id}">Cancelar</button>${p?`<button class="ghost" type="button" data-agenda-action="patient" data-agenda-id="${a.id}">Abrir ficha</button>`:''}</div></div></aside>`;
 }
 function updateAgendaAppointmentState(appointmentId,action){
   const a=db.appointments.find(x=>Number(x.id)===Number(appointmentId)); if(!a) return toast('Cita no encontrada');
@@ -1113,6 +1115,47 @@ function bindSettingsAdmin(){
   if($('#syncPullNow')) $('#syncPullNow').onclick=syncPullNow;
 }
 
+function bindAgendaV12Operations(){
+  $$('[data-agenda-resize]').forEach(btn=>btn.onclick=e=>{
+    e.stopPropagation();
+    const appt=db.appointments.find(a=>Number(a.id)===Number(btn.dataset.agendaId));
+    if(!appt) return toast('Cita no encontrada');
+    const nextDuration=Math.max(10,Number(appt.duration_minutes||durationMinutes(appt.start_time,appt.end_time)||40)+Number(btn.dataset.agendaResize||0));
+    try{ snapshot('agenda.resize',appt.patient_id); agendaResizeAppointment(db,appt.id,nextDuration,sessionUser?.role||'local'); persist(); render(); toast('Duracion actualizada'); }
+    catch(err){ toast(err?.message||'No se pudo cambiar la duracion'); }
+  });
+  $$('[data-agenda-mode]').forEach(btn=>btn.onclick=()=>{
+    const mode=btn.dataset.agendaMode;
+    if(mode==='block'){
+      const reason=prompt('Motivo del bloqueo')||'Bloqueo de agenda';
+      const start=prompt('Hora de inicio', '13:00')||'13:00';
+      const end=prompt('Hora de fin', '14:00')||'14:00';
+      try{ snapshot('agenda.block'); agendaCreateBlock(db,{scope:'clinic',date:state.date,start_time:start,end_time:end,reason},sessionUser?.role||'local'); persist(); render(); toast('Bloqueo creado'); }
+      catch(err){ toast(err?.message||'No se pudo crear el bloqueo'); }
+      return;
+    }
+    if(mode==='waiting'){
+      const matches=agendaWaitingListMatches(db,{date:state.date,start_time:'09:00',end_time:'20:00',employee_id:db.employees?.[0]?.id,site_id:db.sites?.[0]?.id});
+      toast(matches.length?matches.length+' paciente(s) compatibles en lista de espera':'Lista de espera sin candidatos compatibles');
+      return;
+    }
+    toast(mode==='move'?'Selecciona una cita y usa Reprogramar':'Usa +10 / -10 min dentro de cada cita');
+  });
+  $('#agendaAutoPlanClinical')?.addEventListener('click',()=>{
+    const pid=state.patientId||activePatients()[0]?.id;
+    if(!pid) return toast('Elige un paciente');
+    try{ snapshot('agenda.plan_clinical',pid); const planned=agendaPlanClinicalSequence(db,{patient_id:pid,start_date:state.date,employee_id:db.employees?.[0]?.id,cabinet_id:db.cabinets?.[0]?.id,site_id:db.sites?.[0]?.id}); persist(); render(); toast(planned.length+' cita(s) planificadas'); }
+    catch(err){ toast(err?.message||'No se pudo planificar el plan clinico'); }
+  });
+  $$('[data-agenda-action="cancel"]').forEach(btn=>btn.onclick=()=>{
+    const appt=db.appointments.find(a=>Number(a.id)===Number(btn.dataset.agendaId));
+    if(!appt) return toast('Cita no encontrada');
+    const reason=prompt('Motivo de cancelacion')||'Cancelacion';
+    try{ snapshot('agenda.cancel',appt.patient_id); agendaCancelAppointment(db,appt.id,reason,sessionUser?.role||'local'); const gap={date:appt.date,start_time:appt.start_time,end_time:appt.end_time,duration_minutes:appt.duration_minutes,employee_id:appt.employee_id,site_id:appt.site_id}; const matches=agendaWaitingListMatches(db,gap); const options=agendaRescheduleOptions(db,appt.id,{days:7,limit:3}); const cascade=agendaCascadeSuggestions(db,appt.id,{gap_days:1}); persist(); render(); toast(matches.length?'Cita cancelada. '+matches.length+' candidato(s) para cubrir el hueco':'Cita cancelada. '+options.length+' nuevo(s) horario(s) posibles; '+cascade.length+' ajuste(s) en cascada'); }
+    catch(err){ toast(err?.message||'No se pudo cancelar la cita'); }
+  });
+}
+
 function bindScreen(){
   bindSettingsAdmin();
   $$('[data-go]').forEach(el=>el.onclick=()=>setView(el.dataset.go,{settingsPanel:el.dataset.panel||state.settingsPanel}));
@@ -1178,6 +1221,7 @@ function bindScreen(){
   $$('[data-agenda-open]').forEach(b=>b.onclick=()=>{ const ap=db.appointments.find(a=>Number(a.id)===Number(b.dataset.agendaOpen)); if(ap){ state.agendaQuickId=Number(ap.id); if(state.view!=='agenda'){ state.view='agenda'; state.date=ap.date||state.date; } render(); } });
   $$('[data-agenda-close]').forEach(b=>b.onclick=()=>{ state.agendaQuickId=null; render(); });
   $$('[data-agenda-action]').forEach(b=>b.onclick=()=>{ const action=b.dataset.agendaAction, appointmentId=Number(b.dataset.agendaId); if(action==='reschedule') return openAgendaRescheduleModal(appointmentId); if(action==='patient'){ const ap=db.appointments.find(a=>Number(a.id)===appointmentId); if(ap){ state.agendaQuickId=null; state.patientId=Number(ap.patient_id); setView('patientDetail'); } return; } updateAgendaAppointmentState(appointmentId,action); });
+  bindAgendaV12Operations();
   if($('#runCommandBtn')) $('#runCommandBtn').onclick=()=>runCommand($('#commandInput').value,'typed');
   if($('#commandInput')) $('#commandInput').onkeydown=e=>{ if(e.key==='Enter') runCommand($('#commandInput').value,'typed'); };
   $$('[data-command]').forEach(b=>b.onclick=()=>runCommand(b.dataset.command,'quick'));
@@ -1758,7 +1802,7 @@ function renderAgendaSafetyBanner(){
 }
 function renderAgenda(){
   const c=agendaVisibleCounters(), view=state.agendaView==='doctors'?renderAgendaByDoctors():state.agendaView==='list'?renderAgendaList():renderAgendaTimeline();
-  return `<section class="agenda-v10"><header class="agenda-commandbar"><div class="agenda-title-block"><span class="eyebrow">Organización clínica</span><h1>Agenda</h1><p>${esc(prettyDate(state.date))}</p></div><div class="agenda-day-controls"><button type="button" class="agenda-nav-arrow" id="prevDay" aria-label="Día anterior">‹</button><button type="button" class="agenda-today-btn" id="agendaToday">Hoy</button><input id="agendaDate" type="date" value="${state.date}" aria-label="Fecha de agenda"><button type="button" class="agenda-nav-arrow" id="nextDay" aria-label="Día siguiente">›</button></div><button class="primary agenda-new-btn" id="openAppointmentModal">+ Cita</button></header><div class="agenda-overview"><div><strong>${c.total}</strong><span>Citas</span></div><div><strong>${c.confirmed}</strong><span>Confirmadas</span></div><div><strong>${c.waiting}</strong><span>En espera</span></div><div class="${c.conflicts?'attention':''}"><strong>${c.conflicts+c.overlaps}</strong><span>Avisos</span></div></div>${renderAgendaSafetyBanner()}<div class="agenda-viewbar" role="tablist" aria-label="Vista de agenda"><button class="${state.agendaView==='doctors'?'active':''}" data-agenda-view="doctors">Doctores</button><button class="${state.agendaView==='timeline'||state.agendaView==='hours'?'active':''}" data-agenda-view="timeline">Día</button><button class="${state.agendaView==='list'?'active':''}" data-agenda-view="list">Lista</button></div><div class="agenda-content">${view}</div>${renderAgendaQuickPanel()}</section>`;
+  return `<section class="agenda-v10"><header class="agenda-commandbar"><div class="agenda-title-block"><span class="eyebrow">Organización clínica</span><h1>Agenda</h1><p>${esc(prettyDate(state.date))}</p></div><div class="agenda-day-controls"><button type="button" class="agenda-nav-arrow" id="prevDay" aria-label="Día anterior">‹</button><button type="button" class="agenda-today-btn" id="agendaToday">Hoy</button><input id="agendaDate" type="date" value="${state.date}" aria-label="Fecha de agenda"><button type="button" class="agenda-nav-arrow" id="nextDay" aria-label="Día siguiente">›</button></div><button class="primary agenda-new-btn" id="openAppointmentModal">+ Cita</button></header><div class="agenda-v12-tools" role="toolbar" aria-label="Operaciones de agenda"><button type="button" data-agenda-mode="move">Mover citas</button><button type="button" data-agenda-mode="resize">Duracion</button><button type="button" data-agenda-mode="block">Bloquear hueco</button><button type="button" data-agenda-mode="waiting">Lista de espera</button><button type="button" id="agendaAutoPlanClinical">Planificar plan clinico</button></div><div class="agenda-v12-panels"><div class="agenda-waiting-panel">Lista de espera inteligente preparada para huecos libres.</div><div class="agenda-cascade-panel">Reprogramacion en cascada disponible desde cada cita.</div><div class="agenda-block-card">Bloqueos y vacaciones se validan antes de guardar nuevas citas.</div></div><div class="agenda-overview"><div><strong>${c.total}</strong><span>Citas</span></div><div><strong>${c.confirmed}</strong><span>Confirmadas</span></div><div><strong>${c.waiting}</strong><span>En espera</span></div><div class="${c.conflicts?'attention':''}"><strong>${c.conflicts+c.overlaps}</strong><span>Avisos</span></div></div>${renderAgendaSafetyBanner()}<div class="agenda-viewbar" role="tablist" aria-label="Vista de agenda"><button class="${state.agendaView==='doctors'?'active':''}" data-agenda-view="doctors">Doctores</button><button class="${state.agendaView==='timeline'||state.agendaView==='hours'?'active':''}" data-agenda-view="timeline">Día</button><button class="${state.agendaView==='list'?'active':''}" data-agenda-view="list">Lista</button></div><div class="agenda-content">${view}</div>${renderAgendaQuickPanel()}</section>`;
 }
 function renderDocumentsTab(p){
   const docs=db.documents.filter(d=>Number(d.patient_id)===Number(p.id)).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));

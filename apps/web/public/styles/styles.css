@@ -949,3 +949,14 @@ html[data-theme="dark"] .agenda-appointment-card.tone-waiting,html[data-theme="d
 html[data-theme="dark"] .agenda-appointment-card.tone-late,html[data-theme="dark"] .agenda-timeline-card.tone-late{background:hsl(4 38% 18%);border-left-color:hsl(4 72% 60%)}
 html[data-theme="dark"] .agenda-appointment-card.tone-active,html[data-theme="dark"] .agenda-timeline-card.tone-active{background:hsl(154 34% 17%);border-left-color:hsl(154 55% 48%)}
 html[data-theme="dark"] .agenda-appointment-card.tone-absent,html[data-theme="dark"] .agenda-timeline-card.tone-absent{background:hsl(214 38% 19%);border-left-color:hsl(214 72% 61%)}
+
+/* Agenda V12 · operaciones diarias */
+.agenda-v12-tools{display:flex;gap:8px;flex-wrap:wrap;padding:8px;border:1px solid var(--agenda-border);border-radius:16px;background:#fff}
+.agenda-v12-tools button,.agenda-resize-controls span{border:1px solid #d8e1e4;background:#fff;border-radius:12px;padding:8px 10px;font-size:12px;font-weight:850;color:#27414b;cursor:pointer}
+.agenda-v12-tools button:hover,.agenda-resize-controls span:hover{background:#eef6f7;border-color:#b7d7dc}
+.agenda-resize-controls{display:flex;gap:6px;margin-top:8px;grid-column:1/-1;flex-wrap:wrap}
+.agenda-waiting-panel,.agenda-cascade-panel,.agenda-block-card{border:1px solid var(--agenda-border);border-radius:16px;background:#f8fafb;padding:12px;color:#53666f;font-size:12px;font-weight:750}
+.agenda-v12-panels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+html[data-theme="dark"] .agenda-v12-tools,html[data-theme="dark"] .agenda-v12-tools button,html[data-theme="dark"] .agenda-resize-controls span{background:#102d38;color:#e4f0f3;border-color:rgba(186,210,219,.16)}
+html[data-theme="dark"] .agenda-waiting-panel,html[data-theme="dark"] .agenda-cascade-panel,html[data-theme="dark"] .agenda-block-card{background:#102d38;color:#b7cbd2}
+@media(max-width:760px){.agenda-v12-panels{grid-template-columns:1fr}.agenda-v12-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.agenda-v12-tools button:last-child{grid-column:1/-1}}

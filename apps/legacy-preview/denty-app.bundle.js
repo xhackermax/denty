@@ -204,6 +204,8 @@ function defaultDb(){
     ],
     odontograms: {},
     appointments: [],
+    agendaBlocks: [],
+    appointmentMoves: [],
     treatmentPlans: [],
     clinicalPlanItems: [],
     clinicalAlternativeGroups: [],
@@ -257,7 +259,7 @@ function migrateDb(input){
   const base = defaultDb();
   const db = {...base, ...(input||{})};
   db.version='1.3.3';
-  for (const key of ['patients','users','cabinets','appointments','treatmentPlans','clinicalPlanItems','clinicalAlternativeGroups','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','consent_history','consents','procedures','clinicalAlerts','comments','files','tasks','templates','auditLog']) {
+  for (const key of ['patients','users','cabinets','appointments','agendaBlocks','appointmentMoves','treatmentPlans','clinicalPlanItems','clinicalAlternativeGroups','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','consent_history','consents','procedures','clinicalAlerts','comments','files','tasks','templates','auditLog']) {
     if(!Array.isArray(db[key])) db[key]=clone(base[key]||[]);
   }
   db.rolePermissions = {...base.rolePermissions, ...(db.rolePermissions||{})};
@@ -294,8 +296,10 @@ function migrateDb(input){
     id: p.id, ficha: p.ficha || p.historia || '', first_name: p.first_name || p.firstName || p.nombre || '', last_name: p.last_name || p.lastName || p.apellidos || '', dni:p.dni||'', phone:p.phone||p.telefono||'', email:p.email||'', birth_date:p.birth_date||p.birthDate||'', archived:!!p.archived, created_at:p.created_at||p.createdAt||new Date().toISOString()
   })).filter(p=>p.id!=null);
   db.appointments = db.appointments.map(a => ({
-    id:a.id, patient_id:Number(a.patient_id||a.patientId||0), employee_id:Number(a.employee_id||a.doctorId||1), cabinet_id:Number(a.cabinet_id||1), chain_id:a.chain_id||'', date:a.date||today(), start_time:a.start_time||a.time||'10:00', end_time:a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)), duration_minutes:Number(a.duration_minutes||a.duration||durationMinutes(a.start_time||a.time||'10:00', a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)))), status:a.status||'programada', title:a.title||'Cita dental', site:a.site||'', confirmed:!!(a.confirmed||a.status==='confirmada'), availability_status:a.availability_status||a.availability724?.level||'ok', availability_message:a.availability_message||'', arrived_at:a.arrived_at||a.check_in_at||a.checked_in_at||'', chair_at:a.chair_at||'', absent_at:a.absent_at||'', completed_at:a.completed_at||'', updated_at:a.updated_at||a.updatedAt||''
+    id:a.id, patient_id:Number(a.patient_id||a.patientId||0), employee_id:Number(a.employee_id||a.doctorId||1), cabinet_id:Number(a.cabinet_id||1), site_id:a.site_id??null, chain_id:a.chain_id||'', treatment_plan_id:a.treatment_plan_id??null, clinical_item_id:a.clinical_item_id??null, sequence_index:a.sequence_index??null, sequence_total:a.sequence_total??null, rescheduled_from_id:a.rescheduled_from_id??null, date:a.date||today(), start_time:a.start_time||a.time||'10:00', end_time:a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)), duration_minutes:Number(a.duration_minutes||a.duration||durationMinutes(a.start_time||a.time||'10:00', a.end_time||addMinutes(a.time||'10:00', Number(a.duration||40)))), status:a.status||'programada', title:a.title||'Cita dental', site:a.site||'', confirmed:!!(a.confirmed||a.status==='confirmada'), availability_status:a.availability_status||a.availability724?.level||'ok', availability_message:a.availability_message||'', arrived_at:a.arrived_at||a.check_in_at||a.checked_in_at||'', chair_at:a.chair_at||'', absent_at:a.absent_at||'', completed_at:a.completed_at||'', cancelled_at:a.cancelled_at||'', cancel_reason:a.cancel_reason||'', updated_at:a.updated_at||a.updatedAt||''
   })).filter(a=>a.id!=null);
+  db.agendaBlocks = db.agendaBlocks.map((b,i)=>({id:b.id??(i+1),scope:b.scope||'employee',employee_id:b.employee_id??null,cabinet_id:b.cabinet_id??null,site_id:b.site_id??null,date:b.date||today(),start_time:b.start_time||'09:00',end_time:b.end_time||addMinutes(b.start_time||'09:00',Number(b.duration_minutes||60)),reason:b.reason||'Bloqueo',created_by:b.created_by||'',created_at:b.created_at||new Date().toISOString()}));
+  db.appointmentMoves = db.appointmentMoves.map((m,i)=>({id:m.id??(i+1),type:m.type||'move',appointment_id:m.appointment_id??null,patient_id:m.patient_id??null,before:m.before||null,after:m.after||null,actor:m.actor||'system',reason:m.reason||'',created_at:m.created_at||new Date().toISOString()}));
   db.employees = seedByName(db.employees.map((e,i)=>({
     id:e.id??(i+1), name:e.name||e.title||'Empleado', role:e.role||'odontólogo', doctor_id:e.doctor_id??e.doctorId??null, site:e.site||base.sites.find(s=>Number(s.id)===Number(e.site_id))?.name||'Sin sede', site_id:e.site_id??null, phone:e.phone||'', email:e.email||'', active:e.active!==false, color:e.color||DOCTOR_COLORS[i%DOCTOR_COLORS.length]
   })), base.employees);
@@ -316,7 +320,7 @@ function migrateDb(input){
     site_id:p.site_id??null, completed_at:p.completed_at||(p.status&&p.status!=='paid'?'':p.created_at||''), failure_reason:p.failure_reason||''
   }));
   db.doctors = db.employees.filter(e=>String(e.role||'').includes('odont')).map(e=>({id:e.doctor_id||e.id,name:e.name,color:e.color,active:e.active,site_id:e.site_id}));
-  const maxId = Math.max(0,...['patients','appointments','treatmentPlans','clinicalPlanItems','clinicalAlternativeGroups','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','clinicalAlerts','comments','files','tasks','templates','procedures','consents','users','cabinets'].flatMap(k => (db[k]||[]).map(x=>Number(x.id)||0)));
+  const maxId = Math.max(0,...['patients','appointments','agendaBlocks','appointmentMoves','treatmentPlans','clinicalPlanItems','clinicalAlternativeGroups','employees','doctors','sites','shifts','absences','works','labs','budgets','payments','documents','clinicalAlerts','comments','files','tasks','templates','procedures','consents','users','cabinets'].flatMap(k => (db[k]||[]).map(x=>Number(x.id)||0)));
   db.nextId = Math.max(Number(db.nextId||1), maxId+1);
   return db;
 }
@@ -540,6 +544,7 @@ function minutesToTime(n){ const h=Math.floor(n/60), m=n%60; return String(h).pa
 function durationMinutes(start,end){ return Math.max(0, minutes(end)-minutes(start)); }
 function addMinutes(start,n){ return minutesToTime(minutes(start)+Number(n||0)); }
 function overlaps(a,b){ return a.date===b.date && Number(a.employee_id)===Number(b.employee_id) && minutes(a.start_time)<minutes(b.end_time) && minutes(a.end_time)>minutes(b.start_time); }
+function appointmentBlocksSchedule(a){ return !['cancelada','cancelado','cancelled'].includes(normalizeText(a?.status||'')); }
 function appointmentWithMeta(db,a){ const p=db.patients.find(x=>Number(x.id)===Number(a.patient_id)); const emp=db.employees.find(x=>Number(x.id)===Number(a.employee_id)); const start=a.start_time||'10:00'; const end=a.end_time||addMinutes(start, Number(a.duration_minutes||40)); return {...a,start_time:start,end_time:end,duration_minutes:durationMinutes(start,end)||Number(a.duration_minutes||40), patient:p||null, employee:emp||null}; }
 function appointmentsForDate(db,date){ return db.appointments.filter(a=>a.date===date).map(a=>appointmentWithMeta(db,a)).sort((a,b)=>(a.start_time+a.end_time).localeCompare(b.start_time+b.end_time)); }
 function countOverlaps(db,date){ const aps=appointmentsForDate(db,date); let n=0; for(let i=0;i<aps.length;i++) for(let j=i+1;j<aps.length;j++) if(overlaps(aps[i],aps[j])) n++; return n; }
@@ -547,7 +552,7 @@ function cabinetConflict(db, appt){
   const cabinetId=Number(appt.cabinet_id||1);
   if(!cabinetId) return null;
   const start=appt.start_time||'10:00', end=appt.end_time||addMinutes(start, appt.duration_minutes||40);
-  return db.appointments.find(a=>Number(a.cabinet_id||1)===cabinetId&&a.date===appt.date&&String(a.id)!==String(appt.id)&&minutes(start)<minutes(a.end_time||addMinutes(a.start_time,40))&&minutes(end)>minutes(a.start_time||'10:00'))||null;
+  return db.appointments.find(a=>appointmentBlocksSchedule(a)&&Number(a.cabinet_id||1)===cabinetId&&a.date===appt.date&&String(a.id)!==String(appt.id)&&minutes(start)<minutes(a.end_time||addMinutes(a.start_time,40))&&minutes(end)>minutes(a.start_time||'10:00'))||null;
 }
 function agendaCounters(db,date){ const aps=appointmentsForDate(db,date); return {total:aps.length, confirmed:aps.filter(a=>a.confirmed||a.status==='confirmada').length, waiting:aps.filter(a=>a.status==='espera').length, overlaps:countOverlaps(db,date), cabinetConflicts:aps.filter(a=>cabinetConflict(db,a)).length, conflicts:aps.filter(a=>a.availability_status&&a.availability_status!=='ok').length}; }
 function agendaByDoctors(db,date){ return db.employees.filter(e=>e.active!==false).map(emp => ({employee:emp, shifts:employeeShiftsForDate(db, emp.id, date), absences:employeeAbsencesForDate(db, emp.id, date), appointments:appointmentsForDate(db,date).filter(a=>Number(a.employee_id)===Number(emp.id))})); }
@@ -563,11 +568,159 @@ function appointmentAvailability(db, appt){
   const abs = employeeAbsencesForDate(db, emp.id, appt.date).find(a => (!a.start_time || (start < (a.end_time||'23:59') && end > (a.start_time||'00:00'))));
   if(abs) return {status:'conflict', message:`Conflicto: ${emp.name} tiene ${abs.type}`};
   if(!insideShift) return {status:'warn', message:`${emp.name} está fuera de turno`};
-  const existing=db.appointments.filter(a=>Number(a.employee_id)===Number(emp.id)&&a.date===appt.date&&String(a.id)!==String(appt.id)).map(a=>appointmentWithMeta(db,a));
+  const block = (db.agendaBlocks||[]).find(b => b.date===appt.date && minutes(start)<minutes(b.end_time||addMinutes(b.start_time,60)) && minutes(end)>minutes(b.start_time||'09:00') && (
+    b.scope==='clinic' ||
+    Number(b.employee_id)===Number(appt.employee_id) ||
+    Number(b.cabinet_id)===Number(appt.cabinet_id) ||
+    Number(b.site_id)===Number(appt.site_id)
+  ));
+  if(block) return {status:'conflict', message:block.reason?`Bloqueo: ${block.reason}`:'Bloqueo de agenda'};
+  const existing=db.appointments.filter(a=>appointmentBlocksSchedule(a)&&Number(a.employee_id)===Number(emp.id)&&a.date===appt.date&&String(a.id)!==String(appt.id)).map(a=>appointmentWithMeta(db,a));
   if(existing.some(a=>minutes(start)<minutes(a.end_time)&&minutes(end)>minutes(a.start_time))) return {status:'conflict', message:`Solape en agenda de ${emp.name}`};
   const cab = cabinetConflict(db,{...appt,start_time:start,end_time:end});
   if(cab) return {status:'conflict', message:`Solape en gabinete ${appt.cabinet_id||1}`};
   return {status:'ok', message:`${emp.name} disponible`};
+}
+
+function agendaSlotKey({date,start_time,employee_id,cabinet_id}={}){
+  return `${date||''}|${start_time||''}|e:${employee_id||''}|c:${cabinet_id||''}`;
+}
+
+function agendaMoveAudit(db, type, before, after, actor='system', reason=''){
+  db.appointmentMoves = Array.isArray(db.appointmentMoves) ? db.appointmentMoves : [];
+  const entry = {
+    id:id(db),
+    type,
+    appointment_id:after?.id||before?.id||null,
+    patient_id:after?.patient_id||before?.patient_id||null,
+    before:before?{...before}:null,
+    after:after?{...after}:null,
+    actor,
+    reason,
+    created_at:new Date().toISOString()
+  };
+  db.appointmentMoves.push(entry);
+  return entry;
+}
+
+function agendaValidateMove(db, appointment, patch={}){
+  const candidate = {...appointment, ...patch};
+  if(candidate.start_time && !candidate.end_time && candidate.duration_minutes) candidate.end_time = addMinutes(candidate.start_time, Number(candidate.duration_minutes));
+  if(candidate.start_time && candidate.end_time) candidate.duration_minutes = durationMinutes(candidate.start_time, candidate.end_time) || Number(candidate.duration_minutes||40);
+  const availability = appointmentAvailability(db, candidate);
+  return {ok:availability.status==='ok', status:availability.status, message:availability.message, appointment:candidate};
+}
+
+function agendaMoveAppointment(db, appointmentId, patch={}, actor='system'){
+  const appt = (db.appointments||[]).find(a=>Number(a.id)===Number(appointmentId));
+  if(!appt) throw new Error('Cita no encontrada');
+  const before = {...appt};
+  const validation = agendaValidateMove(db, appt, patch);
+  if(!validation.ok) throw new Error(validation.message || 'Movimiento no disponible');
+  Object.assign(appt, validation.appointment, {updated_at:new Date().toISOString()});
+  agendaMoveAudit(db, 'move', before, {...appt}, actor);
+  return appt;
+}
+
+function agendaResizeAppointment(db, appointmentId, duration_minutes, actor='system'){
+  const appt = (db.appointments||[]).find(a=>Number(a.id)===Number(appointmentId));
+  if(!appt) throw new Error('Cita no encontrada');
+  const duration = Math.max(10, Number(duration_minutes||appt.duration_minutes||40));
+  const patch = {duration_minutes:duration, end_time:addMinutes(appt.start_time||'10:00', duration)};
+  const before = {...appt};
+  const validation = agendaValidateMove(db, appt, patch);
+  if(!validation.ok) throw new Error(validation.message || 'Duracion no disponible');
+  Object.assign(appt, validation.appointment, {updated_at:new Date().toISOString()});
+  agendaMoveAudit(db, 'resize', before, {...appt}, actor);
+  return appt;
+}
+
+function agendaCreateBlock(db, input={}, actor='system'){
+  db.agendaBlocks = Array.isArray(db.agendaBlocks) ? db.agendaBlocks : [];
+  const start = input.start_time || '09:00';
+  const block = {
+    id:id(db),
+    scope:input.scope||'employee',
+    employee_id:input.employee_id!=null&&input.employee_id!==''?Number(input.employee_id):null,
+    cabinet_id:input.cabinet_id!=null&&input.cabinet_id!==''?Number(input.cabinet_id):null,
+    site_id:input.site_id!=null&&input.site_id!==''?Number(input.site_id):null,
+    date:input.date||today(),
+    start_time:start,
+    end_time:input.end_time||addMinutes(start, Number(input.duration_minutes||60)),
+    reason:input.reason||'Bloqueo',
+    created_by:actor,
+    created_at:new Date().toISOString()
+  };
+  db.agendaBlocks.push(block);
+  return block;
+}
+
+function agendaFindOpenSlots(db, request={}){
+  const date=request.date||today(), duration=Math.max(10,Number(request.duration_minutes||40));
+  const start=request.start||db.settings?.agenda?.day_start||'09:00', end=request.end||db.settings?.agenda?.day_end||'20:00';
+  const step=Math.max(5,Number(request.step||20));
+  const employees=(db.employees||[]).filter(e=>e.active!==false && (!request.employee_id || Number(e.id)===Number(request.employee_id)));
+  const cabinets=(db.cabinets&&db.cabinets.length?db.cabinets:[{id:request.cabinet_id||1,site_id:request.site_id||1}]).filter(c=>c.active!==false && (!request.cabinet_id || Number(c.id)===Number(request.cabinet_id)));
+  const slots=[];
+  for(const emp of employees){
+    for(const cab of cabinets){
+      for(let t=minutes(start); t+duration<=minutes(end); t+=step){
+        const start_time=minutesToTime(t), end_time=minutesToTime(t+duration);
+        const candidate={id:'candidate', date, start_time, end_time, duration_minutes:duration, employee_id:emp.id, cabinet_id:cab.id, site_id:request.site_id||cab.site_id||emp.site_id||null};
+        const validation=agendaValidateMove(db,candidate,{});
+        if(validation.ok) slots.push({...candidate, employee:emp, cabinet:cab, score:100-slots.length});
+      }
+    }
+  }
+  return slots;
+}
+
+function agendaCancelAppointment(db, appointmentId, reason='', actor='system'){
+  const appt = (db.appointments||[]).find(a=>Number(a.id)===Number(appointmentId));
+  if(!appt) throw new Error('Cita no encontrada');
+  const before = {...appt};
+  Object.assign(appt, {
+    status:'cancelada',
+    cancelled_at:new Date().toISOString(),
+    cancel_reason:reason||'Cancelada',
+    updated_at:new Date().toISOString()
+  });
+  agendaMoveAudit(db, 'cancel', before, {...appt}, actor, reason);
+  return appt;
+}
+
+function agendaWaitingListMatches(db, gap={}){
+  const duration=durationMinutes(gap.start_time,gap.end_time)||Number(gap.duration_minutes||40);
+  return (db.waiting_list||[])
+    .filter(item => item.active!==false)
+    .filter(item => Number(item.duration_minutes||40)<=duration)
+    .filter(item => !item.preferred_employee_id || Number(item.preferred_employee_id)===Number(gap.employee_id))
+    .filter(item => !item.preferred_site_id || Number(item.preferred_site_id)===Number(gap.site_id))
+    .map(item => ({...item, patient:(db.patients||[]).find(p=>Number(p.id)===Number(item.patient_id))||null}))
+    .sort((a,b)=>(Number(b.priority||0)-Number(a.priority||0)) || String(a.created_at||'').localeCompare(String(b.created_at||'')));
+}
+
+function agendaRescheduleOptions(db, appointmentId, options={}){
+  const appt=(db.appointments||[]).find(a=>Number(a.id)===Number(appointmentId));
+  if(!appt) throw new Error('Cita no encontrada');
+  const days=Math.max(1,Number(options.days||14)), limit=Math.max(1,Number(options.limit||12));
+  const from=options.from||appt.date||today();
+  const duration=Number(options.duration_minutes||appt.duration_minutes||durationMinutes(appt.start_time,appt.end_time)||40);
+  const found=[];
+  for(let i=0;i<days && found.length<limit;i++){
+    const date=portalShiftIsoDate(from,i);
+    found.push(...agendaFindOpenSlots(db,{
+      date,
+      duration_minutes:duration,
+      employee_id:options.employee_id||appt.employee_id,
+      cabinet_id:options.cabinet_id||appt.cabinet_id,
+      site_id:options.site_id||appt.site_id,
+      start:options.start,
+      end:options.end,
+      step:options.step||20
+    }).slice(0,limit-found.length));
+  }
+  return found;
 }
 
 function portalShiftIsoDate(date, days){
@@ -818,6 +971,90 @@ function clinicalPlanGraph(db,patient_id){
   const projected=ordered.map(item=>({...item,dependency_explanations:(item.depends_on||[]).map(dep=>byId.get(Number(dep))).filter(Boolean).map(dep=>({item_id:dep.id,title:dep.title,reason:clinicalDependencyExplanation(dep,item)}))}));
   const phaseMap=new Map(); for(const item of projected){ if(!phaseMap.has(item.phase_rank)) phaseMap.set(item.phase_rank,{rank:item.phase_rank,key:item.phase_key,label:item.phase_label,items:[]}); phaseMap.get(item.phase_rank).items.push(item); }
   return {items:projected,phases:[...phaseMap.values()].sort((a,b)=>a.rank-b.rank),warnings};
+}
+
+function agendaPlanClinicalSequence(db, request={}){
+  const patientId=Number(request.patient_id||0);
+  if(!patientId) throw new Error('Falta paciente');
+  const graph=clinicalPlanGraph(db,patientId);
+  const planned=[];
+  let cursorDate=request.start_date||today();
+  const gapDays=Math.max(0,Number(request.gap_days??1));
+  for(const item of graph.items.filter(x=>x.active!==false&&!['completed','completado','cancelled','cancelado'].includes(normClinical(x.status)))){
+    const visits=Math.max(1,Number(item.visits||1));
+    const duration=Math.max(10,Number(item.duration||item.duration_minutes||40));
+    for(let visit=1; visit<=visits; visit++){
+      const slot=agendaFindOpenSlots(db,{
+        date:cursorDate,
+        duration_minutes:duration,
+        employee_id:request.employee_id,
+        cabinet_id:request.cabinet_id,
+        site_id:request.site_id,
+        start:request.start,
+        end:request.end,
+        step:request.step||20
+      })[0] || agendaFindOpenSlots(db,{
+        date:portalShiftIsoDate(cursorDate,1),
+        duration_minutes:duration,
+        employee_id:request.employee_id,
+        cabinet_id:request.cabinet_id,
+        site_id:request.site_id,
+        start:request.start,
+        end:request.end,
+        step:request.step||20
+      })[0];
+      if(!slot) throw new Error(`No hay hueco para ${item.title||item.treatment}`);
+      const appt={
+        id:id(db),
+        patient_id:patientId,
+        employee_id:slot.employee_id,
+        cabinet_id:slot.cabinet_id,
+        site_id:slot.site_id,
+        date:slot.date,
+        start_time:slot.start_time,
+        end_time:slot.end_time,
+        duration_minutes:duration,
+        title:item.title||item.treatment,
+        reason:item.treatment,
+        status:'programada',
+        treatment_plan_id:item.treatment_plan_id||null,
+        clinical_item_id:item.id,
+        sequence_index:visit,
+        sequence_total:visits,
+        created_at:new Date().toISOString()
+      };
+      db.appointments.push(appt);
+      planned.push(appt);
+      cursorDate=portalShiftIsoDate(slot.date,gapDays);
+    }
+  }
+  return planned;
+}
+
+function agendaCascadeSuggestions(db, appointmentId, options={}){
+  const moved=(db.appointments||[]).find(a=>Number(a.id)===Number(appointmentId));
+  if(!moved) throw new Error('Cita no encontrada');
+  const patientId=Number(moved.patient_id), gapDays=Math.max(0,Number(options.gap_days??1));
+  let cursorDate=portalShiftIsoDate(moved.date,gapDays);
+  return (db.appointments||[])
+    .filter(a=>Number(a.patient_id)===patientId && String(a.id)!==String(moved.id) && a.date>=moved.date && (a.clinical_item_id||moved.clinical_item_id))
+    .sort((a,b)=>(a.date+a.start_time).localeCompare(b.date+b.start_time))
+    .map(a=>{
+      const duration=Number(a.duration_minutes||durationMinutes(a.start_time,a.end_time)||40);
+      const slot=agendaFindOpenSlots(db,{
+        date:cursorDate,
+        duration_minutes:duration,
+        employee_id:options.employee_id||a.employee_id,
+        cabinet_id:options.cabinet_id||a.cabinet_id,
+        site_id:options.site_id||a.site_id,
+        start:options.start,
+        end:options.end,
+        step:options.step||20
+      })[0];
+      const after=slot?{...a,date:slot.date,start_time:slot.start_time,end_time:slot.end_time,duration_minutes:duration}:null;
+      if(after) cursorDate=portalShiftIsoDate(after.date,gapDays);
+      return {appointment_id:a.id,before:{...a},after,needs_manual_review:!after};
+    });
 }
 function patientClinicalPlanProjection(db,patient_id){
   const graph=clinicalPlanGraph(db,patient_id), completed=x=>['completed','completado','hecho','finalizado','realizada'].includes(normClinical(x.status));
@@ -1184,7 +1421,7 @@ function applyDentalCommand(db,text,ctx={}){
   return {handled:false,...parsed,message:'No he entendido el comando clínico'};
 }
 
-window.DentyLogic={DB_KEY,PREVIOUS_KEYS,FDI_UPPER,FDI_LOWER,FDI_ALL,SURFACES,PERIO_SITES,DOCTOR_COLORS,STATUS_ORDER,STATUS_LABELS,ODONTO_LEGEND_MAIN,ODONTO_LEGEND_CYCLES,ODONTO_LEGEND_BASE_LABELS,ODONTO_LEGEND_STATE_LABELS,ODONTO_LEGEND_META,WHOLE_TOOTH_CODES,SURFACE_CODES,DEFAULT_SITES,DEFAULT_LABS,DEFAULT_EMPLOYEES,DEFAULT_SHIFTS,DEFAULT_CONSENTS,DEFAULT_PROCEDURES,clone,normalizeText,stripWake,stripWakeRaw,titleCase,today,weekdayFromDate,weekdayName,shortWeekdayName,prettyDate,patientFullName,initials,defaultDb,migrateDb,loadDb,saveDb,id,createPatient,archivePatient,restorePatient,ensureOdontogram,odontogramToothKind,occlusalSurfaceForTooth,normalizeSurfaceForTooth,legendVariant,legendLabel,legendStateText,legendNextIndex,statusTone,wholeToothStateFamily,toothWholeStates,removeToothWholeState,setToothLegendState,clearToothSurface,toothStatusNext,setToothPrimaryState,setToothSurfaceState,markArcadeMissing,splitName,parsePatientName,expandFdiRange,parseFdiRange,minutes,minutesToTime,durationMinutes,addMinutes,overlaps,appointmentWithMeta,appointmentsForDate,countOverlaps,cabinetConflict,agendaCounters,agendaByDoctors,agendaByHours,employeeShiftsForDate,employeeAbsencesForDate,appointmentAvailability,ensurePatientPortalState,patientPortalDentalFindings,patientPortalDelayDays,patientPortalProjectedDate,patientPortalPaymentPlan,patientPortalHealth,patientPortalRescheduleCandidates,patientPortalWaitingRoom,simpleHash,PLAN_PRIORITY_RANK,CLINICAL_PHASES,canonicalClinicalTreatment,clinicalPriorityFor,createClinicalPlanItem,inferClinicalDependencies,clinicalPlanGraph,patientClinicalPlanProjection,clinicalAlternativeContextLabel,createClinicalAlternativeGroup,createMissingToothAlternatives,updateClinicalAlternativeContext,setPatientAlternativePreference,approveClinicalAlternativeOption,syncClinicalPlanFromOdontogram,syncClinicalPlanBudget,setClinicalPlanItemStatus,defaultPlanSteps,createTreatmentPlan,treatmentPlanHierarchy,patientTreatmentRoute,schedulePlanStepToAgenda,createConsentDocument,attendanceAppointmentIsEligible,attendanceCertificateText,createAttendanceCertificateDocument,signDocument,patientDetailActions,isSettledPayment,paymentAmountForBudget,mapHeaders,splitCsvLine,csvRows,patientFromRow,runAction,stableHashText,createRecoverySnapshot,recoverDbFromSnapshots,validateStorageHealth,safeSaveDb,LEGACY_CLINICAL_PHASES,classifyTreatmentPriority,schedulePlanStep,CONSENT_DEFINITIONS,prepareConsentDocument,signConsentWithAudit,validatePatientImportRows,parseDentalCommand,applyDentalCommand};
+window.DentyLogic={DB_KEY,PREVIOUS_KEYS,FDI_UPPER,FDI_LOWER,FDI_ALL,SURFACES,PERIO_SITES,DOCTOR_COLORS,STATUS_ORDER,STATUS_LABELS,ODONTO_LEGEND_MAIN,ODONTO_LEGEND_CYCLES,ODONTO_LEGEND_BASE_LABELS,ODONTO_LEGEND_STATE_LABELS,ODONTO_LEGEND_META,WHOLE_TOOTH_CODES,SURFACE_CODES,DEFAULT_SITES,DEFAULT_LABS,DEFAULT_EMPLOYEES,DEFAULT_SHIFTS,DEFAULT_CONSENTS,DEFAULT_PROCEDURES,clone,normalizeText,stripWake,stripWakeRaw,titleCase,today,weekdayFromDate,weekdayName,shortWeekdayName,prettyDate,patientFullName,initials,defaultDb,migrateDb,loadDb,saveDb,id,createPatient,archivePatient,restorePatient,ensureOdontogram,odontogramToothKind,occlusalSurfaceForTooth,normalizeSurfaceForTooth,legendVariant,legendLabel,legendStateText,legendNextIndex,statusTone,wholeToothStateFamily,toothWholeStates,removeToothWholeState,setToothLegendState,clearToothSurface,toothStatusNext,setToothPrimaryState,setToothSurfaceState,markArcadeMissing,splitName,parsePatientName,expandFdiRange,parseFdiRange,minutes,minutesToTime,durationMinutes,addMinutes,overlaps,appointmentWithMeta,appointmentsForDate,countOverlaps,cabinetConflict,agendaCounters,agendaByDoctors,agendaByHours,employeeShiftsForDate,employeeAbsencesForDate,appointmentAvailability,agendaSlotKey,agendaValidateMove,agendaMoveAppointment,agendaResizeAppointment,agendaCreateBlock,agendaFindOpenSlots,agendaCancelAppointment,agendaWaitingListMatches,agendaRescheduleOptions,ensurePatientPortalState,patientPortalDentalFindings,patientPortalDelayDays,patientPortalProjectedDate,patientPortalPaymentPlan,patientPortalHealth,patientPortalRescheduleCandidates,patientPortalWaitingRoom,simpleHash,PLAN_PRIORITY_RANK,CLINICAL_PHASES,canonicalClinicalTreatment,clinicalPriorityFor,createClinicalPlanItem,inferClinicalDependencies,clinicalPlanGraph,agendaPlanClinicalSequence,agendaCascadeSuggestions,patientClinicalPlanProjection,clinicalAlternativeContextLabel,createClinicalAlternativeGroup,createMissingToothAlternatives,updateClinicalAlternativeContext,setPatientAlternativePreference,approveClinicalAlternativeOption,syncClinicalPlanFromOdontogram,syncClinicalPlanBudget,setClinicalPlanItemStatus,defaultPlanSteps,createTreatmentPlan,treatmentPlanHierarchy,patientTreatmentRoute,schedulePlanStepToAgenda,createConsentDocument,attendanceAppointmentIsEligible,attendanceCertificateText,createAttendanceCertificateDocument,signDocument,patientDetailActions,isSettledPayment,paymentAmountForBudget,mapHeaders,splitCsvLine,csvRows,patientFromRow,runAction,stableHashText,createRecoverySnapshot,recoverDbFromSnapshots,validateStorageHealth,safeSaveDb,LEGACY_CLINICAL_PHASES,classifyTreatmentPriority,schedulePlanStep,CONSENT_DEFINITIONS,prepareConsentDocument,signConsentWithAudit,validatePatientImportRows,parseDentalCommand,applyDentalCommand};
 })();
 
 (function(){'use strict';
@@ -1493,7 +1730,7 @@ window.DentyVoice={VOICE_INTENTS,resolveSpokenDate,parseVoiceCommand,validateStr
 })();
 
 (function(){'use strict';
-const {DB_KEY,loadDb,saveDb,defaultDb,id,today,prettyDate,shortWeekdayName,patientFullName,initials,normalizeText,FDI_UPPER,FDI_LOWER,SURFACES,STATUS_LABELS,ODONTO_LEGEND_MAIN,ODONTO_LEGEND_CYCLES,ODONTO_LEGEND_META,ensureOdontogram,toothStatusNext,setToothPrimaryState,setToothLegendState,clearToothSurface,toothWholeStates,removeToothWholeState,setToothSurfaceState,markArcadeMissing,createPatient,archivePatient,restorePatient,patientDetailActions,legendVariant,legendLabel,legendStateText,legendNextIndex,statusTone,normalizeSurfaceForTooth,agendaByDoctors,agendaByHours,agendaCounters,appointmentAvailability,durationMinutes,addMinutes,createConsentDocument,signDocument,createAttendanceCertificateDocument,attendanceAppointmentIsEligible,createTreatmentPlan,treatmentPlanHierarchy,patientTreatmentRoute,schedulePlanStepToAgenda,csvRows,patientFromRow,runAction,clinicalPlanGraph,patientClinicalPlanProjection,createClinicalPlanItem,syncClinicalPlanFromOdontogram,syncClinicalPlanBudget,createMissingToothAlternatives,clinicalAlternativeContextLabel,updateClinicalAlternativeContext,approveClinicalAlternativeOption,setPatientAlternativePreference,setClinicalPlanItemStatus,validateStorageHealth,paymentAmountForBudget,isSettledPayment,ensurePatientPortalState,patientPortalDelayDays,patientPortalProjectedDate,patientPortalPaymentPlan,patientPortalHealth,patientPortalRescheduleCandidates,patientPortalWaitingRoom,patientPortalDentalFindings}=window.DentyLogic;
+const {DB_KEY,loadDb,saveDb,defaultDb,id,today,prettyDate,shortWeekdayName,patientFullName,initials,normalizeText,FDI_UPPER,FDI_LOWER,SURFACES,STATUS_LABELS,ODONTO_LEGEND_MAIN,ODONTO_LEGEND_CYCLES,ODONTO_LEGEND_META,ensureOdontogram,toothStatusNext,setToothPrimaryState,setToothLegendState,clearToothSurface,toothWholeStates,removeToothWholeState,setToothSurfaceState,markArcadeMissing,createPatient,archivePatient,restorePatient,patientDetailActions,legendVariant,legendLabel,legendStateText,legendNextIndex,statusTone,normalizeSurfaceForTooth,agendaByDoctors,agendaByHours,agendaCounters,appointmentAvailability,durationMinutes,addMinutes,agendaMoveAppointment,agendaResizeAppointment,agendaCreateBlock,agendaCancelAppointment,agendaWaitingListMatches,agendaRescheduleOptions,agendaCascadeSuggestions,agendaPlanClinicalSequence,createConsentDocument,signDocument,createAttendanceCertificateDocument,attendanceAppointmentIsEligible,createTreatmentPlan,treatmentPlanHierarchy,patientTreatmentRoute,schedulePlanStepToAgenda,csvRows,patientFromRow,runAction,clinicalPlanGraph,patientClinicalPlanProjection,createClinicalPlanItem,syncClinicalPlanFromOdontogram,syncClinicalPlanBudget,createMissingToothAlternatives,clinicalAlternativeContextLabel,updateClinicalAlternativeContext,approveClinicalAlternativeOption,setPatientAlternativePreference,setClinicalPlanItemStatus,validateStorageHealth,paymentAmountForBudget,isSettledPayment,ensurePatientPortalState,patientPortalDelayDays,patientPortalProjectedDate,patientPortalPaymentPlan,patientPortalHealth,patientPortalRescheduleCandidates,patientPortalWaitingRoom,patientPortalDentalFindings}=window.DentyLogic;
 const {parseVoiceCommand,validateStructuredCommand,executeVoiceCommand}=window.DentyVoice;
 const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
@@ -2265,7 +2502,7 @@ function agendaAppointmentData(){ return agendaColumnsForCurrentUser(state.date)
 function apptCard(a,{compact=false}={}){
   const p=a.patient||patient(a.patient_id), e=a.employee||emp(a.employee_id), meta=agendaStatusMeta(a), conflict=a.availability_status&&a.availability_status!=='ok';
   const accent=agendaDoctorAccent(a._agendaIndex??Math.max(0,db.employees.findIndex(x=>Number(x.id)===Number(e?.id))));
-  return `<button type="button" class="agenda-appointment-card tone-${meta.tone} ${conflict?'has-warning':''} ${compact?'compact':''}" data-agenda-open="${a.id}" style="--agenda-accent:${accent}"><span class="agenda-appt-time">${esc(a.start_time||'')}<small>${esc(a.end_time||'')}</small></span><span class="agenda-appt-main"><strong>${esc(p?patientFullName(p):'Sin paciente')}</strong><small>${esc(a.title||a.reason||'Cita dental')}</small>${compact?'':`<span>${esc(e?.name||'Sin profesional')}${a.site?` · ${esc(a.site)}`:''}</span>`}</span><span class="agenda-status-pill tone-${meta.tone}">${esc(meta.label)}</span>${conflict?'<span class="agenda-warning-dot" title="Revisar disponibilidad">!</span>':''}</button>`;
+  return `<button type="button" class="agenda-appointment-card tone-${meta.tone} ${conflict?'has-warning':''} ${compact?'compact':''}" data-agenda-open="${a.id}" style="--agenda-accent:${accent}"><span class="agenda-appt-time">${esc(a.start_time||'')}<small>${esc(a.end_time||'')}</small></span><span class="agenda-appt-main"><strong>${esc(p?patientFullName(p):'Sin paciente')}</strong><small>${esc(a.title||a.reason||'Cita dental')}</small>${compact?'':`<span>${esc(e?.name||'Sin profesional')}${a.site?` · ${esc(a.site)}`:''}</span>`}</span><span class="agenda-status-pill tone-${meta.tone}">${esc(meta.label)}</span>${conflict?'<span class="agenda-warning-dot" title="Revisar disponibilidad">!</span>':''}${compact?'':`<span class="agenda-resize-controls"><span role="button" tabindex="0" data-agenda-resize="-10" data-agenda-id="${a.id}">-10 min</span><span role="button" tabindex="0" data-agenda-resize="10" data-agenda-id="${a.id}">+10 min</span></span>`}</button>`;
 }
 function renderAgendaByDoctors(){
   const data=agendaColumnsForCurrentUser(state.date);
@@ -2288,7 +2525,7 @@ function slotCell(time, employeeId){ return `<button class="slot-cell empty" dat
 function renderAgendaQuickPanel(){
   const a=db.appointments.find(x=>Number(x.id)===Number(state.agendaQuickId)); if(!a) return '';
   const p=patient(a.patient_id), e=emp(a.employee_id), meta=agendaStatusMeta(a), duration=durationMinutes(a.start_time,a.end_time)||Number(a.duration_minutes||0);
-  return `<aside class="agenda-quick-panel" aria-label="Detalle rápido de cita"><div class="agenda-quick-backdrop" data-agenda-close></div><div class="agenda-quick-card"><header><div><span class="agenda-status-pill tone-${meta.tone}">${esc(meta.label)}</span><h2>${esc(p?patientFullName(p):'Sin paciente')}</h2><p>${esc(a.title||a.reason||'Cita dental')}</p></div><button class="icon-btn" type="button" data-agenda-close aria-label="Cerrar">×</button></header><div class="agenda-quick-facts"><div><small>Horario</small><strong>${esc(a.start_time||'')}–${esc(a.end_time||'')}</strong><span>${duration?duration+' min':''}</span></div><div><small>Profesional</small><strong>${esc(e?.name||'Sin profesional')}</strong><span>${esc(a.site||e?.site||'Sin sede')}</span></div></div>${a.detail?`<div class="agenda-quick-note"><small>Detalle</small><p>${esc(a.detail)}</p></div>`:''}<div class="agenda-quick-actions"><button type="button" data-agenda-action="confirm" data-agenda-id="${a.id}">Confirmar</button><button type="button" data-agenda-action="arrival" data-agenda-id="${a.id}">Ha llegado</button><button type="button" data-agenda-action="cabinet" data-agenda-id="${a.id}">A gabinete</button><button type="button" data-agenda-action="absent" data-agenda-id="${a.id}">Ausente / NPA</button><button type="button" data-agenda-action="complete" data-agenda-id="${a.id}">Completar</button></div><div class="agenda-quick-footer"><button class="ghost" type="button" data-agenda-action="reschedule" data-agenda-id="${a.id}">Reprogramar</button>${p?`<button class="ghost" type="button" data-agenda-action="patient" data-agenda-id="${a.id}">Abrir ficha</button>`:''}</div></div></aside>`;
+  return `<aside class="agenda-quick-panel" aria-label="Detalle rápido de cita"><div class="agenda-quick-backdrop" data-agenda-close></div><div class="agenda-quick-card"><header><div><span class="agenda-status-pill tone-${meta.tone}">${esc(meta.label)}</span><h2>${esc(p?patientFullName(p):'Sin paciente')}</h2><p>${esc(a.title||a.reason||'Cita dental')}</p></div><button class="icon-btn" type="button" data-agenda-close aria-label="Cerrar">×</button></header><div class="agenda-quick-facts"><div><small>Horario</small><strong>${esc(a.start_time||'')}–${esc(a.end_time||'')}</strong><span>${duration?duration+' min':''}</span></div><div><small>Profesional</small><strong>${esc(e?.name||'Sin profesional')}</strong><span>${esc(a.site||e?.site||'Sin sede')}</span></div></div>${a.detail?`<div class="agenda-quick-note"><small>Detalle</small><p>${esc(a.detail)}</p></div>`:''}<div class="agenda-quick-actions"><button type="button" data-agenda-action="confirm" data-agenda-id="${a.id}">Confirmar</button><button type="button" data-agenda-action="arrival" data-agenda-id="${a.id}">Ha llegado</button><button type="button" data-agenda-action="cabinet" data-agenda-id="${a.id}">A gabinete</button><button type="button" data-agenda-action="absent" data-agenda-id="${a.id}">Ausente / NPA</button><button type="button" data-agenda-action="complete" data-agenda-id="${a.id}">Completar</button></div><div class="agenda-quick-footer"><button class="ghost" type="button" data-agenda-action="reschedule" data-agenda-id="${a.id}">Reprogramar</button><button class="ghost" type="button" data-agenda-action="cancel" data-agenda-id="${a.id}">Cancelar</button>${p?`<button class="ghost" type="button" data-agenda-action="patient" data-agenda-id="${a.id}">Abrir ficha</button>`:''}</div></div></aside>`;
 }
 function updateAgendaAppointmentState(appointmentId,action){
   const a=db.appointments.find(x=>Number(x.id)===Number(appointmentId)); if(!a) return toast('Cita no encontrada');
@@ -2594,6 +2831,47 @@ function bindSettingsAdmin(){
   if($('#syncPullNow')) $('#syncPullNow').onclick=syncPullNow;
 }
 
+function bindAgendaV12Operations(){
+  $$('[data-agenda-resize]').forEach(btn=>btn.onclick=e=>{
+    e.stopPropagation();
+    const appt=db.appointments.find(a=>Number(a.id)===Number(btn.dataset.agendaId));
+    if(!appt) return toast('Cita no encontrada');
+    const nextDuration=Math.max(10,Number(appt.duration_minutes||durationMinutes(appt.start_time,appt.end_time)||40)+Number(btn.dataset.agendaResize||0));
+    try{ snapshot('agenda.resize',appt.patient_id); agendaResizeAppointment(db,appt.id,nextDuration,sessionUser?.role||'local'); persist(); render(); toast('Duracion actualizada'); }
+    catch(err){ toast(err?.message||'No se pudo cambiar la duracion'); }
+  });
+  $$('[data-agenda-mode]').forEach(btn=>btn.onclick=()=>{
+    const mode=btn.dataset.agendaMode;
+    if(mode==='block'){
+      const reason=prompt('Motivo del bloqueo')||'Bloqueo de agenda';
+      const start=prompt('Hora de inicio', '13:00')||'13:00';
+      const end=prompt('Hora de fin', '14:00')||'14:00';
+      try{ snapshot('agenda.block'); agendaCreateBlock(db,{scope:'clinic',date:state.date,start_time:start,end_time:end,reason},sessionUser?.role||'local'); persist(); render(); toast('Bloqueo creado'); }
+      catch(err){ toast(err?.message||'No se pudo crear el bloqueo'); }
+      return;
+    }
+    if(mode==='waiting'){
+      const matches=agendaWaitingListMatches(db,{date:state.date,start_time:'09:00',end_time:'20:00',employee_id:db.employees?.[0]?.id,site_id:db.sites?.[0]?.id});
+      toast(matches.length?matches.length+' paciente(s) compatibles en lista de espera':'Lista de espera sin candidatos compatibles');
+      return;
+    }
+    toast(mode==='move'?'Selecciona una cita y usa Reprogramar':'Usa +10 / -10 min dentro de cada cita');
+  });
+  $('#agendaAutoPlanClinical')?.addEventListener('click',()=>{
+    const pid=state.patientId||activePatients()[0]?.id;
+    if(!pid) return toast('Elige un paciente');
+    try{ snapshot('agenda.plan_clinical',pid); const planned=agendaPlanClinicalSequence(db,{patient_id:pid,start_date:state.date,employee_id:db.employees?.[0]?.id,cabinet_id:db.cabinets?.[0]?.id,site_id:db.sites?.[0]?.id}); persist(); render(); toast(planned.length+' cita(s) planificadas'); }
+    catch(err){ toast(err?.message||'No se pudo planificar el plan clinico'); }
+  });
+  $$('[data-agenda-action="cancel"]').forEach(btn=>btn.onclick=()=>{
+    const appt=db.appointments.find(a=>Number(a.id)===Number(btn.dataset.agendaId));
+    if(!appt) return toast('Cita no encontrada');
+    const reason=prompt('Motivo de cancelacion')||'Cancelacion';
+    try{ snapshot('agenda.cancel',appt.patient_id); agendaCancelAppointment(db,appt.id,reason,sessionUser?.role||'local'); const gap={date:appt.date,start_time:appt.start_time,end_time:appt.end_time,duration_minutes:appt.duration_minutes,employee_id:appt.employee_id,site_id:appt.site_id}; const matches=agendaWaitingListMatches(db,gap); const options=agendaRescheduleOptions(db,appt.id,{days:7,limit:3}); const cascade=agendaCascadeSuggestions(db,appt.id,{gap_days:1}); persist(); render(); toast(matches.length?'Cita cancelada. '+matches.length+' candidato(s) para cubrir el hueco':'Cita cancelada. '+options.length+' nuevo(s) horario(s) posibles; '+cascade.length+' ajuste(s) en cascada'); }
+    catch(err){ toast(err?.message||'No se pudo cancelar la cita'); }
+  });
+}
+
 function bindScreen(){
   bindSettingsAdmin();
   $$('[data-go]').forEach(el=>el.onclick=()=>setView(el.dataset.go,{settingsPanel:el.dataset.panel||state.settingsPanel}));
@@ -2659,6 +2937,7 @@ function bindScreen(){
   $$('[data-agenda-open]').forEach(b=>b.onclick=()=>{ const ap=db.appointments.find(a=>Number(a.id)===Number(b.dataset.agendaOpen)); if(ap){ state.agendaQuickId=Number(ap.id); if(state.view!=='agenda'){ state.view='agenda'; state.date=ap.date||state.date; } render(); } });
   $$('[data-agenda-close]').forEach(b=>b.onclick=()=>{ state.agendaQuickId=null; render(); });
   $$('[data-agenda-action]').forEach(b=>b.onclick=()=>{ const action=b.dataset.agendaAction, appointmentId=Number(b.dataset.agendaId); if(action==='reschedule') return openAgendaRescheduleModal(appointmentId); if(action==='patient'){ const ap=db.appointments.find(a=>Number(a.id)===appointmentId); if(ap){ state.agendaQuickId=null; state.patientId=Number(ap.patient_id); setView('patientDetail'); } return; } updateAgendaAppointmentState(appointmentId,action); });
+  bindAgendaV12Operations();
   if($('#runCommandBtn')) $('#runCommandBtn').onclick=()=>runCommand($('#commandInput').value,'typed');
   if($('#commandInput')) $('#commandInput').onkeydown=e=>{ if(e.key==='Enter') runCommand($('#commandInput').value,'typed'); };
   $$('[data-command]').forEach(b=>b.onclick=()=>runCommand(b.dataset.command,'quick'));
@@ -3239,7 +3518,7 @@ function renderAgendaSafetyBanner(){
 }
 function renderAgenda(){
   const c=agendaVisibleCounters(), view=state.agendaView==='doctors'?renderAgendaByDoctors():state.agendaView==='list'?renderAgendaList():renderAgendaTimeline();
-  return `<section class="agenda-v10"><header class="agenda-commandbar"><div class="agenda-title-block"><span class="eyebrow">Organización clínica</span><h1>Agenda</h1><p>${esc(prettyDate(state.date))}</p></div><div class="agenda-day-controls"><button type="button" class="agenda-nav-arrow" id="prevDay" aria-label="Día anterior">‹</button><button type="button" class="agenda-today-btn" id="agendaToday">Hoy</button><input id="agendaDate" type="date" value="${state.date}" aria-label="Fecha de agenda"><button type="button" class="agenda-nav-arrow" id="nextDay" aria-label="Día siguiente">›</button></div><button class="primary agenda-new-btn" id="openAppointmentModal">+ Cita</button></header><div class="agenda-overview"><div><strong>${c.total}</strong><span>Citas</span></div><div><strong>${c.confirmed}</strong><span>Confirmadas</span></div><div><strong>${c.waiting}</strong><span>En espera</span></div><div class="${c.conflicts?'attention':''}"><strong>${c.conflicts+c.overlaps}</strong><span>Avisos</span></div></div>${renderAgendaSafetyBanner()}<div class="agenda-viewbar" role="tablist" aria-label="Vista de agenda"><button class="${state.agendaView==='doctors'?'active':''}" data-agenda-view="doctors">Doctores</button><button class="${state.agendaView==='timeline'||state.agendaView==='hours'?'active':''}" data-agenda-view="timeline">Día</button><button class="${state.agendaView==='list'?'active':''}" data-agenda-view="list">Lista</button></div><div class="agenda-content">${view}</div>${renderAgendaQuickPanel()}</section>`;
+  return `<section class="agenda-v10"><header class="agenda-commandbar"><div class="agenda-title-block"><span class="eyebrow">Organización clínica</span><h1>Agenda</h1><p>${esc(prettyDate(state.date))}</p></div><div class="agenda-day-controls"><button type="button" class="agenda-nav-arrow" id="prevDay" aria-label="Día anterior">‹</button><button type="button" class="agenda-today-btn" id="agendaToday">Hoy</button><input id="agendaDate" type="date" value="${state.date}" aria-label="Fecha de agenda"><button type="button" class="agenda-nav-arrow" id="nextDay" aria-label="Día siguiente">›</button></div><button class="primary agenda-new-btn" id="openAppointmentModal">+ Cita</button></header><div class="agenda-v12-tools" role="toolbar" aria-label="Operaciones de agenda"><button type="button" data-agenda-mode="move">Mover citas</button><button type="button" data-agenda-mode="resize">Duracion</button><button type="button" data-agenda-mode="block">Bloquear hueco</button><button type="button" data-agenda-mode="waiting">Lista de espera</button><button type="button" id="agendaAutoPlanClinical">Planificar plan clinico</button></div><div class="agenda-v12-panels"><div class="agenda-waiting-panel">Lista de espera inteligente preparada para huecos libres.</div><div class="agenda-cascade-panel">Reprogramacion en cascada disponible desde cada cita.</div><div class="agenda-block-card">Bloqueos y vacaciones se validan antes de guardar nuevas citas.</div></div><div class="agenda-overview"><div><strong>${c.total}</strong><span>Citas</span></div><div><strong>${c.confirmed}</strong><span>Confirmadas</span></div><div><strong>${c.waiting}</strong><span>En espera</span></div><div class="${c.conflicts?'attention':''}"><strong>${c.conflicts+c.overlaps}</strong><span>Avisos</span></div></div>${renderAgendaSafetyBanner()}<div class="agenda-viewbar" role="tablist" aria-label="Vista de agenda"><button class="${state.agendaView==='doctors'?'active':''}" data-agenda-view="doctors">Doctores</button><button class="${state.agendaView==='timeline'||state.agendaView==='hours'?'active':''}" data-agenda-view="timeline">Día</button><button class="${state.agendaView==='list'?'active':''}" data-agenda-view="list">Lista</button></div><div class="agenda-content">${view}</div>${renderAgendaQuickPanel()}</section>`;
 }
 function renderDocumentsTab(p){
   const docs=db.documents.filter(d=>Number(d.patient_id)===Number(p.id)).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));

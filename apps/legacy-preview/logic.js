@@ -538,6 +538,7 @@ export function minutesToTime(n){ const h=Math.floor(n/60), m=n%60; return Strin
 export function durationMinutes(start,end){ return Math.max(0, minutes(end)-minutes(start)); }
 export function addMinutes(start,n){ return minutesToTime(minutes(start)+Number(n||0)); }
 export function overlaps(a,b){ return a.date===b.date && Number(a.employee_id)===Number(b.employee_id) && minutes(a.start_time)<minutes(b.end_time) && minutes(a.end_time)>minutes(b.start_time); }
+function appointmentBlocksSchedule(a){ return !['cancelada','cancelado','cancelled'].includes(normalizeText(a?.status||'')); }
 export function appointmentWithMeta(db,a){ const p=db.patients.find(x=>Number(x.id)===Number(a.patient_id)); const emp=db.employees.find(x=>Number(x.id)===Number(a.employee_id)); const start=a.start_time||'10:00'; const end=a.end_time||addMinutes(start, Number(a.duration_minutes||40)); return {...a,start_time:start,end_time:end,duration_minutes:durationMinutes(start,end)||Number(a.duration_minutes||40), patient:p||null, employee:emp||null}; }
 export function appointmentsForDate(db,date){ return db.appointments.filter(a=>a.date===date).map(a=>appointmentWithMeta(db,a)).sort((a,b)=>(a.start_time+a.end_time).localeCompare(b.start_time+b.end_time)); }
 export function countOverlaps(db,date){ const aps=appointmentsForDate(db,date); let n=0; for(let i=0;i<aps.length;i++) for(let j=i+1;j<aps.length;j++) if(overlaps(aps[i],aps[j])) n++; return n; }
@@ -545,7 +546,7 @@ export function cabinetConflict(db, appt){
   const cabinetId=Number(appt.cabinet_id||1);
   if(!cabinetId) return null;
   const start=appt.start_time||'10:00', end=appt.end_time||addMinutes(start, appt.duration_minutes||40);
-  return db.appointments.find(a=>Number(a.cabinet_id||1)===cabinetId&&a.date===appt.date&&String(a.id)!==String(appt.id)&&minutes(start)<minutes(a.end_time||addMinutes(a.start_time,40))&&minutes(end)>minutes(a.start_time||'10:00'))||null;
+  return db.appointments.find(a=>appointmentBlocksSchedule(a)&&Number(a.cabinet_id||1)===cabinetId&&a.date===appt.date&&String(a.id)!==String(appt.id)&&minutes(start)<minutes(a.end_time||addMinutes(a.start_time,40))&&minutes(end)>minutes(a.start_time||'10:00'))||null;
 }
 export function agendaCounters(db,date){ const aps=appointmentsForDate(db,date); return {total:aps.length, confirmed:aps.filter(a=>a.confirmed||a.status==='confirmada').length, waiting:aps.filter(a=>a.status==='espera').length, overlaps:countOverlaps(db,date), cabinetConflicts:aps.filter(a=>cabinetConflict(db,a)).length, conflicts:aps.filter(a=>a.availability_status&&a.availability_status!=='ok').length}; }
 export function agendaByDoctors(db,date){ return db.employees.filter(e=>e.active!==false).map(emp => ({employee:emp, shifts:employeeShiftsForDate(db, emp.id, date), absences:employeeAbsencesForDate(db, emp.id, date), appointments:appointmentsForDate(db,date).filter(a=>Number(a.employee_id)===Number(emp.id))})); }
@@ -561,7 +562,14 @@ export function appointmentAvailability(db, appt){
   const abs = employeeAbsencesForDate(db, emp.id, appt.date).find(a => (!a.start_time || (start < (a.end_time||'23:59') && end > (a.start_time||'00:00'))));
   if(abs) return {status:'conflict', message:`Conflicto: ${emp.name} tiene ${abs.type}`};
   if(!insideShift) return {status:'warn', message:`${emp.name} está fuera de turno`};
-  const existing=db.appointments.filter(a=>Number(a.employee_id)===Number(emp.id)&&a.date===appt.date&&String(a.id)!==String(appt.id)).map(a=>appointmentWithMeta(db,a));
+  const block = (db.agendaBlocks||[]).find(b => b.date===appt.date && minutes(start)<minutes(b.end_time||addMinutes(b.start_time,60)) && minutes(end)>minutes(b.start_time||'09:00') && (
+    b.scope==='clinic' ||
+    Number(b.employee_id)===Number(appt.employee_id) ||
+    Number(b.cabinet_id)===Number(appt.cabinet_id) ||
+    Number(b.site_id)===Number(appt.site_id)
+  ));
+  if(block) return {status:'conflict', message:block.reason?`Bloqueo: ${block.reason}`:'Bloqueo de agenda'};
+  const existing=db.appointments.filter(a=>appointmentBlocksSchedule(a)&&Number(a.employee_id)===Number(emp.id)&&a.date===appt.date&&String(a.id)!==String(appt.id)).map(a=>appointmentWithMeta(db,a));
   if(existing.some(a=>minutes(start)<minutes(a.end_time)&&minutes(end)>minutes(a.start_time))) return {status:'conflict', message:`Solape en agenda de ${emp.name}`};
   const cab = cabinetConflict(db,{...appt,start_time:start,end_time:end});
   if(cab) return {status:'conflict', message:`Solape en gabinete ${appt.cabinet_id||1}`};
@@ -619,6 +627,94 @@ export function agendaResizeAppointment(db, appointmentId, duration_minutes, act
   Object.assign(appt, validation.appointment, {updated_at:new Date().toISOString()});
   agendaMoveAudit(db, 'resize', before, {...appt}, actor);
   return appt;
+}
+
+export function agendaCreateBlock(db, input={}, actor='system'){
+  db.agendaBlocks = Array.isArray(db.agendaBlocks) ? db.agendaBlocks : [];
+  const start = input.start_time || '09:00';
+  const block = {
+    id:id(db),
+    scope:input.scope||'employee',
+    employee_id:input.employee_id!=null&&input.employee_id!==''?Number(input.employee_id):null,
+    cabinet_id:input.cabinet_id!=null&&input.cabinet_id!==''?Number(input.cabinet_id):null,
+    site_id:input.site_id!=null&&input.site_id!==''?Number(input.site_id):null,
+    date:input.date||today(),
+    start_time:start,
+    end_time:input.end_time||addMinutes(start, Number(input.duration_minutes||60)),
+    reason:input.reason||'Bloqueo',
+    created_by:actor,
+    created_at:new Date().toISOString()
+  };
+  db.agendaBlocks.push(block);
+  return block;
+}
+
+export function agendaFindOpenSlots(db, request={}){
+  const date=request.date||today(), duration=Math.max(10,Number(request.duration_minutes||40));
+  const start=request.start||db.settings?.agenda?.day_start||'09:00', end=request.end||db.settings?.agenda?.day_end||'20:00';
+  const step=Math.max(5,Number(request.step||20));
+  const employees=(db.employees||[]).filter(e=>e.active!==false && (!request.employee_id || Number(e.id)===Number(request.employee_id)));
+  const cabinets=(db.cabinets&&db.cabinets.length?db.cabinets:[{id:request.cabinet_id||1,site_id:request.site_id||1}]).filter(c=>c.active!==false && (!request.cabinet_id || Number(c.id)===Number(request.cabinet_id)));
+  const slots=[];
+  for(const emp of employees){
+    for(const cab of cabinets){
+      for(let t=minutes(start); t+duration<=minutes(end); t+=step){
+        const start_time=minutesToTime(t), end_time=minutesToTime(t+duration);
+        const candidate={id:'candidate', date, start_time, end_time, duration_minutes:duration, employee_id:emp.id, cabinet_id:cab.id, site_id:request.site_id||cab.site_id||emp.site_id||null};
+        const validation=agendaValidateMove(db,candidate,{});
+        if(validation.ok) slots.push({...candidate, employee:emp, cabinet:cab, score:100-slots.length});
+      }
+    }
+  }
+  return slots;
+}
+
+export function agendaCancelAppointment(db, appointmentId, reason='', actor='system'){
+  const appt = (db.appointments||[]).find(a=>Number(a.id)===Number(appointmentId));
+  if(!appt) throw new Error('Cita no encontrada');
+  const before = {...appt};
+  Object.assign(appt, {
+    status:'cancelada',
+    cancelled_at:new Date().toISOString(),
+    cancel_reason:reason||'Cancelada',
+    updated_at:new Date().toISOString()
+  });
+  agendaMoveAudit(db, 'cancel', before, {...appt}, actor, reason);
+  return appt;
+}
+
+export function agendaWaitingListMatches(db, gap={}){
+  const duration=durationMinutes(gap.start_time,gap.end_time)||Number(gap.duration_minutes||40);
+  return (db.waiting_list||[])
+    .filter(item => item.active!==false)
+    .filter(item => Number(item.duration_minutes||40)<=duration)
+    .filter(item => !item.preferred_employee_id || Number(item.preferred_employee_id)===Number(gap.employee_id))
+    .filter(item => !item.preferred_site_id || Number(item.preferred_site_id)===Number(gap.site_id))
+    .map(item => ({...item, patient:(db.patients||[]).find(p=>Number(p.id)===Number(item.patient_id))||null}))
+    .sort((a,b)=>(Number(b.priority||0)-Number(a.priority||0)) || String(a.created_at||'').localeCompare(String(b.created_at||'')));
+}
+
+export function agendaRescheduleOptions(db, appointmentId, options={}){
+  const appt=(db.appointments||[]).find(a=>Number(a.id)===Number(appointmentId));
+  if(!appt) throw new Error('Cita no encontrada');
+  const days=Math.max(1,Number(options.days||14)), limit=Math.max(1,Number(options.limit||12));
+  const from=options.from||appt.date||today();
+  const duration=Number(options.duration_minutes||appt.duration_minutes||durationMinutes(appt.start_time,appt.end_time)||40);
+  const found=[];
+  for(let i=0;i<days && found.length<limit;i++){
+    const date=portalShiftIsoDate(from,i);
+    found.push(...agendaFindOpenSlots(db,{
+      date,
+      duration_minutes:duration,
+      employee_id:options.employee_id||appt.employee_id,
+      cabinet_id:options.cabinet_id||appt.cabinet_id,
+      site_id:options.site_id||appt.site_id,
+      start:options.start,
+      end:options.end,
+      step:options.step||20
+    }).slice(0,limit-found.length));
+  }
+  return found;
 }
 
 function portalShiftIsoDate(date, days){
@@ -869,6 +965,90 @@ export function clinicalPlanGraph(db,patient_id){
   const projected=ordered.map(item=>({...item,dependency_explanations:(item.depends_on||[]).map(dep=>byId.get(Number(dep))).filter(Boolean).map(dep=>({item_id:dep.id,title:dep.title,reason:clinicalDependencyExplanation(dep,item)}))}));
   const phaseMap=new Map(); for(const item of projected){ if(!phaseMap.has(item.phase_rank)) phaseMap.set(item.phase_rank,{rank:item.phase_rank,key:item.phase_key,label:item.phase_label,items:[]}); phaseMap.get(item.phase_rank).items.push(item); }
   return {items:projected,phases:[...phaseMap.values()].sort((a,b)=>a.rank-b.rank),warnings};
+}
+
+export function agendaPlanClinicalSequence(db, request={}){
+  const patientId=Number(request.patient_id||0);
+  if(!patientId) throw new Error('Falta paciente');
+  const graph=clinicalPlanGraph(db,patientId);
+  const planned=[];
+  let cursorDate=request.start_date||today();
+  const gapDays=Math.max(0,Number(request.gap_days??1));
+  for(const item of graph.items.filter(x=>x.active!==false&&!['completed','completado','cancelled','cancelado'].includes(normClinical(x.status)))){
+    const visits=Math.max(1,Number(item.visits||1));
+    const duration=Math.max(10,Number(item.duration||item.duration_minutes||40));
+    for(let visit=1; visit<=visits; visit++){
+      const slot=agendaFindOpenSlots(db,{
+        date:cursorDate,
+        duration_minutes:duration,
+        employee_id:request.employee_id,
+        cabinet_id:request.cabinet_id,
+        site_id:request.site_id,
+        start:request.start,
+        end:request.end,
+        step:request.step||20
+      })[0] || agendaFindOpenSlots(db,{
+        date:portalShiftIsoDate(cursorDate,1),
+        duration_minutes:duration,
+        employee_id:request.employee_id,
+        cabinet_id:request.cabinet_id,
+        site_id:request.site_id,
+        start:request.start,
+        end:request.end,
+        step:request.step||20
+      })[0];
+      if(!slot) throw new Error(`No hay hueco para ${item.title||item.treatment}`);
+      const appt={
+        id:id(db),
+        patient_id:patientId,
+        employee_id:slot.employee_id,
+        cabinet_id:slot.cabinet_id,
+        site_id:slot.site_id,
+        date:slot.date,
+        start_time:slot.start_time,
+        end_time:slot.end_time,
+        duration_minutes:duration,
+        title:item.title||item.treatment,
+        reason:item.treatment,
+        status:'programada',
+        treatment_plan_id:item.treatment_plan_id||null,
+        clinical_item_id:item.id,
+        sequence_index:visit,
+        sequence_total:visits,
+        created_at:new Date().toISOString()
+      };
+      db.appointments.push(appt);
+      planned.push(appt);
+      cursorDate=portalShiftIsoDate(slot.date,gapDays);
+    }
+  }
+  return planned;
+}
+
+export function agendaCascadeSuggestions(db, appointmentId, options={}){
+  const moved=(db.appointments||[]).find(a=>Number(a.id)===Number(appointmentId));
+  if(!moved) throw new Error('Cita no encontrada');
+  const patientId=Number(moved.patient_id), gapDays=Math.max(0,Number(options.gap_days??1));
+  let cursorDate=portalShiftIsoDate(moved.date,gapDays);
+  return (db.appointments||[])
+    .filter(a=>Number(a.patient_id)===patientId && String(a.id)!==String(moved.id) && a.date>=moved.date && (a.clinical_item_id||moved.clinical_item_id))
+    .sort((a,b)=>(a.date+a.start_time).localeCompare(b.date+b.start_time))
+    .map(a=>{
+      const duration=Number(a.duration_minutes||durationMinutes(a.start_time,a.end_time)||40);
+      const slot=agendaFindOpenSlots(db,{
+        date:cursorDate,
+        duration_minutes:duration,
+        employee_id:options.employee_id||a.employee_id,
+        cabinet_id:options.cabinet_id||a.cabinet_id,
+        site_id:options.site_id||a.site_id,
+        start:options.start,
+        end:options.end,
+        step:options.step||20
+      })[0];
+      const after=slot?{...a,date:slot.date,start_time:slot.start_time,end_time:slot.end_time,duration_minutes:duration}:null;
+      if(after) cursorDate=portalShiftIsoDate(after.date,gapDays);
+      return {appointment_id:a.id,before:{...a},after,needs_manual_review:!after};
+    });
 }
 export function patientClinicalPlanProjection(db,patient_id){
   const graph=clinicalPlanGraph(db,patient_id), completed=x=>['completed','completado','hecho','finalizado','realizada'].includes(normClinical(x.status));
