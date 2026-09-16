@@ -1,0 +1,13 @@
+import fs from 'fs';let p=0,f=0;const ok=(v,m)=>{(v?p++:f++);console[v?'log':'error'](v?'PASS':'FAIL',m)};
+const schema=fs.readFileSync('packages/db/prisma/schema.prisma','utf8'),server=fs.readFileSync('apps/api/src/server.ts','utf8'),login=fs.readFileSync('apps/web/src/features/auth/LoginForm.tsx','utf8'),patient=fs.readFileSync('apps/web/src/app/app/patients/[id]/page.tsx','utf8');
+const provider=fs.existsSync('apps/api/src/modules/notifications/provider.ts')?fs.readFileSync('apps/api/src/modules/notifications/provider.ts','utf8'):'';
+const dispatcher=fs.existsSync('apps/api/src/modules/notifications/dispatcher.ts')?fs.readFileSync('apps/api/src/modules/notifications/dispatcher.ts','utf8'):'';
+ok(schema.includes('model NotificationPreference'),'notification preferences are persisted');
+ok(provider.includes('DENTY_NOTIFICATION_ENDPOINT'),'email/SMS/WhatsApp provider is configurable');
+ok(dispatcher.includes('NotificationPreference')||dispatcher.includes('notificationPreference'),'dispatcher respects opt-out preferences');
+ok(dispatcher.includes('unref'),'notification delivery runs periodically without blocking shutdown');
+ok(server.includes('startNotificationDispatcher'),'notification dispatcher starts with API');
+ok(login.includes('request-password-reset')&&login.includes('reset-password'),'login UI exposes recovery flow');
+ok(patient.includes('/invitations'),'staff can invite patient to remote portal from profile');
+ok(patient.includes('/family-grants'),'staff can manage dependent/family access from profile');
+console.log(`\n${p} passed, ${f} failed`);if(f)process.exit(1);

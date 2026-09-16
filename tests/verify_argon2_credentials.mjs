@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const creds=fs.readFileSync('apps/api/src/auth/credentials.ts','utf8');
+const routes=fs.readFileSync('apps/api/src/auth/routes.ts','utf8');
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+let p=0,f=0;const ok=(v,m)=>{if(v){console.log('PASS',m);p++}else{console.error('FAIL',m);f++}};
+ok(String(pkg.engines?.node??'').includes('24.8'),'runtime floor includes Node 24.8+ where built-in Argon2 is available');
+ok(creds.includes('argon2id')&&creds.includes('argonHash'),'new password hashes use built-in Argon2id');
+ok(creds.includes('scrypt-v1')&&creds.includes('verifyLegacyScrypt'),'legacy scrypt hashes remain readable during migration');
+ok(creds.includes('needsCredentialRehash'),'credential service can identify legacy/weak hashes for transparent migration');
+ok(routes.includes('needsCredentialRehash')&&routes.includes('passwordHash:await hashPassword'),'successful legacy login upgrades the stored password hash');
+console.log(`\n${p} passed, ${f} failed`);if(f)process.exit(1);

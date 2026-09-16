@@ -1,0 +1,3 @@
+import { z } from "zod";
+export const createLabWorkSchema=z.object({patientId:z.string(),clinicalPlanItemId:z.string().optional(),staffId:z.string().optional(),siteId:z.string().optional(),labId:z.string().optional(),title:z.string().min(1),category:z.string().optional(),toothOrZone:z.string().optional(),etaAt:z.string().datetime().optional(),costCents:z.number().int().nonnegative().default(0),notes:z.string().optional()});
+export const labTransitionSchema=z.object({status:z.enum(["PLANNED","IMPRESSION_TAKEN","SCANNED","SENT","IN_PRODUCTION","TRIAL","RECEIVED","PLACED","INCIDENT","CANCELLED"]),note:z.string().optional(),expectedVersion:z.number().int().positive()});

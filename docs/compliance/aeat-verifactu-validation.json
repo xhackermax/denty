@@ -1,0 +1,12 @@
+{
+  "reviewedAt": "2026-09-16",
+  "maxAgeDays": 90,
+  "scope": "Denty VERI*FACTU record hash, QR payload, XML/WSDL transport boundary",
+  "sources": [
+    "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu.html",
+    "https://www.agenciatributaria.es/static_files/AEAT_Desarrolladores/EEDD/IVA/VERI-FACTU/Veri-Factu_especificaciones_huella_hash_registros.pdf",
+    "https://www.agenciatributaria.es/static_files/AEAT_Desarrolladores/EEDD/IVA/VERI-FACTU/DetalleEspecificacTecnCodigoQRfactura.pdf"
+  ],
+  "productionCertificateTestRequired": true,
+  "note": "La revisión de especificaciones no sustituye la prueba con certificado real y el entorno externo de AEAT antes de cada release fiscal."
+}

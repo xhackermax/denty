@@ -91,6 +91,11 @@ img.brand-logo{object-fit:cover;background:#031625;padding:0;display:block}.bran
 .minimal-odontogram .apk-arcade-label{display:flex;align-items:center;justify-content:space-between;gap:10px;background:transparent;border-bottom:1px solid #edf4f7;border-radius:0;padding:0 0 8px;margin-bottom:10px}
 .minimal-odontogram .apk-arcade-label strong{font-size:18px;line-height:1;color:#17485c}.minimal-odontogram .apk-arcade-label small{font-size:11px}.minimal-odontogram .apk-arcade-content{padding:2px 0 0}
 .minimal-odontogram .teeth-row.compact,.minimal-odontogram .surface-row.compact,.minimal-odontogram .tooth-labels.compact{grid-template-columns:0 repeat(16,40px);gap:7px;min-width:760px;justify-content:center}
+.minimal-odontogram .odonto-bridge-connectors{display:grid;grid-template-columns:0 repeat(16,40px);gap:7px;align-items:center;min-width:760px;justify-content:center;height:18px;pointer-events:none;margin:-4px 0 1px}
+.odonto-bridge-connector{height:8px;border-radius:999px;background:#0b84d8;box-shadow:0 2px 7px rgba(11,132,216,.22);align-self:center;position:relative}
+.odonto-bridge-connector.tone-red{background:#fa3150;box-shadow:0 2px 7px rgba(250,49,80,.18)}
+.odonto-bridge-connector.tone-blue-red{background:linear-gradient(90deg,#0b84d8,#fa3150);box-shadow:0 2px 7px rgba(11,132,216,.18)}
+.odonto-bridge-connector i{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:999px;background:#fff;border:2px solid currentColor;color:#0b84d8;font-size:0}
 .minimal-odontogram .tooth-labels.compact{color:#536f7a;font-size:10px;font-weight:800;margin:2px 0 8px}
 .minimal-odontogram.inferior .tooth-labels.compact{margin:8px 0 2px}.minimal-odontogram .tooth-ui.apk{height:72px;border-radius:10px}.minimal-odontogram .tooth-ui.apk.selected{height:72px;border:2px solid #13aeca;background:#eefcff}
 .minimal-odontogram .tooth-svg.apk-tooth{width:38px;height:72px}.minimal-odontogram.inferior .tooth-svg.apk-tooth{height:74px}
@@ -98,11 +103,12 @@ img.brand-logo{object-fit:cover;background:#031625;padding:0;display:block}.bran
 .minimal-tooth .tooth-outline{fill:#fff!important;stroke:#0b84d8!important;stroke-width:2;stroke-linejoin:round}
 .minimal-tooth .root-split{fill:none;stroke:#55ade7;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;opacity:.82}
 .minimal-tooth .root-shade{fill:none;stroke:#d8eefb;stroke-width:2.4;stroke-linecap:round;opacity:.55}
+.minimal-tooth .removable-root-ghost path{fill:none;stroke:#8fa7b4;stroke-width:2;stroke-linecap:round;stroke-dasharray:3 4;opacity:.48}
 .minimal-tooth .tooth-outline.tone-missing{stroke:#8fa7b4!important;stroke-dasharray:4 4;opacity:.65}
 .minimal-tooth .minimal-detail{fill:none;stroke:#79bdea;stroke-width:1.15;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
 .minimal-tooth .tooth-crown.tone-missing,.minimal-tooth .tooth-root.tone-missing{stroke:#8fa7b4!important;stroke-dasharray:4 4}.minimal-tooth .crown-cap{fill:#fff;stroke:#0b84d8}.minimal-tooth .surface-fill-dot{fill:#0b84d8}.minimal-tooth .surface-red-dot{fill:#2ab673}.minimal-tooth .extract-mark{stroke:#f0cf25}
 .minimal-odontogram .surface-map{width:24px;height:24px}.minimal-odontogram .surface-shell,.minimal-odontogram .surface-seg{stroke:#c3d0d6;stroke-width:1;fill:#fff}.minimal-odontogram .surface-seg.filled{fill:#edf7ff;stroke:#0b84d8}.minimal-odontogram .surface-seg.filled.red{fill:#e8fff3;stroke:#2ab673}
-@media(max-width:440px){.minimal-odontogram .teeth-row.compact,.minimal-odontogram .surface-row.compact,.minimal-odontogram .tooth-labels.compact{grid-template-columns:0 repeat(16,35px);gap:5px;min-width:640px}.minimal-odontogram .tooth-svg.apk-tooth{width:33px;height:66px}.minimal-odontogram .surface-map{width:22px;height:22px}}
+@media(max-width:440px){.minimal-odontogram .teeth-row.compact,.minimal-odontogram .surface-row.compact,.minimal-odontogram .tooth-labels.compact,.minimal-odontogram .odonto-bridge-connectors{grid-template-columns:0 repeat(16,35px);gap:5px;min-width:640px}.minimal-odontogram .tooth-svg.apk-tooth{width:33px;height:66px}.minimal-odontogram .surface-map{width:22px;height:22px}}
 
 
 /* DENTY VOICE ROUTER */
@@ -669,6 +675,12 @@ html[data-theme="dark"]{--ink:#dceef4;--muted:#9ab0ba;--line:#294956;--soft:#102
 .portal-media-actions .ghost,
 .portal-media-actions a.ghost { display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
 .portal-education-links > a { align-items:flex-start; flex-direction:column; }
+.patient-games-module { display:grid; gap:14px; overflow:hidden; }
+.patient-games-module .section-title { align-items:flex-start; }
+.patient-games-notice { display:grid; gap:4px; padding:12px 14px; border:1px solid #dce9ed; border-radius:16px; background:#fbfeff; color:#39545f; }
+.patient-games-notice strong { color:#111827; font-size:15px; }
+.patient-games-notice span { font-size:13px; line-height:1.45; }
+.patient-games-frame { width:100%; min-height:720px; border:1px solid #dbe7eb; border-radius:20px; background:#f5f8fb; box-shadow:inset 0 0 0 1px rgba(255,255,255,.65); }
 .portal-reschedule-options {
   display:grid;
   gap:9px;
@@ -732,6 +744,7 @@ html[data-theme="dark"]{--ink:#dceef4;--muted:#9ab0ba;--line:#294956;--soft:#102
   .portal-help-actions { display:grid; grid-template-columns:1fr; }
   .portal-media-actions > *,
   .portal-help-actions > * { width:100%; }
+  .patient-games-frame { min-height:760px; border-radius:16px; }
   .payment-simulator button { flex:1 1 calc(50% - 8px); }
   .portal-reschedule-options { max-height:280px; }
 }
@@ -960,3 +973,21 @@ html[data-theme="dark"] .agenda-appointment-card.tone-absent,html[data-theme="da
 html[data-theme="dark"] .agenda-v12-tools,html[data-theme="dark"] .agenda-v12-tools button,html[data-theme="dark"] .agenda-resize-controls span{background:#102d38;color:#e4f0f3;border-color:rgba(186,210,219,.16)}
 html[data-theme="dark"] .agenda-waiting-panel,html[data-theme="dark"] .agenda-cascade-panel,html[data-theme="dark"] .agenda-block-card{background:#102d38;color:#b7cbd2}
 @media(max-width:760px){.agenda-v12-panels{grid-template-columns:1fr}.agenda-v12-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.agenda-v12-tools button:last-child{grid-column:1/-1}}
+
+.odontogram-v3-panel{display:grid;gap:12px;border:1px solid var(--line);background:#fff;border-radius:18px;padding:14px;margin:14px 0}
+.odonto-v3-actions{display:flex;gap:8px;flex-wrap:wrap}
+.odonto-v3-actions button{border:1px solid #d8e1e4;background:#fff;border-radius:12px;padding:8px 10px;font-size:12px;font-weight:850;color:#27414b}
+.odonto-v3-entities{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.odonto-entity-card{border:1px solid #d9e4e7;border-radius:14px;background:#f8fafb;padding:12px;display:grid;gap:8px}
+.odonto-entity-card strong{text-transform:capitalize}
+.odonto-bridge-bar{display:flex;align-items:center;gap:4px;height:28px}
+.odonto-bridge-bar span{display:grid;place-items:center;min-width:30px;height:24px;border-radius:8px;background:#dceef7;color:#184859;font-size:11px;font-weight:900}
+.odonto-bridge-bar span.abutment{background:#cfe7dc;color:#145333}
+.odonto-bridge-bar span.pontic{background:#e8edf1;color:#485b63;border-style:dashed}
+.odonto-component-row{display:flex;gap:6px;flex-wrap:wrap}
+.odonto-component-chip{display:inline-flex;border:1px solid #d2dde1;border-radius:999px;padding:4px 8px;background:#fff;font-size:11px;font-weight:800;color:#51656d}
+.perio-visual-summary{display:flex;justify-content:space-between;gap:10px;align-items:center;border-radius:14px;padding:10px 12px;background:#eef7f8;color:#24515b;font-size:12px}
+.perio-visual-summary.severity-severe{background:#feecec;color:#8a2424}
+.perio-visual-summary.severity-moderate{background:#fff5dc;color:#75540c}
+.perio-visual-summary.severity-mild{background:#eef6ff;color:#24517e}
+.odonto-snapshot-diff{border:1px solid #d8e1e4;border-radius:14px;padding:10px;background:#fff}

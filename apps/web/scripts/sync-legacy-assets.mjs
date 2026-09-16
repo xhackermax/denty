@@ -7,7 +7,7 @@ const webRoot = join(here, '..');
 const legacyRoot = join(webRoot, '..', 'legacy-preview');
 const publicRoot = join(webRoot, 'public');
 
-for (const entry of ['assets', 'scripts', 'styles', 'denty-app.bundle.js', 'manifest.webmanifest', 'sw.js']) {
+for (const entry of ['assets', 'scripts', 'styles', 'games', 'denty-app.bundle.js', 'manifest.webmanifest', 'sw.js']) {
   await mkdir(publicRoot, { recursive: true });
   await rm(join(publicRoot, entry), { recursive: true, force: true });
   await cp(join(legacyRoot, entry), join(publicRoot, entry), { recursive: true });

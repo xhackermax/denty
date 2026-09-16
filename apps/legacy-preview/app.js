@@ -12,7 +12,10 @@ import {
   createMissingToothAlternatives, clinicalAlternativeContextLabel, updateClinicalAlternativeContext, approveClinicalAlternativeOption,
   setPatientAlternativePreference, setClinicalPlanItemStatus,
   validateStorageHealth, paymentAmountForBudget, isSettledPayment, ensurePatientPortalState, patientPortalDelayDays, patientPortalProjectedDate,
-  patientPortalPaymentPlan, patientPortalHealth, patientPortalRescheduleCandidates, patientPortalWaitingRoom, patientPortalDentalFindings
+  patientPortalPaymentPlan, patientPortalHealth, patientPortalRescheduleCandidates, patientPortalWaitingRoom, patientPortalDentalFindings,
+  ensureOdontogramV3, createOdontogramEntity, odontogramEntitiesForPatient, bridgeConnectorSpansForArc,
+  syncLegacyOdontogramFromEntities, odontogramEntityToClinicalItems,
+  createOdontogramSnapshot, compareOdontogramSnapshots, periodontalVisualSummary
 } from './logic.js';
 import { parseVoiceCommand, validateStructuredCommand, executeVoiceCommand } from './voice-router.js';
 
@@ -96,7 +99,8 @@ const ICON_MARKUP = {
   treatment:'<path d="M8.2 5.3C8.2 3.7 9.7 2.5 12 2.5C14.3 2.5 15.8 3.7 15.8 5.3V10.1C15.8 12 14.5 13.6 12.7 14L11.3 14C9.5 13.6 8.2 12 8.2 10.1Z"></path><path d="M10.1 14V15.5"></path><path d="M13.9 14V15.5"></path><path d="M8.9 15.6C8.2 16.2 8.2 17.2 8.8 18L10.4 20.3C10.8 20.8 11.4 20.8 12 20.2L13.6 18C14.2 17.2 14.2 16.2 13.5 15.6Z"></path><path d="M10 16.7H14"></path>',
   pagos:'<path d="M5 8.5C5 7.1 6.1 6 7.5 6H16.5C17.9 6 19 7.1 19 8.5V15.5C19 16.9 17.9 18 16.5 18H7.5C6.1 18 5 16.9 5 15.5Z"></path><path d="M5 10.5H19"></path><path d="M14.5 14.5H16.5"></path>',
   documentos:'<path d="M8 4.5H14L17 7.5V18.5C17 19.3 16.3 20 15.5 20H8.5C7.7 20 7 19.3 7 18.5V6C7 5.2 7.6 4.5 8 4.5Z"></path><path d="M14 4.5V7.5H17"></path><path d="M9.5 11H14.5"></path><path d="M9.5 14H14.5"></path><path d="M9.5 17H12.5"></path>',
-  ayuda:'<circle cx="12" cy="12" r="7.5"></circle><path d="M9.5 9.3C9.9 8.2 10.8 7.5 12 7.5C13.5 7.5 14.5 8.4 14.5 9.7C14.5 10.8 13.9 11.5 12.8 12.1C11.8 12.6 11.5 13 11.5 14"></path><path d="M12 17H12.1"></path>'
+  ayuda:'<circle cx="12" cy="12" r="7.5"></circle><path d="M9.5 9.3C9.9 8.2 10.8 7.5 12 7.5C13.5 7.5 14.5 8.4 14.5 9.7C14.5 10.8 13.9 11.5 12.8 12.1C11.8 12.6 11.5 13 11.5 14"></path><path d="M12 17H12.1"></path>',
+  juegos:'<rect x="4.5" y="8" width="15" height="9" rx="3"></rect><path d="M8 12.5H11"></path><path d="M9.5 11V14"></path><circle cx="15.4" cy="12" r=".7"></circle><circle cx="17.2" cy="14" r=".7"></circle><path d="M8 8V6.5C8 5.7 8.7 5 9.5 5H14.5C15.3 5 16 5.7 16 6.5V8"></path>'
 };
 function iconSvg(name, extraClass=''){
   const markup=ICON_MARKUP[name] || ICON_MARKUP.clinic;
@@ -422,7 +426,7 @@ function legacyRenderPatientDetail(){
   <div class="patient-primary-actions"><button class="primary" id="patientNewAppointment">Nueva cita</button><button class="ghost" id="patientNewPlan">Plan tratamiento</button><button class="ghost" id="patientNewWork">Nuevo trabajo</button><button class="ghost" id="patientNewBudget">Nuevo presupuesto</button><button class="ghost" id="patientPayment">Registrar pago</button></div>
   <div class="action-grid">${patientDetailActions().filter(a=>!['appointment','work','budget','payment'].includes(a.id)).map(a=>`<button class="${a.id==='odontogram'?'primary':'ghost'}" data-patient-action="${a.id}" id="${a.id==='odontogram'?'patientOpenOdontogram':a.id==='documents'?'patientOpenDocuments':''}">${esc(a.label)}</button>`).join('')}<button class="danger" id="archivePatientBtn">Archivar paciente</button></div></article>
   <article class="card denty-box"><h2>Denty Box Ambiental</h2><p>Acciones rápidas, notas y comandos del paciente.</p><button class="ghost" data-go="assistant">Abrir comandos</button></article>
-  <div class="tabs">${['resumen','tratamiento','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div>
+  <div class="tabs">${['resumen','tratamiento','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos','juegos'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div>
   <div id="patientTabBody">${renderPatientTab(p)}</div></section>`;
 }
 function treatmentDatePlus(dateValue, days){
@@ -487,6 +491,7 @@ function renderPatientTab(p){
   if(state.patientTab==='alertas') return renderAlertsTab(p);
   if(state.patientTab==='comentarios') return renderCommentsTab(p);
   if(state.patientTab==='archivos') return renderFilesTab(p);
+  if(state.patientTab==='juegos') return renderPatientGamesModule();
   if(state.patientTab==='imprimir') return renderPrintableDocumentCenter(p);
   return '';
 }
@@ -612,7 +617,8 @@ function toothMarkers(tooth, record){
   const missingAttrs = missing?' stroke-dasharray="4 4" opacity=".55"':'';
   const rootLines = (g.rootLines||[]).map(d=>`<path class="root-split" d="${d}"${missingAttrs}/>`).join('');
   const rootShade = `<path class="root-shade" d="M18 42 C20 52 20 65 22 78 M32 42 C30 52 30 65 28 78"${missingAttrs}/>`;
-  return `<svg class="tooth-svg apk-tooth minimal-tooth anatomical-tooth continuous-tooth" viewBox="0 0 50 82" aria-hidden="true"><g${rotate}><path class="tooth-outline tone-${tone}" d="${g.outline}"${missingAttrs}/>${missing?'':rootShade}${rootLines}${crownState?`<path class="crown-cap treatment-mark ${semClass(crownState)}" d="M15 23 C21 17 29 17 35 23 L32 36 C28 33 22 33 18 36 Z"/>`:''}${surfaceFillingState?`<circle class="surface-fill-dot treatment-mark ${semClass(surfaceFillingState)}" cx="25" cy="25" r="4.8"/>`:''}${surfaceRed?`<circle class="surface-red-dot treatment-mark semantic-pending" cx="25" cy="24" r="4.8"/>`:''}${endoState?`<path class="endo-mark treatment-mark ${semClass(endoState)}" d="M23.5 35 L26.5 35 L26 72 L24 72 Z"/>`:''}${postState?`<path class="post-mark treatment-mark ${semClass(postState)}" d="M22 30 L28 30 L27 54 L23 54 Z"/>`:''}${implantState?`<g class="implant-mark treatment-mark ${semClass(implantState)}"><path d="M19 42 H31 M20 49 H30 M21 56 H29 M22 63 H28"/><path d="M19 40 L23 72 H27 L31 40"/></g>`:''}${bridgeState?`<path class="bridge-mark treatment-mark ${semClass(bridgeState)}" d="M6 27 H44"/>`:''}${removableState?`<g class="removable-mark treatment-mark ${semClass(removableState)}"><path d="M7 28 H43"/><rect x="19" y="43" width="12" height="7" rx="2"/></g>`:''}${states.includes('extraction')?'<path class="extract-mark semantic-pending" d="M13 15 L37 45 M37 15 L13 45"/>':''}</g></svg>`;
+  const removableRootGhost = removableState ? `<g class="removable-root-ghost" aria-hidden="true">${(g.rootLines||[]).map(d=>`<path d="${d}"/>`).join('') || '<path d="M20 42 C18 54 18 68 21 78"/><path d="M30 42 C32 54 32 68 29 78"/>'}</g>` : '';
+  return `<svg class="tooth-svg apk-tooth minimal-tooth anatomical-tooth continuous-tooth" viewBox="0 0 50 82" aria-hidden="true"><g${rotate}><path class="tooth-outline tone-${tone}" d="${g.outline}"${missingAttrs}/>${removableRootGhost}${missing?'':rootShade}${rootLines}${crownState?`<path class="crown-cap treatment-mark ${semClass(crownState)}" d="M15 23 C21 17 29 17 35 23 L32 36 C28 33 22 33 18 36 Z"/>`:''}${surfaceFillingState?`<circle class="surface-fill-dot treatment-mark ${semClass(surfaceFillingState)}" cx="25" cy="25" r="4.8"/>`:''}${surfaceRed?`<circle class="surface-red-dot treatment-mark semantic-pending" cx="25" cy="24" r="4.8"/>`:''}${endoState?`<path class="endo-mark treatment-mark ${semClass(endoState)}" d="M23.5 35 L26.5 35 L26 72 L24 72 Z"/>`:''}${postState?`<path class="post-mark treatment-mark ${semClass(postState)}" d="M22 30 L28 30 L27 54 L23 54 Z"/>`:''}${implantState?`<g class="implant-mark treatment-mark ${semClass(implantState)}"><path d="M19 42 H31 M20 49 H30 M21 56 H29 M22 63 H28"/><path d="M19 40 L23 72 H27 L31 40"/></g>`:''}${bridgeState?`<path class="bridge-mark treatment-mark ${semClass(bridgeState)}" d="M6 27 H44"/>`:''}${removableState?`<g class="removable-mark treatment-mark ${semClass(removableState)}"><path d="M7 28 H43"/><rect x="19" y="43" width="12" height="7" rx="2"/></g>`:''}${states.includes('extraction')?'<path class="extract-mark semantic-pending" d="M13 15 L37 45 M37 15 L13 45"/>':''}</g></svg>`;
 }
 function surfaceSvg(tooth, record){ const map=record.surfaces||{}; const get=s=>map[normalizeSurfaceForTooth(tooth,s)]||''; const cls=s=>{ const v=get(s); return v?`filled ${statusTone(v)}`:''; }; const occ=normalizeSurfaceForTooth(tooth,'O'); return `<svg class="surface-map" viewBox="0 0 54 54" aria-label="Superficies ${tooth}"><circle class="surface-shell" cx="27" cy="27" r="23"/><path class="surface-seg ${cls('V')}" data-surface-tooth="${tooth}" data-surface="V" d="M11 10 Q27 1 43 10 L35 19 Q27 14 19 19 Z"><title>${tooth} Vestibular</title></path><path class="surface-seg ${cls('P')}" data-surface-tooth="${tooth}" data-surface="P" d="M11 44 Q27 53 43 44 L35 35 Q27 40 19 35 Z"><title>${tooth} Palatino/Lingual</title></path><path class="surface-seg ${cls('M')}" data-surface-tooth="${tooth}" data-surface="M" d="M10 11 Q1 27 10 43 L19 35 Q14 27 19 19 Z"><title>${tooth} Mesial</title></path><path class="surface-seg ${cls('D')}" data-surface-tooth="${tooth}" data-surface="D" d="M44 11 Q53 27 44 43 L35 35 Q40 27 35 19 Z"><title>${tooth} Distal</title></path><circle class="surface-seg ${cls(occ)}" data-surface-tooth="${tooth}" data-surface="${occ}" cx="27" cy="27" r="9"><title>${tooth} ${occ==='I'?'Incisal':'Oclusal'}</title></circle></svg>`; }
 function statusVisualSemantics(code){
@@ -715,10 +721,27 @@ function renderRestorativeModeLegacy(od,p,pid,currentBase,currentIdx,currentCode
 }
 function renderRestorativeMode(od,p,pid,currentBase,currentIdx,currentCode){
   const labelRow=arr=>arr.map(t=>`<span>${t}</span>`).join('');
-  const teethRow=arr=>`<div class="teeth-row compact"><span class="row-spacer"></span>${arr.map(t=>`<button class="tooth-ui apk ${esc(statusTone(od[t].status))} ${state.selectedTooth===t?'selected':''}" data-tooth="${t}" title="${t} - ${esc(toothSummary(od[t]))}">${toothMarkers(t,od[t])}</button>`).join('')}</div>`;
+  const teethRow=arr=>`<div class="teeth-row compact"><span class="row-spacer"></span>${arr.map(t=>`<button class="tooth-ui apk ${esc(statusTone(od[t].status))} ${state.selectedTooth===t?'selected':''}" data-tooth="${t}" title="${t} - ${esc(toothSummary(od[t]))}">${toothMarkers(t,od[t])}</button>`).join('')}</div>${renderBridgeConnectors(arr)}`;
   const surfaces=arr=>`<div class="surface-row compact"><span class="row-spacer"></span>${arr.map(t=>`<div class="surface-stack compact">${surfaceSvg(t,od[t])}</div>`).join('')}</div>`;
+  function renderBridgeConnectors(arr){
+    const spans=bridgeConnectorSpansForArc(odontogramEntitiesForPatient(db,pid,{type:'bridge'}), arr);
+    if(!spans.length) return '';
+    return `<div class="odonto-bridge-connectors" aria-hidden="true"><span class="row-spacer"></span>${spans.map(span=>`<span class="odonto-bridge-connector tone-${esc(statusTone(span.status==='planned'?'prosthesis_pending':span.status==='review'||span.status==='failed'?'prosthesis_bad':'prosthesis'))}" data-bridge-span="${esc(span.id)}" style="grid-column:${span.startColumn}/${span.endColumn}"><i>${span.pontics.map(esc).join(' ')}</i></span>`).join('')}</div>`;
+  }
   const arch=(title, arr, arcade)=>`<div class="apk-arcade-card minimal-odontogram ${arcade}"><div class="apk-arcade-label"><strong>${title}</strong><small>${arr.filter(t=>od[t].status==='missing').length} ausentes</small><button class="ghost mini" data-mark-arcade="${arcade}">Arcada ausente</button></div><div class="apk-arcade-content">${arcade==='superior'?`${teethRow(arr)}<div class="tooth-labels compact">${labelRow(arr)}</div>${surfaces(arr)}`:`${surfaces(arr)}<div class="tooth-labels compact">${labelRow(arr)}</div>${teethRow(arr)}`}</div></div>`;
-  return `<section class="odonto-page05"><article class="card odonto-card apk-like"><div class="odonto-header sticky-odonto"><div><h1>Odontograma</h1><p>${p?esc(patientFullName(p)):'Demo sin paciente'} - modo ${esc(legendLabel(currentBase,currentIdx))}</p></div><div class="odonto-header-actions"><button class="ghost" data-odontogram-back="patient" data-go="patientDetail">Volver al paciente</button><button class="ghost" data-go="patientDetail">Ficha</button></div></div><select id="odontogramPatient" class="select-line">${activePatients().map(x=>`<option value="${x.id}" ${Number(x.id)===Number(pid)?'selected':''}>${esc(patientFullName(x))}</option>`).join('')||'<option value="demo">Demo sin paciente</option>'}</select>${odontoTopSwitch('restorative')}<div class="active-tool-bar tone-${currentCode?statusTone(currentCode):'neutral'}"><span>${currentCode?legendSymbol(currentCode):'○'}</span><strong>${currentCode?esc(legendLabel(currentBase,currentIdx)):'Sin herramienta activa'}</strong><small>${currentCode?esc(legendStateText(currentBase,currentIdx))+' - toca dientes o superficies':'toca una leyenda o manten pulsado un diente'}</small><button class="ghost mini" id="clearOdontoTool">Salir</button></div>${arch('Maxilar superior',FDI_UPPER,'superior')}${arch('Maxilar inferior',FDI_LOWER,'inferior')}<div class="quick-odonto-actions compact-actions"><button class="ghost" id="cycleSelectedTooth">Estados del diente</button><button class="ghost" id="selectFdiRange">Rango FDI</button><button class="ghost" id="clearSelectedSurface">Limpiar superficie</button></div><section class="legend apk-legend"><div class="section-title"><h2>Leyenda</h2><p>Toque repetido: correcto -> insatisfactorio -> pendiente. Despues toca el diente o una superficie.</p></div><div class="legend-grid apk clinical-grid">${legendItems()}</div><p class="tiny">Diente blanco con contorno azul. Los colores se reservan para marcas clinicas y estados.</p></section></article></section>`;
+  return `<section class="odonto-page05"><article class="card odonto-card apk-like"><div class="odonto-header sticky-odonto"><div><h1>Odontograma</h1><p>${p?esc(patientFullName(p)):'Demo sin paciente'} - modo ${esc(legendLabel(currentBase,currentIdx))}</p></div><div class="odonto-header-actions"><button class="ghost" data-odontogram-back="patient" data-go="patientDetail">Volver al paciente</button><button class="ghost" data-go="patientDetail">Ficha</button></div></div><select id="odontogramPatient" class="select-line">${activePatients().map(x=>`<option value="${x.id}" ${Number(x.id)===Number(pid)?'selected':''}>${esc(patientFullName(x))}</option>`).join('')||'<option value="demo">Demo sin paciente</option>'}</select>${odontoTopSwitch('restorative')}<div class="active-tool-bar tone-${currentCode?statusTone(currentCode):'neutral'}"><span>${currentCode?legendSymbol(currentCode):'○'}</span><strong>${currentCode?esc(legendLabel(currentBase,currentIdx)):'Sin herramienta activa'}</strong><small>${currentCode?esc(legendStateText(currentBase,currentIdx))+' - toca dientes o superficies':'toca una leyenda o manten pulsado un diente'}</small><button class="ghost mini" id="clearOdontoTool">Salir</button></div>${arch('Maxilar superior',FDI_UPPER,'superior')}${arch('Maxilar inferior',FDI_LOWER,'inferior')}<div class="quick-odonto-actions compact-actions"><button class="ghost" id="cycleSelectedTooth">Estados del diente</button><button class="ghost" id="selectFdiRange">Rango FDI</button><button class="ghost" id="clearSelectedSurface">Limpiar superficie</button></div>${renderOdontogramV3Panel(pid)}<section class="legend apk-legend"><div class="section-title"><h2>Leyenda</h2><p>Toque repetido: correcto -> insatisfactorio -> pendiente. Despues toca el diente o una superficie.</p></div><div class="legend-grid apk clinical-grid">${legendItems()}</div><p class="tiny">Diente blanco con contorno azul. Los colores se reservan para marcas clinicas y estados.</p></section></article></section>`;
+}
+function renderOdontogramV3Panel(pid){
+  ensureOdontogramV3(db,pid);
+  const entities=odontogramEntitiesForPatient(db,pid);
+  const summary=periodontalVisualSummary(db,pid);
+  return `<section class="odontogram-v3-panel"><div class="section-title"><div><h2>Odontograma V3</h2><p>Entidades clinicas compartidas por voz, plan y agenda.</p></div><button class="ghost mini" id="createOdontoSnapshot">Snapshot</button></div><div class="odonto-v3-actions"><button data-odonto-v3="bridge">Puente</button><button data-odonto-v3="implant_restoration">Implante + pilar + corona</button><button data-odonto-v3="removable_prosthesis">Removible</button><button data-odonto-v3="orthodontics">Ortodoncia</button><button data-odonto-v3="pediatric">Odontopediatria</button></div><div class="perio-visual-summary severity-${esc(summary.severity)}"><strong>Periodontal</strong><span>Max ${esc(summary.max_depth)} mm - sangrado ${esc(summary.bleeding_percent)}% - placa ${esc(summary.plaque_percent)}%</span></div><div class="odonto-v3-entities">${entities.length?entities.map(renderOdontoEntityCard).join(''):'<div class="empty-state">Sin entidades V3 todavia.</div>'}</div></section>`;
+}
+function renderOdontoEntityCard(entity){
+  const teeth=(entity.teeth||[]).join(' - ') || entity.arch || 'zona';
+  const bridge=entity.type==='bridge'?`<div class="odonto-bridge-bar">${(entity.components||[]).map(c=>`<span class="${esc(c.role)}">${esc(c.tooth||c.role)}</span>`).join('')}</div>`:'';
+  const chips=(entity.components||[]).map(c=>`<span class="odonto-component-chip">${esc(c.role)}${c.tooth?' '+esc(c.tooth):''}</span>`).join('');
+  return `<article class="odonto-entity-card type-${esc(entity.type)}"><div><strong>${esc(String(entity.type||'entidad').replace(/_/g,' '))}</strong><small>${esc(teeth)} - ${esc(entity.status||'planned')}</small></div>${bridge}<div class="odonto-component-row">${chips}</div><button class="ghost mini" data-entity-plan="${esc(entity.id)}">Plan clinico</button></article>`;
 }
 function renderOdontogram(){
   const p=currentPatient();
@@ -1242,7 +1265,7 @@ function bindScreen(){
   $$('[data-print-doc]').forEach(b=>b.onclick=()=>printClinicalDocument(b.dataset.printDoc));
   $$('[data-pdf-doc]').forEach(b=>b.onclick=()=>downloadClinicalPdf(b.dataset.pdfDoc));
 }
-function handlePatientAction(action){ if(action==='odontogram') return setView('odontogram',{patientId:state.patientId}); if(action==='documents') {state.patientTab='documentos'; return render();} if(action==='alerts'){state.patientTab='alertas';return render();} if(action==='files'){state.patientTab='archivos';return render();} }
+function handlePatientAction(action){ if(action==='odontogram') return setView('odontogram',{patientId:state.patientId}); if(action==='documents') {state.patientTab='documentos'; return render();} if(action==='alerts'){state.patientTab='alertas';return render();} if(action==='files'){state.patientTab='archivos';return render();} if(action==='games'){state.patientTab='juegos';return render();} }
 function quickCreateWork(){ openWorkModal(); }
 function quickCreateBudget(){ openBudgetModal(); }
 function quickPayment(){ openPaymentModal(); }
@@ -1306,7 +1329,48 @@ async function importPatientFiles(){
     toast(err?.message||'No se pudo importar el archivo');
   }
 }
+function bindOdontogramV3(){
+  $$('[data-odonto-v3]').forEach(btn=>btn.onclick=()=>{
+    const pid=state.patientId||activePatients()[0]?.id;
+    if(!pid) return toast('Elige paciente');
+    const type=btn.dataset.odontoV3;
+    let input={type,status:'planned',teeth:[state.selectedTooth||'36'],components:[],metadata:{},source:'ui'};
+    if(type==='bridge'){
+      const raw=prompt('Dientes del puente separados por coma', '13,14,15')||'';
+      const teeth=raw.split(/[,\s]+/).map(x=>x.trim()).filter(Boolean);
+      input={...input,teeth,components:teeth.map((tooth,i)=>({tooth,role:i===0||i===teeth.length-1?'abutment':'pontic',status:'planned'}))};
+    }else if(type==='implant_restoration'){
+      const tooth=prompt('Diente/zona del implante', state.selectedTooth||'36')||'36';
+      input={...input,teeth:[tooth],components:[{tooth,role:'implant',status:'planned'},{tooth,role:'abutment',status:'planned'},{tooth,role:'crown',status:'planned'}]};
+    }else if(type==='removable_prosthesis'){
+      input={...input,teeth:[],arch:prompt('Arco: upper/lower/both','upper')||'upper',components:[{role:'base',status:'planned'}],metadata:{design:'parcial'}};
+    }else if(type==='orthodontics'){
+      input={...input,teeth:[],arch:'both',components:[{role:'aligner',status:'planned'}],metadata:{appliance:'alineadores'}};
+    }else if(type==='pediatric'){
+      const tooth=prompt('Diente temporal', '75')||'75';
+      input={...input,teeth:[tooth],components:[{tooth,role:'pulpotomy',status:'planned'}],metadata:{treatment:'pulpotomia'}};
+    }
+    try{ snapshot('odontogram.v3.create',pid); const entity=createOdontogramEntity(db,pid,input); syncLegacyOdontogramFromEntities(db,pid); persist(); render(); toast('Entidad V3 creada: '+entity.type); }
+    catch(err){ toast(err?.message||'No se pudo crear la entidad'); }
+  });
+  $$('[data-entity-plan]').forEach(btn=>btn.onclick=()=>{
+    const pid=state.patientId||activePatients()[0]?.id;
+    try{ snapshot('odontogram.v3.plan',pid); const items=odontogramEntityToClinicalItems(db,pid,Number(btn.dataset.entityPlan)); persist(); render(); toast(items.length+' item(s) enviados al plan clinico'); }
+    catch(err){ toast(err?.message||'No se pudo crear plan clinico'); }
+  });
+  $('#createOdontoSnapshot')?.addEventListener('click',()=>{
+    const pid=state.patientId||activePatients()[0]?.id;
+    if(!pid) return;
+    snapshot('odontogram.v3.snapshot',pid);
+    const snap=createOdontogramSnapshot(db,pid,prompt('Nombre del snapshot','review')||'review');
+    const bucket=db.odontogramSnapshots?.[String(pid)]||[];
+    const previous=bucket.length>1?bucket[bucket.length-2]:null;
+    const diff=previous?compareOdontogramSnapshots(previous,snap):null;
+    persist(); render(); toast(diff?`Snapshot guardado: ${diff.changedTeeth.length} diente(s) cambiados`:'Snapshot guardado');
+  });
+}
 function bindOdonto(){
+  bindOdontogramV3();
   $$('[data-odonto-mode]').forEach(b=>b.onclick=()=>{ state.odontoMode=b.dataset.odontoMode; render(); });
   $$('[data-select-tooth]').forEach(b=>b.onclick=()=>{ state.selectedTooth=String(b.dataset.selectTooth); render(); });
   $$('[data-legend-base]').forEach(btn=>btn.onclick=e=>{ e.preventDefault(); cycleLegend(btn.dataset.legendBase); });
@@ -1588,7 +1652,7 @@ function patientPortalContext(p){
   return {s,portal,delayDays,projectedDate,alerts,health,waitingRoom,dentalFindings,clinical,lastVisit,waitingListActive,decisions,pendingSupport};
 }
 function renderPatientPortalNav(){
-  const tabs=[['inicio','Inicio'],['tratamiento','Tratamiento'],['citas','Citas'],['pagos','Pagos'],['documentos','Documentos'],['ayuda','Ayuda']];
+  const tabs=[['inicio','Inicio'],['tratamiento','Tratamiento'],['citas','Citas'],['pagos','Pagos'],['documentos','Documentos'],['juegos','Juegos'],['ayuda','Ayuda']];
   return `<nav class="patient-portal-nav" aria-label="Denty Paciente">${tabs.map(([id,label])=>`<button type="button" class="${state.patientPortalTab===id?'active':''}" data-patient-portal-tab="${id}">${iconLabel(id,label,{stacked:true})}</button>`).join('')}</nav>`;
 }
 function renderPatientPortalStatus(d){
@@ -1632,6 +1696,10 @@ function renderPatientPortalMedia(d){
   const smile=safeUrl(d.portal.smilecloud_url), arch=safeUrl(d.portal.archform_url);
   const links=d.portal.education_links.filter(x=>safeUrl(x?.url));
   return `<article class="patient-portal-card"><div class="section-title"><div><h2>Mi sonrisa y planificacion</h2><p>Fotos, simulaciones y recursos que tu clinica haya vinculado a tu caso.</p></div></div><div class="portal-media-actions">${smile?`<a class="ghost" href="${esc(smile)}" target="_blank" rel="noopener">Abrir Smilecloud</a>`:'<span class="portal-integration-off">Smilecloud · no enlazado</span>'}${arch?`<a class="ghost" href="${esc(arch)}" target="_blank" rel="noopener">Abrir ArchForm</a>`:'<span class="portal-integration-off">ArchForm · no enlazado</span>'}</div><h3>Videos aprobados por tu clinica</h3>${links.length?`<div class="portal-education-links">${links.map(link=>`<a href="${esc(link.url)}" target="_blank" rel="noopener"><strong>${esc(link.title||'Ver video')}</strong><span>Recurso externo revisado por la clinica ↗</span></a>`).join('')}</div>`:'<div class="portal-muted-state">Tu clinica todavia no ha asociado videos educativos a este tratamiento.</div>'}</article>`;
+}
+function renderPatientGamesModule({portal=false}={}){
+  const shellClass=portal?'patient-portal-card':'card flat';
+  return `<article class="${shellClass} patient-games-module"><div class="section-title"><div><h2>Juegos sala de espera</h2><p>Seis juegos ligeros para pacientes mientras esperan, sin anuncios y sin datos clinicos.</p></div><a class="ghost mini" href="/games/index.html" target="_blank" rel="noopener">Abrir aparte</a></div><div class="patient-games-notice"><strong>Denty Games</strong><span>El paciente usa solo un alias local para records. No se comparte nombre, historia clinica ni datos del tratamiento con el juego.</span></div><iframe class="patient-games-frame" src="/games/index.html" title="Denty Games" loading="lazy" sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"></iframe></article>`;
 }
 function renderPatientPortalDentalFindings(d,{compact=false}={}){
   const findings=(d.dentalFindings||[]).slice(0,compact?4:20);
@@ -1684,6 +1752,7 @@ function renderPatientPortal(){
   else if(tab==='citas') body=renderPatientPortalAppointments(p,d);
   else if(tab==='pagos') body=renderPatientPortalPayments(p,d);
   else if(tab==='documentos') body=renderPatientPortalDocuments(p,d);
+  else if(tab==='juegos') body=renderPatientGamesModule({portal:true});
   else if(tab==='ayuda') body=renderPatientPortalHelp(p,d);
   return `<section class="patient-portal"><header class="patient-portal-brandbar"><div><span class="patient-brand-mark" aria-hidden="true">${iconSvg('patient')}</span><span><strong>Denty Paciente</strong><small>Espacio personal de ${esc(patientFullName(p))}</small></span></div><button class="ghost" type="button" id="patientPortalExit">Cambiar cuenta</button></header><div class="patient-portal-top"><div><span>Mi espacio</span><h1>Hola, ${esc(p.first_name||'Paciente')}</h1><p>Tu tratamiento, citas, dinero y decisiones en un solo recorrido.</p></div></div>${renderPatientPortalNav()}<div class="patient-portal-body">${body}</div></section>`;
 }
@@ -1791,7 +1860,7 @@ function renderPatientDetail(){
   const works=db.works.filter(w=>Number(w.patient_id)===Number(p.id));
   const pending=db.budgets.filter(b=>Number(b.patient_id)===Number(p.id)).reduce((s,b)=>s+Number(b.pending||b.total||0),0);
   const next=apps.filter(a=>a.date>=today()).sort((a,b)=>(a.date+a.start_time).localeCompare(b.date+b.start_time))[0];
-  return `<section><button class="ghost" data-go="patients">Pacientes</button><article class="card patient-profile"><div class="patient-hero"><div class="avatar">${esc(initials(p))}</div><div><h1>${esc(patientFullName(p))}</h1><div class="patient-meta"><span>Tel. ${esc(p.phone||'-')}</span><span>${esc(p.email||'Sin email')}</span>${p.ficha?`<span>Ficha ${esc(p.ficha)}</span>`:''}</div></div></div>${renderPatientRiskStrip(p)}<div class="stats-grid"><div class="metric"><div class="k">Proxima cita</div><div class="v" style="font-size:22px">${next?esc(next.date+' '+next.start_time):'Sin cita'}</div></div><div class="metric"><div class="k">Trabajos activos</div><div class="v">${works.length}</div></div><div class="metric"><div class="k">Pendiente</div><div class="v money">${pending.toFixed(2)} EUR</div></div><div class="metric"><div class="k">Docs firmados</div><div class="v">${docs.filter(d=>d.status==='firmado').length}</div></div></div><div class="patient-primary-actions"><button class="primary" id="patientNewAppointment">Nueva cita</button><button class="ghost" id="patientNewPlan">Plan tratamiento</button><button class="ghost" id="patientNewWork">Nuevo trabajo</button><button class="ghost" id="patientNewBudget">Nuevo presupuesto</button><button class="ghost" id="patientPayment">Registrar pago</button></div><div class="action-grid">${patientDetailActions().filter(a=>!['appointment','work','budget','payment'].includes(a.id)).map(a=>`<button class="${a.id==='odontogram'?'primary':'ghost'}" data-patient-action="${a.id}" id="${a.id==='odontogram'?'patientOpenOdontogram':a.id==='documents'?'patientOpenDocuments':''}">${esc(a.label)}</button>`).join('')}<button class="danger" id="archivePatientBtn">Archivar paciente</button></div></article><article class="card denty-box"><h2>Denty Box Ambiental</h2><p>Acciones rapidas, notas y comandos del paciente.</p><button class="ghost" data-go="assistant">Abrir comandos</button></article><div class="tabs">${['resumen','tratamiento','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos','imprimir'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div><div id="patientTabBody">${renderPatientTab(p)}</div></section>`;
+  return `<section><button class="ghost" data-go="patients">Pacientes</button><article class="card patient-profile"><div class="patient-hero"><div class="avatar">${esc(initials(p))}</div><div><h1>${esc(patientFullName(p))}</h1><div class="patient-meta"><span>Tel. ${esc(p.phone||'-')}</span><span>${esc(p.email||'Sin email')}</span>${p.ficha?`<span>Ficha ${esc(p.ficha)}</span>`:''}</div></div></div>${renderPatientRiskStrip(p)}<div class="stats-grid"><div class="metric"><div class="k">Proxima cita</div><div class="v" style="font-size:22px">${next?esc(next.date+' '+next.start_time):'Sin cita'}</div></div><div class="metric"><div class="k">Trabajos activos</div><div class="v">${works.length}</div></div><div class="metric"><div class="k">Pendiente</div><div class="v money">${pending.toFixed(2)} EUR</div></div><div class="metric"><div class="k">Docs firmados</div><div class="v">${docs.filter(d=>d.status==='firmado').length}</div></div></div><div class="patient-primary-actions"><button class="primary" id="patientNewAppointment">Nueva cita</button><button class="ghost" id="patientNewPlan">Plan tratamiento</button><button class="ghost" id="patientNewWork">Nuevo trabajo</button><button class="ghost" id="patientNewBudget">Nuevo presupuesto</button><button class="ghost" id="patientPayment">Registrar pago</button></div><div class="action-grid">${patientDetailActions().filter(a=>!['appointment','work','budget','payment'].includes(a.id)).map(a=>`<button class="${a.id==='odontogram'?'primary':'ghost'}" data-patient-action="${a.id}" id="${a.id==='odontogram'?'patientOpenOdontogram':a.id==='documents'?'patientOpenDocuments':''}">${esc(a.label)}</button>`).join('')}<button class="danger" id="archivePatientBtn">Archivar paciente</button></div></article><article class="card denty-box"><h2>Denty Box Ambiental</h2><p>Acciones rapidas, notas y comandos del paciente.</p><button class="ghost" data-go="assistant">Abrir comandos</button></article><div class="tabs">${['resumen','tratamiento','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos','juegos','imprimir'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div><div id="patientTabBody">${renderPatientTab(p)}</div></section>`;
 }
 function renderAgendaSafetyBanner(){
   const day=db.appointments.filter(a=>a.date===state.date);

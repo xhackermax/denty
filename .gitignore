@@ -6,5 +6,11 @@ dist/
 out/
 __pycache__/
 *.pyc
+*.tsbuildinfo
 work-app-check.js
 denty.sqlite
+packages/db/generated/
+
+.superpowers/*
+!.superpowers/sdd/
+!.superpowers/sdd/**

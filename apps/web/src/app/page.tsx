@@ -1,5 +1,2 @@
-import { LegacyDentyShell } from '../components/LegacyDentyShell';
-
-export default function Page() {
-  return <LegacyDentyShell />;
-}
+import {redirect} from "next/navigation";
+export default function Home(){redirect("/app")}

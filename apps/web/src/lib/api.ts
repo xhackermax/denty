@@ -1,0 +1,3 @@
+export class ApiError extends Error{constructor(public status:number,public payload:any){super(payload?.error?.message??`HTTP ${status}`)}}
+export async function api<T>(path:string,init:RequestInit={}):Promise<T>{const response=await fetch(path,{...init,credentials:"include",headers:{"content-type":"application/json",...(init.headers??{})}});const text=await response.text();const payload=text?JSON.parse(text):null;if(!response.ok)throw new ApiError(response.status,payload);return payload as T}
+export const money=(cents:number)=>new Intl.NumberFormat("es-ES",{style:"currency",currency:"EUR"}).format((cents??0)/100);

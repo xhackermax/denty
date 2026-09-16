@@ -1,10 +1,10 @@
-import type { Permission } from "@denty/domain";
+import type { LegacyPermission } from "@denty/domain";
 
 export interface NavItem {
   id: string;
   label: string;
   icon: string;
-  permission: Permission;
+  permission: LegacyPermission;
   section: "clinical" | "operations" | "admin";
 }
 
