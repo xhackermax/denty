@@ -1482,7 +1482,7 @@ function createAttendanceCertificateDocument(db,{patient_id,appointment_id,inclu
 }
 function signDocument(db, docId, {signature_data, signer_name, accepted=false, device_info=''}){ const doc=db.documents.find(d=>Number(d.id)===Number(docId)); if(!doc) throw new Error('Documento no encontrado'); if(doc.locked_at) throw new Error('Documento firmado y bloqueado'); if(!signature_data) throw new Error('Falta la firma'); if(!accepted) throw new Error('Falta aceptar el consentimiento'); doc.signature_data=signature_data; doc.signer_name=signer_name||''; doc.accepted=true; doc.status='firmado'; doc.signed_at=new Date().toISOString(); doc.locked_at=doc.signed_at; doc.signature_audit={device_info, signed_at:doc.signed_at, consent_version:doc.version, text_length:String(doc.text||'').length}; doc.hash=simpleHash(JSON.stringify({id:doc.id,patient_id:doc.patient_id,title:doc.title,text:doc.text,signed_at:doc.signed_at,signer_name:doc.signer_name,signature_data,accepted:true,device_info})); db.consent_history=Array.isArray(db.consent_history)?db.consent_history:[]; db.consent_history.push({id:id(db),document_id:doc.id,patient_id:doc.patient_id,version:doc.version,hash:doc.hash,locked_at:doc.locked_at,action:'signed'}); return doc; }
 function patientDetailActions(){ return [
-  {id:'appointment',label:'Nueva cita'}, {id:'work',label:'Nuevo trabajo'}, {id:'budget',label:'Nuevo presupuesto'}, {id:'payment',label:'Registrar pago'}, {id:'odontogram',label:'Odontograma'}, {id:'documents',label:'Documentos firmados'}, {id:'alerts',label:'Alertas'}, {id:'files',label:'Archivos'}
+  {id:'appointment',label:'Nueva cita'}, {id:'work',label:'Nuevo trabajo'}, {id:'budget',label:'Nuevo presupuesto'}, {id:'payment',label:'Registrar pago'}, {id:'odontogram',label:'Odontograma'}, {id:'documents',label:'Documentos firmados'}, {id:'alerts',label:'Alertas'}, {id:'files',label:'Archivos'}, {id:'games',label:'Juegos sala de espera'}
 ]; }
 
 function isSettledPayment(payment){
@@ -2088,7 +2088,8 @@ const ICON_MARKUP = {
   treatment:'<path d="M8.2 5.3C8.2 3.7 9.7 2.5 12 2.5C14.3 2.5 15.8 3.7 15.8 5.3V10.1C15.8 12 14.5 13.6 12.7 14L11.3 14C9.5 13.6 8.2 12 8.2 10.1Z"></path><path d="M10.1 14V15.5"></path><path d="M13.9 14V15.5"></path><path d="M8.9 15.6C8.2 16.2 8.2 17.2 8.8 18L10.4 20.3C10.8 20.8 11.4 20.8 12 20.2L13.6 18C14.2 17.2 14.2 16.2 13.5 15.6Z"></path><path d="M10 16.7H14"></path>',
   pagos:'<path d="M5 8.5C5 7.1 6.1 6 7.5 6H16.5C17.9 6 19 7.1 19 8.5V15.5C19 16.9 17.9 18 16.5 18H7.5C6.1 18 5 16.9 5 15.5Z"></path><path d="M5 10.5H19"></path><path d="M14.5 14.5H16.5"></path>',
   documentos:'<path d="M8 4.5H14L17 7.5V18.5C17 19.3 16.3 20 15.5 20H8.5C7.7 20 7 19.3 7 18.5V6C7 5.2 7.6 4.5 8 4.5Z"></path><path d="M14 4.5V7.5H17"></path><path d="M9.5 11H14.5"></path><path d="M9.5 14H14.5"></path><path d="M9.5 17H12.5"></path>',
-  ayuda:'<circle cx="12" cy="12" r="7.5"></circle><path d="M9.5 9.3C9.9 8.2 10.8 7.5 12 7.5C13.5 7.5 14.5 8.4 14.5 9.7C14.5 10.8 13.9 11.5 12.8 12.1C11.8 12.6 11.5 13 11.5 14"></path><path d="M12 17H12.1"></path>'
+  ayuda:'<circle cx="12" cy="12" r="7.5"></circle><path d="M9.5 9.3C9.9 8.2 10.8 7.5 12 7.5C13.5 7.5 14.5 8.4 14.5 9.7C14.5 10.8 13.9 11.5 12.8 12.1C11.8 12.6 11.5 13 11.5 14"></path><path d="M12 17H12.1"></path>',
+  juegos:'<rect x="4.5" y="8" width="15" height="9" rx="3"></rect><path d="M8 12.5H11"></path><path d="M9.5 11V14"></path><circle cx="15.4" cy="12" r=".7"></circle><circle cx="17.2" cy="14" r=".7"></circle><path d="M8 8V6.5C8 5.7 8.7 5 9.5 5H14.5C15.3 5 16 5.7 16 6.5V8"></path>'
 };
 function iconSvg(name, extraClass=''){
   const markup=ICON_MARKUP[name] || ICON_MARKUP.clinic;
@@ -2414,7 +2415,7 @@ function legacyRenderPatientDetail(){
   <div class="patient-primary-actions"><button class="primary" id="patientNewAppointment">Nueva cita</button><button class="ghost" id="patientNewPlan">Plan tratamiento</button><button class="ghost" id="patientNewWork">Nuevo trabajo</button><button class="ghost" id="patientNewBudget">Nuevo presupuesto</button><button class="ghost" id="patientPayment">Registrar pago</button></div>
   <div class="action-grid">${patientDetailActions().filter(a=>!['appointment','work','budget','payment'].includes(a.id)).map(a=>`<button class="${a.id==='odontogram'?'primary':'ghost'}" data-patient-action="${a.id}" id="${a.id==='odontogram'?'patientOpenOdontogram':a.id==='documents'?'patientOpenDocuments':''}">${esc(a.label)}</button>`).join('')}<button class="danger" id="archivePatientBtn">Archivar paciente</button></div></article>
   <article class="card denty-box"><h2>Denty Box Ambiental</h2><p>Acciones rápidas, notas y comandos del paciente.</p><button class="ghost" data-go="assistant">Abrir comandos</button></article>
-  <div class="tabs">${['resumen','tratamiento','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div>
+  <div class="tabs">${['resumen','tratamiento','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos','juegos'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div>
   <div id="patientTabBody">${renderPatientTab(p)}</div></section>`;
 }
 function treatmentDatePlus(dateValue, days){
@@ -2479,6 +2480,7 @@ function renderPatientTab(p){
   if(state.patientTab==='alertas') return renderAlertsTab(p);
   if(state.patientTab==='comentarios') return renderCommentsTab(p);
   if(state.patientTab==='archivos') return renderFilesTab(p);
+  if(state.patientTab==='juegos') return renderPatientGamesModule();
   if(state.patientTab==='imprimir') return renderPrintableDocumentCenter(p);
   return '';
 }
@@ -3252,7 +3254,7 @@ function bindScreen(){
   $$('[data-print-doc]').forEach(b=>b.onclick=()=>printClinicalDocument(b.dataset.printDoc));
   $$('[data-pdf-doc]').forEach(b=>b.onclick=()=>downloadClinicalPdf(b.dataset.pdfDoc));
 }
-function handlePatientAction(action){ if(action==='odontogram') return setView('odontogram',{patientId:state.patientId}); if(action==='documents') {state.patientTab='documentos'; return render();} if(action==='alerts'){state.patientTab='alertas';return render();} if(action==='files'){state.patientTab='archivos';return render();} }
+function handlePatientAction(action){ if(action==='odontogram') return setView('odontogram',{patientId:state.patientId}); if(action==='documents') {state.patientTab='documentos'; return render();} if(action==='alerts'){state.patientTab='alertas';return render();} if(action==='files'){state.patientTab='archivos';return render();} if(action==='games'){state.patientTab='juegos';return render();} }
 function quickCreateWork(){ openWorkModal(); }
 function quickCreateBudget(){ openBudgetModal(); }
 function quickPayment(){ openPaymentModal(); }
@@ -3639,7 +3641,7 @@ function patientPortalContext(p){
   return {s,portal,delayDays,projectedDate,alerts,health,waitingRoom,dentalFindings,clinical,lastVisit,waitingListActive,decisions,pendingSupport};
 }
 function renderPatientPortalNav(){
-  const tabs=[['inicio','Inicio'],['tratamiento','Tratamiento'],['citas','Citas'],['pagos','Pagos'],['documentos','Documentos'],['ayuda','Ayuda']];
+  const tabs=[['inicio','Inicio'],['tratamiento','Tratamiento'],['citas','Citas'],['pagos','Pagos'],['documentos','Documentos'],['juegos','Juegos'],['ayuda','Ayuda']];
   return `<nav class="patient-portal-nav" aria-label="Denty Paciente">${tabs.map(([id,label])=>`<button type="button" class="${state.patientPortalTab===id?'active':''}" data-patient-portal-tab="${id}">${iconLabel(id,label,{stacked:true})}</button>`).join('')}</nav>`;
 }
 function renderPatientPortalStatus(d){
@@ -3683,6 +3685,10 @@ function renderPatientPortalMedia(d){
   const smile=safeUrl(d.portal.smilecloud_url), arch=safeUrl(d.portal.archform_url);
   const links=d.portal.education_links.filter(x=>safeUrl(x?.url));
   return `<article class="patient-portal-card"><div class="section-title"><div><h2>Mi sonrisa y planificacion</h2><p>Fotos, simulaciones y recursos que tu clinica haya vinculado a tu caso.</p></div></div><div class="portal-media-actions">${smile?`<a class="ghost" href="${esc(smile)}" target="_blank" rel="noopener">Abrir Smilecloud</a>`:'<span class="portal-integration-off">Smilecloud · no enlazado</span>'}${arch?`<a class="ghost" href="${esc(arch)}" target="_blank" rel="noopener">Abrir ArchForm</a>`:'<span class="portal-integration-off">ArchForm · no enlazado</span>'}</div><h3>Videos aprobados por tu clinica</h3>${links.length?`<div class="portal-education-links">${links.map(link=>`<a href="${esc(link.url)}" target="_blank" rel="noopener"><strong>${esc(link.title||'Ver video')}</strong><span>Recurso externo revisado por la clinica ↗</span></a>`).join('')}</div>`:'<div class="portal-muted-state">Tu clinica todavia no ha asociado videos educativos a este tratamiento.</div>'}</article>`;
+}
+function renderPatientGamesModule({portal=false}={}){
+  const shellClass=portal?'patient-portal-card':'card flat';
+  return `<article class="${shellClass} patient-games-module"><div class="section-title"><div><h2>Juegos sala de espera</h2><p>Seis juegos ligeros para pacientes mientras esperan, sin anuncios y sin datos clinicos.</p></div><a class="ghost mini" href="/games/index.html" target="_blank" rel="noopener">Abrir aparte</a></div><div class="patient-games-notice"><strong>Denty Games</strong><span>El paciente usa solo un alias local para records. No se comparte nombre, historia clinica ni datos del tratamiento con el juego.</span></div><iframe class="patient-games-frame" src="/games/index.html" title="Denty Games" loading="lazy" sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"></iframe></article>`;
 }
 function renderPatientPortalDentalFindings(d,{compact=false}={}){
   const findings=(d.dentalFindings||[]).slice(0,compact?4:20);
@@ -3735,6 +3741,7 @@ function renderPatientPortal(){
   else if(tab==='citas') body=renderPatientPortalAppointments(p,d);
   else if(tab==='pagos') body=renderPatientPortalPayments(p,d);
   else if(tab==='documentos') body=renderPatientPortalDocuments(p,d);
+  else if(tab==='juegos') body=renderPatientGamesModule({portal:true});
   else if(tab==='ayuda') body=renderPatientPortalHelp(p,d);
   return `<section class="patient-portal"><header class="patient-portal-brandbar"><div><span class="patient-brand-mark" aria-hidden="true">${iconSvg('patient')}</span><span><strong>Denty Paciente</strong><small>Espacio personal de ${esc(patientFullName(p))}</small></span></div><button class="ghost" type="button" id="patientPortalExit">Cambiar cuenta</button></header><div class="patient-portal-top"><div><span>Mi espacio</span><h1>Hola, ${esc(p.first_name||'Paciente')}</h1><p>Tu tratamiento, citas, dinero y decisiones en un solo recorrido.</p></div></div>${renderPatientPortalNav()}<div class="patient-portal-body">${body}</div></section>`;
 }
@@ -3842,7 +3849,7 @@ function renderPatientDetail(){
   const works=db.works.filter(w=>Number(w.patient_id)===Number(p.id));
   const pending=db.budgets.filter(b=>Number(b.patient_id)===Number(p.id)).reduce((s,b)=>s+Number(b.pending||b.total||0),0);
   const next=apps.filter(a=>a.date>=today()).sort((a,b)=>(a.date+a.start_time).localeCompare(b.date+b.start_time))[0];
-  return `<section><button class="ghost" data-go="patients">Pacientes</button><article class="card patient-profile"><div class="patient-hero"><div class="avatar">${esc(initials(p))}</div><div><h1>${esc(patientFullName(p))}</h1><div class="patient-meta"><span>Tel. ${esc(p.phone||'-')}</span><span>${esc(p.email||'Sin email')}</span>${p.ficha?`<span>Ficha ${esc(p.ficha)}</span>`:''}</div></div></div>${renderPatientRiskStrip(p)}<div class="stats-grid"><div class="metric"><div class="k">Proxima cita</div><div class="v" style="font-size:22px">${next?esc(next.date+' '+next.start_time):'Sin cita'}</div></div><div class="metric"><div class="k">Trabajos activos</div><div class="v">${works.length}</div></div><div class="metric"><div class="k">Pendiente</div><div class="v money">${pending.toFixed(2)} EUR</div></div><div class="metric"><div class="k">Docs firmados</div><div class="v">${docs.filter(d=>d.status==='firmado').length}</div></div></div><div class="patient-primary-actions"><button class="primary" id="patientNewAppointment">Nueva cita</button><button class="ghost" id="patientNewPlan">Plan tratamiento</button><button class="ghost" id="patientNewWork">Nuevo trabajo</button><button class="ghost" id="patientNewBudget">Nuevo presupuesto</button><button class="ghost" id="patientPayment">Registrar pago</button></div><div class="action-grid">${patientDetailActions().filter(a=>!['appointment','work','budget','payment'].includes(a.id)).map(a=>`<button class="${a.id==='odontogram'?'primary':'ghost'}" data-patient-action="${a.id}" id="${a.id==='odontogram'?'patientOpenOdontogram':a.id==='documents'?'patientOpenDocuments':''}">${esc(a.label)}</button>`).join('')}<button class="danger" id="archivePatientBtn">Archivar paciente</button></div></article><article class="card denty-box"><h2>Denty Box Ambiental</h2><p>Acciones rapidas, notas y comandos del paciente.</p><button class="ghost" data-go="assistant">Abrir comandos</button></article><div class="tabs">${['resumen','tratamiento','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos','imprimir'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div><div id="patientTabBody">${renderPatientTab(p)}</div></section>`;
+  return `<section><button class="ghost" data-go="patients">Pacientes</button><article class="card patient-profile"><div class="patient-hero"><div class="avatar">${esc(initials(p))}</div><div><h1>${esc(patientFullName(p))}</h1><div class="patient-meta"><span>Tel. ${esc(p.phone||'-')}</span><span>${esc(p.email||'Sin email')}</span>${p.ficha?`<span>Ficha ${esc(p.ficha)}</span>`:''}</div></div></div>${renderPatientRiskStrip(p)}<div class="stats-grid"><div class="metric"><div class="k">Proxima cita</div><div class="v" style="font-size:22px">${next?esc(next.date+' '+next.start_time):'Sin cita'}</div></div><div class="metric"><div class="k">Trabajos activos</div><div class="v">${works.length}</div></div><div class="metric"><div class="k">Pendiente</div><div class="v money">${pending.toFixed(2)} EUR</div></div><div class="metric"><div class="k">Docs firmados</div><div class="v">${docs.filter(d=>d.status==='firmado').length}</div></div></div><div class="patient-primary-actions"><button class="primary" id="patientNewAppointment">Nueva cita</button><button class="ghost" id="patientNewPlan">Plan tratamiento</button><button class="ghost" id="patientNewWork">Nuevo trabajo</button><button class="ghost" id="patientNewBudget">Nuevo presupuesto</button><button class="ghost" id="patientPayment">Registrar pago</button></div><div class="action-grid">${patientDetailActions().filter(a=>!['appointment','work','budget','payment'].includes(a.id)).map(a=>`<button class="${a.id==='odontogram'?'primary':'ghost'}" data-patient-action="${a.id}" id="${a.id==='odontogram'?'patientOpenOdontogram':a.id==='documents'?'patientOpenDocuments':''}">${esc(a.label)}</button>`).join('')}<button class="danger" id="archivePatientBtn">Archivar paciente</button></div></article><article class="card denty-box"><h2>Denty Box Ambiental</h2><p>Acciones rapidas, notas y comandos del paciente.</p><button class="ghost" data-go="assistant">Abrir comandos</button></article><div class="tabs">${['resumen','tratamiento','planificacion','agenda','trabajos','presupuestos','documentos','alertas','comentarios','archivos','juegos','imprimir'].map(t=>`<button class="tab ${state.patientTab===t?'active':''}" data-ptab="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div><div id="patientTabBody">${renderPatientTab(p)}</div></section>`;
 }
 function renderAgendaSafetyBanner(){
   const day=db.appointments.filter(a=>a.date===state.date);
