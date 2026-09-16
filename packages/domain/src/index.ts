@@ -1,4 +1,6 @@
 export type Role = "admin" | "operational";
+export type { AppointmentRecord, AppointmentStatus } from "./agenda/types";
+export type { DomainEvent } from "./events";
 export type Permission =
   | "managePatients"
   | "manageAgenda"

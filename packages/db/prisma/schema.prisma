@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/client"
 }
 
 datasource db {
@@ -8,11 +9,207 @@ datasource db {
 }
 
 model Patient {
-  id           String   @id
+  id           String   @id @default(cuid())
+  clinicId     String
+  legacyId     Int?
+  recordNumber String?
   firstName    String
   lastName     String
+  dni          String?
   phone        String?
   email        String?
-  recordNumber String?
+  birthDate    DateTime?
+  archivedAt   DateTime?
+  version      Int      @default(1)
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  clinic       Clinic   @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  appointments Appointment[]
+
+  @@unique([clinicId, legacyId])
+  @@index([clinicId, lastName, firstName])
+}
+
+model Clinic {
+  id        String   @id @default(cuid())
+  name      String
+  legalName String?
+  taxId     String?
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sites     Site[]
+  patients  Patient[]
+  staff     StaffProfile[]
+  appointments Appointment[]
+  auditEvents AuditEvent[]
+  domainEvents DomainEventOutbox[]
+}
+
+model Site {
+  id        String    @id @default(cuid())
+  clinicId  String
+  name      String
+  address   String?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  clinic    Clinic    @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  cabinets  Cabinet[]
+  staffSites StaffSite[]
+  shifts    Shift[]
+  absences  Absence[]
+  appointments Appointment[]
+
+  @@index([clinicId])
+}
+
+model Cabinet {
+  id       String  @id @default(cuid())
+  clinicId String
+  siteId   String
+  name     String
+  active   Boolean @default(true)
+  version  Int     @default(1)
+  site     Site    @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  appointments Appointment[]
+
+  @@index([clinicId, siteId])
+}
+
+model StaffProfile {
+  id        String   @id @default(cuid())
+  clinicId  String
+  displayName String
+  role      String
+  active    Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  sites     StaffSite[]
+  shifts    Shift[]
+  absences  Absence[]
+  appointments Appointment[]
+
+  @@index([clinicId, active])
+}
+
+model StaffSite {
+  id        String @id @default(cuid())
+  clinicId  String
+  staffId   String
+  siteId    String
+  staff     StaffProfile @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  site      Site @relation(fields: [siteId], references: [id], onDelete: Restrict)
+
+  @@unique([staffId, siteId])
+  @@index([clinicId, siteId])
+}
+
+model Shift {
+  id        String   @id @default(cuid())
+  clinicId  String
+  staffId   String
+  siteId    String
+  startsAt  DateTime
+  endsAt    DateTime
+  staff     StaffProfile @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  site      Site @relation(fields: [siteId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId, startsAt, endsAt])
+  @@index([staffId, startsAt])
+}
+
+model Absence {
+  id        String   @id @default(cuid())
+  clinicId  String
+  staffId   String
+  siteId    String?
+  startsAt  DateTime
+  endsAt    DateTime
+  reason    String?
+  staff     StaffProfile @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  site      Site? @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
+  @@index([clinicId, startsAt, endsAt])
+  @@index([staffId, startsAt])
+}
+
+model Appointment {
+  id          String   @id @default(cuid())
+  clinicId    String
+  patientId   String
+  staffId     String
+  siteId      String
+  cabinetId   String?
+  startsAt    DateTime
+  endsAt      DateTime
+  status      AppointmentStatus @default(PLANNED)
+  title       String
+  reason      String?
+  confirmedAt DateTime?
+  arrivedAt   DateTime?
+  chairAt     DateTime?
+  absentAt    DateTime?
+  completedAt DateTime?
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  clinic      Clinic   @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  staff       StaffProfile @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  site        Site @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  cabinet     Cabinet? @relation(fields: [cabinetId], references: [id], onDelete: SetNull)
+
+  @@index([clinicId, startsAt])
+  @@index([staffId, startsAt])
+  @@index([patientId, startsAt])
+}
+
+enum AppointmentStatus {
+  PLANNED
+  CONFIRMED
+  ARRIVED
+  IN_CHAIR
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
+
+model AuditEvent {
+  id            String   @id @default(cuid())
+  clinicId      String
+  actorUserId   String?
+  action        String
+  entityType    String
+  entityId      String
+  correlationId String
+  beforeJson    Json?
+  afterJson     Json?
+  occurredAt    DateTime @default(now())
+  clinic        Clinic   @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId, occurredAt])
+  @@index([entityType, entityId])
+  @@index([correlationId])
+}
+
+model DomainEventOutbox {
+  id            String   @id @default(cuid())
+  clinicId      String
+  type          String
+  entityType    String
+  entityId      String
+  payloadJson   Json
+  correlationId String
+  actorUserId   String?
+  occurredAt    DateTime @default(now())
+  publishedAt   DateTime?
+  clinic        Clinic   @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId, occurredAt])
+  @@index([clinicId, publishedAt])
+  @@index([entityType, entityId])
 }
