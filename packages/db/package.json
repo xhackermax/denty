@@ -16,11 +16,15 @@
     "db:migrations:check": "node scripts/assert-migrations.mjs",
     "db:status": "prisma migrate status",
     "db:deploy": "prisma migrate deploy",
+    "supabase:schema": "node scripts/prepare-supabase-schema.mjs",
+    "supabase:deploy": "node scripts/deploy-supabase.mjs",
+    "supabase:rls:verify": "node scripts/verify-supabase-rls.mjs",
     "audit:verify": "node --experimental-strip-types src/audit/cli.ts",
     "backup:restore": "node --experimental-strip-types src/backup/restore-cli.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0"
+    "@prisma/client": "^6.19.0",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "prisma": "6.19.0"

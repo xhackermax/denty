@@ -33,8 +33,20 @@ Use `.env.example` as a template and store real values in `.env.local` or the de
 
 ## Next Steps
 
-1. Add a permanent Postgres/Supabase migration workflow.
-2. Define role-based RLS policies for admin, clinic staff, and patient portal access.
-3. Move local preview data into controlled seed scripts for non-production environments.
-4. Connect the API deployment to `DATABASE_URL` through environment secrets.
+## Repeatable Workflow
 
+Use these commands with `DATABASE_URL` set locally or in a deployment secret manager:
+
+```bash
+pnpm supabase:schema
+pnpm supabase:deploy
+pnpm supabase:rls:verify
+```
+
+`supabase:schema` creates a generated Postgres Prisma schema from the local SQLite-compatible schema. `supabase:deploy` validates that generated schema, pushes it to Supabase, and enables RLS on public tables. `supabase:rls:verify` fails if any public table is missing RLS.
+
+## Next Steps
+
+1. Define role-based RLS policies for admin, clinic staff, and patient portal access.
+2. Move local preview data into controlled seed scripts for non-production environments.
+3. Connect the API deployment to `DATABASE_URL` through environment secrets.
