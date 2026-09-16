@@ -10,3 +10,5 @@ Task 1: complete (commits 81cae29..019a26a, review clean after fix round 1).
 Task 2: complete (commits 019a26a..5377a74, review clean).
 Task 3: complete (commits 5377a74..0367aaf, review clean).
 Task 4: complete (commits 0367aaf..60df7f8, review clean).
+Task 5: complete (report present; imported into current verified baseline).
+Task 6: complete locally (docs and bundles generated; push skipped; brief test path `verify_patient_portal_treatment_panel.mjs` is absent, equivalent `verify_patient_treatment_panel.mjs` passed).

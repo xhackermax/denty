@@ -203,6 +203,8 @@ function defaultDb(){
       {id:3,name:'Gabinete cirugia',active:true,site_id:2}
     ],
     odontograms: {},
+    odontogramEntities: {},
+    odontogramSnapshots: {},
     appointments: [],
     agendaBlocks: [],
     appointmentMoves: [],
@@ -291,6 +293,9 @@ function migrateDb(input){
   };
   db.settings.clinic=db.settings.clinicProfile.name;
   db.odontograms = db.odontograms || {};
+  const current = input || {};
+  db.odontogramEntities = current.odontogramEntities && typeof current.odontogramEntities === 'object' && !Array.isArray(current.odontogramEntities) ? current.odontogramEntities : {};
+  db.odontogramSnapshots = current.odontogramSnapshots && typeof current.odontogramSnapshots === 'object' && !Array.isArray(current.odontogramSnapshots) ? current.odontogramSnapshots : {};
   db.patientPortal = (db.patientPortal && typeof db.patientPortal==='object' && !Array.isArray(db.patientPortal)) ? db.patientPortal : {};
   db.patients = db.patients.map(p => ({
     id: p.id, ficha: p.ficha || p.historia || '', first_name: p.first_name || p.firstName || p.nombre || '', last_name: p.last_name || p.lastName || p.apellidos || '', dni:p.dni||'', phone:p.phone||p.telefono||'', email:p.email||'', birth_date:p.birth_date||p.birthDate||'', archived:!!p.archived, created_at:p.created_at||p.createdAt||new Date().toISOString()
@@ -506,6 +511,133 @@ function setToothLegendState(db, patientId, tooth, code, surface=''){
   }
   throw new Error('Estado odontológico no válido');
 }
+const ODONTO_ENTITY_TYPES = new Set(['bridge','implant_restoration','removable_prosthesis','orthodontics','pediatric','periodontal_chart','snapshot']);
+const ODONTO_ENTITY_STATUS = new Set(['planned','provisional','active','review','failed','completed','surgery_done','uncovered','restored','delivered','adjustment','repair','try_in','retention','paused','monitor','baseline','active_disease','maintenance','stable']);
+
+function normalizeTeeth(input){
+  return [...new Set([...(Array.isArray(input)?input:String(input||'').split(/[,\s-]+/))].map(String).map(x=>x.trim()).filter(Boolean))];
+}
+function normalizeComponents(input){
+  return Array.isArray(input) ? input.map(c=>({ ...c, tooth:c.tooth!=null?String(c.tooth):'', role:String(c.role||c.type||'component'), status:String(c.status||'planned') })) : [];
+}
+function patientEntityBucket(db, patientId){
+  if(!db.odontogramEntities || typeof db.odontogramEntities!=='object' || Array.isArray(db.odontogramEntities)) db.odontogramEntities = {};
+  const key=String(Number(patientId)||patientId||'demo');
+  if(!Array.isArray(db.odontogramEntities[key])) db.odontogramEntities[key]=[];
+  return db.odontogramEntities[key];
+}
+function ensureOdontogramV3(db, patientId){ return patientEntityBucket(db, patientId); }
+function odontogramEntitiesForPatient(db, patientId, filters={}){
+  return patientEntityBucket(db, patientId).filter(e=>e.active!==false).filter(e=>!filters.type || e.type===filters.type);
+}
+function createOdontogramEntity(db, patientId, input={}){
+  const type=String(input.type||'').trim();
+  if(!ODONTO_ENTITY_TYPES.has(type)) throw new Error('Tipo de entidad odontologica no valido');
+  const teeth=normalizeTeeth(input.teeth);
+  if(!teeth.length && !['removable_prosthesis','orthodontics','periodontal_chart'].includes(type)) throw new Error('Faltan dientes o zona');
+  const components=normalizeComponents(input.components);
+  if(type==='bridge'){
+    const abutments=components.filter(c=>c.role==='abutment');
+    if(teeth.length<2) throw new Error('Un puente necesita al menos dos dientes');
+    if(!abutments.length) throw new Error('Un puente necesita al menos un pilar');
+  }
+  const now=new Date().toISOString();
+  const entity={id:id(db),patient_id:Number(patientId)||patientId,type,status:ODONTO_ENTITY_STATUS.has(input.status)?input.status:'planned',teeth,arch:input.arch||'',components,metadata:{...(input.metadata||{})},source:input.source||'odontogram_v3',active:input.active!==false,created_at:now,updated_at:now};
+  patientEntityBucket(db, patientId).push(entity);
+  return entity;
+}
+function updateOdontogramEntity(db, patientId, entityId, patch={}){
+  const entity=patientEntityBucket(db, patientId).find(e=>Number(e.id)===Number(entityId));
+  if(!entity) throw new Error('Entidad odontologica no encontrada');
+  if(patch.teeth) entity.teeth=normalizeTeeth(patch.teeth);
+  if(patch.components) entity.components=normalizeComponents(patch.components);
+  if(patch.status) entity.status=String(patch.status);
+  if(patch.arch!=null) entity.arch=String(patch.arch);
+  if(patch.metadata) entity.metadata={...(entity.metadata||{}),...(patch.metadata||{})};
+  entity.updated_at=new Date().toISOString();
+  return entity;
+}
+function deactivateOdontogramEntity(db, patientId, entityId, reason=''){
+  const entity=patientEntityBucket(db, patientId).find(e=>Number(e.id)===Number(entityId));
+  if(!entity) throw new Error('Entidad odontologica no encontrada');
+  entity.active=false; entity.deactivated_at=new Date().toISOString(); entity.deactivated_reason=reason; entity.updated_at=entity.deactivated_at;
+  return entity;
+}
+function legacyCodeForEntity(entity){
+  if(entity.type==='bridge') return entity.status==='planned'?'prosthesis_pending':entity.status==='review'||entity.status==='failed'?'prosthesis_bad':'prosthesis';
+  if(entity.type==='implant_restoration') return entity.status==='planned'?'implant_indicated':entity.status==='review'||entity.status==='failed'?'implant_review':'implant';
+  if(entity.type==='removable_prosthesis') return entity.status==='planned'?'removable_pending':entity.status==='repair'||entity.status==='failed'?'removable_bad':'removable';
+  if(entity.type==='orthodontics') return 'prosthesis_pending';
+  if(entity.type==='pediatric') return entity.status==='completed'?'healthy':'filling_pending';
+  return '';
+}
+function syncLegacyOdontogramFromEntities(db, patientId){
+  const od=ensureOdontogram(db, patientId);
+  for(const entity of odontogramEntitiesForPatient(db, patientId)){
+    const code=legacyCodeForEntity(entity);
+    if(!code) continue;
+    for(const tooth of entity.teeth||[]){
+      const record=od[String(tooth)];
+      if(!record) continue;
+      record.whole_states=[...new Set([...toothWholeStates(record), code].filter(Boolean))];
+      if(!record.status || record.status==='healthy') record.status=code;
+    }
+  }
+  return od;
+}
+
+function patientSnapshotBucket(db, patientId){
+  if(!db.odontogramSnapshots || typeof db.odontogramSnapshots!=='object' || Array.isArray(db.odontogramSnapshots)) db.odontogramSnapshots={};
+  const key=String(Number(patientId)||patientId||'demo');
+  if(!Array.isArray(db.odontogramSnapshots[key])) db.odontogramSnapshots[key]=[];
+  return db.odontogramSnapshots[key];
+}
+function compactOdontogramState(db, patientId){
+  const od=ensureOdontogram(db, patientId), out={};
+  for(const tooth of FDI_ALL){
+    out[tooth]={whole_states:toothWholeStates(od[tooth]),surfaces:{...(od[tooth].surfaces||{})},periodontal:clone(od[tooth].periodontal||{})};
+  }
+  return out;
+}
+function createOdontogramSnapshot(db, patientId, label='review'){
+  const snap={id:id(db),snapshot_id:`snap-${Date.now()}-${Math.random().toString(16).slice(2)}`,patient_id:Number(patientId)||patientId,label,captured_at:new Date().toISOString(),odontogram:compactOdontogramState(db, patientId),entities:clone(odontogramEntitiesForPatient(db, patientId)),clinicalPlanItemIds:(db.clinicalPlanItems||[]).filter(x=>Number(x.patient_id)===Number(patientId)&&x.active!==false).map(x=>x.id)};
+  patientSnapshotBucket(db, patientId).push(snap);
+  return snap;
+}
+function compareOdontogramSnapshots(before, after){
+  const changedTeeth=[], addedStates=[], removedStates=[], changedSurfaces=[];
+  const teeth=[...new Set([...Object.keys(before?.odontogram||{}),...Object.keys(after?.odontogram||{})])];
+  for(const tooth of teeth){
+    const b=before.odontogram?.[tooth]||{}, a=after.odontogram?.[tooth]||{};
+    const bs=new Set(b.whole_states||[]), as=new Set(a.whole_states||[]);
+    for(const code of as) if(!bs.has(code)) addedStates.push({tooth,code});
+    for(const code of bs) if(!as.has(code)) removedStates.push({tooth,code});
+    const surfaceKeys=[...new Set([...Object.keys(b.surfaces||{}),...Object.keys(a.surfaces||{})])];
+    for(const surface of surfaceKeys) if((b.surfaces||{})[surface] !== (a.surfaces||{})[surface]) changedSurfaces.push({tooth,surface,before:(b.surfaces||{})[surface]||'',after:(a.surfaces||{})[surface]||''});
+    if(addedStates.some(x=>x.tooth===tooth)||removedStates.some(x=>x.tooth===tooth)||changedSurfaces.some(x=>x.tooth===tooth)) changedTeeth.push(tooth);
+  }
+  return {changedTeeth:[...new Set(changedTeeth)],addedStates,removedStates,changedSurfaces,entityDelta:{before:before.entities?.length||0,after:after.entities?.length||0}};
+}
+function periodontalVisualSummary(db, patientId){
+  const od=ensureOdontogram(db, patientId);
+  let max=0,totalSites=0,bleeding=0,plaque=0,suppuration=0;
+  for(const tooth of FDI_ALL){
+    const p=od[tooth]?.periodontal||{};
+    for(const site of PERIO_SITES){
+      const depth=Number(p.depths?.[site]||0);
+      if(depth>max) max=depth;
+      totalSites++;
+      if(p.bleeding?.[site]) bleeding++;
+      if(p.plaque?.[site]) plaque++;
+      if(p.suppuration?.[site]) suppuration++;
+    }
+  }
+  const bleeding_percent=totalSites?Math.round(bleeding/totalSites*100):0;
+  const plaque_percent=totalSites?Math.round(plaque/totalSites*100):0;
+  const severity=max>=6||suppuration?'severe':max>=5||bleeding_percent>=25?'moderate':max>=4?'mild':'stable';
+  return {max_depth:max,bleeding_percent,plaque_percent,suppuration_sites:suppuration,severity};
+}
+
 function clearToothSurface(db, patientId, tooth, surface){
   const t=String(tooth), s=normalizeSurfaceForTooth(t, surface);
   const od=ensureOdontogram(db, patientId);
@@ -874,6 +1006,7 @@ function canonicalClinicalTreatment(value){
   if(/limpieza|profilaxis|tartrect/.test(n)) return 'limpieza';
   if(/empaste|obtur|restaur|composite|resina/.test(n)) return 'restauracion';
   if(/perno|poste|munon/.test(n)) return 'perno';
+  if(/pilar.*implante|abutment/.test(n)) return 'pilar sobre implante';
   if(/corona.*implante/.test(n)) return 'corona sobre implante';
   if(/corona/.test(n)) return 'corona';
   if(/maryland/.test(n)) return 'puente maryland';
@@ -919,6 +1052,7 @@ function procedureMatchForClinical(db,treatment){
   const t=canonicalClinicalTreatment(treatment), ps=(db.procedures||[]).filter(x=>x.active!==false), by=(...terms)=>ps.find(p=>terms.some(term=>normClinical(p.name).includes(normClinical(term))));
   if(t==='corona') return by('corona sobre diente natural');
   if(t==='corona sobre implante') return by('corona definitiva sobre implante','corona sobre implante');
+  if(t==='pilar sobre implante') return by('pilar directo a implante','pilar');
   if(t==='puente fijo') return by('puente sobre dientes naturales');
   if(t==='protesis removible') return by('protesis parcial','flexite');
   if(t==='implante') return by('implante sin corona','planificacion implantologica');
@@ -930,6 +1064,8 @@ function clinicalDependencyExplanation(before,after){
   const a=canonicalClinicalTreatment(before?.treatment), b=canonicalClinicalTreatment(after?.treatment);
   if((a==='endodoncia'||a==='reendodoncia')&&b==='perno') return 'El soporte del diente se prepara después de completar el tratamiento endodóntico.';
   if((a==='endodoncia'||a==='reendodoncia'||a==='perno'||a==='restauracion')&&b==='corona') return 'La corona definitiva se coloca después de estabilizar y reconstruir el diente.';
+  if(a==='implante'&&b==='pilar sobre implante') return 'El pilar se coloca despues del implante y de la fase clinica indicada.';
+  if(a==='pilar sobre implante'&&b==='corona sobre implante') return 'La corona sobre implante se coloca despues del pilar protesico.';
   if(a==='implante'&&b==='corona sobre implante') return 'La prótesis definitiva va después del implante y de la fase clínica que el profesional haya indicado.';
   if(a==='extraccion'&&b==='implante') return 'La reposición del diente se planifica después de la extracción y de reevaluar el sitio.';
   return `Este paso necesita que antes se complete “${before?.title||before?.treatment||'el paso anterior'}”.`;
@@ -944,6 +1080,39 @@ function createClinicalPlanItem(db,input={}){
   const pr=clinicalPriorityFor(seed), [patientTitle,patientReason]=clinicalPatientCopy(seed), now=new Date().toISOString();
   const item={id:id(db),patient_id:Number(input.patient_id),tooth,surfaces,treatment,title:input.title||`${procedure?.name||treatment}${tooth?` · ${tooth}`:''}`,clinical_cause:seed.clinical_cause,source_text:seed.source_text,service_id:seed.service_id,service_name:seed.service_name,price:seed.price,visits:Number(input.visits||1),duration:seed.duration,status:input.status||'planned',active:input.active!==false,phase_key:pr.key,phase_rank:pr.rank,phase_label:pr.label,priority_reason:pr.reason,manual_depends_on:[...(input.depends_on||[])].map(Number),inferred_depends_on:[],depends_on:[...(input.depends_on||[])].map(Number),patient_title:input.patient_title||patientTitle,patient_reason:input.patient_reason||patientReason,clinician_note:input.clinician_note||'',source:input.source||'clinical_plan_web',source_key:sourceKey,alternative_group_id:input.alternative_group_id||null,alternative_option_id:input.alternative_option_id||null,created_at:now,updated_at:now};
   db.clinicalPlanItems.push(item); return item;
+}
+function entityClinicalSourceKey(entity, suffix){ return `odontogram_entity:${entity.id}:${suffix}`; }
+function createEntityPlanItem(db, entity, input, previous=null){
+  return createClinicalPlanItem(db,{patient_id:entity.patient_id,tooth:(input.tooth||entity.teeth?.[0]||''),treatment:input.treatment,title:input.title,source:'odontogram_entity',source_key:entityClinicalSourceKey(entity,input.key),depends_on:previous?[previous.id]:[],duration:input.duration||40,visits:input.visits||1,clinician_note:input.note||''});
+}
+function odontogramEntityToClinicalItems(db, patientId, entityId){
+  const entity=patientEntityBucket(db, patientId).find(e=>Number(e.id)===Number(entityId)&&e.active!==false);
+  if(!entity) throw new Error('Entidad odontologica no encontrada');
+  const out=[];
+  let previous=null;
+  if(entity.type==='implant_restoration'){
+    const specs=[
+      {key:'implant',treatment:'implante',title:`Implante ${entity.teeth.join(', ')}`,duration:50},
+      {key:'abutment',treatment:'pilar sobre implante',title:`Pilar sobre implante ${entity.teeth.join(', ')}`,duration:25},
+      {key:'crown',treatment:'corona sobre implante',title:`Corona sobre implante ${entity.teeth.join(', ')}`,duration:40}
+    ];
+    for(const spec of specs){ previous=createEntityPlanItem(db,entity,spec,previous); out.push(previous); }
+  }else if(entity.type==='bridge'){
+    const abutments=(entity.components||[]).filter(c=>c.role==='abutment').map(c=>c.tooth).filter(Boolean);
+    const pontics=(entity.components||[]).filter(c=>c.role==='pontic').map(c=>c.tooth).filter(Boolean);
+    out.push(createEntityPlanItem(db,entity,{key:'bridge-prep',treatment:'puente fijo',title:`Preparacion de pilares ${abutments.join(', ')}`,duration:60,note:`Ponticos: ${pontics.join(', ')}`}));
+    out.push(createEntityPlanItem(db,entity,{key:'bridge-seat',treatment:'puente fijo',title:`Cementado de puente ${entity.teeth.join('-')}`,duration:45},out.at(-1)));
+  }else if(entity.type==='removable_prosthesis'){
+    out.push(createEntityPlanItem(db,entity,{key:'removable-records',treatment:'protesis removible',title:`Registros protesis removible ${entity.arch||'arco'}`,duration:40}));
+    out.push(createEntityPlanItem(db,entity,{key:'removable-delivery',treatment:'protesis removible',title:`Entrega protesis removible ${entity.arch||'arco'}`,duration:40},out.at(-1)));
+  }else if(entity.type==='orthodontics'){
+    out.push(createEntityPlanItem(db,entity,{key:'orthodontics-start',treatment:'ortodoncia',title:`Inicio ortodoncia ${entity.arch||'ambos arcos'}`,duration:50}));
+  }else if(entity.type==='pediatric'){
+    out.push(createEntityPlanItem(db,entity,{key:'pediatric-care',treatment:entity.metadata?.treatment||'odontopediatria',title:entity.metadata?.title||`Tratamiento odontopediatrico ${entity.teeth.join(', ')}`,duration:35}));
+  }else if(entity.type==='periodontal_chart'){
+    out.push(createEntityPlanItem(db,entity,{key:'periodontal-control',treatment:'tratamiento periodontal',title:'Control periodontal',duration:45}));
+  }
+  return out;
 }
 function inferClinicalDependencies(db,patient_id){
   const items=(db.clinicalPlanItems||[]).filter(x=>Number(x.patient_id)===Number(patient_id)&&x.active!==false&&!['cancelled','cancelado'].includes(normClinical(x.status)));
@@ -1421,13 +1590,13 @@ function applyDentalCommand(db,text,ctx={}){
   return {handled:false,...parsed,message:'No he entendido el comando clínico'};
 }
 
-window.DentyLogic={DB_KEY,PREVIOUS_KEYS,FDI_UPPER,FDI_LOWER,FDI_ALL,SURFACES,PERIO_SITES,DOCTOR_COLORS,STATUS_ORDER,STATUS_LABELS,ODONTO_LEGEND_MAIN,ODONTO_LEGEND_CYCLES,ODONTO_LEGEND_BASE_LABELS,ODONTO_LEGEND_STATE_LABELS,ODONTO_LEGEND_META,WHOLE_TOOTH_CODES,SURFACE_CODES,DEFAULT_SITES,DEFAULT_LABS,DEFAULT_EMPLOYEES,DEFAULT_SHIFTS,DEFAULT_CONSENTS,DEFAULT_PROCEDURES,clone,normalizeText,stripWake,stripWakeRaw,titleCase,today,weekdayFromDate,weekdayName,shortWeekdayName,prettyDate,patientFullName,initials,defaultDb,migrateDb,loadDb,saveDb,id,createPatient,archivePatient,restorePatient,ensureOdontogram,odontogramToothKind,occlusalSurfaceForTooth,normalizeSurfaceForTooth,legendVariant,legendLabel,legendStateText,legendNextIndex,statusTone,wholeToothStateFamily,toothWholeStates,removeToothWholeState,setToothLegendState,clearToothSurface,toothStatusNext,setToothPrimaryState,setToothSurfaceState,markArcadeMissing,splitName,parsePatientName,expandFdiRange,parseFdiRange,minutes,minutesToTime,durationMinutes,addMinutes,overlaps,appointmentWithMeta,appointmentsForDate,countOverlaps,cabinetConflict,agendaCounters,agendaByDoctors,agendaByHours,employeeShiftsForDate,employeeAbsencesForDate,appointmentAvailability,agendaSlotKey,agendaValidateMove,agendaMoveAppointment,agendaResizeAppointment,agendaCreateBlock,agendaFindOpenSlots,agendaCancelAppointment,agendaWaitingListMatches,agendaRescheduleOptions,ensurePatientPortalState,patientPortalDentalFindings,patientPortalDelayDays,patientPortalProjectedDate,patientPortalPaymentPlan,patientPortalHealth,patientPortalRescheduleCandidates,patientPortalWaitingRoom,simpleHash,PLAN_PRIORITY_RANK,CLINICAL_PHASES,canonicalClinicalTreatment,clinicalPriorityFor,createClinicalPlanItem,inferClinicalDependencies,clinicalPlanGraph,agendaPlanClinicalSequence,agendaCascadeSuggestions,patientClinicalPlanProjection,clinicalAlternativeContextLabel,createClinicalAlternativeGroup,createMissingToothAlternatives,updateClinicalAlternativeContext,setPatientAlternativePreference,approveClinicalAlternativeOption,syncClinicalPlanFromOdontogram,syncClinicalPlanBudget,setClinicalPlanItemStatus,defaultPlanSteps,createTreatmentPlan,treatmentPlanHierarchy,patientTreatmentRoute,schedulePlanStepToAgenda,createConsentDocument,attendanceAppointmentIsEligible,attendanceCertificateText,createAttendanceCertificateDocument,signDocument,patientDetailActions,isSettledPayment,paymentAmountForBudget,mapHeaders,splitCsvLine,csvRows,patientFromRow,runAction,stableHashText,createRecoverySnapshot,recoverDbFromSnapshots,validateStorageHealth,safeSaveDb,LEGACY_CLINICAL_PHASES,classifyTreatmentPriority,schedulePlanStep,CONSENT_DEFINITIONS,prepareConsentDocument,signConsentWithAudit,validatePatientImportRows,parseDentalCommand,applyDentalCommand};
+window.DentyLogic={DB_KEY,PREVIOUS_KEYS,FDI_UPPER,FDI_LOWER,FDI_ALL,SURFACES,PERIO_SITES,DOCTOR_COLORS,STATUS_ORDER,STATUS_LABELS,ODONTO_LEGEND_MAIN,ODONTO_LEGEND_CYCLES,ODONTO_LEGEND_BASE_LABELS,ODONTO_LEGEND_STATE_LABELS,ODONTO_LEGEND_META,WHOLE_TOOTH_CODES,SURFACE_CODES,DEFAULT_SITES,DEFAULT_LABS,DEFAULT_EMPLOYEES,DEFAULT_SHIFTS,DEFAULT_CONSENTS,DEFAULT_PROCEDURES,clone,normalizeText,stripWake,stripWakeRaw,titleCase,today,weekdayFromDate,weekdayName,shortWeekdayName,prettyDate,patientFullName,initials,defaultDb,migrateDb,loadDb,saveDb,id,createPatient,archivePatient,restorePatient,ensureOdontogram,odontogramToothKind,occlusalSurfaceForTooth,normalizeSurfaceForTooth,legendVariant,legendLabel,legendStateText,legendNextIndex,statusTone,wholeToothStateFamily,toothWholeStates,removeToothWholeState,setToothLegendState,ensureOdontogramV3,odontogramEntitiesForPatient,createOdontogramEntity,updateOdontogramEntity,deactivateOdontogramEntity,syncLegacyOdontogramFromEntities,createOdontogramSnapshot,compareOdontogramSnapshots,periodontalVisualSummary,clearToothSurface,toothStatusNext,setToothPrimaryState,setToothSurfaceState,markArcadeMissing,splitName,parsePatientName,expandFdiRange,parseFdiRange,minutes,minutesToTime,durationMinutes,addMinutes,overlaps,appointmentWithMeta,appointmentsForDate,countOverlaps,cabinetConflict,agendaCounters,agendaByDoctors,agendaByHours,employeeShiftsForDate,employeeAbsencesForDate,appointmentAvailability,agendaSlotKey,agendaValidateMove,agendaMoveAppointment,agendaResizeAppointment,agendaCreateBlock,agendaFindOpenSlots,agendaCancelAppointment,agendaWaitingListMatches,agendaRescheduleOptions,ensurePatientPortalState,patientPortalDentalFindings,patientPortalDelayDays,patientPortalProjectedDate,patientPortalPaymentPlan,patientPortalHealth,patientPortalRescheduleCandidates,patientPortalWaitingRoom,simpleHash,PLAN_PRIORITY_RANK,CLINICAL_PHASES,canonicalClinicalTreatment,clinicalPriorityFor,createClinicalPlanItem,odontogramEntityToClinicalItems,inferClinicalDependencies,clinicalPlanGraph,agendaPlanClinicalSequence,agendaCascadeSuggestions,patientClinicalPlanProjection,clinicalAlternativeContextLabel,createClinicalAlternativeGroup,createMissingToothAlternatives,updateClinicalAlternativeContext,setPatientAlternativePreference,approveClinicalAlternativeOption,syncClinicalPlanFromOdontogram,syncClinicalPlanBudget,setClinicalPlanItemStatus,defaultPlanSteps,createTreatmentPlan,treatmentPlanHierarchy,patientTreatmentRoute,schedulePlanStepToAgenda,createConsentDocument,attendanceAppointmentIsEligible,attendanceCertificateText,createAttendanceCertificateDocument,signDocument,patientDetailActions,isSettledPayment,paymentAmountForBudget,mapHeaders,splitCsvLine,csvRows,patientFromRow,runAction,stableHashText,createRecoverySnapshot,recoverDbFromSnapshots,validateStorageHealth,safeSaveDb,LEGACY_CLINICAL_PHASES,classifyTreatmentPriority,schedulePlanStep,CONSENT_DEFINITIONS,prepareConsentDocument,signConsentWithAudit,validatePatientImportRows,parseDentalCommand,applyDentalCommand};
 })();
 
 (function(){'use strict';
-const {FDI_ALL,addMinutes,createPatient,ensureOdontogram,id,normalizeText,patientFullName,setToothLegendState,stripWakeRaw,today}=window.DentyLogic;
+const {FDI_ALL,addMinutes,createOdontogramEntity,createPatient,ensureOdontogram,expandFdiRange,id,normalizeText,odontogramEntityToClinicalItems,patientFullName,setToothLegendState,stripWakeRaw,syncLegacyOdontogramFromEntities,today}=window.DentyLogic;
 const VOICE_INTENTS = Object.freeze([
-  'patient.select','patient.create','odontogram.set','odontogram.batch','periodontal.update',
+  'patient.select','patient.create','odontogram.set','odontogram.batch','odontogram.entity.create','periodontal.update',
   'appointment.create','comment.add','alert.add','budget.create','payment.record','lab.receive',
   'task.create','navigation.open'
 ]);
@@ -1449,6 +1618,16 @@ function unknown(text){ return result('unknown',{raw:String(text||'')},.1,{requi
 function cleanRaw(text){ return stripWakeRaw(String(text||'')).replace(/\s+/g,' ').trim(); }
 function ntext(text){ return normalizeText(cleanRaw(text)); }
 function extractTooth(text){ const m=String(text||'').match(/\b([1-4][1-8])\b/); return m?.[1]||null; }
+function extractAllTeeth(text){ return [...new Set([...String(text||'').matchAll(/\b([1-8][1-8])\b/g)].map(m=>m[1]))]; }
+function extractFdiRangeFromSpeech(text){
+  const m=String(text||'').match(/\b([1-4][1-8])\s*(?:a|al|hasta|-)\s*([1-4][1-8])\b/i);
+  return m ? (expandFdiRange(m[1],m[2])||[m[1],m[2]]) : [];
+}
+function archFromSpeech(text){
+  const n=ntext(text);
+  const upper=/superior|maxilar/.test(n), lower=/inferior|mandib/.test(n);
+  return upper&&lower?'both':upper?'upper':lower?'lower':'';
+}
 function extractSurface(text){
   const n=ntext(text);
   if(/\b(oclusal|oclus|o)\b/.test(n)) return 'O';
@@ -1520,6 +1699,48 @@ function treatmentStatus(text, base){
   if(base==='prosthesis') return bad?'prosthesis_bad':pending&&!good?'prosthesis_pending':'prosthesis';
   if(base==='removable') return bad?'removable_bad':pending&&!good?'removable_pending':'removable';
   return base;
+}
+function bridgeEntityCommand(text){
+  const n=ntext(text);
+  if(!/puente|protesis fija/.test(n)) return null;
+  const range=extractFdiRangeFromSpeech(text), teeth=range.length?range:extractAllTeeth(text).filter(t=>/^[1-4][1-8]$/.test(t));
+  if(teeth.length<2) return null;
+  const afterPillars=(String(text).match(/pilares?\s+(.+?)(?:\s+y\s+ponticos|\s+ponticos|$)/i)||[])[1]||'';
+  const afterPontics=(String(text).match(/ponticos?\s+(.+)$/i)||[])[1]||'';
+  const pillars=extractAllTeeth(afterPillars);
+  const pontics=extractAllTeeth(afterPontics);
+  const components=teeth.map(tooth=>({tooth,role:pillars.includes(tooth)?'abutment':pontics.includes(tooth)?'pontic':'pontic',status:'planned'}));
+  if(!components.some(c=>c.role==='abutment')){ components[0].role='abutment'; components[components.length-1].role='abutment'; }
+  return result('odontogram.entity.create',{type:'bridge',teeth,components,status:'planned',metadata:{}},.94,{requires_confirmation:false});
+}
+function implantEntityCommand(text){
+  const n=ntext(text), tooth=extractTooth(text);
+  if(!tooth || !/implante/.test(n)) return null;
+  const placed=/colocad|realizad|hech/.test(n);
+  const components=[
+    {tooth,role:'implant',status:placed?'completed':'planned'},
+    {tooth,role:'abutment',status:/falta.*pilar|pilar.*pendiente/.test(n)?'planned':'planned'},
+    {tooth,role:'crown',status:/falta.*corona|corona.*pendiente/.test(n)?'planned':'planned'}
+  ];
+  return result('odontogram.entity.create',{type:'implant_restoration',teeth:[tooth],components,status:placed?'surgery_done':'planned',metadata:{}},.94);
+}
+function removableEntityCommand(text){
+  const n=ntext(text);
+  if(!/removible/.test(n)) return null;
+  return result('odontogram.entity.create',{type:'removable_prosthesis',teeth:extractAllTeeth(text),arch:archFromSpeech(text)||'upper',components:[{role:'base',status:'planned'}],status:'planned',metadata:{design:/parcial/.test(n)?'parcial':/completa/.test(n)?'completa':'removible'}},.92);
+}
+function orthodonticsEntityCommand(text){
+  const n=ntext(text);
+  if(!/ortodon|alineador|bracket/.test(n)) return null;
+  return result('odontogram.entity.create',{type:'orthodontics',teeth:extractAllTeeth(text),arch:archFromSpeech(text)||'both',components:[{role:/alineador/.test(n)?'aligner':'brackets',status:'planned'}],status:'planned',metadata:{appliance:/alineador/.test(n)?'alineadores':'brackets'}},.92);
+}
+function pediatricEntityCommand(text){
+  const n=ntext(text), teeth=extractAllTeeth(text).filter(t=>/^[5-8][1-8]$/.test(t));
+  if(!teeth.length || !/pulpotomia|pulpectomia|mantenedor|odontopedi/.test(n)) return null;
+  return result('odontogram.entity.create',{type:'pediatric',teeth,status:'planned',components:[{tooth:teeth[0],role:/pulpotomia/.test(n)?'pulpotomy':'pediatric_treatment',status:'planned'}],metadata:{treatment:/pulpotomia/.test(n)?'pulpotomia':'odontopediatria'}},.93);
+}
+function odontogramEntityCommand(text){
+  return bridgeEntityCommand(text)||implantEntityCommand(text)||removableEntityCommand(text)||orthodonticsEntityCommand(text)||pediatricEntityCommand(text);
 }
 function odontogramCommand(text){
   const n=ntext(text), tooth=extractTooth(text), surface=extractSurface(text);
@@ -1610,6 +1831,7 @@ function parseVoiceCommand(text, context={}){
     return result('appointment.create',{patient_query:extractPatientQuery(raw,'appointment'),date,start_time,duration_minutes,treatment,tooth,title:treatment==='tratamiento'?'Cita dental':`${treatment}${tooth?' '+tooth:''}`},.91);
   }
 
+  const odEntity=odontogramEntityCommand(raw); if(odEntity) return odEntity;
   const perio=periodontalCommand(raw); if(perio) return perio;
   const od=odontogramCommand(raw); if(od) return od;
   return unknown(text);
@@ -1622,6 +1844,11 @@ function validateStructuredCommand(command){
   const slots=command.slots||{};
   if(command.intent==='navigation.open'&&!NAV_TARGETS.has(slots.target)) return {ok:false,error:'navigation_target_invalid'};
   if(command.intent==='odontogram.set' && (!/^([1-4][1-8])$/.test(String(slots.tooth||'')) || !ALLOWED_TOOTH_STATES.has(slots.status))) return {ok:false,error:'odontogram_slots_invalid'};
+  if(command.intent==='odontogram.entity.create'){
+    const allowed=new Set(['bridge','implant_restoration','removable_prosthesis','orthodontics','pediatric','periodontal_chart']);
+    if(!allowed.has(slots.type)) return {ok:false,error:'odontogram_entity_type_invalid'};
+    if(slots.teeth!=null && !Array.isArray(slots.teeth)) return {ok:false,error:'odontogram_entity_teeth_invalid'};
+  }
   if(command.intent==='periodontal.update'&&!/^([1-4][1-8])$/.test(String(slots.tooth||''))) return {ok:false,error:'periodontal_tooth_invalid'};
   if(command.intent==='payment.record' && !(Number(slots.amount)>0)) return {ok:false,error:'payment_amount_invalid'};
   return {ok:true,command:{...command,confidence:Number.isFinite(Number(command.confidence))?Number(command.confidence):.5,source:command.source||'external',slots}};
@@ -1686,6 +1913,12 @@ function executeVoiceCommand(db, command, context={}){
     setToothLegendState(db,patient.id,String(s.tooth),s.status,s.surface||'');
     return {handled:true,intent:cmd.intent,patient,odontogram:{tooth:String(s.tooth),status:s.status,surface:s.surface||''},message:`Odontograma actualizado: ${s.tooth} ${s.status}${s.surface?' '+s.surface:''}`};
   }
+  if(cmd.intent==='odontogram.entity.create'){
+    const entity=createOdontogramEntity(db, patient.id, s);
+    syncLegacyOdontogramFromEntities(db, patient.id);
+    const createdClinicalItems=odontogramEntityToClinicalItems(db, patient.id, entity.id);
+    return {handled:true,intent:cmd.intent,patient,entity,createdClinicalItems,message:`Entidad odontologica creada: ${entity.type}`};
+  }
   if(cmd.intent==='periodontal.update'){
     const rec=ensureOdontogram(db,patient.id)[String(s.tooth)];
     if(s.mobility!=null) rec.periodontal.mobility=String(s.mobility);
@@ -1730,7 +1963,7 @@ window.DentyVoice={VOICE_INTENTS,resolveSpokenDate,parseVoiceCommand,validateStr
 })();
 
 (function(){'use strict';
-const {DB_KEY,loadDb,saveDb,defaultDb,id,today,prettyDate,shortWeekdayName,patientFullName,initials,normalizeText,FDI_UPPER,FDI_LOWER,SURFACES,STATUS_LABELS,ODONTO_LEGEND_MAIN,ODONTO_LEGEND_CYCLES,ODONTO_LEGEND_META,ensureOdontogram,toothStatusNext,setToothPrimaryState,setToothLegendState,clearToothSurface,toothWholeStates,removeToothWholeState,setToothSurfaceState,markArcadeMissing,createPatient,archivePatient,restorePatient,patientDetailActions,legendVariant,legendLabel,legendStateText,legendNextIndex,statusTone,normalizeSurfaceForTooth,agendaByDoctors,agendaByHours,agendaCounters,appointmentAvailability,durationMinutes,addMinutes,agendaMoveAppointment,agendaResizeAppointment,agendaCreateBlock,agendaCancelAppointment,agendaWaitingListMatches,agendaRescheduleOptions,agendaCascadeSuggestions,agendaPlanClinicalSequence,createConsentDocument,signDocument,createAttendanceCertificateDocument,attendanceAppointmentIsEligible,createTreatmentPlan,treatmentPlanHierarchy,patientTreatmentRoute,schedulePlanStepToAgenda,csvRows,patientFromRow,runAction,clinicalPlanGraph,patientClinicalPlanProjection,createClinicalPlanItem,syncClinicalPlanFromOdontogram,syncClinicalPlanBudget,createMissingToothAlternatives,clinicalAlternativeContextLabel,updateClinicalAlternativeContext,approveClinicalAlternativeOption,setPatientAlternativePreference,setClinicalPlanItemStatus,validateStorageHealth,paymentAmountForBudget,isSettledPayment,ensurePatientPortalState,patientPortalDelayDays,patientPortalProjectedDate,patientPortalPaymentPlan,patientPortalHealth,patientPortalRescheduleCandidates,patientPortalWaitingRoom,patientPortalDentalFindings}=window.DentyLogic;
+const {DB_KEY,loadDb,saveDb,defaultDb,id,today,prettyDate,shortWeekdayName,patientFullName,initials,normalizeText,FDI_UPPER,FDI_LOWER,SURFACES,STATUS_LABELS,ODONTO_LEGEND_MAIN,ODONTO_LEGEND_CYCLES,ODONTO_LEGEND_META,ensureOdontogram,toothStatusNext,setToothPrimaryState,setToothLegendState,clearToothSurface,toothWholeStates,removeToothWholeState,setToothSurfaceState,markArcadeMissing,createPatient,archivePatient,restorePatient,patientDetailActions,legendVariant,legendLabel,legendStateText,legendNextIndex,statusTone,normalizeSurfaceForTooth,agendaByDoctors,agendaByHours,agendaCounters,appointmentAvailability,durationMinutes,addMinutes,agendaMoveAppointment,agendaResizeAppointment,agendaCreateBlock,agendaCancelAppointment,agendaWaitingListMatches,agendaRescheduleOptions,agendaCascadeSuggestions,agendaPlanClinicalSequence,createConsentDocument,signDocument,createAttendanceCertificateDocument,attendanceAppointmentIsEligible,createTreatmentPlan,treatmentPlanHierarchy,patientTreatmentRoute,schedulePlanStepToAgenda,csvRows,patientFromRow,runAction,clinicalPlanGraph,patientClinicalPlanProjection,createClinicalPlanItem,syncClinicalPlanFromOdontogram,syncClinicalPlanBudget,createMissingToothAlternatives,clinicalAlternativeContextLabel,updateClinicalAlternativeContext,approveClinicalAlternativeOption,setPatientAlternativePreference,setClinicalPlanItemStatus,validateStorageHealth,paymentAmountForBudget,isSettledPayment,ensurePatientPortalState,patientPortalDelayDays,patientPortalProjectedDate,patientPortalPaymentPlan,patientPortalHealth,patientPortalRescheduleCandidates,patientPortalWaitingRoom,patientPortalDentalFindings,ensureOdontogramV3,createOdontogramEntity,odontogramEntitiesForPatient,syncLegacyOdontogramFromEntities,odontogramEntityToClinicalItems,createOdontogramSnapshot,compareOdontogramSnapshots,periodontalVisualSummary}=window.DentyLogic;
 const {parseVoiceCommand,validateStructuredCommand,executeVoiceCommand}=window.DentyVoice;
 const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
@@ -2434,7 +2667,19 @@ function renderRestorativeMode(od,p,pid,currentBase,currentIdx,currentCode){
   const teethRow=arr=>`<div class="teeth-row compact"><span class="row-spacer"></span>${arr.map(t=>`<button class="tooth-ui apk ${esc(statusTone(od[t].status))} ${state.selectedTooth===t?'selected':''}" data-tooth="${t}" title="${t} - ${esc(toothSummary(od[t]))}">${toothMarkers(t,od[t])}</button>`).join('')}</div>`;
   const surfaces=arr=>`<div class="surface-row compact"><span class="row-spacer"></span>${arr.map(t=>`<div class="surface-stack compact">${surfaceSvg(t,od[t])}</div>`).join('')}</div>`;
   const arch=(title, arr, arcade)=>`<div class="apk-arcade-card minimal-odontogram ${arcade}"><div class="apk-arcade-label"><strong>${title}</strong><small>${arr.filter(t=>od[t].status==='missing').length} ausentes</small><button class="ghost mini" data-mark-arcade="${arcade}">Arcada ausente</button></div><div class="apk-arcade-content">${arcade==='superior'?`${teethRow(arr)}<div class="tooth-labels compact">${labelRow(arr)}</div>${surfaces(arr)}`:`${surfaces(arr)}<div class="tooth-labels compact">${labelRow(arr)}</div>${teethRow(arr)}`}</div></div>`;
-  return `<section class="odonto-page05"><article class="card odonto-card apk-like"><div class="odonto-header sticky-odonto"><div><h1>Odontograma</h1><p>${p?esc(patientFullName(p)):'Demo sin paciente'} - modo ${esc(legendLabel(currentBase,currentIdx))}</p></div><div class="odonto-header-actions"><button class="ghost" data-odontogram-back="patient" data-go="patientDetail">Volver al paciente</button><button class="ghost" data-go="patientDetail">Ficha</button></div></div><select id="odontogramPatient" class="select-line">${activePatients().map(x=>`<option value="${x.id}" ${Number(x.id)===Number(pid)?'selected':''}>${esc(patientFullName(x))}</option>`).join('')||'<option value="demo">Demo sin paciente</option>'}</select>${odontoTopSwitch('restorative')}<div class="active-tool-bar tone-${currentCode?statusTone(currentCode):'neutral'}"><span>${currentCode?legendSymbol(currentCode):'○'}</span><strong>${currentCode?esc(legendLabel(currentBase,currentIdx)):'Sin herramienta activa'}</strong><small>${currentCode?esc(legendStateText(currentBase,currentIdx))+' - toca dientes o superficies':'toca una leyenda o manten pulsado un diente'}</small><button class="ghost mini" id="clearOdontoTool">Salir</button></div>${arch('Maxilar superior',FDI_UPPER,'superior')}${arch('Maxilar inferior',FDI_LOWER,'inferior')}<div class="quick-odonto-actions compact-actions"><button class="ghost" id="cycleSelectedTooth">Estados del diente</button><button class="ghost" id="selectFdiRange">Rango FDI</button><button class="ghost" id="clearSelectedSurface">Limpiar superficie</button></div><section class="legend apk-legend"><div class="section-title"><h2>Leyenda</h2><p>Toque repetido: correcto -> insatisfactorio -> pendiente. Despues toca el diente o una superficie.</p></div><div class="legend-grid apk clinical-grid">${legendItems()}</div><p class="tiny">Diente blanco con contorno azul. Los colores se reservan para marcas clinicas y estados.</p></section></article></section>`;
+  return `<section class="odonto-page05"><article class="card odonto-card apk-like"><div class="odonto-header sticky-odonto"><div><h1>Odontograma</h1><p>${p?esc(patientFullName(p)):'Demo sin paciente'} - modo ${esc(legendLabel(currentBase,currentIdx))}</p></div><div class="odonto-header-actions"><button class="ghost" data-odontogram-back="patient" data-go="patientDetail">Volver al paciente</button><button class="ghost" data-go="patientDetail">Ficha</button></div></div><select id="odontogramPatient" class="select-line">${activePatients().map(x=>`<option value="${x.id}" ${Number(x.id)===Number(pid)?'selected':''}>${esc(patientFullName(x))}</option>`).join('')||'<option value="demo">Demo sin paciente</option>'}</select>${odontoTopSwitch('restorative')}<div class="active-tool-bar tone-${currentCode?statusTone(currentCode):'neutral'}"><span>${currentCode?legendSymbol(currentCode):'○'}</span><strong>${currentCode?esc(legendLabel(currentBase,currentIdx)):'Sin herramienta activa'}</strong><small>${currentCode?esc(legendStateText(currentBase,currentIdx))+' - toca dientes o superficies':'toca una leyenda o manten pulsado un diente'}</small><button class="ghost mini" id="clearOdontoTool">Salir</button></div>${arch('Maxilar superior',FDI_UPPER,'superior')}${arch('Maxilar inferior',FDI_LOWER,'inferior')}<div class="quick-odonto-actions compact-actions"><button class="ghost" id="cycleSelectedTooth">Estados del diente</button><button class="ghost" id="selectFdiRange">Rango FDI</button><button class="ghost" id="clearSelectedSurface">Limpiar superficie</button></div>${renderOdontogramV3Panel(pid)}<section class="legend apk-legend"><div class="section-title"><h2>Leyenda</h2><p>Toque repetido: correcto -> insatisfactorio -> pendiente. Despues toca el diente o una superficie.</p></div><div class="legend-grid apk clinical-grid">${legendItems()}</div><p class="tiny">Diente blanco con contorno azul. Los colores se reservan para marcas clinicas y estados.</p></section></article></section>`;
+}
+function renderOdontogramV3Panel(pid){
+  ensureOdontogramV3(db,pid);
+  const entities=odontogramEntitiesForPatient(db,pid);
+  const summary=periodontalVisualSummary(db,pid);
+  return `<section class="odontogram-v3-panel"><div class="section-title"><div><h2>Odontograma V3</h2><p>Entidades clinicas compartidas por voz, plan y agenda.</p></div><button class="ghost mini" id="createOdontoSnapshot">Snapshot</button></div><div class="odonto-v3-actions"><button data-odonto-v3="bridge">Puente</button><button data-odonto-v3="implant_restoration">Implante + pilar + corona</button><button data-odonto-v3="removable_prosthesis">Removible</button><button data-odonto-v3="orthodontics">Ortodoncia</button><button data-odonto-v3="pediatric">Odontopediatria</button></div><div class="perio-visual-summary severity-${esc(summary.severity)}"><strong>Periodontal</strong><span>Max ${esc(summary.max_depth)} mm - sangrado ${esc(summary.bleeding_percent)}% - placa ${esc(summary.plaque_percent)}%</span></div><div class="odonto-v3-entities">${entities.length?entities.map(renderOdontoEntityCard).join(''):'<div class="empty-state">Sin entidades V3 todavia.</div>'}</div></section>`;
+}
+function renderOdontoEntityCard(entity){
+  const teeth=(entity.teeth||[]).join(' - ') || entity.arch || 'zona';
+  const bridge=entity.type==='bridge'?`<div class="odonto-bridge-bar">${(entity.components||[]).map(c=>`<span class="${esc(c.role)}">${esc(c.tooth||c.role)}</span>`).join('')}</div>`:'';
+  const chips=(entity.components||[]).map(c=>`<span class="odonto-component-chip">${esc(c.role)}${c.tooth?' '+esc(c.tooth):''}</span>`).join('');
+  return `<article class="odonto-entity-card type-${esc(entity.type)}"><div><strong>${esc(String(entity.type||'entidad').replace(/_/g,' '))}</strong><small>${esc(teeth)} - ${esc(entity.status||'planned')}</small></div>${bridge}<div class="odonto-component-row">${chips}</div><button class="ghost mini" data-entity-plan="${esc(entity.id)}">Plan clinico</button></article>`;
 }
 function renderOdontogram(){
   const p=currentPatient();
@@ -3022,7 +3267,48 @@ async function importPatientFiles(){
     toast(err?.message||'No se pudo importar el archivo');
   }
 }
+function bindOdontogramV3(){
+  $$('[data-odonto-v3]').forEach(btn=>btn.onclick=()=>{
+    const pid=state.patientId||activePatients()[0]?.id;
+    if(!pid) return toast('Elige paciente');
+    const type=btn.dataset.odontoV3;
+    let input={type,status:'planned',teeth:[state.selectedTooth||'36'],components:[],metadata:{},source:'ui'};
+    if(type==='bridge'){
+      const raw=prompt('Dientes del puente separados por coma', '13,14,15')||'';
+      const teeth=raw.split(/[,\s]+/).map(x=>x.trim()).filter(Boolean);
+      input={...input,teeth,components:teeth.map((tooth,i)=>({tooth,role:i===0||i===teeth.length-1?'abutment':'pontic',status:'planned'}))};
+    }else if(type==='implant_restoration'){
+      const tooth=prompt('Diente/zona del implante', state.selectedTooth||'36')||'36';
+      input={...input,teeth:[tooth],components:[{tooth,role:'implant',status:'planned'},{tooth,role:'abutment',status:'planned'},{tooth,role:'crown',status:'planned'}]};
+    }else if(type==='removable_prosthesis'){
+      input={...input,teeth:[],arch:prompt('Arco: upper/lower/both','upper')||'upper',components:[{role:'base',status:'planned'}],metadata:{design:'parcial'}};
+    }else if(type==='orthodontics'){
+      input={...input,teeth:[],arch:'both',components:[{role:'aligner',status:'planned'}],metadata:{appliance:'alineadores'}};
+    }else if(type==='pediatric'){
+      const tooth=prompt('Diente temporal', '75')||'75';
+      input={...input,teeth:[tooth],components:[{tooth,role:'pulpotomy',status:'planned'}],metadata:{treatment:'pulpotomia'}};
+    }
+    try{ snapshot('odontogram.v3.create',pid); const entity=createOdontogramEntity(db,pid,input); syncLegacyOdontogramFromEntities(db,pid); persist(); render(); toast('Entidad V3 creada: '+entity.type); }
+    catch(err){ toast(err?.message||'No se pudo crear la entidad'); }
+  });
+  $$('[data-entity-plan]').forEach(btn=>btn.onclick=()=>{
+    const pid=state.patientId||activePatients()[0]?.id;
+    try{ snapshot('odontogram.v3.plan',pid); const items=odontogramEntityToClinicalItems(db,pid,Number(btn.dataset.entityPlan)); persist(); render(); toast(items.length+' item(s) enviados al plan clinico'); }
+    catch(err){ toast(err?.message||'No se pudo crear plan clinico'); }
+  });
+  $('#createOdontoSnapshot')?.addEventListener('click',()=>{
+    const pid=state.patientId||activePatients()[0]?.id;
+    if(!pid) return;
+    snapshot('odontogram.v3.snapshot',pid);
+    const snap=createOdontogramSnapshot(db,pid,prompt('Nombre del snapshot','review')||'review');
+    const bucket=db.odontogramSnapshots?.[String(pid)]||[];
+    const previous=bucket.length>1?bucket[bucket.length-2]:null;
+    const diff=previous?compareOdontogramSnapshots(previous,snap):null;
+    persist(); render(); toast(diff?`Snapshot guardado: ${diff.changedTeeth.length} diente(s) cambiados`:'Snapshot guardado');
+  });
+}
 function bindOdonto(){
+  bindOdontogramV3();
   $$('[data-odonto-mode]').forEach(b=>b.onclick=()=>{ state.odontoMode=b.dataset.odontoMode; render(); });
   $$('[data-select-tooth]').forEach(b=>b.onclick=()=>{ state.selectedTooth=String(b.dataset.selectTooth); render(); });
   $$('[data-legend-base]').forEach(btn=>btn.onclick=e=>{ e.preventDefault(); cycleLegend(btn.dataset.legendBase); });
