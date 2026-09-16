@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { checkDatabaseHealth, prisma } from '@denty/db';
 import { createDemoClinic } from '@denty/fixtures';
 import { registerAppointmentRoutes } from './modules/appointments/routes';
 import { registerPatientRoutes } from './modules/patients/routes';
@@ -12,6 +13,8 @@ export function buildServer() {
     ok: true,
     service: 'denty-api',
   }));
+
+  server.get('/health/db', async () => checkDatabaseHealth(prisma));
 
   server.get('/api/clinic/demo', async () => createDemoClinic());
   void registerPatientRoutes(server);

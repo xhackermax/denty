@@ -9,6 +9,7 @@ export const defaultDatabaseConfig: DatabaseConfig = {
 };
 
 export { disconnectDatabase, prisma } from "./client";
+export { checkDatabaseHealth } from "./health/check";
 export { runBusinessTransaction } from "./audit/run-business-transaction";
 export { writeAudit } from "./audit/write-audit";
 export { writeDomainEvent } from "./outbox/write-domain-event";

@@ -8,6 +8,9 @@
   "scripts": {
     "dev": "pnpm --filter @denty/web dev",
     "build": "pnpm -r build",
+    "db:generate": "pnpm --filter @denty/db db:generate",
+    "db:migrate": "pnpm --filter @denty/db db:migrate",
+    "db:health": "pnpm --filter @denty/db db:health",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "legacy:build": "node apps/legacy-preview/build-static-bundle.mjs",

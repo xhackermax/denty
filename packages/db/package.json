@@ -6,6 +6,9 @@
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:health": "tsx src/health/cli.ts",
     "pretest": "prisma generate",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"
