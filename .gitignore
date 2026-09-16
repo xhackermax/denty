@@ -8,3 +8,5 @@ __pycache__/
 *.pyc
 work-app-check.js
 denty.sqlite
+
+.superpowers/
