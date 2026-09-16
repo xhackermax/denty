@@ -455,6 +455,20 @@ export function toothWholeStates(record){
   if(legacy!=='healthy' && !states.includes(legacy)) states.push(legacy);
   return [...new Set(states)];
 }
+function toothHasActiveCaries(record){
+  return toothWholeStates(record).includes('caries') || Object.values(record?.surfaces||{}).includes('caries');
+}
+function toothHasImplantState(record){
+  return toothWholeStates(record).some(code=>wholeToothStateFamily(code)==='implant');
+}
+function assertImplantCariesCompatibility(record, code){
+  if(wholeToothStateFamily(code)==='implant' && toothHasActiveCaries(record)){
+    throw new Error('No se puede colocar un implante en un diente con caries activa. Trata o limpia la caries antes de planificar implante.');
+  }
+  if(code==='caries' && toothHasImplantState(record)){
+    throw new Error('No se puede anadir caries activa sobre un diente con implante registrado. Revisa primero el estado del implante.');
+  }
+}
 function syncPrimaryToothStatus(record, preferred=''){
   const states=[...new Set((Array.isArray(record?.whole_states)?record.whole_states:[]).map(String).filter(code=>code&&code!=='healthy'))];
   record.whole_states=states;
@@ -476,6 +490,7 @@ export function setToothLegendState(db, patientId, tooth, code, surface=''){
   if(SURFACE_CODES.has(code)){
     const s=normalizeSurfaceForTooth(t, surface || (code==='caries' || code.startsWith('filling') ? occlusalSurfaceForTooth(t) : ''));
     if(!s) throw new Error('Superficie no válida');
+    assertImplantCariesCompatibility(od[t], code);
     od[t].surfaces[s]=code;
     if(toothWholeStates(od[t]).includes('missing')){
       od[t].whole_states=toothWholeStates(od[t]).filter(x=>x!=='missing');
@@ -497,6 +512,7 @@ export function setToothLegendState(db, patientId, tooth, code, surface=''){
       return od[t];
     }
     const family=wholeToothStateFamily(code);
+    assertImplantCariesCompatibility(od[t], code);
     const states=toothWholeStates(od[t]).filter(existing=>existing!=='healthy'&&existing!=='missing'&&wholeToothStateFamily(existing)!==family);
     states.push(code);
     od[t].whole_states=[...new Set(states)];
@@ -535,10 +551,36 @@ export function createOdontogramEntity(db, patientId, input={}){
     if(teeth.length<2) throw new Error('Un puente necesita al menos dos dientes');
     if(!abutments.length) throw new Error('Un puente necesita al menos un pilar');
   }
+  if(type==='implant_restoration'){
+    const od=ensureOdontogram(db, patientId);
+    for(const tooth of teeth){
+      const record=od[String(tooth)];
+      if(record) assertImplantCariesCompatibility(record, 'implant');
+    }
+  }
   const now=new Date().toISOString();
   const entity={id:id(db),patient_id:Number(patientId)||patientId,type,status:ODONTO_ENTITY_STATUS.has(input.status)?input.status:'planned',teeth,arch:input.arch||'',components,metadata:{...(input.metadata||{})},source:input.source||'odontogram_v3',active:input.active!==false,created_at:now,updated_at:now};
   patientEntityBucket(db, patientId).push(entity);
   return entity;
+}
+export function bridgeConnectorSpansForArc(entities=[], teethOrder=[]){
+  const order=(Array.isArray(teethOrder)?teethOrder:[]).map(String);
+  return (Array.isArray(entities)?entities:[])
+    .filter(entity=>entity?.active!==false && entity?.type==='bridge')
+    .map(entity=>{
+      const indices=[...new Set((entity.teeth||[]).map(tooth=>order.indexOf(String(tooth))).filter(index=>index>=0))].sort((a,b)=>a-b);
+      if(indices.length<2) return null;
+      const components=Array.isArray(entity.components)?entity.components:[];
+      return {
+        id:entity.id,
+        startColumn:indices[0]+2,
+        endColumn:indices.at(-1)+3,
+        teeth:indices.map(index=>order[index]),
+        pontics:components.filter(component=>component.role==='pontic' && order.includes(String(component.tooth))).map(component=>String(component.tooth)),
+        status:String(entity.status||'planned')
+      };
+    })
+    .filter(Boolean);
 }
 export function updateOdontogramEntity(db, patientId, entityId, patch={}){
   const entity=patientEntityBucket(db, patientId).find(e=>Number(e.id)===Number(entityId));
@@ -573,6 +615,7 @@ export function syncLegacyOdontogramFromEntities(db, patientId){
     for(const tooth of entity.teeth||[]){
       const record=od[String(tooth)];
       if(!record) continue;
+      if(entity.type==='implant_restoration' && toothHasActiveCaries(record)) continue;
       record.whole_states=[...new Set([...toothWholeStates(record), code].filter(Boolean))];
       if(!record.status || record.status==='healthy') record.status=code;
     }

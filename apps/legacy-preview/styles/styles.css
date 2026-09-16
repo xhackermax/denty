@@ -91,6 +91,11 @@ img.brand-logo{object-fit:cover;background:#031625;padding:0;display:block}.bran
 .minimal-odontogram .apk-arcade-label{display:flex;align-items:center;justify-content:space-between;gap:10px;background:transparent;border-bottom:1px solid #edf4f7;border-radius:0;padding:0 0 8px;margin-bottom:10px}
 .minimal-odontogram .apk-arcade-label strong{font-size:18px;line-height:1;color:#17485c}.minimal-odontogram .apk-arcade-label small{font-size:11px}.minimal-odontogram .apk-arcade-content{padding:2px 0 0}
 .minimal-odontogram .teeth-row.compact,.minimal-odontogram .surface-row.compact,.minimal-odontogram .tooth-labels.compact{grid-template-columns:0 repeat(16,40px);gap:7px;min-width:760px;justify-content:center}
+.minimal-odontogram .odonto-bridge-connectors{display:grid;grid-template-columns:0 repeat(16,40px);gap:7px;align-items:center;min-width:760px;justify-content:center;height:18px;pointer-events:none;margin:-4px 0 1px}
+.odonto-bridge-connector{height:8px;border-radius:999px;background:#0b84d8;box-shadow:0 2px 7px rgba(11,132,216,.22);align-self:center;position:relative}
+.odonto-bridge-connector.tone-red{background:#fa3150;box-shadow:0 2px 7px rgba(250,49,80,.18)}
+.odonto-bridge-connector.tone-blue-red{background:linear-gradient(90deg,#0b84d8,#fa3150);box-shadow:0 2px 7px rgba(11,132,216,.18)}
+.odonto-bridge-connector i{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:999px;background:#fff;border:2px solid currentColor;color:#0b84d8;font-size:0}
 .minimal-odontogram .tooth-labels.compact{color:#536f7a;font-size:10px;font-weight:800;margin:2px 0 8px}
 .minimal-odontogram.inferior .tooth-labels.compact{margin:8px 0 2px}.minimal-odontogram .tooth-ui.apk{height:72px;border-radius:10px}.minimal-odontogram .tooth-ui.apk.selected{height:72px;border:2px solid #13aeca;background:#eefcff}
 .minimal-odontogram .tooth-svg.apk-tooth{width:38px;height:72px}.minimal-odontogram.inferior .tooth-svg.apk-tooth{height:74px}
@@ -98,11 +103,12 @@ img.brand-logo{object-fit:cover;background:#031625;padding:0;display:block}.bran
 .minimal-tooth .tooth-outline{fill:#fff!important;stroke:#0b84d8!important;stroke-width:2;stroke-linejoin:round}
 .minimal-tooth .root-split{fill:none;stroke:#55ade7;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;opacity:.82}
 .minimal-tooth .root-shade{fill:none;stroke:#d8eefb;stroke-width:2.4;stroke-linecap:round;opacity:.55}
+.minimal-tooth .removable-root-ghost path{fill:none;stroke:#8fa7b4;stroke-width:2;stroke-linecap:round;stroke-dasharray:3 4;opacity:.48}
 .minimal-tooth .tooth-outline.tone-missing{stroke:#8fa7b4!important;stroke-dasharray:4 4;opacity:.65}
 .minimal-tooth .minimal-detail{fill:none;stroke:#79bdea;stroke-width:1.15;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
 .minimal-tooth .tooth-crown.tone-missing,.minimal-tooth .tooth-root.tone-missing{stroke:#8fa7b4!important;stroke-dasharray:4 4}.minimal-tooth .crown-cap{fill:#fff;stroke:#0b84d8}.minimal-tooth .surface-fill-dot{fill:#0b84d8}.minimal-tooth .surface-red-dot{fill:#2ab673}.minimal-tooth .extract-mark{stroke:#f0cf25}
 .minimal-odontogram .surface-map{width:24px;height:24px}.minimal-odontogram .surface-shell,.minimal-odontogram .surface-seg{stroke:#c3d0d6;stroke-width:1;fill:#fff}.minimal-odontogram .surface-seg.filled{fill:#edf7ff;stroke:#0b84d8}.minimal-odontogram .surface-seg.filled.red{fill:#e8fff3;stroke:#2ab673}
-@media(max-width:440px){.minimal-odontogram .teeth-row.compact,.minimal-odontogram .surface-row.compact,.minimal-odontogram .tooth-labels.compact{grid-template-columns:0 repeat(16,35px);gap:5px;min-width:640px}.minimal-odontogram .tooth-svg.apk-tooth{width:33px;height:66px}.minimal-odontogram .surface-map{width:22px;height:22px}}
+@media(max-width:440px){.minimal-odontogram .teeth-row.compact,.minimal-odontogram .surface-row.compact,.minimal-odontogram .tooth-labels.compact,.minimal-odontogram .odonto-bridge-connectors{grid-template-columns:0 repeat(16,35px);gap:5px;min-width:640px}.minimal-odontogram .tooth-svg.apk-tooth{width:33px;height:66px}.minimal-odontogram .surface-map{width:22px;height:22px}}
 
 
 /* DENTY VOICE ROUTER */
