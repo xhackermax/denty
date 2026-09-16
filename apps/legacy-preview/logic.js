@@ -570,7 +570,12 @@ export function syncLegacyOdontogramFromEntities(db, patientId){
   for(const entity of odontogramEntitiesForPatient(db, patientId)){
     const code=legacyCodeForEntity(entity);
     if(!code) continue;
-    for(const tooth of entity.teeth||[]) if(od[String(tooth)]) setToothLegendState(db, patientId, String(tooth), code);
+    for(const tooth of entity.teeth||[]){
+      const record=od[String(tooth)];
+      if(!record) continue;
+      record.whole_states=[...new Set([...toothWholeStates(record), code].filter(Boolean))];
+      if(!record.status || record.status==='healthy') record.status=code;
+    }
   }
   return od;
 }

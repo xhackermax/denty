@@ -42,11 +42,23 @@ const updated = updateOdontogramEntity(db, 1, bridge.id, { status: 'active', met
 assert.equal(updated.status, 'active');
 assert.equal(updated.metadata.material, 'metal-ceramica');
 
+const legacyBeforeSync = ensureOdontogram(db, 1);
+legacyBeforeSync['13'].whole_states = ['missing'];
+legacyBeforeSync['13'].surfaces.O = 'caries';
+legacyBeforeSync['13'].periodontal.depths.mv = '6';
+legacyBeforeSync['13'].periodontal.bleeding.mv = true;
+legacyBeforeSync['13'].position.rotation = true;
+
 syncLegacyOdontogramFromEntities(db, 1);
 const od = ensureOdontogram(db, 1);
 for (const tooth of ['13', '14', '15', '16']) {
   assert.ok(toothWholeStates(od[tooth]).includes('prosthesis'), `tooth ${tooth} has legacy prosthesis`);
 }
+assert.ok(toothWholeStates(od['13']).includes('missing'), 'sync preserves existing missing whole state');
+assert.equal(od['13'].surfaces.O, 'caries', 'sync preserves existing surfaces');
+assert.equal(od['13'].periodontal.depths.mv, '6', 'sync preserves periodontal depths');
+assert.equal(od['13'].periodontal.bleeding.mv, true, 'sync preserves periodontal flags');
+assert.equal(od['13'].position.rotation, true, 'sync preserves position flags');
 
 const inactive = deactivateOdontogramEntity(db, 1, bridge.id, 'duplicated');
 assert.equal(inactive.active, false);
