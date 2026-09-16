@@ -14,12 +14,12 @@ const statusActions = {
 export async function registerAppointmentRoutes(server: FastifyInstance) {
   server.get<{ Querystring: { date?: string } }>("/api/appointments", async (request) => {
     const date = request.query.date ?? new Date().toISOString().slice(0, 10);
-    return listAppointments(await getActor(), date);
+    return listAppointments(await getActor(request), date);
   });
 
   server.post("/api/appointments", async (request, reply) => {
     const appointment = await createAppointment(
-      await getActor(),
+      await getActor(request),
       createAppointmentRequestSchema.parse(request.body),
       getCorrelationId(request),
     );
@@ -29,7 +29,7 @@ export async function registerAppointmentRoutes(server: FastifyInstance) {
   server.patch<{ Params: { id: string } }>("/api/appointments/:id", async (request, reply) => {
     try {
       return await updateAppointment(
-        await getActor(),
+        await getActor(request),
         request.params.id,
         updateAppointmentRequestSchema.parse(request.body),
         getCorrelationId(request),
@@ -44,7 +44,7 @@ export async function registerAppointmentRoutes(server: FastifyInstance) {
       try {
         const body = request.body;
         const expectedVersion = versionSchema.parse((body as { expectedVersion?: unknown })?.expectedVersion);
-        return await updateAppointment(await getActor(), request.params.id, { expectedVersion }, getCorrelationId(request), status);
+        return await updateAppointment(await getActor(request), request.params.id, { expectedVersion }, getCorrelationId(request), status);
       } catch (error) {
         return handleConflict(error, reply, getCorrelationId(request));
       }

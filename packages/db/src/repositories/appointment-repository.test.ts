@@ -23,6 +23,9 @@ async function createTestSchema() {
       taxId TEXT,
       phone TEXT,
       email TEXT,
+      fiscalAddress TEXT,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      timezone TEXT NOT NULL DEFAULT 'Europe/Madrid',
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
@@ -47,6 +50,8 @@ async function createTestSchema() {
       name TEXT NOT NULL,
       active BOOLEAN NOT NULL DEFAULT true,
       version INTEGER NOT NULL DEFAULT 1,
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT Cabinet_siteId_fkey FOREIGN KEY (siteId) REFERENCES Site (id) ON DELETE RESTRICT ON UPDATE CASCADE
     )
   `);
@@ -62,6 +67,7 @@ async function createTestSchema() {
       phone TEXT,
       email TEXT,
       birthDate DATETIME,
+      notes TEXT,
       archivedAt DATETIME,
       version INTEGER NOT NULL DEFAULT 1,
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -73,8 +79,10 @@ async function createTestSchema() {
     CREATE TABLE IF NOT EXISTS StaffProfile (
       id TEXT PRIMARY KEY NOT NULL,
       clinicId TEXT NOT NULL,
+      userId TEXT UNIQUE,
       displayName TEXT NOT NULL,
       role TEXT NOT NULL,
+      licenseNumber TEXT,
       active BOOLEAN NOT NULL DEFAULT true,
       version INTEGER NOT NULL DEFAULT 1,
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -90,6 +98,7 @@ async function createTestSchema() {
       staffId TEXT NOT NULL,
       siteId TEXT NOT NULL,
       cabinetId TEXT,
+      clinicalPlanItemId TEXT,
       startsAt DATETIME NOT NULL,
       endsAt DATETIME NOT NULL,
       status TEXT NOT NULL DEFAULT 'PLANNED',
@@ -100,6 +109,8 @@ async function createTestSchema() {
       chairAt DATETIME,
       absentAt DATETIME,
       completedAt DATETIME,
+      cancelledAt DATETIME,
+      cancellationReason TEXT,
       version INTEGER NOT NULL DEFAULT 1,
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -117,7 +128,7 @@ async function seedCore() {
   const site = await db.prisma.site.create({ data: { clinicId: clinic.id, name: "Centro" } });
   const cabinet = await db.prisma.cabinet.create({ data: { clinicId: clinic.id, siteId: site.id, name: "Gabinete 1" } });
   const staff = await db.prisma.staffProfile.create({
-    data: { clinicId: clinic.id, displayName: "Dra. Ruiz", role: "DOCTOR" },
+    data: { clinicId: clinic.id, displayName: "Dra. Ruiz", role: "DENTIST" },
   });
   const patient = await db.prisma.patient.create({
     data: { clinicId: clinic.id, firstName: "Ana", lastName: "Mora" },

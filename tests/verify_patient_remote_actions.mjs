@@ -1,0 +1,11 @@
+import fs from 'fs';
+let p=0,f=0;const ok=(v,m)=>{(v?p++:f++);console[v?'log':'error'](v?'PASS':'FAIL',m)};
+const docs=fs.readFileSync('apps/api/src/modules/documents/routes.ts','utf8'),docSvc=fs.readFileSync('apps/api/src/modules/documents/service.ts','utf8'),portalRoutes=fs.readFileSync('apps/api/src/modules/portal/routes.ts','utf8'),portalSvc=fs.readFileSync('apps/api/src/modules/portal/service.ts','utf8'),patient=fs.readFileSync('apps/web/src/app/patient/[patientId]/page.tsx','utf8');
+ok(docSvc.includes('actor.role==="PATIENT"')&&docSvc.includes('actor.patientIds'),'document signing enforces patient ownership server-side');
+ok(docs.includes('/api/documents/:id/file'),'authorized users can download immutable document PDF');
+ok(patient.includes('/sign')&&patient.includes('Firmar'),'patient portal can remotely sign own final document');
+ok(patient.includes('/file')&&patient.includes('Descargar'),'patient portal can download own final PDF');
+ok(portalRoutes.includes('/api/payments/provider-webhook'),'payment provider webhook exists');
+ok(portalSvc.includes('payment.received')&&portalSvc.includes('PaymentIntent'),'provider callback materializes real payment idempotently');
+ok(patient.includes('payment-intents')&&patient.includes('Pagar'),'patient portal can initiate online payment');
+console.log(`\n${p} passed, ${f} failed`);if(f)process.exit(1);

@@ -11,4 +11,6 @@ work-app-check.js
 denty.sqlite
 packages/db/generated/
 
-.superpowers/
+.superpowers/*
+!.superpowers/sdd/
+!.superpowers/sdd/**

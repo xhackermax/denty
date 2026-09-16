@@ -14,11 +14,23 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "legacy:build": "node apps/legacy-preview/build-static-bundle.mjs",
-    "legacy:test": "node tests/verify_static_page.mjs && node tests/verify_access_gateway_runtime.mjs && node tests/verify_settings_admin.mjs && node tests/verify_patient_portal.mjs && node tests/verify_patient_portal_v2.mjs && node tests/verify_patient_shared_session.mjs && node tests/verify_multi_treatment_odontogram.mjs && node tests/verify_clinical_plan_engine.mjs && node tests/verify_clinical_plan_ui.mjs && node tests/verify_agenda_modern_v10.mjs && node tests/verify_agenda_status_layer_v11.mjs"
+    "legacy:test": "node tests/verify_static_page.mjs && node tests/verify_access_gateway_runtime.mjs && node tests/verify_settings_admin.mjs && node tests/verify_patient_portal.mjs && node tests/verify_patient_portal_v2.mjs && node tests/verify_patient_shared_session.mjs && node tests/verify_multi_treatment_odontogram.mjs && node tests/verify_clinical_plan_engine.mjs && node tests/verify_clinical_plan_ui.mjs && node tests/verify_agenda_modern_v10.mjs && node tests/verify_agenda_status_layer_v11.mjs",
+    "production:check": "pnpm db:migrations:check && pnpm aeat:revalidate && pnpm verify:all && pnpm -r typecheck && pnpm -r test",
+    "db:baseline": "pnpm --filter @denty/db db:baseline",
+    "db:migrations:check": "pnpm --filter @denty/db db:migrations:check",
+    "db:status": "pnpm --filter @denty/db db:status",
+    "db:deploy": "pnpm --filter @denty/db db:deploy",
+    "verify:all": "node tests/run-verification.mjs",
+    "audit:verify": "pnpm --filter @denty/db audit:verify --",
+    "backup:restore": "pnpm --filter @denty/db backup:restore --",
+    "aeat:revalidate": "node scripts/verify-aeat-revalidation.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=24.8.0"
   }
 }

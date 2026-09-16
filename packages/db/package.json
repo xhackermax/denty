@@ -11,7 +11,13 @@
     "db:health": "tsx src/health/cli.ts",
     "pretest": "prisma generate",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "db:baseline": "node scripts/generate-baseline.mjs",
+    "db:migrations:check": "node scripts/assert-migrations.mjs",
+    "db:status": "prisma migrate status",
+    "db:deploy": "prisma migrate deploy",
+    "audit:verify": "node --experimental-strip-types src/audit/cli.ts",
+    "backup:restore": "node --experimental-strip-types src/backup/restore-cli.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0"

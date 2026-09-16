@@ -960,3 +960,21 @@ html[data-theme="dark"] .agenda-appointment-card.tone-absent,html[data-theme="da
 html[data-theme="dark"] .agenda-v12-tools,html[data-theme="dark"] .agenda-v12-tools button,html[data-theme="dark"] .agenda-resize-controls span{background:#102d38;color:#e4f0f3;border-color:rgba(186,210,219,.16)}
 html[data-theme="dark"] .agenda-waiting-panel,html[data-theme="dark"] .agenda-cascade-panel,html[data-theme="dark"] .agenda-block-card{background:#102d38;color:#b7cbd2}
 @media(max-width:760px){.agenda-v12-panels{grid-template-columns:1fr}.agenda-v12-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.agenda-v12-tools button:last-child{grid-column:1/-1}}
+
+.odontogram-v3-panel{display:grid;gap:12px;border:1px solid var(--line);background:#fff;border-radius:18px;padding:14px;margin:14px 0}
+.odonto-v3-actions{display:flex;gap:8px;flex-wrap:wrap}
+.odonto-v3-actions button{border:1px solid #d8e1e4;background:#fff;border-radius:12px;padding:8px 10px;font-size:12px;font-weight:850;color:#27414b}
+.odonto-v3-entities{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.odonto-entity-card{border:1px solid #d9e4e7;border-radius:14px;background:#f8fafb;padding:12px;display:grid;gap:8px}
+.odonto-entity-card strong{text-transform:capitalize}
+.odonto-bridge-bar{display:flex;align-items:center;gap:4px;height:28px}
+.odonto-bridge-bar span{display:grid;place-items:center;min-width:30px;height:24px;border-radius:8px;background:#dceef7;color:#184859;font-size:11px;font-weight:900}
+.odonto-bridge-bar span.abutment{background:#cfe7dc;color:#145333}
+.odonto-bridge-bar span.pontic{background:#e8edf1;color:#485b63;border-style:dashed}
+.odonto-component-row{display:flex;gap:6px;flex-wrap:wrap}
+.odonto-component-chip{display:inline-flex;border:1px solid #d2dde1;border-radius:999px;padding:4px 8px;background:#fff;font-size:11px;font-weight:800;color:#51656d}
+.perio-visual-summary{display:flex;justify-content:space-between;gap:10px;align-items:center;border-radius:14px;padding:10px 12px;background:#eef7f8;color:#24515b;font-size:12px}
+.perio-visual-summary.severity-severe{background:#feecec;color:#8a2424}
+.perio-visual-summary.severity-moderate{background:#fff5dc;color:#75540c}
+.perio-visual-summary.severity-mild{background:#eef6ff;color:#24517e}
+.odonto-snapshot-diff{border:1px solid #d8e1e4;border-radius:14px;padding:10px;background:#fff}

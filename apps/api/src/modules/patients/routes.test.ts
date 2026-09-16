@@ -20,6 +20,9 @@ async function createSchema() {
       taxId TEXT,
       phone TEXT,
       email TEXT,
+      fiscalAddress TEXT,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      timezone TEXT NOT NULL DEFAULT 'Europe/Madrid',
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
@@ -36,6 +39,7 @@ async function createSchema() {
       phone TEXT,
       email TEXT,
       birthDate DATETIME,
+      notes TEXT,
       archivedAt DATETIME,
       version INTEGER NOT NULL DEFAULT 1,
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -47,6 +51,7 @@ async function createSchema() {
     CREATE TABLE IF NOT EXISTS AuditEvent (
       id TEXT PRIMARY KEY NOT NULL,
       clinicId TEXT NOT NULL,
+      sequence INTEGER NOT NULL,
       actorUserId TEXT,
       action TEXT NOT NULL,
       entityType TEXT NOT NULL,
@@ -54,6 +59,8 @@ async function createSchema() {
       correlationId TEXT NOT NULL,
       beforeJson JSONB,
       afterJson JSONB,
+      previousHash TEXT,
+      eventHash TEXT,
       occurredAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);

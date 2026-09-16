@@ -22,6 +22,9 @@ beforeAll(async () => {
       taxId TEXT,
       phone TEXT,
       email TEXT,
+      fiscalAddress TEXT,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      timezone TEXT NOT NULL DEFAULT 'Europe/Madrid',
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
@@ -38,6 +41,7 @@ beforeAll(async () => {
       phone TEXT,
       email TEXT,
       birthDate DATETIME,
+      notes TEXT,
       archivedAt DATETIME,
       version INTEGER NOT NULL DEFAULT 1,
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

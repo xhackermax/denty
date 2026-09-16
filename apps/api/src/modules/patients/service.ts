@@ -1,6 +1,7 @@
 import { prisma, runBusinessTransaction, VersionConflictError, writeAudit, writeDomainEvent } from "@denty/db";
 import type { CreatePatientRequest, UpdatePatientRequest } from "@denty/contracts";
 import type { ActorContext } from "../../plugins/actor";
+import { can } from "@denty/domain";
 
 export async function ensureClinic(clinicId: string) {
   return prisma.clinic.upsert({
@@ -11,6 +12,7 @@ export async function ensureClinic(clinicId: string) {
 }
 
 export async function listPatients(actor: ActorContext) {
+  if (!can(actor, "patients.read")) throw Object.assign(new Error("Forbidden"), { statusCode: 403 });
   await ensureClinic(actor.clinicId);
   const items = await prisma.patient.findMany({
     where: { clinicId: actor.clinicId, archivedAt: null },
@@ -20,11 +22,13 @@ export async function listPatients(actor: ActorContext) {
 }
 
 export async function getPatient(actor: ActorContext, id: string) {
+  if (!can(actor, "patients.read")) throw Object.assign(new Error("Forbidden"), { statusCode: 403 });
   await ensureClinic(actor.clinicId);
   return prisma.patient.findFirstOrThrow({ where: { id, clinicId: actor.clinicId } });
 }
 
 export async function createPatient(actor: ActorContext, input: CreatePatientRequest, correlationId: string) {
+  if (!can(actor, "patients.write_demographics")) throw Object.assign(new Error("Forbidden"), { statusCode: 403 });
   await ensureClinic(actor.clinicId);
   return runBusinessTransaction(prisma, async (tx) => {
     const patient = await tx.patient.create({
@@ -57,6 +61,7 @@ export async function createPatient(actor: ActorContext, input: CreatePatientReq
 }
 
 export async function updatePatient(actor: ActorContext, id: string, input: UpdatePatientRequest, correlationId: string) {
+  if (!can(actor, "patients.write_demographics")) throw Object.assign(new Error("Forbidden"), { statusCode: 403 });
   await ensureClinic(actor.clinicId);
   return runBusinessTransaction(prisma, async (tx) => {
     const before = await tx.patient.findFirst({ where: { id, clinicId: actor.clinicId } });

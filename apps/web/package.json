@@ -8,7 +8,8 @@
     "dev": "pnpm sync:legacy && next dev -H 127.0.0.1 -p 8766",
     "build": "pnpm sync:legacy && next build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests --exclude e2e/**",
+    "test:e2e:parity": "playwright test e2e/parity"
   },
   "dependencies": {
     "@denty/domain": "workspace:*",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.0.2",
-    "@types/react-dom": "^19.0.2"
+    "@types/react-dom": "^19.0.2",
+    "@playwright/test": "^1.55.0"
   }
 }

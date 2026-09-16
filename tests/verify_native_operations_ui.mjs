@@ -1,0 +1,15 @@
+import fs from 'fs';
+const files={docs:'apps/web/src/app/app/documents/page.tsx',lab:'apps/web/src/app/app/laboratory/page.tsx',settings:'apps/web/src/app/app/settings/page.tsx',routes:'apps/api/src/modules/documents/routes.ts'};
+let p=0,f=0;const ok=(v,m)=>{(v?p++:f++);console[v?'log':'error'](v?'PASS':'FAIL',m)};
+const docs=fs.readFileSync(files.docs,'utf8'),lab=fs.readFileSync(files.lab,'utf8'),settings=fs.readFileSync(files.settings,'utf8'),routes=fs.readFileSync(files.routes,'utf8');
+ok(docs.includes('/sign'),'documents UI can sign final documents');
+ok(docs.includes('/deliver'),'documents UI can deliver documents');
+ok(docs.includes('/archive'),'documents UI can archive documents');
+ok(routes.includes('server.get("/api/document-templates"'),'document templates are readable natively');
+ok(docs.includes('/api/document-templates'),'documents UI exposes versioned templates');
+ok(lab.includes('/attachments'),'laboratory UI can upload attachments');
+ok(lab.includes('/rework'),'laboratory UI can create rework with reason/cost');
+ok(settings.includes('/api/security/sessions'),'settings shows live sessions');
+ok(settings.includes('/verify'),'settings can verify encrypted backups');
+ok(settings.includes('DELETE'),'settings can revoke a session');
+console.log(`\n${p} passed, ${f} failed`);if(f)process.exit(1);

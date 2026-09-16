@@ -1,7 +1,20 @@
-export type Role = "admin" | "operational";
-export type { AppointmentRecord, AppointmentStatus } from "./agenda/types";
-export type { DomainEvent } from "./events";
-export type Permission =
+export * from "./permissions/types";
+export * from "./permissions/policy";
+export * from "./agenda/types";
+export * from "./agenda/availability";
+export * from "./events";
+export * from "./billing";
+export * from "./analytics";
+export * from "./treatment-plan";
+export * from "./odontogram";
+export * from "./documents";
+export * from "./laboratory";
+
+export interface Patient { id:string; firstName:string; lastName:string; phone?:string; email?:string; recordNumber?:string; archived?:boolean; }
+export function fullPatientName(patient:Pick<Patient,"firstName"|"lastName">){return `${patient.firstName} ${patient.lastName}`.trim();}
+
+export type LegacyRole = "admin" | "operational";
+export type LegacyPermission =
   | "managePatients"
   | "manageAgenda"
   | "manageLabs"
@@ -11,20 +24,10 @@ export type Permission =
   | "manageUsers"
   | "viewAuditLog";
 
-export interface Patient {
-  id: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  email?: string;
-  recordNumber?: string;
-  archived?: boolean;
-}
-
 export interface StaffMember {
   id: string;
   name: string;
-  role: Role;
+  role: LegacyRole;
   siteId?: string;
 }
 
@@ -93,7 +96,7 @@ export interface ClinicSnapshot {
   finance: FinanceSummary;
 }
 
-export const rolePermissions: Record<Role, Permission[]> = {
+const legacyRolePermissions: Record<LegacyRole, LegacyPermission[]> = {
   admin: [
     "managePatients",
     "manageAgenda",
@@ -102,17 +105,13 @@ export const rolePermissions: Record<Role, Permission[]> = {
     "manageClinicalDocs",
     "manageSettings",
     "manageUsers",
-    "viewAuditLog"
+    "viewAuditLog",
   ],
-  operational: ["managePatients", "manageAgenda", "manageLabs", "manageFinance", "manageClinicalDocs"]
+  operational: ["managePatients", "manageAgenda", "manageLabs", "manageFinance", "manageClinicalDocs"],
 };
 
-export function fullPatientName(patient: Pick<Patient, "firstName" | "lastName">): string {
-  return `${patient.firstName} ${patient.lastName}`.trim();
-}
-
-export function canRoleAccess(role: Role, permission: Permission): boolean {
-  return rolePermissions[role]?.includes(permission) ?? false;
+export function canRoleAccess(role: LegacyRole, permission: LegacyPermission): boolean {
+  return legacyRolePermissions[role]?.includes(permission) ?? false;
 }
 
 export function createConsentDocument(input: {
@@ -133,7 +132,7 @@ export function createConsentDocument(input: {
     `Paciente: ${fullPatientName(input.patient)}`,
     `Doctor/a responsable: ${clinician.name}`,
     `Centro/Sede: ${[input.site.name, input.site.address].filter(Boolean).join(" - ")}`,
-    `Fecha: ${input.date}`
+    `Fecha: ${input.date}`,
   ].join("\n");
 
   return {
@@ -142,7 +141,7 @@ export function createConsentDocument(input: {
     templateId: input.template.id,
     title: input.template.title,
     body: `${header}\n\n${input.template.body}\n\nFirma del paciente: pendiente de firma digital.`,
-    status: "draft"
+    status: "draft",
   };
 }
 

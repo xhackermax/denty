@@ -13,13 +13,14 @@ let db: typeof import("@denty/db");
 
 async function createSchema() {
   const migrations = [
-    `CREATE TABLE IF NOT EXISTS Clinic (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, legalName TEXT, taxId TEXT, phone TEXT, email TEXT, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS Clinic (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, legalName TEXT, taxId TEXT, phone TEXT, email TEXT, fiscalAddress TEXT, currency TEXT NOT NULL DEFAULT 'EUR', timezone TEXT NOT NULL DEFAULT 'Europe/Madrid', createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS Site (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, name TEXT NOT NULL, address TEXT, active BOOLEAN NOT NULL DEFAULT true, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
-    `CREATE TABLE IF NOT EXISTS Cabinet (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, siteId TEXT NOT NULL, name TEXT NOT NULL, active BOOLEAN NOT NULL DEFAULT true, version INTEGER NOT NULL DEFAULT 1)`,
-    `CREATE TABLE IF NOT EXISTS Patient (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, legacyId INTEGER, recordNumber TEXT, firstName TEXT NOT NULL, lastName TEXT NOT NULL, dni TEXT, phone TEXT, email TEXT, birthDate DATETIME, archivedAt DATETIME, version INTEGER NOT NULL DEFAULT 1, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
-    `CREATE TABLE IF NOT EXISTS StaffProfile (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, displayName TEXT NOT NULL, role TEXT NOT NULL, active BOOLEAN NOT NULL DEFAULT true, version INTEGER NOT NULL DEFAULT 1, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
-    `CREATE TABLE IF NOT EXISTS Appointment (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, patientId TEXT NOT NULL, staffId TEXT NOT NULL, siteId TEXT NOT NULL, cabinetId TEXT, startsAt DATETIME NOT NULL, endsAt DATETIME NOT NULL, status TEXT NOT NULL DEFAULT 'PLANNED', title TEXT NOT NULL, reason TEXT, confirmedAt DATETIME, arrivedAt DATETIME, chairAt DATETIME, absentAt DATETIME, completedAt DATETIME, version INTEGER NOT NULL DEFAULT 1, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
-    `CREATE TABLE IF NOT EXISTS AuditEvent (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, actorUserId TEXT, action TEXT NOT NULL, entityType TEXT NOT NULL, entityId TEXT NOT NULL, correlationId TEXT NOT NULL, beforeJson JSONB, afterJson JSONB, occurredAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS Cabinet (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, siteId TEXT NOT NULL, name TEXT NOT NULL, active BOOLEAN NOT NULL DEFAULT true, version INTEGER NOT NULL DEFAULT 1, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS Patient (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, legacyId INTEGER, recordNumber TEXT, firstName TEXT NOT NULL, lastName TEXT NOT NULL, dni TEXT, phone TEXT, email TEXT, birthDate DATETIME, notes TEXT, archivedAt DATETIME, version INTEGER NOT NULL DEFAULT 1, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS StaffProfile (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, userId TEXT UNIQUE, displayName TEXT NOT NULL, role TEXT NOT NULL, licenseNumber TEXT, active BOOLEAN NOT NULL DEFAULT true, version INTEGER NOT NULL DEFAULT 1, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS Appointment (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, patientId TEXT NOT NULL, staffId TEXT NOT NULL, siteId TEXT NOT NULL, cabinetId TEXT, clinicalPlanItemId TEXT, startsAt DATETIME NOT NULL, endsAt DATETIME NOT NULL, status TEXT NOT NULL DEFAULT 'PLANNED', title TEXT NOT NULL, reason TEXT, confirmedAt DATETIME, arrivedAt DATETIME, chairAt DATETIME, absentAt DATETIME, completedAt DATETIME, cancelledAt DATETIME, cancellationReason TEXT, version INTEGER NOT NULL DEFAULT 1, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS AppointmentBlock (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, staffId TEXT, siteId TEXT, cabinetId TEXT, startsAt DATETIME NOT NULL, endsAt DATETIME NOT NULL, kind TEXT NOT NULL, reason TEXT, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS AuditEvent (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, sequence INTEGER NOT NULL, actorUserId TEXT, action TEXT NOT NULL, entityType TEXT NOT NULL, entityId TEXT NOT NULL, correlationId TEXT NOT NULL, beforeJson JSONB, afterJson JSONB, previousHash TEXT, eventHash TEXT, occurredAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS DomainEventOutbox (id TEXT PRIMARY KEY NOT NULL, clinicId TEXT NOT NULL, type TEXT NOT NULL, entityType TEXT NOT NULL, entityId TEXT NOT NULL, payloadJson JSONB NOT NULL, correlationId TEXT NOT NULL, actorUserId TEXT, occurredAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, publishedAt DATETIME)`,
   ];
   for (const migration of migrations) {
@@ -28,9 +29,9 @@ async function createSchema() {
 }
 
 async function seedCore() {
-  const clinic = await db.prisma.clinic.create({ data: { name: "Denty API" } });
+  const clinic = await db.prisma.clinic.create({ data: { id: "test-clinic", name: "Denty API" } });
   const site = await db.prisma.site.create({ data: { clinicId: clinic.id, name: "Centro" } });
-  const staff = await db.prisma.staffProfile.create({ data: { clinicId: clinic.id, displayName: "Dra. Ruiz", role: "DOCTOR" } });
+  const staff = await db.prisma.staffProfile.create({ data: { clinicId: clinic.id, displayName: "Dra. Ruiz", role: "DENTIST" } });
   const patient = await db.prisma.patient.create({ data: { clinicId: clinic.id, firstName: "Ana", lastName: "Mora" } });
   return { clinic, site, staff, patient };
 }

@@ -1,0 +1,13 @@
+import { writeAnalyticsEvent } from "@denty/db";
+import { specialtyForTreatmentCode } from "./metrics";
+
+type ClinicalAttributionItem = { id: string; clinicianId: string | null; treatmentCode: string };
+
+export async function writeInvoiceLineAttribution(tx:any,input:{clinicId:string;patientId?:string|null;invoiceId:string;lines:any[];correlationId:string}){
+  const ids=input.lines.map(x=>x.clinicalPlanItemId).filter(Boolean),items:ClinicalAttributionItem[]=ids.length?await tx.clinicalPlanItem.findMany({where:{id:{in:ids},plan:{clinicId:input.clinicId}},select:{id:true,clinicianId:true,treatmentCode:true}}):[],byId=new Map(items.map(x=>[x.id,x]));
+  for(const line of input.lines){const item=line.clinicalPlanItemId?byId.get(line.clinicalPlanItemId):null;if(!item)continue;await writeAnalyticsEvent(tx,{clinicId:input.clinicId,type:"invoice.line_issued",category:item.treatmentCode,specialty:specialtyForTreatmentCode(item.treatmentCode),patientId:input.patientId??undefined,staffId:item.clinicianId??undefined,clinicalPlanItemId:item.id,invoiceId:input.invoiceId,revenueCents:Number(line.totalCents??0),correlationId:input.correlationId,dedupeKey:`invoice.line_issued:${line.id}`});}
+}
+export async function writePaymentAllocationAttribution(tx:any,input:{clinicId:string;patientId?:string|null;paymentId:string;invoiceId:string;amountCents:number;correlationId:string}){
+  const invoice=await tx.invoice.findFirstOrThrow({where:{id:input.invoiceId,clinicId:input.clinicId},include:{lines:true}}),ids=invoice.lines.map((x:any)=>x.clinicalPlanItemId).filter(Boolean),items=ids.length?await tx.clinicalPlanItem.findMany({where:{id:{in:ids},plan:{clinicId:input.clinicId}},select:{id:true,clinicianId:true,treatmentCode:true}}):[],byId=new Map(items.map((x:any)=>[x.id,x])),eligible=invoice.lines.filter((line:any)=>line.clinicalPlanItemId&&byId.has(line.clinicalPlanItemId)),total=eligible.reduce((n:number,line:any)=>n+Math.max(0,Number(line.totalCents??0)),0);if(total<=0)return;
+  let assigned=0;for(let i=0;i<eligible.length;i++){const line:any=eligible[i],item:any=byId.get(line.clinicalPlanItemId),share=i===eligible.length-1?input.amountCents-assigned:Math.round(input.amountCents*(Math.max(0,line.totalCents)/total));assigned+=share;if(share<=0)continue;await writeAnalyticsEvent(tx,{clinicId:input.clinicId,type:"payment.allocated",category:item.treatmentCode,specialty:specialtyForTreatmentCode(item.treatmentCode),patientId:input.patientId??invoice.patientId??undefined,staffId:item.clinicianId??undefined,clinicalPlanItemId:item.id,invoiceId:input.invoiceId,paymentId:input.paymentId,revenueCents:share,correlationId:input.correlationId,dedupeKey:`payment.allocated:${input.paymentId}:${input.invoiceId}:${line.id}:${input.amountCents}`});}
+}

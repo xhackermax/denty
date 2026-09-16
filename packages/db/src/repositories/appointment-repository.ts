@@ -26,6 +26,7 @@ export interface CreateAppointmentInput {
   staffId: string;
   siteId: string;
   cabinetId?: string | null;
+  clinicalPlanItemId?: string | null;
   startsAt: Date;
   endsAt: Date;
   title: string;
