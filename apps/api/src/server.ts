@@ -1,8 +1,12 @@
 import Fastify from 'fastify';
 import { createDemoClinic } from '@denty/fixtures';
+import { registerAppointmentRoutes } from './modules/appointments/routes';
+import { registerPatientRoutes } from './modules/patients/routes';
+import { registerCorrelationPlugin } from './plugins/correlation';
 
 export function buildServer() {
   const server = Fastify({ logger: true });
+  void registerCorrelationPlugin(server);
 
   server.get('/health', async () => ({
     ok: true,
@@ -10,6 +14,8 @@ export function buildServer() {
   }));
 
   server.get('/api/clinic/demo', async () => createDemoClinic());
+  void registerPatientRoutes(server);
+  void registerAppointmentRoutes(server);
 
   return server;
 }
