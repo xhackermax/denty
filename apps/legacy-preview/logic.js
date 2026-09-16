@@ -580,6 +580,58 @@ export function syncLegacyOdontogramFromEntities(db, patientId){
   return od;
 }
 
+function patientSnapshotBucket(db, patientId){
+  if(!db.odontogramSnapshots || typeof db.odontogramSnapshots!=='object' || Array.isArray(db.odontogramSnapshots)) db.odontogramSnapshots={};
+  const key=String(Number(patientId)||patientId||'demo');
+  if(!Array.isArray(db.odontogramSnapshots[key])) db.odontogramSnapshots[key]=[];
+  return db.odontogramSnapshots[key];
+}
+function compactOdontogramState(db, patientId){
+  const od=ensureOdontogram(db, patientId), out={};
+  for(const tooth of FDI_ALL){
+    out[tooth]={whole_states:toothWholeStates(od[tooth]),surfaces:{...(od[tooth].surfaces||{})},periodontal:clone(od[tooth].periodontal||{})};
+  }
+  return out;
+}
+export function createOdontogramSnapshot(db, patientId, label='review'){
+  const snap={id:id(db),snapshot_id:`snap-${Date.now()}-${Math.random().toString(16).slice(2)}`,patient_id:Number(patientId)||patientId,label,captured_at:new Date().toISOString(),odontogram:compactOdontogramState(db, patientId),entities:clone(odontogramEntitiesForPatient(db, patientId)),clinicalPlanItemIds:(db.clinicalPlanItems||[]).filter(x=>Number(x.patient_id)===Number(patientId)&&x.active!==false).map(x=>x.id)};
+  patientSnapshotBucket(db, patientId).push(snap);
+  return snap;
+}
+export function compareOdontogramSnapshots(before, after){
+  const changedTeeth=[], addedStates=[], removedStates=[], changedSurfaces=[];
+  const teeth=[...new Set([...Object.keys(before?.odontogram||{}),...Object.keys(after?.odontogram||{})])];
+  for(const tooth of teeth){
+    const b=before.odontogram?.[tooth]||{}, a=after.odontogram?.[tooth]||{};
+    const bs=new Set(b.whole_states||[]), as=new Set(a.whole_states||[]);
+    for(const code of as) if(!bs.has(code)) addedStates.push({tooth,code});
+    for(const code of bs) if(!as.has(code)) removedStates.push({tooth,code});
+    const surfaceKeys=[...new Set([...Object.keys(b.surfaces||{}),...Object.keys(a.surfaces||{})])];
+    for(const surface of surfaceKeys) if((b.surfaces||{})[surface] !== (a.surfaces||{})[surface]) changedSurfaces.push({tooth,surface,before:(b.surfaces||{})[surface]||'',after:(a.surfaces||{})[surface]||''});
+    if(addedStates.some(x=>x.tooth===tooth)||removedStates.some(x=>x.tooth===tooth)||changedSurfaces.some(x=>x.tooth===tooth)) changedTeeth.push(tooth);
+  }
+  return {changedTeeth:[...new Set(changedTeeth)],addedStates,removedStates,changedSurfaces,entityDelta:{before:before.entities?.length||0,after:after.entities?.length||0}};
+}
+export function periodontalVisualSummary(db, patientId){
+  const od=ensureOdontogram(db, patientId);
+  let max=0,totalSites=0,bleeding=0,plaque=0,suppuration=0;
+  for(const tooth of FDI_ALL){
+    const p=od[tooth]?.periodontal||{};
+    for(const site of PERIO_SITES){
+      const depth=Number(p.depths?.[site]||0);
+      if(depth>max) max=depth;
+      totalSites++;
+      if(p.bleeding?.[site]) bleeding++;
+      if(p.plaque?.[site]) plaque++;
+      if(p.suppuration?.[site]) suppuration++;
+    }
+  }
+  const bleeding_percent=totalSites?Math.round(bleeding/totalSites*100):0;
+  const plaque_percent=totalSites?Math.round(plaque/totalSites*100):0;
+  const severity=max>=6||suppuration?'severe':max>=5||bleeding_percent>=25?'moderate':max>=4?'mild':'stable';
+  return {max_depth:max,bleeding_percent,plaque_percent,suppuration_sites:suppuration,severity};
+}
+
 export function clearToothSurface(db, patientId, tooth, surface){
   const t=String(tooth), s=normalizeSurfaceForTooth(t, surface);
   const od=ensureOdontogram(db, patientId);
