@@ -1,39 +1,26 @@
 {
-  "name": "denty",
+  "name": "denty-web",
   "version": "2.0.0",
   "private": true,
-  "description": "Denty clinical management platform monorepo.",
   "type": "module",
-  "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "pnpm --filter @denty/web dev",
-    "build": "pnpm -r build",
-    "db:generate": "pnpm --filter @denty/db db:generate",
-    "db:migrate": "pnpm --filter @denty/db db:migrate",
-    "db:health": "pnpm --filter @denty/db db:health",
-    "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
-    "legacy:build": "node apps/legacy-preview/build-static-bundle.mjs",
-    "legacy:test": "node tests/verify_static_page.mjs && node tests/verify_access_gateway_runtime.mjs && node tests/verify_settings_admin.mjs && node tests/verify_patient_portal.mjs && node tests/verify_patient_portal_v2.mjs && node tests/verify_patient_shared_session.mjs && node tests/verify_multi_treatment_odontogram.mjs && node tests/verify_clinical_plan_engine.mjs && node tests/verify_clinical_plan_ui.mjs && node tests/verify_agenda_modern_v10.mjs && node tests/verify_agenda_status_layer_v11.mjs",
-    "production:check": "pnpm db:migrations:check && pnpm aeat:revalidate && pnpm verify:all && pnpm -r typecheck && pnpm -r test",
-    "db:baseline": "pnpm --filter @denty/db db:baseline",
-    "db:migrations:check": "pnpm --filter @denty/db db:migrations:check",
-    "db:status": "pnpm --filter @denty/db db:status",
-    "db:deploy": "pnpm --filter @denty/db db:deploy",
-    "supabase:schema": "pnpm --filter @denty/db supabase:schema",
-    "supabase:deploy": "pnpm --filter @denty/db supabase:deploy",
-    "supabase:rls:verify": "pnpm --filter @denty/db supabase:rls:verify",
-    "verify:all": "node tests/run-verification.mjs",
-    "audit:verify": "pnpm --filter @denty/db audit:verify --",
-    "backup:restore": "pnpm --filter @denty/db backup:restore --",
-    "aeat:revalidate": "node scripts/verify-aeat-revalidation.mjs"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.62.7",
+    "next": "15.5.25",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "@types/node": "^22.20.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=24.8.0"
+    "node": "24.x"
   }
 }

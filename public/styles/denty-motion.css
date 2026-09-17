@@ -1,0 +1,211 @@
+/* Denty motion system
+   Motion communicates action, transition or state. Clinical data never moves. */
+:root{
+  --motion-instant:90ms;
+  --motion-fast:140ms;
+  --motion-base:180ms;
+  --motion-page:220ms;
+  --motion-sheet:240ms;
+  --motion-distance-xs:4px;
+  --motion-distance-sm:6px;
+  --motion-distance-md:8px;
+  --ease-standard:cubic-bezier(.2,.8,.2,1);
+  --ease-emphasized:cubic-bezier(.16,1,.3,1);
+  --ease-exit:cubic-bezier(.4,0,1,1);
+}
+
+/* Retire the old cinematic language. Denty is calm, planar and clinical. */
+.cinematic-depth-scene{display:none!important}
+.main,.main>section{perspective:none!important;transform-style:flat!important}
+.cinematic-ready .card,
+.cinematic-ready .patient-card,
+.cinematic-ready .clinical-legend-card,
+.cinematic-ready .appt-card,
+.cinematic-ready .finance-row,
+.cinematic-ready .lab-work-card{will-change:auto!important;transform-style:flat!important}
+.page-transition-enter{filter:none!important;transform-origin:center!important}
+.interest-point::after{box-shadow:none!important;opacity:0!important}
+
+@keyframes dentyPageIn{
+  from{opacity:.72;transform:translateY(var(--motion-distance-sm))}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes dentyRevealIn{
+  from{opacity:.84;transform:translateY(var(--motion-distance-md))}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes dentyPopoverIn{
+  from{opacity:.72;transform:translateY(var(--motion-distance-xs)) scale(.992)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes dentySheetIn{
+  from{opacity:.72;transform:translateY(12px) scale(.992)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes dentyInlineIn{
+  from{opacity:.82;transform:translateY(var(--motion-distance-sm))}
+  to{opacity:1;transform:translateY(0)}
+}
+
+@media (prefers-reduced-motion:no-preference){
+  /* Route/page entry. Stable navigation chrome never participates. */
+  .native-main>:not(.native-notifications){
+    animation:dentyPageIn var(--motion-page) var(--ease-standard) both;
+  }
+  .motion-page,
+  .native-login form,
+  .patient-games-portal-shell{
+    animation:dentyPageIn var(--motion-page) var(--ease-standard) both;
+  }
+
+  /* Scroll reveal is opt-in and one-shot. */
+  html.denty-motion-ready [data-motion-reveal]{
+    opacity:0;
+    transform:translateY(var(--motion-distance-md));
+    transition:opacity var(--motion-base) var(--ease-standard),transform var(--motion-base) var(--ease-standard);
+  }
+  html.denty-motion-ready [data-motion-reveal].is-visible{
+    opacity:1;
+    transform:translateY(0);
+  }
+
+  /* Existing legacy reveal classes are normalized to the same restrained language. */
+  .scroll-reveal{
+    opacity:0!important;
+    transform:translateY(var(--motion-distance-md))!important;
+    transition:opacity var(--motion-base) var(--ease-standard),transform var(--motion-base) var(--ease-standard)!important;
+  }
+  .scroll-reveal.visible{opacity:1!important;transform:translateY(0)!important}
+  .page-transition-enter{animation:dentyPageIn var(--motion-page) var(--ease-standard) both!important}
+
+  /* Popovers and sheets travel only a few pixels. */
+  .voice-panel,
+  .native-notification-popover{
+    animation:dentyPopoverIn var(--motion-base) var(--ease-emphasized) both;
+  }
+  .native-floating-panel{
+    animation:dentySheetIn var(--motion-sheet) var(--ease-emphasized) both;
+  }
+  .patient-booking-panel{
+    animation:dentyInlineIn var(--motion-base) var(--ease-standard) both;
+  }
+}
+
+/* Scroll should communicate depth without moving content. */
+.native-sidebar{
+  transition:border-color var(--motion-base) var(--ease-standard),background-color var(--motion-base) var(--ease-standard),box-shadow var(--motion-base) var(--ease-standard);
+}
+html[data-denty-scrolled="true"] .native-sidebar{
+  border-color:#dbe4ed;
+  box-shadow:8px 0 22px rgba(28,48,78,.035);
+}
+
+/* Controls respond. Data stays put. */
+.native-button,
+.patient-games-entry,
+.patient-games-back,
+.native-notification-button,
+.native-notification-item,
+.appointment-card[draggable="true"],
+button.appointment-card{
+  transition:transform var(--motion-fast) var(--ease-standard),background-color var(--motion-fast) var(--ease-standard),border-color var(--motion-fast) var(--ease-standard),color var(--motion-fast) var(--ease-standard),box-shadow var(--motion-fast) var(--ease-standard),opacity var(--motion-fast) var(--ease-standard);
+  -webkit-tap-highlight-color:transparent;
+}
+.native-button:active,
+.patient-games-back:active,
+.native-notification-button:active{
+  transform:scale(.985);
+}
+.patient-games-entry:active,
+.appointment-card[draggable="true"]:active,
+button.appointment-card:active{
+  transform:scale(.99);
+}
+
+@media (hover:hover) and (pointer:fine){
+  .native-button:hover{border-color:#d2dde8;background-color:#f8fafc}
+  .native-button.primary:hover{background-color:#245cc6;border-color:#245cc6}
+  .native-button.soft:hover{background-color:#e7eef6}
+  .patient-games-entry:hover{transform:translateY(-1px);border-color:#cfdae5;box-shadow:0 10px 26px rgba(28,48,78,.065)}
+  .patient-games-back:hover{transform:translateY(-1px);border-color:#cfdae5;box-shadow:0 8px 20px rgba(28,48,78,.06)}
+  .native-notification-button:hover{background:#f8fafc;border-color:#d2dde8}
+  .native-notification-item:hover{background:#f8fafc}
+  .appointment-card[draggable="true"]:hover,
+  button.appointment-card:hover{transform:translateY(-1px);border-color:#d5e0ea;box-shadow:0 8px 20px rgba(28,48,78,.055)}
+
+  /* Legacy interactive cards are kept restrained as well. */
+  .clinical-legend-card:hover,
+  .patient-card:hover,
+  .appt-card:hover,
+  .finance-row:hover,
+  .lab-work-card:hover{transform:translateY(-1px)!important}
+}
+
+/* Selection/state changes may fade colour, but clinical geometry never translates/scales. */
+.denty-clinical-static,
+.tooth-svg,
+.tooth-outline,
+.tooth-crown,
+.tooth-root,
+.tooth-fissure,
+.tooth-focus-svg,
+.odonto-bridge-bar,
+.odonto-bridge-connector,
+.odonto-bridge-connectors,
+.perio-teeth-row svg,
+.perio-diagram-wrap svg,
+.perio-arch-grid svg{
+  transform:none!important;
+  animation:none!important;
+}
+.tooth-outline,
+.tooth-crown,
+.tooth-root,
+.tooth-fissure,
+.odonto-bridge-bar,
+.odonto-bridge-connector,
+.perio-diagram-wrap path,
+.perio-diagram-wrap circle,
+.perio-diagram-wrap line{
+  transition:fill var(--motion-fast) var(--ease-standard),stroke var(--motion-fast) var(--ease-standard),opacity var(--motion-fast) var(--ease-standard)!important;
+}
+
+/* Readable values must never shift when they change. */
+.native-table th,
+.native-table td,
+.native-kpi strong,
+.native-badge,
+.margin-label,
+.margin-value,
+.perio-input,
+.perio-side-table,
+.perio-summary-grid,
+.odonto-entity-card strong,
+.portal-tooth-number{
+  transform:none!important;
+  animation:none!important;
+}
+
+/* Agenda drag feedback is deliberate and tiny. */
+.appointment-card[draggable="true"]:active{box-shadow:0 12px 28px rgba(28,48,78,.09)}
+
+/* Keep mobile cheap: no persistent will-change, no blur animation, at most short transform/opacity work. */
+@media(max-width:700px){
+  .native-floating-panel{transform-origin:50% 100%}
+  html[data-denty-scrolled="true"] .native-sidebar{box-shadow:0 -8px 22px rgba(28,48,78,.035)}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.001ms!important;
+    scroll-behavior:auto!important;
+  }
+  [data-motion-reveal],
+  .scroll-reveal{
+    opacity:1!important;
+    transform:none!important;
+  }
+  .cinematic-depth-scene{display:none!important}
+}
