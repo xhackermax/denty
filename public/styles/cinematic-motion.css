@@ -1,0 +1,141 @@
+:root{
+  --cinematic-blue:#087fbd;
+  --cinematic-ink:#12394c;
+  --cinematic-red:#ef334b;
+  --cinematic-green:#19a76c;
+}
+.main{
+  perspective:1200px;
+  transform-style:preserve-3d;
+}
+.main > section{
+  position:relative;
+  isolation:isolate;
+  transform-style:preserve-3d;
+}
+.cinematic-depth-scene{
+  position:absolute;
+  inset:-18px -12px auto -12px;
+  height:240px;
+  pointer-events:none;
+  overflow:hidden;
+  z-index:-1;
+  perspective:900px;
+  transform-style:preserve-3d;
+}
+.depth-plane,
+.depth-line{
+  position:absolute;
+  display:block;
+  transform-style:preserve-3d;
+}
+.depth-plane{
+  border:1px solid rgba(8,127,189,.16);
+  background:linear-gradient(135deg,rgba(255,255,255,.52),rgba(230,248,255,.22));
+  box-shadow:0 28px 70px rgba(20,93,125,.08);
+}
+.depth-plane-a{
+  width:46%;
+  height:150px;
+  right:2%;
+  top:18px;
+  border-radius:8px;
+  transform:rotateX(12deg) rotateY(-11deg) translateZ(-80px);
+}
+.depth-plane-b{
+  width:30%;
+  height:96px;
+  left:5%;
+  top:72px;
+  border-radius:8px;
+  transform:rotateX(-8deg) rotateY(14deg) translateZ(-130px);
+}
+.depth-line{
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(8,127,189,.34),transparent);
+}
+.depth-line-a{
+  width:72%;
+  left:9%;
+  top:88px;
+  transform:rotateZ(-5deg) translateZ(-40px);
+}
+.depth-line-b{
+  width:62%;
+  right:7%;
+  top:154px;
+  transform:rotateZ(4deg) translateZ(-90px);
+}
+.cinematic-ready .card,
+.cinematic-ready .patient-card,
+.cinematic-ready .clinical-legend-card,
+.cinematic-ready .appt-card,
+.cinematic-ready .finance-row,
+.cinematic-ready .lab-work-card{
+  backface-visibility:hidden;
+  transform-style:preserve-3d;
+  will-change:transform,opacity;
+}
+.interest-point{
+  transform-origin:center center;
+}
+.interest-point::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  box-shadow:0 24px 60px rgba(7,70,102,.08);
+  opacity:.45;
+}
+.clinical-legend-card.refined.interest-point::after,
+.patient-card.interest-point::after,
+.finance-row.interest-point::after,
+.lab-work-card.interest-point::after{
+  box-shadow:0 16px 34px rgba(7,70,102,.07);
+}
+.page-transition-enter{
+  transform-origin:50% 28%;
+}
+@media (prefers-reduced-motion:no-preference){
+  .page-transition-enter{
+    animation:cinematicPageIn .48s cubic-bezier(.2,.82,.22,1) both;
+  }
+}
+@keyframes cinematicPageIn{
+  from{
+    opacity:.5;
+    transform:translateY(16px) rotateX(3deg) scale(.985);
+    filter:blur(4px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0) rotateX(0) scale(1);
+    filter:blur(0);
+  }
+}
+@media (prefers-reduced-motion:reduce){
+  .cinematic-depth-scene{
+    display:none;
+  }
+  .scroll-reveal{
+    opacity:1!important;
+    transform:none!important;
+    transition:none!important;
+  }
+}
+.main[data-view="odontogram"] .cinematic-depth-scene{
+  display:none!important;
+}
+.main[data-view="odontogram"] .interest-point,
+.main[data-view="odontogram"] .clinical-legend-card,
+.main[data-view="odontogram"] .odonto-card,
+.main[data-view="odontogram"] .apk-arcade-card{
+  transform:none!important;
+}
+.main[data-view="odontogram"].page-transition-enter{
+  animation:none!important;
+}
+.main[data-view="odontogram"] .scroll-reveal{
+  transition:opacity .18s ease, transform .18s ease;
+}
