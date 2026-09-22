@@ -93,6 +93,48 @@ export type ToothType = "incisor" | "canine" | "premolar" | "molar";
 export type ToothSurface = "V" | "M" | "O" | "I" | "D" | "P" | "L";
 export type TreatmentStateKind = "completed" | "unsatisfactory" | "planned";
 export type TriStateFamily = "filling" | "crown" | "endo" | "post" | "implant";
+export type DentitionStage = "primary" | "mixed" | "permanent";
+
+export const PEDIATRIC_TOOTH_STATUSES = [
+  "healthy",
+  "early_caries",
+  "sealant",
+  "pulpotomy",
+  "pulpectomy",
+  "pediatric_crown",
+  "exfoliated",
+  "erupting",
+  "space_maintainer",
+] as const;
+
+export type PediatricToothStatus = (typeof PEDIATRIC_TOOTH_STATUSES)[number];
+export type OrthodonticClass = "I" | "II" | "III";
+export type OrthodonticAppliance =
+  | "brackets"
+  | "aligners"
+  | "retainer"
+  | "expander"
+  | "lingual_arch"
+  | "space_maintainer";
+
+export interface OrthodonticAttributes {
+  molarClassRight?: OrthodonticClass;
+  molarClassLeft?: OrthodonticClass;
+  canineClassRight?: OrthodonticClass;
+  canineClassLeft?: OrthodonticClass;
+  overjetMm?: number;
+  overbitePct?: number;
+  crossbite?: boolean;
+  openBite?: boolean;
+  deepBite?: boolean;
+  midlineDeviationMm?: number;
+  upperCrowdingMm?: number;
+  lowerCrowdingMm?: number;
+  upperSpacingMm?: number;
+  lowerSpacingMm?: number;
+  appliances?: readonly OrthodonticAppliance[];
+  notes?: string;
+}
 
 export type DentalEntityType =
   | "TOOTH_STATE"
@@ -159,6 +201,37 @@ export function toothType(tooth: string): ToothType {
 export function occlusalSurfaceForTooth(tooth: string): "O" | "I" {
   const type = toothType(tooth);
   return type === "incisor" || type === "canine" ? "I" : "O";
+}
+
+export function dentitionStageForBirthDate(
+  birthDate: string | undefined,
+  today = new Date(),
+): DentitionStage {
+  if (!birthDate) return "permanent";
+  const born = new Date(`${birthDate}T00:00:00.000Z`);
+  if (Number.isNaN(born.getTime())) return "permanent";
+  let age = today.getUTCFullYear() - born.getUTCFullYear();
+  const birthdayThisYear = new Date(
+    Date.UTC(today.getUTCFullYear(), born.getUTCMonth(), born.getUTCDate()),
+  );
+  if (today.getTime() < birthdayThisYear.getTime()) age -= 1;
+  if (age <= 5) return "primary";
+  if (age <= 12) return "mixed";
+  return "permanent";
+}
+
+export function teethForDentition(stage: DentitionStage): {
+  upper: readonly string[];
+  lower: readonly string[];
+} {
+  if (stage === "primary") return { upper: TEMPORARY_UPPER, lower: TEMPORARY_LOWER };
+  if (stage === "mixed") {
+    return {
+      upper: [...PERMANENT_UPPER, ...TEMPORARY_UPPER],
+      lower: [...PERMANENT_LOWER, ...TEMPORARY_LOWER],
+    };
+  }
+  return { upper: PERMANENT_UPPER, lower: PERMANENT_LOWER };
 }
 
 export function normalizeSurfaceForTooth(tooth: string, surface: string): ToothSurface {
@@ -280,6 +353,33 @@ export function createRemovable(arch: ToothArch, teeth: readonly string[]): Dent
     status: "removable_pending",
     active: true,
     attributes: { teeth: normalized },
+  };
+}
+
+export function createPediatricEntity(
+  tooth: string,
+  status: PediatricToothStatus,
+): DentalEntity {
+  parseTooth(tooth);
+  return {
+    id: `pediatric-${tooth}-${status}`,
+    tooth,
+    entityType: "PEDIATRIC",
+    status,
+    active: true,
+  };
+}
+
+export function createOrthodonticEntity(
+  patientId: string,
+  attributes: OrthodonticAttributes,
+): DentalEntity {
+  return {
+    id: `orthodontic-${patientId}`,
+    entityType: "ORTHODONTIC",
+    status: "active",
+    attributes: { ...attributes },
+    active: true,
   };
 }
 

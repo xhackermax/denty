@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  PERMANENT_LOWER,
   TOOTH_STATES,
+  TEMPORARY_LOWER,
+  TEMPORARY_UPPER,
   archForTooth,
   assertNoImplantCariesConflict,
   bridgeTeethFromEndpoints,
@@ -8,9 +11,13 @@ import {
   createBridgeEntities,
   createEndoPostCrown,
   createImplantStack,
+  createOrthodonticEntity,
+  createPediatricEntity,
   cycleClinicalState,
+  dentitionStageForBirthDate,
   normalizeSurfaceForTooth,
   occlusalSurfaceForTooth,
+  teethForDentition,
   toothType,
   type DentalEntity,
 } from "../odontogram";
@@ -25,6 +32,54 @@ describe("odontogram domain", () => {
     expect(archForTooth("65")).toBe("upper");
     expect(archForTooth("75")).toBe("lower");
     expect(archForTooth("85")).toBe("lower");
+  });
+
+  it("elige denticion primaria, mixta y permanente por edad", () => {
+    const today = new Date("2026-09-22T12:00:00.000Z");
+    expect(dentitionStageForBirthDate("2021-09-22", today)).toBe("primary");
+    expect(dentitionStageForBirthDate("2020-09-22", today)).toBe("mixed");
+    expect(dentitionStageForBirthDate("2014-09-22", today)).toBe("mixed");
+    expect(dentitionStageForBirthDate("2013-09-22", today)).toBe("permanent");
+    expect(dentitionStageForBirthDate(undefined, today)).toBe("permanent");
+  });
+
+  it("devuelve dientes correctos para denticion primaria y mixta", () => {
+    expect(teethForDentition("primary").upper).toEqual([...TEMPORARY_UPPER]);
+    expect(teethForDentition("primary").lower).toEqual([...TEMPORARY_LOWER]);
+    expect(teethForDentition("mixed").upper).toContain("11");
+    expect(teethForDentition("mixed").upper).toContain("51");
+    expect(teethForDentition("permanent").lower).toEqual([...PERMANENT_LOWER]);
+  });
+
+  it("crea entidades pediatricas compatibles con DentalEntity", () => {
+    expect(createPediatricEntity("75", "pulpotomy")).toMatchObject({
+      tooth: "75",
+      entityType: "PEDIATRIC",
+      status: "pulpotomy",
+      active: true,
+    });
+  });
+
+  it("crea una entidad ortodontica de paciente sin duplicar dientes", () => {
+    const entity = createOrthodonticEntity("patient-1", {
+      molarClassRight: "I",
+      molarClassLeft: "II",
+      overjetMm: 4,
+      overbitePct: 60,
+      appliances: ["aligners", "retainer"],
+    });
+
+    expect(entity).toMatchObject({
+      id: "orthodontic-patient-1",
+      entityType: "ORTHODONTIC",
+      status: "active",
+      active: true,
+    });
+    expect(entity.tooth).toBeUndefined();
+    expect(entity.attributes).toMatchObject({
+      overjetMm: 4,
+      appliances: ["aligners", "retainer"],
+    });
   });
 
   it("normaliza O/I y P/L según anatomía", () => {
