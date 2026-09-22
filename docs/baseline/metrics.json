@@ -1,0 +1,26 @@
+{
+  "version": "2.3.7",
+  "files": 109,
+  "sourceFiles": 87,
+  "loc": 11228,
+  "counts": {
+    "explicit_any": 621,
+    "inline_static_style": 119,
+    "important": 151,
+    "prompt": 47,
+    "confirm": 12,
+    "localStorage": 13,
+    "sessionStorage": 8,
+    "location_href": 10,
+    "use_client": 41
+  },
+  "legacySizes": {
+    "public/denty-app.bundle.js": 578271,
+    "public/styles": 143703,
+    "src/lib/local-api.ts": 96570,
+    "src/lib/legacy-shell.ts": 12910
+  },
+  "apiRouteDeclarations": 193,
+  "legacyVerification": "149/149",
+  "screenshots": "BLOCKED"
+}

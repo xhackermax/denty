@@ -1,0 +1,78 @@
+@import url("./tokens.css");
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+html {
+  background: var(--denty-bg);
+}
+
+body {
+  position: relative;
+  isolation: isolate;
+  margin: 0;
+  background:
+    radial-gradient(circle at 92% 4%, rgb(55 171 224 / 12%), transparent 26rem),
+    radial-gradient(circle at 4% 34%, rgb(0 141 138 / 7%), transparent 24rem),
+    linear-gradient(180deg, #f8fbfe 0%, var(--denty-bg) 42%, #f2f7fb 100%);
+  color: var(--denty-text);
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+body::before {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(39 100 216 / 2.5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(39 100 216 / 2.5%) 1px, transparent 1px);
+  background-size: 34px 34px;
+  content: "";
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 36%), transparent 52%);
+  pointer-events: none;
+}
+
+html[data-mantine-color-scheme="dark"] body {
+  background:
+    radial-gradient(circle at 86% 7%, rgb(52 185 255 / 24%), transparent 26rem),
+    radial-gradient(circle at 2% 31%, rgb(26 123 255 / 16%), transparent 25rem),
+    radial-gradient(circle at 82% 84%, rgb(44 113 255 / 10%), transparent 28rem),
+    linear-gradient(180deg, #020814 0%, #030915 55%, #061226 100%);
+}
+
+html[data-mantine-color-scheme="dark"] body::before {
+  background-image:
+    linear-gradient(rgb(103 221 255 / 3.5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(103 221 255 / 3.5%) 1px, transparent 1px);
+  mask-image: radial-gradient(circle at 82% 12%, black, transparent 58%);
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--denty-teal) 24%, transparent);
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--denty-blue) 70%, white);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}

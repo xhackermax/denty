@@ -1,0 +1,24 @@
+(function (global) {
+  'use strict';
+  const W=660,H=720;
+  function createGame(){
+    let api,host,canvas,ctx,raf=0,running=false,paused=false,last=0,ended=false,pointerHandler,pointerMoveHandler,keyHandler,state;
+    function blocks(){const out=[];for(let r=0;r<6;r++)for(let c=0;c<8;c++)out.push({x:43+c*72,y:70+r*40,w:62,h:28,alive:true,row:r});return out;}
+    function reset(){state={paddle:{x:W/2-62,y:H-62,w:124,h:18},ball:{x:W/2,y:H-95,vx:185,vy:-300,r:9},blocks:blocks(),lives:3,score:0,combo:1};ended=false;paused=false;last=0;api?.setScore(0);api?.setMeta('3 vidas · rompe la placa · combo por golpes seguidos');draw();}
+    function movePaddle(clientX){const r=canvas.getBoundingClientRect(),x=(clientX-r.left)*W/r.width;state.paddle.x=Math.max(16,Math.min(W-16-state.paddle.w,x-state.paddle.w/2));}
+    function loseLife(){state.lives--;state.combo=1;if(state.lives<=0){finish('Se acabaron las vidas.');return;}state.ball={x:state.paddle.x+state.paddle.w/2,y:H-95,vx:(Math.random()>.5?1:-1)*190,vy:-310,r:9};api.setMeta(`${state.lives} vidas · puntuación ${state.score}`);}
+    function finish(text){if(ended)return;ended=true;running=false;cancelAnimationFrame(raf);api.finish(state.score,text);}
+    function update(dt){const b=state.ball;b.x+=b.vx*dt;b.y+=b.vy*dt;if(b.x-b.r<14){b.x=14+b.r;b.vx=Math.abs(b.vx);}if(b.x+b.r>W-14){b.x=W-14-b.r;b.vx=-Math.abs(b.vx);}if(b.y-b.r<14){b.y=14+b.r;b.vy=Math.abs(b.vy);}if(b.y-b.r>H){loseLife();return;}
+      const p=state.paddle;if(b.vy>0&&b.x>p.x&&b.x<p.x+p.w&&b.y+b.r>p.y&&b.y-b.r<p.y+p.h){b.y=p.y-b.r;b.vy=-Math.abs(b.vy)*1.02;b.vx+=(b.x-(p.x+p.w/2))*4.2;state.combo=1;}
+      for(const block of state.blocks){if(!block.alive)continue;if(b.x+b.r>block.x&&b.x-b.r<block.x+block.w&&b.y+b.r>block.y&&b.y-b.r<block.y+block.h){block.alive=false;b.vy*=-1;state.score+=Math.round(25*state.combo);state.combo=Math.min(6,state.combo+.25);api.setScore(state.score);break;}}
+      if(state.blocks.every(x=>!x.alive))finish(`Tablero limpio · ${state.lives} vida${state.lives===1?'':'s'} restante${state.lives===1?'':'s'}.`);
+    }
+    function draw(){if(!ctx||!state)return;ctx.clearRect(0,0,W,H);ctx.fillStyle='#f8fafc';ctx.fillRect(0,0,W,H);for(const block of state.blocks){if(!block.alive)continue;const palette=['#e8f4ed','#e4f6f5','#eaf0fc','#f0ecf9','#eef3f6','#e9f2ee'];ctx.fillStyle=palette[block.row%palette.length];global.DentyGames.shared.roundedRect(ctx,block.x,block.y,block.w,block.h,8);ctx.fill();ctx.fillStyle='#6f8492';ctx.font='11px system-ui';ctx.textAlign='center';ctx.fillText('placa',block.x+block.w/2,block.y+18);}
+      ctx.fillStyle='#008d8a';global.DentyGames.shared.roundedRect(ctx,state.paddle.x,state.paddle.y,state.paddle.w,state.paddle.h,9);ctx.fill();ctx.fillStyle='#2764d8';ctx.beginPath();ctx.arc(state.ball.x,state.ball.y,state.ball.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#657887';ctx.font='14px system-ui';ctx.textAlign='left';ctx.fillText(`Vidas: ${state.lives}`,18,H-18);ctx.textAlign='right';ctx.fillText(`Combo x${state.combo.toFixed(1)}`,W-18,H-18);}
+    function frame(ts){if(!running)return;const dt=last?Math.min(.035,(ts-last)/1000):0;last=ts;if(!paused&&!ended)update(dt);draw();if(running)raf=requestAnimationFrame(frame);}
+    function mount(container,passedApi){api=passedApi;host=container;host.innerHTML='<canvas class="game-canvas breakout-board" width="660" height="720" aria-label="Breakout Dental"></canvas>';canvas=host.querySelector('canvas');ctx=canvas.getContext('2d');api.controls.innerHTML='<div class="gesture-hint"><span>Arrastra para mover la pala</span><span>3 vidas</span></div>';pointerHandler=e=>movePaddle(e.clientX);canvas.addEventListener('pointerdown',pointerHandler);pointerMoveHandler=e=>{if(e.buttons||e.pointerType==='touch')movePaddle(e.clientX)};canvas.addEventListener('pointermove',pointerMoveHandler);keyHandler=e=>{if(e.key==='ArrowLeft')state.paddle.x=Math.max(16,state.paddle.x-34);if(e.key==='ArrowRight')state.paddle.x=Math.min(W-16-state.paddle.w,state.paddle.x+34);};global.addEventListener('keydown',keyHandler);reset();running=true;raf=requestAnimationFrame(frame);}
+    function pause(){paused=true;}function resume(){if(!ended)paused=false;}function restart(){cancelAnimationFrame(raf);reset();running=true;raf=requestAnimationFrame(frame);}function destroy(){running=false;cancelAnimationFrame(raf);canvas?.removeEventListener('pointerdown',pointerHandler);canvas?.removeEventListener('pointermove',pointerMoveHandler);global.removeEventListener('keydown',keyHandler);host?.replaceChildren();}
+    return{mount,pause,resume,restart,destroy};
+  }
+  const exported={createGame};if(global.DentyGames)global.DentyGames.games.breakoutDental=exported;if(typeof module!=='undefined'&&module.exports)module.exports=exported;
+})(typeof window!=='undefined'?window:globalThis);

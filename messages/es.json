@@ -1,0 +1,92 @@
+{
+  "Common": {
+    "close": "Cerrar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "retry": "Reintentar",
+    "save": "Guardar",
+    "loading": "Cargando…",
+    "more": "Más",
+    "back": "Volver",
+    "logout": "Cerrar sesión",
+    "open": "Abrir",
+    "search": "Buscar"
+  },
+  "Navigation": {
+    "home": "Inicio",
+    "patients": "Pacientes",
+    "agenda": "Agenda",
+    "laboratory": "Laboratorio",
+    "prescriptions": "Recetas",
+    "communications": "Comunicaciones",
+    "documents": "Documentos",
+    "finance": "Finanzas",
+    "analysis": "Análisis",
+    "campaigns": "Campañas",
+    "alerts": "Alertas",
+    "attendance": "Fichaje",
+    "settings": "Ajustes",
+    "moreTools": "Más herramientas",
+    "tasks": "Tareas",
+    "admin": "Administración"
+  },
+  "Shell": {
+    "brandSubtitle": "Gestión clínica dental",
+    "theme": "Tema",
+    "density": "Densidad",
+    "comfortable": "Cómoda",
+    "compact": "Compacta",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "auto": "Automático",
+    "demo": "MODO DEMOSTRACIÓN — datos ficticios",
+    "offline": "Sin conexión con el servidor",
+    "phase": "Denty V3 · paridad funcional 2.3.7",
+    "clinic": "Clínica",
+    "system": "Sistema",
+    "brand": "Denty",
+    "clinicalTools": "Clínica",
+    "management": "Gestión"
+  },
+  "Dashboard": {
+    "eyebrow": "DENTY · V3",
+    "title": "¿Qué toca ahora?",
+    "description": "Denty prioriza lo que necesita atención y recupera el flujo operativo original sobre la arquitectura V3.",
+    "architecture": "Arquitectura",
+    "architectureValue": "App → features → shared/domain",
+    "ui": "Interfaz",
+    "uiValue": "Tablet-first · accesible · responsive",
+    "locale": "Locale",
+    "localeValue": "es-ES · Europe/Madrid",
+    "quality": "Calidad",
+    "qualityValue": "TypeScript estricto · gates automáticos"
+  },
+  "Login": {
+    "title": "Acceso a Denty",
+    "description": "La autenticación real se migra en F4. Esta pantalla valida el layout público y el sistema de diseño.",
+    "identifier": "Usuario o email",
+    "password": "Contraseña",
+    "submit": "Entrar",
+    "phaseNotice": "Vista estructural de F2. No autentica todavía."
+  },
+  "PatientPreview": {
+    "title": "Portal del paciente",
+    "description": "Layout aislado del área clínica profesional. La funcionalidad del portal se migra en F10.",
+    "versionLabel": "Denty v3"
+  },
+  "DesignSystem": {
+    "emptyTitle": "Nada por aquí todavía",
+    "emptyDescription": "Cuando existan datos aparecerán en este espacio.",
+    "errorTitle": "No se pudo cargar",
+    "confirmTitle": "Confirmar acción",
+    "confirmBody": "Esta acción requiere una confirmación explícita.",
+    "samplePatient": "Juan Pérez",
+    "sampleStatus": "En gabinete",
+    "kpi": "Citas de hoy",
+    "kpiValue": "24",
+    "panelTitle": "Panel contextual"
+  },
+  "ModulePlaceholder": {
+    "description": "Migración funcional pendiente de su fase correspondiente."
+  }
+}

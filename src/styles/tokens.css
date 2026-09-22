@@ -1,0 +1,59 @@
+:root {
+  --denty-bg: #f4f8fc;
+  --denty-bg-elevated: #f9fcff;
+  --denty-card: rgb(255 255 255 / 92%);
+  --denty-card-solid: #fff;
+  --denty-text: #14263a;
+  --denty-muted: #6d7f91;
+  --denty-line: #dfe8f1;
+  --denty-line-strong: #ccd9e6;
+  --denty-blue: #2764d8;
+  --denty-teal: #008d8a;
+  --denty-cyan: #1aa9d8;
+  --denty-green: #2f8d62;
+  --denty-amber: #b88408;
+  --denty-violet: #6750b5;
+  --denty-indigo: #4055a8;
+  --denty-danger: #c63838;
+  --denty-glow: rgb(32 168 255 / 12%);
+  --denty-card-shadow: 0 12px 38px rgb(33 60 90 / 8%);
+  --denty-card-shadow-hover: 0 18px 46px rgb(33 60 90 / 14%);
+  --denty-shell-shadow: 0 24px 70px rgb(12 32 54 / 10%);
+  --denty-radius-control: 14px;
+  --denty-radius-card: 18px;
+  --denty-radius-panel: 22px;
+  --denty-radius-board: 24px;
+  --denty-space-unit: 4px;
+  --denty-control-height: 44px;
+  --denty-page-gap: 20px;
+  --denty-shell-header: 68px;
+  --denty-shell-mobile-nav: 68px;
+}
+
+html[data-density="compact"] {
+  --denty-control-height: 36px;
+  --denty-page-gap: 14px;
+}
+
+html[data-mantine-color-scheme="dark"] {
+  --denty-bg: #030915;
+  --denty-bg-elevated: #061226;
+  --denty-card: rgb(9 19 35 / 88%);
+  --denty-card-solid: #091323;
+  --denty-text: #e8f4ff;
+  --denty-muted: #91a9c4;
+  --denty-line: rgb(113 161 214 / 18%);
+  --denty-line-strong: rgb(111 188 238 / 30%);
+  --denty-blue: #20a8ff;
+  --denty-teal: #67ddff;
+  --denty-cyan: #58cff8;
+  --denty-green: #2ad3a6;
+  --denty-amber: #f1b94d;
+  --denty-violet: #72a3ff;
+  --denty-indigo: #4f8dff;
+  --denty-danger: #ff6472;
+  --denty-glow: rgb(98 215 255 / 18%);
+  --denty-card-shadow: 0 24px 60px rgb(0 0 0 / 28%);
+  --denty-card-shadow-hover: 0 28px 70px rgb(0 0 0 / 42%);
+  --denty-shell-shadow: 0 28px 80px rgb(0 0 0 / 34%);
+}

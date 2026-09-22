@@ -1,16 +1,13 @@
-.worktrees/
 node_modules/
-package-lock.json
-dist/
 .next/
 out/
-__pycache__/
-*.pyc
+coverage/
+playwright-report/
+test-results/
+.env
+.env.local
+.env.*.local
 *.tsbuildinfo
-work-app-check.js
-denty.sqlite
-packages/db/generated/
+.DS_Store
 
-.superpowers/*
-!.superpowers/sdd/
-!.superpowers/sdd/**
+.artifacts/

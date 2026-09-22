@@ -1,0 +1,437 @@
+.board {
+  display: grid;
+  gap: 18px;
+}
+
+.controlPanel,
+.chartPanel {
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-board);
+  background: var(--denty-card);
+  box-shadow: var(--denty-card-shadow);
+  backdrop-filter: blur(16px);
+}
+
+.controlPanel {
+  padding: 18px;
+}
+
+.panelHeading,
+.chartHeader {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.chartPanel {
+  position: relative;
+  overflow: hidden;
+  padding: 20px 18px 22px;
+}
+
+.chartPanel::before {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  top: -210px;
+  right: -110px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--denty-glow), transparent 70%);
+  content: "";
+  pointer-events: none;
+}
+
+.surfaceKey {
+  display: flex;
+  max-width: 620px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  justify-content: flex-end;
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+}
+
+.surfaceKey span {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.surfaceKey b {
+  color: var(--denty-text);
+}
+
+.archBlock {
+  position: relative;
+  display: grid;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--denty-teal) 28%, transparent) transparent;
+}
+
+.archLabel {
+  color: var(--denty-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.arch {
+  display: grid;
+  min-width: 1030px;
+  grid-template-columns: repeat(16, minmax(56px, 1fr));
+  gap: 5px;
+  overflow: visible;
+  padding: 4px 2px;
+}
+
+
+.toothButton {
+  display: flex;
+  min-width: 56px;
+  min-height: 114px;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 2px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--denty-text);
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.toothButton:nth-child(8) {
+  margin-right: 10px;
+}
+
+.toothButton:hover {
+  border-color: color-mix(in srgb, var(--denty-teal) 25%, transparent);
+  background: color-mix(in srgb, var(--denty-teal) 5%, transparent);
+  transform: translateY(-2px);
+}
+
+.toothButton[data-selected="true"] {
+  border-color: color-mix(in srgb, var(--denty-teal) 48%, transparent);
+  background: color-mix(in srgb, var(--denty-teal) 9%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--denty-teal) 12%, transparent);
+}
+
+.toothSvg {
+  width: 54px;
+  height: 82px;
+  overflow: visible;
+  filter: drop-shadow(0 4px 5px rgb(24 47 70 / 8%));
+}
+
+.toothLabel {
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 1;
+}
+
+.toothButton[data-arch="upper"] .toothSvg {
+  order: 1;
+  transform: scaleY(-1);
+}
+
+.toothButton[data-arch="upper"] .toothLabel {
+  order: 2;
+}
+
+.toothButton[data-arch="lower"] .toothLabel {
+  order: 1;
+}
+
+.toothButton[data-arch="lower"] .toothSvg {
+  order: 2;
+}
+
+.rootShape {
+  fill: color-mix(in srgb, var(--denty-card-solid) 93%, var(--denty-blue) 7%);
+  stroke: color-mix(in srgb, var(--denty-muted) 55%, var(--denty-line));
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.crownBase {
+  fill: color-mix(in srgb, var(--denty-card-solid) 96%, var(--denty-blue) 4%);
+  stroke: none;
+}
+
+.crownOutline {
+  fill: none;
+  stroke: color-mix(in srgb, var(--denty-muted) 62%, var(--denty-line));
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.surface {
+  fill: color-mix(in srgb, var(--denty-card-solid) 95%, var(--denty-blue) 5%);
+  stroke: color-mix(in srgb, var(--denty-line-strong) 82%, transparent);
+  stroke-width: 1.05;
+  cursor: crosshair;
+  transition: fill 120ms ease, stroke 120ms ease, filter 120ms ease;
+}
+
+.surface:hover {
+  fill: color-mix(in srgb, var(--denty-teal) 13%, var(--denty-card-solid));
+  stroke: var(--denty-teal);
+  stroke-width: 1.8;
+  filter: brightness(1.03);
+}
+
+.surface[data-state="caries"],
+.surface[data-state="extraction"] {
+  fill: color-mix(in srgb, var(--denty-danger) 68%, transparent);
+  stroke: var(--denty-danger);
+}
+
+.surface[data-state="healthy"] {
+  fill: color-mix(in srgb, var(--denty-green) 34%, var(--denty-card-solid));
+  stroke: color-mix(in srgb, var(--denty-green) 70%, var(--denty-line));
+}
+
+.surface[data-state="filling"],
+.surface[data-state="crown"],
+.surface[data-state="endo"],
+.surface[data-state="post"] {
+  fill: color-mix(in srgb, var(--denty-blue) 45%, var(--denty-card-solid));
+  stroke: var(--denty-blue);
+}
+
+.surface[data-state="filling_bad"],
+.surface[data-state="crown_bad"],
+.surface[data-state="endo_bad"],
+.surface[data-state="post_bad"],
+.surface[data-state="implant_review"],
+.surface[data-state="prosthesis_bad"],
+.surface[data-state="removable_bad"] {
+  fill: color-mix(in srgb, var(--denty-blue) 35%, var(--denty-card-solid));
+  stroke: var(--denty-danger);
+  stroke-width: 2;
+}
+
+.surface[data-state="filling_pending"],
+.surface[data-state="crown_pending"],
+.surface[data-state="endo_indicated"],
+.surface[data-state="post_pending"],
+.surface[data-state="implant_indicated"],
+.surface[data-state="prosthesis_pending"],
+.surface[data-state="removable_pending"] {
+  fill: color-mix(in srgb, var(--denty-danger) 24%, var(--denty-card-solid));
+  stroke: var(--denty-danger);
+  stroke-dasharray: 2.5 2;
+}
+
+.surface[data-state="implant"],
+.surface[data-state="prosthesis"],
+.surface[data-state="removable"] {
+  fill: color-mix(in srgb, var(--denty-violet) 36%, var(--denty-card-solid));
+  stroke: var(--denty-violet);
+}
+
+.toothSvg[data-state="missing"] {
+  opacity: 0.38;
+}
+
+.toothSvg[data-state="missing"] .surface {
+  fill: transparent;
+}
+
+.endoMark,
+.postMark,
+.extractionMark,
+.missingMark,
+.implantMark {
+  pointer-events: none;
+}
+
+.endoMark {
+  fill: none;
+  stroke: var(--denty-danger);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.postMark {
+  stroke: var(--denty-blue);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+}
+
+.implantMark {
+  fill: color-mix(in srgb, var(--denty-violet) 15%, var(--denty-card-solid));
+  stroke: var(--denty-violet);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.extractionMark {
+  fill: none;
+  stroke: var(--denty-danger);
+  stroke-width: 2.7;
+  stroke-linecap: round;
+}
+
+.missingMark {
+  stroke: var(--denty-muted);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.toothButton[data-selected="true"] .toothLabel {
+  color: var(--denty-teal);
+}
+
+.occlusalPlane {
+  position: relative;
+  display: flex;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  margin: 2px 0;
+  color: var(--denty-muted);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.occlusalPlane::before,
+.occlusalPlane::after {
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, var(--denty-line-strong), transparent);
+  content: "";
+}
+
+.occlusalPlane span {
+  padding-inline: 10px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--denty-line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--denty-card) 92%, transparent);
+}
+
+.legendItem {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--denty-muted);
+  font-size: 0.72rem;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--denty-blue);
+}
+
+.legendDot[data-tone="red"] {
+  background: var(--denty-danger);
+}
+
+.legendDot[data-tone="green"] {
+  background: var(--denty-green);
+}
+
+.legendDot[data-tone="violet"] {
+  background: var(--denty-violet);
+}
+
+.entityList {
+  display: grid;
+  gap: 6px;
+}
+
+.entityRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1px solid var(--denty-line);
+  border-radius: 10px;
+}
+
+html[data-mantine-color-scheme="dark"] .controlPanel,
+html[data-mantine-color-scheme="dark"] .chartPanel {
+  background: linear-gradient(180deg, rgb(9 19 35 / 96%), rgb(6 15 28 / 92%));
+  box-shadow: var(--denty-card-shadow), inset 0 0 0 1px rgb(108 208 255 / 4%);
+}
+
+html[data-mantine-color-scheme="dark"] .rootShape,
+html[data-mantine-color-scheme="dark"] .crownBase {
+  fill: rgb(17 32 49 / 94%);
+}
+
+html[data-mantine-color-scheme="dark"] .surface:hover {
+  fill: rgb(27 65 82 / 96%);
+}
+
+@media (width <= 70em) {
+  .arch {
+    min-width: 970px;
+    grid-template-columns: repeat(16, 52px);
+  }
+
+  .toothSvg {
+    width: 50px;
+  }
+}
+
+@media (width <= 48em) {
+  .controlPanel,
+  .chartPanel {
+    border-radius: 18px;
+  }
+
+  .panelHeading,
+  .chartHeader {
+    flex-direction: column;
+  }
+
+  .surfaceKey {
+    justify-content: flex-start;
+  }
+
+  .chartPanel {
+    padding-inline: 12px;
+  }
+
+  .arch {
+    min-width: 900px;
+    grid-template-columns: repeat(16, 48px);
+    gap: 4px;
+  }
+
+  .toothButton {
+    min-width: 48px;
+  }
+
+  .toothSvg {
+    width: 46px;
+    height: 76px;
+  }
+}

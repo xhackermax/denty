@@ -1,0 +1,1195 @@
+{
+  "legacyVersion": "2.3.7",
+  "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
+  "routeCount": 197,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/accounting/export.csv",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alerts",
+      "source": "apps/api/src/modules/alerts/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/alerts/:id/assign",
+      "source": "apps/api/src/modules/alerts/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/alerts/:id/resolve",
+      "source": "apps/api/src/modules/alerts/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/alerts/:id/review",
+      "source": "apps/api/src/modules/alerts/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/alerts/:id/snooze",
+      "source": "apps/api/src/modules/alerts/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/attribution/summary",
+      "source": "apps/api/src/modules/patients/attribution-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/billing-settings",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/billing-settings",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/communications",
+      "source": "apps/api/src/modules/communications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/communications/templates",
+      "source": "apps/api/src/modules/communications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/financial-dashboard",
+      "source": "apps/api/src/modules/admin-dashboard/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/marketing/campaigns",
+      "source": "apps/api/src/modules/marketing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/marketing/campaigns",
+      "source": "apps/api/src/modules/marketing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/marketing/campaigns/:provider/:id",
+      "source": "apps/api/src/modules/marketing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/marketing/campaigns/:provider/:id/budget",
+      "source": "apps/api/src/modules/marketing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/marketing/campaigns/:provider/:id/status",
+      "source": "apps/api/src/modules/marketing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/marketing/connections",
+      "source": "apps/api/src/modules/marketing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/revenue-goals",
+      "source": "apps/api/src/modules/alerts/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/revenue-goals",
+      "source": "apps/api/src/modules/alerts/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/verifactu/status",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agenda/appointment-requests",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agenda/appointment-requests/:id/cancel",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agenda/appointment-requests/:id/schedule",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agenda/availability",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agenda/blocks",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agenda/context",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agenda/game-status",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agenda/schedule-plan-item",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "legacy_bug",
+      "correctedPath": "/api/agenda/schedule-plan-item/:planItemId",
+      "note": "El handler 2.3.7 declara Params.planItemId sin incluir :planItemId en la URL."
+    },
+    {
+      "method": "GET",
+      "path": "/api/agenda/waitlist",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agenda/waitlist",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/comparison",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/cost-recipes",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analytics/cost-recipes",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analytics/cost-recipes/:id/retire",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/doctors",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/events",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/losses",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/monthly",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/profitability",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/purchases",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/specialties",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/summary",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/treatments",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/treatments/drilldown",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/appointments",
+      "source": "apps/api/src/modules/appointments/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/appointments",
+      "source": "apps/api/src/modules/appointments/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/appointments/:id",
+      "source": "apps/api/src/modules/appointments/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/appointments/:id/arrive",
+      "source": "apps/api/src/modules/appointments/routes.ts",
+      "kind": "browser",
+      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
+    },
+    {
+      "method": "POST",
+      "path": "/api/appointments/:id/cancel-cascade",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/appointments/:id/chair",
+      "source": "apps/api/src/modules/appointments/routes.ts",
+      "kind": "browser",
+      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
+    },
+    {
+      "method": "POST",
+      "path": "/api/appointments/:id/complete",
+      "source": "apps/api/src/modules/appointments/routes.ts",
+      "kind": "browser",
+      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
+    },
+    {
+      "method": "POST",
+      "path": "/api/appointments/:id/confirm-waiting-room",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/appointments/:id/no-show",
+      "source": "apps/api/src/modules/appointments/routes.ts",
+      "kind": "browser",
+      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
+    },
+    {
+      "method": "POST",
+      "path": "/api/attendance/absences",
+      "source": "apps/api/src/modules/attendance/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/attendance/absences/:id",
+      "source": "apps/api/src/modules/attendance/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/attendance/daily",
+      "source": "apps/api/src/modules/attendance/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/attendance/me",
+      "source": "apps/api/src/modules/attendance/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/attendance/punch",
+      "source": "apps/api/src/modules/attendance/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/attendance/punches/:id",
+      "source": "apps/api/src/modules/attendance/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/change-password",
+      "source": "apps/api/src/auth/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "source": "apps/api/src/auth/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "source": "apps/api/src/auth/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/pin-login",
+      "source": "apps/api/src/auth/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/request-password-reset",
+      "source": "apps/api/src/auth/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/reset-password",
+      "source": "apps/api/src/auth/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/session",
+      "source": "apps/api/src/auth/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/budgets",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/budgets/:id/invoice-draft",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/clinic/demo",
+      "source": "apps/api/src/server.ts",
+      "kind": "server_only"
+    },
+    {
+      "method": "POST",
+      "path": "/api/clinical-plan/alternative-sets/:setId/classification",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/clinical-plan/alternative-sets/:setId/context",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/clinical-plan/alternatives/:optionId/approve",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/clinical-plan/items/:id/priority-override",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/clinical-plan/items/:id/rework",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/clinical-plan/items/:id/status",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/clinical-plans/:planId/dependencies",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/clinical-plans/:planId/dependencies",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/document-templates",
+      "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/document-templates",
+      "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/document-templates/:id/versions",
+      "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents",
+      "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents",
+      "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents/:id/archive",
+      "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents/:id/deliver",
+      "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/:id/file",
+      "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents/:id/finalize",
+      "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents/:id/sign",
+      "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents/attendance-certificate",
+      "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/events",
+      "source": "apps/api/src/modules/events/routes.ts",
+      "kind": "sse"
+    },
+    {
+      "method": "POST",
+      "path": "/api/game-vouchers/:id/apply",
+      "source": "apps/api/src/modules/games/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoice-series",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoice-series",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices/:id/issue",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/invoices/:id/pdf",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices/:id/rectify",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invoices/:id/verifactu/submit",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/lab-works",
+      "source": "apps/api/src/modules/laboratory/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/lab-works",
+      "source": "apps/api/src/modules/laboratory/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/lab-works/:id/agenda-warning",
+      "source": "apps/api/src/modules/laboratory/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/lab-works/:id/attachments",
+      "source": "apps/api/src/modules/laboratory/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/lab-works/:id/attachments/:attachmentId",
+      "source": "apps/api/src/modules/laboratory/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/lab-works/:id/rework",
+      "source": "apps/api/src/modules/laboratory/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/lab-works/:id/transition",
+      "source": "apps/api/src/modules/laboratory/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications",
+      "source": "apps/api/src/modules/notifications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/notifications/:id/read",
+      "source": "apps/api/src/modules/notifications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/preferences",
+      "source": "apps/api/src/modules/notifications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/notifications/preferences",
+      "source": "apps/api/src/modules/notifications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patient/:patientId/appointment-availability",
+      "source": "apps/api/src/modules/appointments/patient-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patient/:patientId/appointment-requests",
+      "source": "apps/api/src/modules/appointments/patient-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patient/:patientId/appointment-requests",
+      "source": "apps/api/src/modules/appointments/patient-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patient/:patientId/appointments/book",
+      "source": "apps/api/src/modules/appointments/patient-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patient/:patientId/games/dashboard",
+      "source": "apps/api/src/modules/games/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patient/:patientId/games/plays/:playId/finish",
+      "source": "apps/api/src/modules/games/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patient/:patientId/games/plays/start",
+      "source": "apps/api/src/modules/games/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patient/:patientId/games/voucher",
+      "source": "apps/api/src/modules/games/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patient/:patientId/payment-intents",
+      "source": "apps/api/src/modules/portal/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patient/:patientId/projection",
+      "source": "apps/api/src/modules/portal/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/patient/:patientId/source",
+      "source": "apps/api/src/modules/portal/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patient/budgets/:budgetId/respond",
+      "source": "apps/api/src/modules/portal/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patient/check-in/:appointmentId",
+      "source": "apps/api/src/modules/portal/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patient/claim",
+      "source": "apps/api/src/modules/portal/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients",
+      "source": "apps/api/src/modules/patients/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients",
+      "source": "apps/api/src/modules/patients/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:id",
+      "source": "apps/api/src/modules/patients/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/patients/:id",
+      "source": "apps/api/src/modules/patients/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:id/attribution",
+      "source": "apps/api/src/modules/patients/attribution-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/attribution",
+      "source": "apps/api/src/modules/patients/attribution-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:id/communication-consents",
+      "source": "apps/api/src/modules/communications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/patients/:id/communication-consents",
+      "source": "apps/api/src/modules/communications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:id/communications",
+      "source": "apps/api/src/modules/communications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/communications",
+      "source": "apps/api/src/modules/communications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/patients/:id/source",
+      "source": "apps/api/src/modules/patients/attribution-routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:patientId/clinical-plan",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-plan/alternatives",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-plan/alternatives/missing-tooth",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-plan/budget",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-plan/items",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-plan/preferences",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:patientId/clinical-sync",
+      "source": "apps/api/src/modules/odontogram/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-sync/budget",
+      "source": "apps/api/src/modules/odontogram/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-sync/plan",
+      "source": "apps/api/src/modules/odontogram/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:patientId/clinical-workflow",
+      "source": "apps/api/src/modules/clinical-workflow/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-workflow/encounters",
+      "source": "apps/api/src/modules/clinical-workflow/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-workflow/endodontic-plan",
+      "source": "apps/api/src/modules/clinical-workflow/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-workflow/endodontics",
+      "source": "apps/api/src/modules/clinical-workflow/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-workflow/periodontal-exams",
+      "source": "apps/api/src/modules/clinical-workflow/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-workflow/problems",
+      "source": "apps/api/src/modules/clinical-workflow/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:patientId/family-grants",
+      "source": "apps/api/src/modules/portal/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/family-grants",
+      "source": "apps/api/src/modules/portal/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/patients/:patientId/family-grants/:grantId",
+      "source": "apps/api/src/modules/portal/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/invitations",
+      "source": "apps/api/src/modules/portal/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:patientId/odontogram",
+      "source": "apps/api/src/modules/odontogram/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/odontogram/batch",
+      "source": "apps/api/src/modules/odontogram/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/odontogram/entities",
+      "source": "apps/api/src/modules/odontogram/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/odontogram/periodontal",
+      "source": "apps/api/src/modules/odontogram/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:patientId/odontogram/snapshots",
+      "source": "apps/api/src/modules/odontogram/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/odontogram/snapshots",
+      "source": "apps/api/src/modules/odontogram/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payments",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments/:id/allocate",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payments/provider-webhook",
+      "source": "apps/api/src/modules/portal/routes.ts",
+      "kind": "server_only"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prescription-settings",
+      "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prescription-settings/clinic",
+      "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prescription-settings/prescribers/:staffId",
+      "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prescriptions",
+      "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prescriptions",
+      "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prescriptions/:id",
+      "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/prescriptions/:id",
+      "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prescriptions/:id/cancel",
+      "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prescriptions/:id/issue",
+      "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prescriptions/:id/pdf",
+      "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prescriptions/:id/validate",
+      "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/security/audit/verify",
+      "source": "apps/api/src/modules/security/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/security/backups",
+      "source": "apps/api/src/modules/security/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/security/backups",
+      "source": "apps/api/src/modules/security/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/security/backups/:id/verify",
+      "source": "apps/api/src/modules/security/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/security/patient-export/:patientId",
+      "source": "apps/api/src/modules/security/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/security/privacy-requests",
+      "source": "apps/api/src/modules/security/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/security/privacy-requests",
+      "source": "apps/api/src/modules/security/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/security/privacy-requests/:id",
+      "source": "apps/api/src/modules/security/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/security/sessions",
+      "source": "apps/api/src/modules/security/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/security/sessions/:id",
+      "source": "apps/api/src/modules/security/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/supplier-invoices",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/suppliers",
+      "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users",
+      "source": "apps/api/src/modules/users/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users",
+      "source": "apps/api/src/modules/users/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/:id",
+      "source": "apps/api/src/modules/users/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/:id/reset-password",
+      "source": "apps/api/src/modules/users/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/capabilities",
+      "source": "apps/api/src/modules/voice/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/voice/execute",
+      "source": "apps/api/src/modules/voice/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/voice/preview",
+      "source": "apps/api/src/modules/voice/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/voice/transcribe",
+      "source": "apps/api/src/modules/voice/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/health",
+      "source": "apps/api/src/server.ts",
+      "kind": "server_only"
+    },
+    {
+      "method": "GET",
+      "path": "/health/db",
+      "source": "apps/api/src/server.ts",
+      "kind": "server_only"
+    }
+  ]
+}

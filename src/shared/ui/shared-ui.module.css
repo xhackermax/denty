@@ -1,0 +1,150 @@
+.pageHeader {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-block-end: var(--denty-page-gap);
+  padding: 2px 2px 0;
+}
+
+.pageHeaderText {
+  min-width: 0;
+}
+
+.pageHeaderText h1 {
+  color: var(--denty-text);
+  letter-spacing: -0.035em;
+}
+
+.eyebrow {
+  display: inline-flex;
+  margin: 0 0 5px;
+  color: var(--denty-teal);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.surface {
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-card);
+  background: var(--denty-card);
+  box-shadow: var(--denty-card-shadow);
+  backdrop-filter: blur(14px);
+}
+
+.state {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  padding: 28px;
+  text-align: center;
+}
+
+.stateIcon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--denty-teal) 12%, transparent);
+  color: var(--denty-teal);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.kpi {
+  padding: 18px;
+}
+
+.kpiLabel {
+  color: var(--denty-muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.kpiValue {
+  margin-block: 4px;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.tableWrap {
+  overflow: auto;
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-card);
+  background: var(--denty-card);
+  box-shadow: var(--denty-card-shadow);
+  backdrop-filter: blur(14px);
+}
+
+.tableHead {
+  color: var(--denty-muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.panel {
+  position: fixed;
+  z-index: 300;
+  inset: auto 20px 20px auto;
+  width: min(420px, calc(100vw - 40px));
+  max-height: min(680px, calc(100dvh - 40px));
+  overflow: auto;
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-panel);
+  background: var(--denty-card);
+  box-shadow: var(--denty-shell-shadow);
+  backdrop-filter: blur(22px);
+}
+
+.panelHeader {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--denty-line);
+}
+
+.panelBody {
+  padding: 18px;
+}
+
+.banner {
+  border-radius: 12px;
+}
+
+.skeletonStack {
+  display: grid;
+  gap: 12px;
+}
+
+@media (width <= 48em) {
+  .pageHeader {
+    flex-direction: column;
+  }
+
+  .panel {
+    inset: auto 0 0;
+    width: 100%;
+    max-height: 78dvh;
+    border-radius: 22px 22px 0 0;
+  }
+}
+
+.centeredPage {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px;
+}

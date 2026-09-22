@@ -1,0 +1,55 @@
+.root {
+  display: grid;
+  gap: 18px;
+  width: min(1040px, 100%);
+  margin-inline: auto;
+}
+
+.hero {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-board);
+  background: var(--denty-card);
+}
+
+.logo {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.tab {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 999px;
+  background: var(--denty-card);
+  color: var(--denty-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.tab[data-active="true"] {
+  border-color: var(--denty-teal);
+  background: color-mix(in srgb, var(--denty-teal) 12%, var(--denty-card));
+  color: var(--denty-teal);
+}
+
+.iframe {
+  width: 100%;
+  min-height: 780px;
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-card);
+  background: #fff;
+}
