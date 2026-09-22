@@ -7,7 +7,7 @@ function fail(message) {
 const envSource = await readFile(".env.example", "utf8");
 const serverEnv = await readFile("src/shared/config/env.ts", "utf8");
 const healthRoute = await readFile("src/app/api/health/supabase/route.ts", "utf8");
-const docs = await readFile("docs/FINAL-R6-DEPLOY-AND-SAAS-AUDIT.md", "utf8");
+const docs = await readFile("../../docs/FINAL-R6-DEPLOY-AND-SAAS-AUDIT.md", "utf8");
 
 for (const name of [
   "SUPABASE_URL",

@@ -24,6 +24,7 @@ jobs:
           node-version: 24
 
       - name: Run verified Denty pipeline
+        working-directory: apps/web
         run: node scripts/pipeline/run.mjs ci
 
       - name: Preserve pipeline evidence
@@ -31,7 +32,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: denty-v3-pipeline-evidence
-          path: .artifacts/pipeline/
+          path: apps/web/.artifacts/pipeline/
           if-no-files-found: warn
           retention-days: 14
 
@@ -40,7 +41,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: denty-v3-package-lock
-          path: package-lock.json
+          path: apps/web/package-lock.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -49,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: denty-v3-domain-coverage
-          path: coverage/
+          path: apps/web/coverage/
           if-no-files-found: warn
           retention-days: 14
 
@@ -59,8 +60,8 @@ jobs:
         with:
           name: denty-v3-playwright-report
           path: |
-            playwright-report/
-            test-results/
+            apps/web/playwright-report/
+            apps/web/test-results/
           if-no-files-found: warn
           retention-days: 14
 
@@ -69,6 +70,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DENTY-V3-VERCEL-VERIFIED
-          path: .artifacts/DENTY-V3-VERCEL-VERIFIED.zip
+          path: apps/web/.artifacts/DENTY-V3-VERCEL-VERIFIED.zip
           if-no-files-found: error
           retention-days: 14

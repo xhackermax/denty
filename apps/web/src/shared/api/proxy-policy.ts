@@ -1,4 +1,4 @@
-import legacyRoutes from "../../../docs/legacy-api-routes.json" with { type: "json" };
+import legacyRoutes from "./legacy-api-routes.json" with { type: "json" };
 
 interface LegacyRouteRecord {
   method: string;

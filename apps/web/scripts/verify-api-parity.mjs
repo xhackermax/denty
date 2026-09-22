@@ -2,7 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 const ROOT = process.cwd();
-const MANIFEST = path.join(ROOT, "docs", "legacy-api-routes.json");
+const MANIFEST = path.join(ROOT, "..", "..", "docs", "legacy-api-routes.json");
 const RESOURCE_DIR = path.join(ROOT, "src", "shared", "api", "resources");
 const EVENTS_FILE = path.join(ROOT, "src", "shared", "api", "events.ts");
 
