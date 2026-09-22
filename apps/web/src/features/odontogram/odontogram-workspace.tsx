@@ -5,6 +5,7 @@ import { IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
 
 import {
+  ENDODONTIC_VISUAL_MARKS,
   PERMANENT_LOWER,
   PERMANENT_UPPER,
   TOOTH_STATES,
@@ -47,7 +48,12 @@ import { DentyApiError } from "@/shared/api";
 import { publicEnv } from "@/shared/config/env";
 import { PageHeader } from "@/shared/ui";
 
+import { ClinicalTabs, type ClinicalTab } from "./clinical-tabs";
+import { EndodonticPanel } from "./endodontic-panel";
 import styles from "./odontogram.module.css";
+import { OrthodonticPanel } from "./orthodontic-panel";
+import { PediatricPanel } from "./pediatric-panel";
+import { PeriodontogramPanel } from "./periodontogram-panel";
 
 const INITIAL_ENTITIES: readonly DentalEntity[] = [
   {
@@ -223,6 +229,18 @@ function Tooth({
   const post = status?.startsWith("post");
   const extraction = status === "extraction";
   const missing = status === "missing";
+  const endodonticDiagnosis = Object.values(state.entitiesById).find(
+    (entity) =>
+      entity.active &&
+      entity.tooth === tooth &&
+      entity.entityType === "ENDO" &&
+      entity.status === "diagnosis",
+  );
+  const visualCode = endodonticDiagnosis?.attributes?.visualCode;
+  const visualMark =
+    typeof visualCode === "string" && visualCode in ENDODONTIC_VISUAL_MARKS
+      ? ENDODONTIC_VISUAL_MARKS[visualCode as keyof typeof ENDODONTIC_VISUAL_MARKS]
+      : undefined;
 
   return (
     <button
@@ -302,6 +320,11 @@ function Tooth({
           />
         ) : null}
         {missing ? <path className={styles.missingMark} d="M13 45 H51" /> : null}
+        {visualMark ? (
+          <g className={styles.endoVisualMark} data-severity={visualMark.severity}>
+            <path d={visualMark.svgPath} />
+          </g>
+        ) : null}
       </svg>
     </button>
   );
@@ -341,6 +364,7 @@ function OdontogramEditor({
   const [selectedTooth, setSelectedTooth] = useState("25");
   const [bridgeFrom, setBridgeFrom] = useState("13");
   const [bridgeTo, setBridgeTo] = useState("23");
+  const [activeTab, setActiveTab] = useState<ClinicalTab>("general");
 
   const entities = useMemo(
     () => Object.values(history.present.entitiesById).filter((entity) => entity.active),
@@ -484,6 +508,10 @@ function OdontogramEditor({
         </Alert>
       ) : null}
 
+      <ClinicalTabs active={activeTab} onChange={setActiveTab} />
+
+      {activeTab === "general" ? (
+        <>
       <section className={styles.controlPanel}>
         <div className={styles.panelHeading}>
           <div>
@@ -579,6 +607,19 @@ function OdontogramEditor({
           <Text className={styles.archLabel} fw={800}>Mandíbula</Text>
         </div>
       </section>
+        </>
+      ) : null}
+
+      {activeTab === "periodontal" ? <PeriodontogramPanel readOnly={historical} /> : null}
+      {activeTab === "orthodontic" ? (
+        <OrthodonticPanel patientId={patientId} readOnly={historical} onCommit={commit} />
+      ) : null}
+      {activeTab === "pediatric" ? (
+        <PediatricPanel readOnly={historical} onCommit={commit} />
+      ) : null}
+      {activeTab === "endodontic" ? (
+        <EndodonticPanel selectedTooth={selectedTooth} readOnly={historical} onCommit={commit} />
+      ) : null}
 
       <div className={styles.legend}>
         <span className={styles.legendItem}>
@@ -596,15 +637,17 @@ function OdontogramEditor({
       </div>
 
       <ClinicalPipelineCard active={2} />
-      {!historical ? (
+      {!historical && activeTab === "periodontal" ? (
         <PeriodontalQuickEntry patientId={patientId} demoMode={demoMode} />
       ) : null}
-      <OdontogramHistory
+      {activeTab === "history" ? (
+        <OdontogramHistory
         patientId={patientId}
         demoMode={demoMode}
         selectedSnapshotId={selectedSnapshotId}
         onSelectSnapshot={onSelectSnapshot}
-      />
+        />
+      ) : null}
       {!historical ? (
         <ClinicalWorkspace patientId={patientId} demoMode={demoMode} />
       ) : (

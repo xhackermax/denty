@@ -360,6 +360,134 @@
   background: var(--denty-violet);
 }
 
+.clinicalTabs {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--denty-line);
+}
+
+.clinicalPanel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-board);
+  background: var(--denty-card);
+  box-shadow: var(--denty-card-shadow);
+}
+
+.clinicalSummary > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--denty-card-solid) 86%, transparent);
+}
+
+.clinicalSummary span {
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.clinicalSummary strong {
+  color: var(--denty-text);
+  font-size: 1rem;
+}
+
+.periodontalGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.periodontalTooth {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 10px;
+}
+
+.periodontalSites {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(92px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.periodontalCell {
+  display: grid;
+  gap: 4px;
+  min-width: 92px;
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+  font-weight: 780;
+}
+
+.periodontalCell small {
+  color: var(--denty-text);
+  font-size: 0.66rem;
+}
+
+.riskBadge {
+  text-transform: uppercase;
+}
+
+.pediatricToothGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+  gap: 6px;
+}
+
+.pediatricTooth {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed color-mix(in srgb, var(--denty-teal) 34%, var(--denty-line));
+  border-radius: 8px;
+  color: var(--denty-text);
+  font-size: 0.74rem;
+  font-weight: 820;
+}
+
+.ghostRoot {
+  position: relative;
+  padding-left: 24px;
+  color: var(--denty-muted);
+}
+
+.ghostRoot::before {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  width: 16px;
+  height: 22px;
+  border: 1.5px dashed var(--denty-muted);
+  border-top: 0;
+  border-radius: 0 0 9px 9px;
+  opacity: 0.55;
+  content: "";
+}
+
+.endoVisualMark {
+  fill: color-mix(in srgb, var(--denty-danger) 18%, transparent);
+  stroke: var(--denty-danger);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.endoVisualMark[data-severity="info"] {
+  stroke: var(--denty-blue);
+}
+
+.endoVisualMark[data-severity="warning"] {
+  stroke: var(--denty-danger);
+}
+
 .entityList {
   display: grid;
   gap: 6px;
