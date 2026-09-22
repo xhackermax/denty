@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import { rm } from "node:fs/promises";
+import path from "node:path";
 
 import { stages, targets } from "./catalog.mjs";
 import { createEventReporter } from "./events.mjs";
@@ -21,6 +23,10 @@ const plan = planStages(stages, target.roots, target.assume ?? []);
 if (planOnly) {
   console.log(plan.join(" -> ") || "(all dependencies assumed)");
   process.exit(0);
+}
+
+if (targetId === "vercel-build") {
+  await rm(path.join(root, ".next"), { recursive: true, force: true });
 }
 
 const reporter = await createEventReporter({ root, runId, target: targetId });
