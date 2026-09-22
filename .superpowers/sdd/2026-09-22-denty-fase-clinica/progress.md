@@ -10,3 +10,4 @@ Task 2: complete (tests: npm test -- src/domain/__tests__/periodontal.test.ts ->
 Task 3: complete (tests: npm test -- src/domain/__tests__/endodontics.test.ts -> pass)
 Task 4: complete (included in Task 1 commit e60c4e7; tests: npm test -- src/domain/__tests__/odontogram.test.ts -> pass)
 Tasks 5-9: complete (tests: npm test -- src/features/odontogram/odontogram-workspace.test.tsx -> pass)
+Task 10: complete (tests: focused clinical suite -> pass; vercel-build -> pass; tsconfig restored after Next mutation)
