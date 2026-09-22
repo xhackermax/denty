@@ -50,6 +50,28 @@ export interface PeriodontalSummary {
   maxCAL: number;
 }
 
+export interface PeriodontalSiteCell extends PeriodontalReading {
+  clinicalAttachmentLoss: number;
+}
+
+export interface PeriodontalToothChart {
+  tooth: string;
+  sites: Partial<Record<PeriodontalSite, PeriodontalSiteCell>>;
+  mobility?: number;
+  furcation?: number;
+}
+
+export interface PeriodontalChart {
+  teeth: Record<string, PeriodontalToothChart>;
+  summary: PeriodontalSummary;
+}
+
+export type PeriodontalRisk =
+  | "normal"
+  | "watch"
+  | "moderate_periodontitis"
+  | "advanced_periodontitis";
+
 export function normalizePeriodontalSite(site: string): PeriodontalSite {
   const normalized = SITE_ALIASES[site.trim().toUpperCase()];
   if (!normalized) throw new RangeError(`Sitio periodontal no válido: ${site}`);
@@ -114,4 +136,39 @@ export function summarizePeriodontal(
       ...readings.map((reading) => reading.probingDepth + reading.recession),
     ),
   };
+}
+
+export function buildPeriodontalChart(
+  readings: readonly PeriodontalReading[],
+): PeriodontalChart {
+  const teeth: Record<string, PeriodontalToothChart> = {};
+
+  for (const reading of readings) {
+    validatePeriodontalReading(reading);
+    const site = normalizePeriodontalSite(reading.site);
+    const toothChart = teeth[reading.tooth] ?? { tooth: reading.tooth, sites: {} };
+    toothChart.sites[site] = {
+      ...reading,
+      site,
+      clinicalAttachmentLoss: reading.probingDepth + reading.recession,
+    };
+    if (reading.mobility !== undefined) toothChart.mobility = reading.mobility;
+    if (reading.furcation !== undefined) toothChart.furcation = reading.furcation;
+    teeth[reading.tooth] = toothChart;
+  }
+
+  return { teeth, summary: summarizePeriodontal(readings) };
+}
+
+export function periodontalRiskForSummary(summary: PeriodontalSummary): PeriodontalRisk {
+  if (summary.maxPD >= 7 || summary.maxCAL >= 8 || summary.sitesAtLeast7 > 0) {
+    return "advanced_periodontitis";
+  }
+  if (summary.maxPD >= 6 || summary.maxCAL >= 6 || summary.sitesAtLeast6 > 0) {
+    return "moderate_periodontitis";
+  }
+  if (summary.maxPD >= 4 || summary.bleedingPct >= 10 || summary.plaquePct >= 20) {
+    return "watch";
+  }
+  return "normal";
 }
