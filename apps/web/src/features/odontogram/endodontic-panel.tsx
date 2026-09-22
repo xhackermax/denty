@@ -27,7 +27,9 @@ export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: Endodonti
   return (
     <section className={styles.clinicalPanel} aria-label="Endodoncia visual">
       <Text fw={850}>Endodoncia visual</Text>
-      <Text size="xs" c="dimmed">Diagnosticos con marca SVG propia sobre el diente seleccionado.</Text>
+      <Text size="xs" c="dimmed">
+        Diagnosticos con marca SVG propia sobre el diente seleccionado.
+      </Text>
       <Group mt="md" align="flex-end">
         <Select
           label="Diagnostico pulpar"

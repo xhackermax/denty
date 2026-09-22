@@ -26,8 +26,10 @@ const STAGE_LABELS: Record<DentitionStage, string> = {
   permanent: "Denticion permanente",
 };
 
+const DEMO_TODAY = "2026-09-22T12:00:00.000Z";
+
 export function PediatricPanel({ birthDate, readOnly, onCommit }: PediatricPanelProps) {
-  const suggestedStage = dentitionStageForBirthDate(birthDate, new Date("2026-09-22T12:00:00.000Z"));
+  const suggestedStage = dentitionStageForBirthDate(birthDate, DEMO_TODAY);
   const [stage, setStage] = useState<DentitionStage>(suggestedStage);
   const [selectedTooth, setSelectedTooth] = useState("75");
   const [status, setStatus] = useState<PediatricToothStatus>("erupting");
@@ -39,7 +41,9 @@ export function PediatricPanel({ birthDate, readOnly, onCommit }: PediatricPanel
       <Group justify="space-between">
         <div>
           <Text fw={850}>Odontograma pediatrico</Text>
-          <Text size="xs" c="dimmed">Seleccion automatica por edad con ajuste manual para pruebas.</Text>
+          <Text size="xs" c="dimmed">
+            Seleccion automatica por edad con ajuste manual para pruebas.
+          </Text>
         </div>
         <Badge>{STAGE_LABELS[stage]}</Badge>
       </Group>

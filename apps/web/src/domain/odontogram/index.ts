@@ -1,3 +1,5 @@
+import { todayMadrid, type DateInput } from "../dates.ts";
+
 export const PERMANENT_UPPER = [
   "18",
   "17",
@@ -205,16 +207,20 @@ export function occlusalSurfaceForTooth(tooth: string): "O" | "I" {
 
 export function dentitionStageForBirthDate(
   birthDate: string | undefined,
-  today = new Date(),
+  today: DateInput = Date.now(),
 ): DentitionStage {
   if (!birthDate) return "permanent";
-  const born = new Date(`${birthDate}T00:00:00.000Z`);
-  if (Number.isNaN(born.getTime())) return "permanent";
-  let age = today.getUTCFullYear() - born.getUTCFullYear();
-  const birthdayThisYear = new Date(
-    Date.UTC(today.getUTCFullYear(), born.getUTCMonth(), born.getUTCDate()),
-  );
-  if (today.getTime() < birthdayThisYear.getTime()) age -= 1;
+  const birthMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthDate);
+  if (!birthMatch) return "permanent";
+  const todayMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(todayMadrid(today));
+  if (!todayMatch) return "permanent";
+  const [, birthYear, birthMonth, birthDay] = birthMatch;
+  const [, currentYear, currentMonth, currentDay] = todayMatch;
+  let age = Number(currentYear) - Number(birthYear);
+  const birthdayHasPassed =
+    Number(currentMonth) > Number(birthMonth) ||
+    (Number(currentMonth) === Number(birthMonth) && Number(currentDay) >= Number(birthDay));
+  if (!birthdayHasPassed) age -= 1;
   if (age <= 5) return "primary";
   if (age <= 12) return "mixed";
   return "permanent";

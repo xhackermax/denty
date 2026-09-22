@@ -29,7 +29,9 @@ export function OrthodonticPanel({ patientId, readOnly, onCommit }: OrthodonticP
   return (
     <section className={styles.clinicalPanel} aria-label="Odontograma ortodontico">
       <Text fw={850}>Odontograma ortodontico</Text>
-      <Text size="xs" c="dimmed">Hallazgos y aparatos conectados al modelo clinico del paciente.</Text>
+      <Text size="xs" c="dimmed">
+        Hallazgos y aparatos conectados al modelo clinico del paciente.
+      </Text>
       <SimpleGrid cols={{ base: 1, sm: 3 }} mt="md">
         <Select
           label="Clase molar derecha"
@@ -71,7 +73,10 @@ export function OrthodonticPanel({ patientId, readOnly, onCommit }: OrthodonticP
         onClick={() =>
           onCommit(
             createOrthodonticEntity(patientId, {
-              molarClassRight: molarClassRight === "II" || molarClassRight === "III" ? molarClassRight : "I",
+              molarClassRight:
+                molarClassRight === "II" || molarClassRight === "III"
+                  ? molarClassRight
+                  : "I",
               overjetMm: Number(overjetMm),
               appliances,
             }),

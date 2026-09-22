@@ -35,7 +35,7 @@ describe("odontogram domain", () => {
   });
 
   it("elige denticion primaria, mixta y permanente por edad", () => {
-    const today = new Date("2026-09-22T12:00:00.000Z");
+    const today = "2026-09-22T12:00:00.000Z";
     expect(dentitionStageForBirthDate("2021-09-22", today)).toBe("primary");
     expect(dentitionStageForBirthDate("2020-09-22", today)).toBe("mixed");
     expect(dentitionStageForBirthDate("2014-09-22", today)).toBe("mixed");

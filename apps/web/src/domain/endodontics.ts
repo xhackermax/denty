@@ -1,7 +1,11 @@
 export const PULPAL_DIAGNOSES = [
   "Pulpa normal",
   "Pulpitis reversible",
+  "Pulpitis irreversible sintomÃ¡tica",
+  "Pulpitis irreversible sintomática",
   "Pulpitis irreversible sintomatica",
+  "Pulpitis irreversible asintomÃ¡tica",
+  "Pulpitis irreversible asintomática",
   "Pulpitis irreversible asintomatica",
   "Necrosis pulpar",
   "Previamente tratado",
@@ -10,10 +14,17 @@ export const PULPAL_DIAGNOSES = [
 
 export const APICAL_DIAGNOSES = [
   "Tejidos apicales normales",
+  "Periodontitis apical sintomÃ¡tica",
+  "Periodontitis apical sintomática",
   "Periodontitis apical sintomatica",
+  "Periodontitis apical asintomÃ¡tica",
+  "Periodontitis apical asintomática",
   "Periodontitis apical asintomatica",
   "Absceso apical agudo",
+  "Absceso apical crÃ³nico",
+  "Absceso apical crónico",
   "Absceso apical cronico",
+  "OsteÃ­tis condensante",
   "Osteitis condensante",
 ] as const;
 
@@ -109,19 +120,27 @@ export const ENDODONTIC_VISUAL_MARKS: Record<EndodonticVisualCode, EndodonticVis
   },
 };
 
+type ApicalDiagnosisAlias =
+  | "Periodontitis apical sintomática"
+  | "Periodontitis apical asintomática"
+  | "Absceso apical crónico"
+  | "Absceso apical cronico";
+
 export function endodonticVisualCodeForApicalDiagnosis(
-  diagnosis: ApicalDiagnosis | "Absceso apical crÃ³nico" | "Absceso apical crónico",
+  diagnosis: ApicalDiagnosis | ApicalDiagnosisAlias,
 ): EndodonticVisualCode {
   if (diagnosis === "Tejidos apicales normales") return "normal_apex";
   if (
     diagnosis === "Periodontitis apical sintomatica" ||
-    diagnosis === "Periodontitis apical sintomÃ¡tica"
+    diagnosis === "Periodontitis apical sintomÃ¡tica" ||
+    diagnosis === "Periodontitis apical sintomática"
   ) {
     return "symptomatic_apical_periodontitis";
   }
   if (
     diagnosis === "Periodontitis apical asintomatica" ||
-    diagnosis === "Periodontitis apical asintomÃ¡tica"
+    diagnosis === "Periodontitis apical asintomÃ¡tica" ||
+    diagnosis === "Periodontitis apical asintomática"
   ) {
     return "asymptomatic_apical_periodontitis";
   }
