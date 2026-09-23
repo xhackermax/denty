@@ -9,8 +9,11 @@ import {
   Group,
   Menu,
   Modal,
+  MultiSelect,
+  SimpleGrid,
   Text,
   TextInput,
+  Textarea,
 } from "@mantine/core";
 import {
   IconChevronDown,
@@ -28,6 +31,13 @@ import { dateDMY } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
 import { DEMO_PATIENTS, type DemoPatient } from "@/shared/demo/demo-data";
 import styles from "@/shared/ui/parity.module.css";
+import {
+  buildAdmissionPayload,
+  dentalMedicalAdmissionOptions,
+  optionLabels,
+  suggestedDentitionForBirthDate,
+  type PatientAdmissionDraft,
+} from "./patient-admission";
 import { createPatientPayload, parsePatientCsv, type ParsedPatientRow } from "./patient-import";
 import {
   patientCardFromApi,
@@ -42,6 +52,26 @@ interface ImportNotice {
   color: "green" | "yellow" | "red";
   message: string;
 }
+
+const EMPTY_ADMISSION_DRAFT: PatientAdmissionDraft = {
+  firstName: "",
+  lastName: "",
+  birthDate: "",
+  dni: "",
+  phone: "",
+  email: "",
+  allergies: [],
+  medications: [],
+  conditions: [],
+  dentalRisks: [],
+  notes: "",
+};
+
+const DENTITION_LABELS = {
+  primary: "Dentición primaria",
+  mixed: "Dentición mixta",
+  permanent: "Dentición permanente",
+} as const;
 
 function formatVisitDate(value?: string | null): string {
   return value ? dateDMY(value) : "xx/xx/xxxx";
@@ -72,7 +102,8 @@ export function PatientsPage() {
   const [query, setQuery] = useState("");
   const [opened, setOpened] = useState(false);
   const [demoPatients, setDemoPatients] = useState<readonly DemoPatient[]>(DEMO_PATIENTS);
-  const [draftName, setDraftName] = useState("");
+  const [admissionDraft, setAdmissionDraft] =
+    useState<PatientAdmissionDraft>(EMPTY_ADMISSION_DRAFT);
   const [notice, setNotice] = useState<ImportNotice | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const scrollFrameRef = useRef<number | null>(null);
@@ -142,31 +173,36 @@ export function PatientsPage() {
   };
 
   const createPatient = async () => {
-    const value = draftName.trim();
-    if (!value) return;
-    const [firstName = "Paciente", ...rest] = value.split(/\s+/);
-    const lastName = rest.join(" ") || "Nuevo";
+    const payload = buildAdmissionPayload(admissionDraft);
+    if (!payload.firstName || !payload.lastName || !admissionDraft.birthDate) return;
 
     if (demoMode) {
       const nextNumber = String(700 + demoPatients.length).padStart(6, "0");
       const patient: DemoPatient = {
         id: `demo-${nextNumber}`,
         recordNumber: nextNumber,
-        firstName,
-        lastName,
-        dni: "Pendiente",
-        phone: "Pendiente",
-        email: "Pendiente",
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        dni: payload.dni ?? "Pendiente",
+        phone: payload.phone ?? "Pendiente",
+        email: payload.email ?? "Pendiente",
+        birthDate: admissionDraft.birthDate,
+        allergies: optionLabels("allergies", admissionDraft.allergies),
+        medications: optionLabels("medications", admissionDraft.medications),
+        conditions: [
+          ...optionLabels("conditions", admissionDraft.conditions),
+          ...optionLabels("dentalRisks", admissionDraft.dentalRisks),
+        ],
         source: "Nuevo paciente",
-        nextStep: "Completar ficha y anamnesis",
+        nextStep: `Odontograma sugerido: ${DENTITION_LABELS[payload.medicalProfile.dentitionStage]}`,
         balanceCents: 0,
       };
       setDemoPatients((current) => [patient, ...current]);
     } else {
-      await createMutation.mutateAsync({ firstName, lastName });
+      await createMutation.mutateAsync(payload);
     }
 
-    setDraftName("");
+    setAdmissionDraft(EMPTY_ADMISSION_DRAFT);
     setOpened(false);
   };
 
@@ -334,6 +370,19 @@ export function PatientsPage() {
   );
 
   const carouselCopies = filtered.length > 1 ? [0, 1, 2] : [0];
+  const suggestedDentition = suggestedDentitionForBirthDate(admissionDraft.birthDate);
+  const admissionReady = Boolean(
+    admissionDraft.firstName.trim() &&
+      admissionDraft.lastName.trim() &&
+      admissionDraft.birthDate.trim(),
+  );
+
+  const updateAdmissionDraft = <Key extends keyof PatientAdmissionDraft>(
+    key: Key,
+    value: PatientAdmissionDraft[Key],
+  ) => {
+    setAdmissionDraft((current) => ({ ...current, [key]: value }));
+  };
 
   return (
     <div className={styles.grid}>
@@ -537,21 +586,124 @@ export function PatientsPage() {
         )}
       </section>
 
-      <Modal opened={opened} onClose={() => setOpened(false)} title="Nuevo paciente">
+      <Modal opened={opened} onClose={() => setOpened(false)} title="Nuevo paciente" size="xl">
         <Text size="sm" c="dimmed" mb="md">
           Crea la ficha básica. Los datos clínicos se completan dentro del paciente.
         </Text>
-        <TextInput
-          label="Nombre completo"
-          value={draftName}
-          onChange={(event) => setDraftName(event.currentTarget.value)}
-        />
+        <div className={styles.grid}>
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionHeaderText}>
+                <h3 className={styles.sectionTitle}>Identificación</h3>
+                <p className={styles.sectionDescription}>
+                  La fecha de nacimiento decide si el odontograma parte de dentición primaria,
+                  mixta o permanente.
+                </p>
+              </div>
+              <Badge color="teal" variant="light">
+                {DENTITION_LABELS[suggestedDentition]}
+              </Badge>
+            </div>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+              <TextInput
+                label="Nombre"
+                required
+                value={admissionDraft.firstName}
+                onChange={(event) => updateAdmissionDraft("firstName", event.currentTarget.value)}
+              />
+              <TextInput
+                label="Apellidos"
+                required
+                value={admissionDraft.lastName}
+                onChange={(event) => updateAdmissionDraft("lastName", event.currentTarget.value)}
+              />
+              <TextInput
+                label="Fecha de nacimiento"
+                required
+                type="date"
+                value={admissionDraft.birthDate}
+                onChange={(event) => updateAdmissionDraft("birthDate", event.currentTarget.value)}
+              />
+              <TextInput
+                label="DNI / tutor"
+                value={admissionDraft.dni ?? ""}
+                onChange={(event) => updateAdmissionDraft("dni", event.currentTarget.value)}
+              />
+              <TextInput
+                label="Teléfono"
+                value={admissionDraft.phone ?? ""}
+                onChange={(event) => updateAdmissionDraft("phone", event.currentTarget.value)}
+              />
+              <TextInput
+                label="Email"
+                type="email"
+                value={admissionDraft.email ?? ""}
+                onChange={(event) => updateAdmissionDraft("email", event.currentTarget.value)}
+              />
+            </SimpleGrid>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionHeaderText}>
+                <h3 className={styles.sectionTitle}>Anamnesis odontológica</h3>
+                <p className={styles.sectionDescription}>
+                  Selecciona antecedentes, medicación y riesgos que cambian anestesia, cirugía,
+                  prescripción o planificación.
+                </p>
+              </div>
+            </div>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+              <MultiSelect
+                label="Alergias"
+                searchable
+                clearable
+                data={dentalMedicalAdmissionOptions.allergies}
+                value={[...admissionDraft.allergies]}
+                onChange={(value) => updateAdmissionDraft("allergies", value)}
+              />
+              <MultiSelect
+                label="Medicación habitual"
+                searchable
+                clearable
+                data={dentalMedicalAdmissionOptions.medications}
+                value={[...admissionDraft.medications]}
+                onChange={(value) => updateAdmissionDraft("medications", value)}
+              />
+              <MultiSelect
+                label="Enfermedades o condiciones"
+                searchable
+                clearable
+                data={dentalMedicalAdmissionOptions.conditions}
+                value={[...admissionDraft.conditions]}
+                onChange={(value) => updateAdmissionDraft("conditions", value)}
+              />
+              <MultiSelect
+                label="Riesgos odontológicos"
+                searchable
+                clearable
+                data={dentalMedicalAdmissionOptions.dentalRisks}
+                value={[...admissionDraft.dentalRisks]}
+                onChange={(value) => updateAdmissionDraft("dentalRisks", value)}
+              />
+            </SimpleGrid>
+            <Textarea
+              mt="md"
+              label="Notas clínicas iniciales"
+              minRows={3}
+              autosize
+              value={admissionDraft.notes}
+              onChange={(event) => updateAdmissionDraft("notes", event.currentTarget.value)}
+            />
+          </section>
+        </div>
         <Group justify="flex-end" mt="lg">
           <Button variant="default" onClick={() => setOpened(false)}>
             Cancelar
           </Button>
           <Button
             loading={createMutation.isPending && !demoMode}
+            disabled={!admissionReady}
             onClick={() => void createPatient()}
           >
             Crear paciente

@@ -69,6 +69,16 @@ export const createPatientSchema = z.object({
   birthDate: isoDateTimeSchema.optional(),
   declaredSource: patientAcquisitionSourceSchema.optional(),
   declaredSourceDetail: z.string().max(200).optional(),
+  medicalProfile: z
+    .object({
+      allergies: z.array(z.string()).default([]),
+      medications: z.array(z.string()).default([]),
+      conditions: z.array(z.string()).default([]),
+      dentalRisks: z.array(z.string()).default([]),
+      notes: z.string().default(""),
+      dentitionStage: z.enum(["primary", "mixed", "permanent"]),
+    })
+    .optional(),
 });
 
 export const updatePatientSchema = createPatientSchema.partial().extend({
