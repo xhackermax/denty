@@ -186,3 +186,118 @@
     animation-duration: 1ms !important;
   }
 }
+
+
+/* Denty Games dark mode: mirrors the host application's dark clinical shell. */
+:root {
+  --dg-canvas-bg: #f8fafc;
+  --dg-canvas-grid: rgba(64,85,168,.07);
+  --dg-canvas-grid-strong: rgba(64,85,168,.16);
+  --dg-canvas-shadow: rgba(21,34,53,.12);
+  --dg-golf-bg: #e8f4ed;
+  --dg-golf-line: #9bc7ad;
+  --dg-golf-wall: #d7e1e9;
+  --dg-road-edge: #edf2f4;
+  --dg-road-surface: #4c5965;
+  --dg-board-cell: #edf2f6;
+  --dg-danger-soft: #fff4f2;
+  --dg-danger-line: #efc8c1;
+  --dg-success-soft: #edf7f3;
+  --dg-success-line: #c7e6d8;
+}
+
+html[data-theme="dark"] {
+  --dg-bg: #030915;
+  --dg-surface: #091323;
+  --dg-text: #e8f4ff;
+  --dg-muted: #91a9c4;
+  --dg-line: rgba(113,161,214,.18);
+  --dg-blue: #20a8ff;
+  --dg-teal: #67ddff;
+  --dg-green: #2ad3a6;
+  --dg-violet: #72a3ff;
+  --dg-indigo: #4f8dff;
+  --dg-surface-soft: #061226;
+  --dg-surface-raised: #0b182b;
+  --dg-surface-pressed: #10213a;
+  --dg-line-strong: rgba(111,188,238,.30);
+  --dg-text-soft: #7793b2;
+  --dg-text-faint: #58718d;
+  --dg-overlay: rgba(0,5,13,.72);
+  --dg-focus: rgba(103,221,255,.30);
+  --dg-snake: #67ddff;
+  --dg-snake-soft: #0c2834;
+  --dg-block: #20a8ff;
+  --dg-block-soft: #0b2440;
+  --dg-run: #72a3ff;
+  --dg-run-soft: #15213c;
+  --dg-memory: #9c8cff;
+  --dg-memory-soft: #201c3b;
+  --dg-merge: #2ad3a6;
+  --dg-merge-soft: #0c2a24;
+  --dg-shadow-card: 0 18px 46px rgba(0,0,0,.26);
+  --dg-shadow-float: 0 22px 54px rgba(0,0,0,.34);
+  --dg-shadow-modal: 0 28px 72px rgba(0,0,0,.48);
+  --dg-shadow-inset: inset 0 0 0 1px rgba(103,221,255,.045);
+  --dg-board-line: rgba(120,170,224,.12);
+  --dg-canvas-bg: #071325;
+  --dg-canvas-grid: rgba(114,163,255,.12);
+  --dg-canvas-grid-strong: rgba(114,163,255,.24);
+  --dg-canvas-shadow: rgba(0,0,0,.30);
+  --dg-golf-bg: #09231f;
+  --dg-golf-line: #245f50;
+  --dg-golf-wall: #1a2c3d;
+  --dg-road-edge: #07111d;
+  --dg-road-surface: #202d3a;
+  --dg-board-cell: #0d1b2d;
+  --dg-danger-soft: #2d151b;
+  --dg-danger-line: #6b2a35;
+  --dg-success-soft: #0b2b24;
+  --dg-success-line: #1f5b4a;
+}
+
+/* R8 · iPhone-like visual alignment with the Denty shell. */
+:root {
+  --dg-bg: #f5f5f7;
+  --dg-surface: #ffffff;
+  --dg-text: #1d1d1f;
+  --dg-muted: #6e6e73;
+  --dg-line: rgba(60,60,67,.12);
+  --dg-line-strong: rgba(60,60,67,.20);
+  --dg-blue: #007aff;
+  --dg-teal: #0a84ff;
+  --dg-surface-soft: #f8f8fa;
+  --dg-surface-raised: #ffffff;
+  --dg-surface-pressed: #efeff1;
+  --dg-text-soft: #8e8e93;
+  --dg-text-faint: #aeaeb2;
+  --dg-focus: rgba(0,122,255,.22);
+  --dg-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, ui-sans-serif, system-ui, sans-serif;
+  --dg-radius-control: 13px;
+  --dg-radius-card: 20px;
+  --dg-radius-panel: 24px;
+  --dg-radius-board: 24px;
+  --dg-shadow-card: 0 1px 2px rgba(15,23,42,.03), 0 8px 24px rgba(15,23,42,.05);
+  --dg-shadow-float: 0 16px 42px rgba(15,23,42,.10);
+  --dg-shadow-modal: 0 24px 64px rgba(15,23,42,.16);
+}
+
+html[data-theme="dark"] {
+  --dg-bg: #000000;
+  --dg-surface: #1c1c1e;
+  --dg-text: #f5f5f7;
+  --dg-muted: #98989d;
+  --dg-line: rgba(84,84,88,.34);
+  --dg-line-strong: rgba(99,99,102,.52);
+  --dg-blue: #0a84ff;
+  --dg-teal: #64d2ff;
+  --dg-surface-soft: #111113;
+  --dg-surface-raised: #242426;
+  --dg-surface-pressed: #2c2c2e;
+  --dg-text-soft: #8e8e93;
+  --dg-text-faint: #636366;
+  --dg-focus: rgba(10,132,255,.28);
+  --dg-shadow-card: 0 12px 32px rgba(0,0,0,.18);
+  --dg-shadow-float: 0 20px 52px rgba(0,0,0,.34);
+  --dg-shadow-modal: 0 28px 72px rgba(0,0,0,.46);
+}

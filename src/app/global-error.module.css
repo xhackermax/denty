@@ -1,0 +1,27 @@
+.body {
+  background: #f7fafc;
+  color: #102030;
+  font-family: system-ui, sans-serif;
+  padding: 32px;
+}
+
+.panel {
+  background: white;
+  border: 1px solid #d9e2ec;
+  border-radius: 16px;
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 24px;
+}
+
+.button {
+  background: white;
+  border: 1px solid #9fb3c8;
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 10px 16px;
+}
+
+.title {
+  margin-top: 0;
+}

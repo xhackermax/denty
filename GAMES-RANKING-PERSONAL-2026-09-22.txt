@@ -1,0 +1,13 @@
+Denty Games 110
+
+Cambios de portada:
+- Ranking general de jugadores en la pagina principal.
+- Se muestran todos los jugadores disponibles en los datos del dashboard, no solo el Top 3 de un juego.
+- El jugador actual queda resaltado como "Tu ficha".
+- La clasificacion general usa puntos por posicion cuando el backend no entrega un ranking general, evitando comparar directamente escalas de puntuacion distintas entre juegos.
+- Si el backend entrega overallLeaderboard/globalLeaderboard, Denty lo usa directamente.
+- Zona independiente de Record personal con records guardados, partidas terminadas, mejor posicion y mejor juego actual.
+- Lista de mejores marcas personales por juego.
+- Los rankings pequeños de cada tarjeta quedan limitados al Top 3 para mantener la portada compacta.
+- Compatible con modo oscuro y responsive movil/tablet.
+- Privacidad: sigue mostrando solo identificadores de ficha parcialmente ocultos.

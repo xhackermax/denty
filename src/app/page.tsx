@@ -1,2 +1,5 @@
-import {redirect} from "next/navigation";
-export default function Home(){redirect("/app")}
+import { redirect } from "next/navigation";
+
+export default function HomePage() {
+  redirect("/app");
+}

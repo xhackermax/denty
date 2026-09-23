@@ -150,11 +150,11 @@
     function update(dt){updatePaddles(dt);if(!dead)updatePuck(dt);}
 
     function drawTable(){
-      ctx.clearRect(0,0,W,H);ctx.fillStyle='#f8fafc';ctx.fillRect(0,0,W,H);
-      ctx.strokeStyle='rgba(21,34,53,.09)';ctx.lineWidth=2;
+      ctx.clearRect(0,0,W,H);ctx.fillStyle=global.DentyGames.shared.cssVar('--dg-canvas-bg','#f8fafc');ctx.fillRect(0,0,W,H);
+      ctx.strokeStyle=global.DentyGames.shared.cssVar('--dg-canvas-grid-strong','rgba(21,34,53,.09)');ctx.lineWidth=2;
       global.DentyGames.shared.roundedRect(ctx,12,12,W-24,H-24,28);ctx.stroke();
-      ctx.setLineDash([9,12]);ctx.strokeStyle='rgba(21,34,53,.08)';ctx.beginPath();ctx.moveTo(28,MID);ctx.lineTo(W-28,MID);ctx.stroke();ctx.setLineDash([]);
-      ctx.beginPath();ctx.arc(W/2,MID,58,0,Math.PI*2);ctx.strokeStyle='rgba(21,34,53,.055)';ctx.stroke();
+      ctx.setLineDash([9,12]);ctx.strokeStyle=global.DentyGames.shared.cssVar('--dg-canvas-grid','rgba(21,34,53,.08)');ctx.beginPath();ctx.moveTo(28,MID);ctx.lineTo(W-28,MID);ctx.stroke();ctx.setLineDash([]);
+      ctx.beginPath();ctx.arc(W/2,MID,58,0,Math.PI*2);ctx.strokeStyle=global.DentyGames.shared.cssVar('--dg-canvas-grid','rgba(21,34,53,.055)');ctx.stroke();
       const gx=W/2-GOAL_W/2;
       ctx.lineWidth=5;ctx.lineCap='round';
       ctx.strokeStyle='rgba(0,141,138,.32)';ctx.beginPath();ctx.moveTo(gx,14);ctx.lineTo(gx+GOAL_W,14);ctx.stroke();

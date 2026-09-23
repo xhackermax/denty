@@ -1,0 +1,10 @@
+Denty Games · vinculación a ficha del paciente
+
+- Denty Games recibe y muestra el número de ficha real del paciente seleccionado.
+- En modo demo, cada paciente conserva su propio progreso mediante una clave local separada por patientId.
+- En modo servidor, Games usa el BFF /api/denty y las rutas /api/patient/:patientId/games/*.
+- Se intenta leer /api/patients/:patientId para usar el recordNumber canónico como etiqueta de ficha.
+- El número se muestra parcialmente oculto dentro de Games (Ficha ••1234), pero completo en la cabecera clínica.
+- Se añadió acceso a Denty Games desde la ficha clínica del paciente.
+- Si no existe paciente o número de ficha, se muestra un error visible y no un iframe vacío.
+- Se eliminó el uso forzado de demo=legacy-preview en producción; solo se activa cuando NEXT_PUBLIC_DEMO_MODE=true.

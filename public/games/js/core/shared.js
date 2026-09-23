@@ -2,176 +2,6 @@
   'use strict';
 
   const root = global.DentyGames = global.DentyGames || { games: {} };
-  const memoryStore = new Map();
-
-  function safeStorage() {
-    try {
-      const s = global.localStorage;
-      const key = '__denty_games_probe__';
-      s.setItem(key, '1');
-      s.removeItem(key);
-      return s;
-    } catch (_) {
-      return {
-        getItem: key => memoryStore.has(key) ? memoryStore.get(key) : null,
-        setItem: (key, value) => memoryStore.set(key, String(value)),
-        removeItem: key => memoryStore.delete(key),
-      };
-    }
-  }
-
-  const storage = safeStorage();
-  const REGISTRY_KEY = 'denty.games.profiles.v2';
-  const RECORD_KEY = 'denty.games.records.v2';
-  const LEGACY_PROFILE_KEY = 'denty.games.profile.v1';
-  const LEGACY_RECORD_KEY = 'denty.games.records.v1';
-
-  function readJson(key, fallback) {
-    try {
-      const parsed = JSON.parse(storage.getItem(key) || 'null');
-      return parsed ?? fallback;
-    } catch (_) {
-      return fallback;
-    }
-  }
-
-  function writeJson(key, value) {
-    try { storage.setItem(key, JSON.stringify(value)); } catch (_) {}
-  }
-
-  function normalizeAlias(value) {
-    return String(value || '')
-      .normalize('NFKC')
-      .replace(/[<>]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 18);
-  }
-
-  function aliasKey(value) {
-    return normalizeAlias(value).toLocaleLowerCase('es-ES');
-  }
-
-  function profileId() {
-    if (global.crypto && typeof global.crypto.randomUUID === 'function') return global.crypto.randomUUID();
-    return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
-  }
-
-  function emptyRegistry() { return { version: 2, activeProfileId: null, profiles: [] }; }
-
-  function migrateLegacy(registry) {
-    if (registry.profiles.length) return registry;
-    const legacy = readJson(LEGACY_PROFILE_KEY, null);
-    const alias = normalizeAlias(legacy?.alias);
-    if (!alias || aliasKey(alias) === 'tú' || aliasKey(alias) === 'tu') return registry;
-    const profile = { id: profileId(), alias, createdAt: new Date().toISOString() };
-    registry.profiles.push(profile);
-    registry.activeProfileId = profile.id;
-    const legacyRecords = readJson(LEGACY_RECORD_KEY, {});
-    if (legacyRecords && typeof legacyRecords === 'object') writeJson(RECORD_KEY, { [profile.id]: legacyRecords });
-    writeJson(REGISTRY_KEY, registry);
-    return registry;
-  }
-
-  function getRegistry() {
-    const raw = readJson(REGISTRY_KEY, emptyRegistry());
-    const registry = {
-      version: 2,
-      activeProfileId: typeof raw?.activeProfileId === 'string' ? raw.activeProfileId : null,
-      profiles: Array.isArray(raw?.profiles) ? raw.profiles
-        .map(p => ({ id: String(p?.id || ''), alias: normalizeAlias(p?.alias), createdAt: String(p?.createdAt || '') }))
-        .filter(p => p.id && p.alias) : [],
-    };
-    if (registry.activeProfileId && !registry.profiles.some(p => p.id === registry.activeProfileId)) registry.activeProfileId = null;
-    return migrateLegacy(registry);
-  }
-
-  function saveRegistry(registry) {
-    const clean = {
-      version: 2,
-      activeProfileId: registry?.activeProfileId || null,
-      profiles: Array.isArray(registry?.profiles) ? registry.profiles : [],
-    };
-    writeJson(REGISTRY_KEY, clean);
-    return clean;
-  }
-
-  function getProfiles() { return getRegistry().profiles.slice(); }
-
-  function getActiveProfile() {
-    const registry = getRegistry();
-    return registry.profiles.find(p => p.id === registry.activeProfileId) || null;
-  }
-
-  function createProfile(aliasValue) {
-    const alias = normalizeAlias(aliasValue);
-    if (alias.length < 2) return { ok: false, error: 'El alias debe tener al menos 2 caracteres.' };
-    const registry = getRegistry();
-    const existing = registry.profiles.find(p => aliasKey(p.alias) === aliasKey(alias));
-    if (existing) {
-      registry.activeProfileId = existing.id;
-      saveRegistry(registry);
-      return { ok: true, profile: existing, existing: true };
-    }
-    const profile = { id: profileId(), alias, createdAt: new Date().toISOString() };
-    registry.profiles.push(profile);
-    registry.activeProfileId = profile.id;
-    saveRegistry(registry);
-    return { ok: true, profile, existing: false };
-  }
-
-  function setActiveProfile(id) {
-    const registry = getRegistry();
-    const profile = registry.profiles.find(p => p.id === String(id || '')) || null;
-    if (!profile) return null;
-    registry.activeProfileId = profile.id;
-    saveRegistry(registry);
-    return profile;
-  }
-
-  function clearActiveProfile() {
-    const registry = getRegistry();
-    registry.activeProfileId = null;
-    saveRegistry(registry);
-  }
-
-  function recordsByProfile() {
-    const value = readJson(RECORD_KEY, {});
-    return value && typeof value === 'object' ? value : {};
-  }
-
-  function getRecords(profileIdValue) {
-    const profileIdValueResolved = profileIdValue || getActiveProfile()?.id;
-    if (!profileIdValueResolved) return {};
-    const all = recordsByProfile();
-    const value = all[profileIdValueResolved];
-    return value && typeof value === 'object' ? { ...value } : {};
-  }
-
-  function getRecord(gameId, profileIdValue) { return Number(getRecords(profileIdValue)[gameId] || 0); }
-
-  function saveRecord(gameId, score, profileIdValue) {
-    const profileIdValueResolved = profileIdValue || getActiveProfile()?.id;
-    if (!profileIdValueResolved) return { isNew: false, previous: 0, value: 0 };
-    const all = recordsByProfile();
-    const records = all[profileIdValueResolved] && typeof all[profileIdValueResolved] === 'object' ? { ...all[profileIdValueResolved] } : {};
-    const value = Math.max(0, Math.floor(Number(score) || 0));
-    const previous = Number(records[gameId] || 0);
-    if (value > previous) {
-      records[gameId] = value;
-      all[profileIdValueResolved] = records;
-      writeJson(RECORD_KEY, all);
-      return { isNew: true, previous, value };
-    }
-    return { isNew: false, previous, value: previous };
-  }
-
-  function localLeaderboard(gameId) {
-    return getProfiles()
-      .map(profile => ({ profile, score: getRecord(gameId, profile.id) }))
-      .filter(row => row.score > 0)
-      .sort((a, b) => b.score - a.score || a.profile.alias.localeCompare(b.profile.alias, 'es'));
-  }
 
   function haptic(pattern) {
     if (!global.navigator || typeof global.navigator.vibrate !== 'function') return;
@@ -179,6 +9,18 @@
   }
 
   function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+
+  function cssVar(name, fallback) {
+    try {
+      const value = global.getComputedStyle?.(global.document?.documentElement).getPropertyValue(name).trim();
+      return value || fallback;
+    } catch (_) { return fallback; }
+  }
+
+  function isDark() {
+    try { return global.document?.documentElement?.dataset?.theme === 'dark'; }
+    catch (_) { return false; }
+  }
 
   function roundedRect(ctx, x, y, w, h, r) {
     const radius = Math.min(r, w / 2, h / 2);
@@ -244,6 +86,14 @@
     memory: '<rect x="5" y="6" width="10" height="12" rx="2"/><rect x="9" y="4" width="10" height="12" rx="2"/>',
     merge: '<rect x="4" y="6" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><path d="M11 9h3l3 3-3 3h-3"/><rect x="16" y="9" width="5" height="6" rx="1.5"/>',
     hockey: '<circle cx="8" cy="15" r="3.4"/><circle cx="16.5" cy="8" r="2"/><path d="M4.5 19.5h7M12.5 4.5h7"/>',
+
+    impossible: '<path d="m7 18 5-12 5 12Z"/><path d="M5 18h14"/>',
+    ttt: '<path d="M8 4 6 20M18 4l-2 16M4 9h16M3 15h16"/>',
+    golf: '<path d="M8 4v14"/><path d="m8 5 8 3-8 3"/><circle cx="15.5" cy="18" r="2"/><path d="M5 20h14"/>',
+    breakout: '<rect x="4" y="5" width="16" height="5" rx="1"/><path d="M5 14h14M8 19h8"/><circle cx="12" cy="12" r="1.5"/>',
+    whack: '<path d="M8 5c0 4-2 5-2 8a6 6 0 0 0 12 0c0-3-2-4-2-8"/><circle cx="12" cy="12" r="2"/>',
+    connect: '<path d="M5 7h5v5h4v5h5"/><circle cx="5" cy="7" r="2"/><circle cx="19" cy="17" r="2"/>',
+    road: '<path d="M9 4 7 20M15 4l2 16M12 5v3M12 11v3M12 17v2"/>',
   };
 
   function icon(name, size) {
@@ -266,19 +116,10 @@
   }
 
   root.shared = {
-    storage,
-    normalizeAlias,
-    getProfiles,
-    getActiveProfile,
-    createProfile,
-    setActiveProfile,
-    clearActiveProfile,
-    getRecords,
-    getRecord,
-    saveRecord,
-    localLeaderboard,
     haptic,
     clamp,
+    cssVar,
+    isDark,
     roundedRect,
     bindSwipe,
     icon,

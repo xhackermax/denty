@@ -1,0 +1,15 @@
+DENTY R7 · CONSENTIMIENTOS FIRMADOS
+
+Cambios de esta revisión:
+- El botón "Original" deja de ser el flujo principal.
+- Nueva sección superior "Consentimientos firmados".
+- Cada copia firmada muestra paciente, nº de ficha, DNI, odontólogo, sede, fecha/hora y ambas firmas.
+- Firma separada de odontólogo y paciente en el mismo flujo.
+- Después de confirmar la firma del paciente, el consentimiento pasa automáticamente al archivo firmado.
+- Acciones "Ver firmado" e "Imprimir / PDF".
+- Desde la ficha del paciente, Documentos abre filtrado por ese paciente.
+- En modo demo las copias firmadas persisten en localStorage (denty:clinical-documents:v3) para sobrevivir recargas del navegador.
+- SignaturePad acepta etiquetas específicas para distinguir firma del odontólogo y firma del paciente.
+
+Nota de arquitectura:
+La UI conserva la plantilla oficial como contenido base asociado. Para una instalación clínica real, el backend documental debe persistir además una copia inmutable del documento/PDF firmado y su auditoría, no depender únicamente de almacenamiento del navegador.

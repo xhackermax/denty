@@ -1,0 +1,84 @@
+DENTY R8 · REDISEÑO IPHONE / MINIMALISTA
+Fecha: 22/09/2026
+
+Objetivo
+- Mantener la potencia funcional de Denty reduciendo el ruido visual.
+- Aplicar progressive disclosure: lo esencial visible, lo avanzado accesible cuando hace falta.
+- Unificar experiencia clara/oscura en estilo iOS limpio.
+
+Implementado
+1. Sistema visual global
+- Fondo, superficies, radios, sombras y color principal inspirados en iOS.
+- Tipografía del sistema Apple como primera opción con fallback multiplataforma.
+- Botones, inputs, menús, modales, tabs y badges más sobrios.
+- Dark mode real con superficies negras/gris grafito y acentos iOS.
+
+2. Navegación
+- Barra lateral reducida a Inicio, Pacientes, Agenda, Documentos y Finanzas.
+- Resto de módulos conservados dentro de Más, agrupados por contexto.
+- Navegación móvil flotante con cinco accesos y menú Más.
+- Tareas rápidas, voz y ajustes se mantienen en la barra superior.
+- Cámara/micrófono y apariencia se agrupan dentro de Ajustes rápidos.
+
+3. Oye Denty
+- El micrófono sigue siendo de acceso directo.
+- El campo de orden por texto queda oculto en un popover para no recargar la cabecera.
+- NLU, resolución de paciente, confirmaciones y fallback de grabación/transcripción se conservan.
+
+4. Inicio
+- Tres tarjetas: paciente en gabinete, siguiente cita y alertas.
+- Cuatro accesos rápidos.
+- Pipeline, economía y operativa quedan dentro de Gestión y seguimiento.
+
+5. Ficha del paciente
+- Cabecera compacta con número de ficha y alertas clínicas.
+- Acción principal Odontograma y menú ··· para el resto.
+- Tabs: Resumen, Clínica, Documentos, Cobros y Más.
+- Periodonto, ortodoncia, endodoncia, consentimientos, recetas, juegos y agenda siguen accesibles.
+
+6. Pacientes
+- Se conserva el carrusel vertical infinito estilo iPod.
+- Importación queda en el menú ···.
+- Nuevo paciente permanece como acción principal.
+
+7. Odontograma
+- Se conserva la leyenda funcional y la selección de tratamientos.
+- Herramientas frecuentes visibles; herramientas avanzadas bajo Más tratamientos.
+- Controles avanzados, plan/presupuesto y datos técnicos pasan a paneles desplegables.
+- Prótesis fija/puente permanece visible, incluido rango diente inicial/final.
+
+8. Agenda
+- Vista Día y Pipeline quedan visibles.
+- Doctores y Lista pasan a Más vistas.
+- Drag & drop, resize, copiar/pegar y menú ··· por cita permanecen intactos.
+- Estética tipo calendario: fondos tranquilos, color como indicador y no como bloque dominante.
+
+9. Documentos y consentimientos
+- Tabs: Firmados, Pendientes y Archivo.
+- Firmar/Ver firmado siguen como acciones principales.
+- Imprimir, archivar y acciones secundarias pasan a menús ···.
+- Se mantiene doctor, sede, paciente y ambas firmas.
+
+10. Recetas
+- Nueva receta es la acción principal.
+- Validar/Firmar se muestran según estado.
+- PDF y anulación pasan a menú ···.
+- Nombre comercial y forma de administración se mantienen.
+
+11. Finanzas
+- Nueva factura y acciones fiscales principales siguen visibles.
+- CSV, PDF y rectificación pasan a menús secundarios.
+- Datáfono y VERI*FACTU no se eliminan.
+
+12. Denty Games y portal del paciente
+- Estética alineada con Denty en claro y oscuro.
+- Se mantienen ranking general, récord personal y vínculo con la ficha.
+- Cache de Games actualizada a v111.
+
+Validación realizada en este entorno
+- 190 archivos TS/TSX analizados por el parser de TypeScript: 0 errores de sintaxis.
+- Integridad de 20 assets de Denty Games actualizada y validada.
+- Matriz de regresiones de Vercel: 0 warnings.
+
+Limitación de validación
+- El proyecto exige Node 24.x y este entorno dispone de Node 22.16.0, por lo que no se marca un next build completo como validado localmente.

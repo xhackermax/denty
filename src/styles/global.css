@@ -1,0 +1,171 @@
+@import url("./tokens.css");
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+html {
+  background: var(--denty-bg);
+  scroll-behavior: smooth;
+}
+
+body {
+  position: relative;
+  isolation: isolate;
+  margin: 0;
+  background: var(--denty-bg);
+  color: var(--denty-text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+body::before {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  background:
+    radial-gradient(circle at 78% -10%, rgb(0 122 255 / 6%), transparent 34rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--denty-bg-elevated) 72%, transparent), transparent 24rem);
+  content: "";
+  pointer-events: none;
+}
+
+html[data-mantine-color-scheme="dark"] body::before {
+  background: radial-gradient(circle at 80% -8%, rgb(10 132 255 / 11%), transparent 31rem);
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--denty-blue) 22%, transparent);
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--denty-blue) 48%, transparent);
+  outline-offset: 2px;
+}
+
+/* App-wide iOS-like component treatment. Keeps functionality, removes visual noise. */
+.mantine-Button-root {
+  min-height: var(--denty-control-height);
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  box-shadow: none;
+}
+
+.mantine-ActionIcon-root {
+  border-radius: 999px;
+}
+
+.mantine-Input-input,
+.mantine-Textarea-input,
+.mantine-Select-input,
+.mantine-MultiSelect-input,
+.mantine-NumberInput-input {
+  min-height: var(--denty-control-height);
+  border-color: var(--denty-line);
+  border-radius: var(--denty-radius-control);
+  background: color-mix(in srgb, var(--denty-card-solid) 94%, var(--denty-bg) 6%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 24%);
+}
+
+.mantine-Input-input:focus,
+.mantine-Textarea-input:focus,
+.mantine-Select-input:focus,
+.mantine-MultiSelect-input:focus,
+.mantine-NumberInput-input:focus {
+  border-color: color-mix(in srgb, var(--denty-blue) 48%, var(--denty-line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--denty-blue) 10%, transparent);
+}
+
+.mantine-Badge-root {
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+
+.mantine-Menu-dropdown,
+.mantine-Popover-dropdown {
+  border-color: var(--denty-line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--denty-card-solid) 92%, transparent);
+  box-shadow: var(--denty-shell-shadow);
+  backdrop-filter: blur(28px) saturate(160%);
+}
+
+.mantine-Menu-item {
+  min-height: 40px;
+  border-radius: 10px;
+}
+
+.mantine-Modal-content {
+  border: 1px solid var(--denty-line);
+  border-radius: 24px;
+  background: var(--denty-card-solid);
+  box-shadow: var(--denty-shell-shadow);
+}
+
+.mantine-Modal-header {
+  min-height: 58px;
+  border-bottom: 1px solid var(--denty-line);
+  background: transparent;
+}
+
+.mantine-SegmentedControl-root {
+  padding: 3px;
+  border: 1px solid var(--denty-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--denty-card-solid) 82%, var(--denty-bg) 18%);
+}
+
+.mantine-SegmentedControl-label {
+  min-height: 34px;
+  border-radius: 999px;
+  font-weight: 680;
+}
+
+.mantine-Tabs-list {
+  gap: 4px;
+  border: 0;
+}
+
+.mantine-Tabs-tab {
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--denty-muted);
+  font-weight: 700;
+}
+
+.mantine-Tabs-tab[data-active] {
+  background: color-mix(in srgb, var(--denty-blue) 10%, var(--denty-card-solid));
+  color: var(--denty-blue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}

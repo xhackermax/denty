@@ -1,0 +1,21 @@
+Denty R7 · Odontograma · Leyenda funcional
+2026-09-22
+
+Cambios de esta revisión:
+
+1. La leyenda ya no es informativa solamente: cada tarjeta es una herramienta clínica seleccionable.
+2. Obturación, corona, endodoncia, perno, implante, prótesis fija y removible cambian de estado con pulsaciones sucesivas cuando corresponde: realizado -> revisar -> pendiente/indicado.
+3. Caries puede aplicarse por superficie; los tratamientos de diente completo se aplican al pulsar una superficie del diente.
+4. Prótesis fija / puente abre modo de selección por rango.
+   - Se puede elegir Diente inicial y Diente final en desplegables.
+   - También se pueden seleccionar directamente pulsando los dientes del odontograma.
+   - El rango se previsualiza antes de confirmar.
+   - Inicio y final deben pertenecer a la misma arcada y ser distintos.
+5. Al confirmar una prótesis fija/puente se conservan las entidades BRIDGE y PONTIC y se añaden entidades PROSTHESIS por cada diente del rango, de modo que la prótesis tenga representación visual sobre el odontograma.
+6. Se añadió una marca visual específica de prótesis y resaltado de los dientes incluidos en el rango.
+7. La herramienta elegida en la leyenda queda sincronizada con el desplegable Herramienta.
+8. Se añadieron pruebas para la selección desde la leyenda y para las entidades visuales de un puente.
+
+Validación local:
+- 185 archivos .ts/.tsx analizados con el parser de TypeScript: 0 errores de sintaxis.
+- No se ejecutó el build completo local porque este proyecto exige Node 24.x y el entorno de trabajo dispone de Node 22.16.0.

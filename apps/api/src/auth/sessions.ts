@@ -1,7 +1,0 @@
-import { createHash, randomBytes } from "node:crypto";
-import { prisma } from "@denty/db";
-export const SESSION_COOKIE="denty_session";
-export function hashSessionToken(token:string){return createHash("sha256").update(token).digest("hex")}
-export async function createSession(input:{userId:string;clinicId:string;ttlHours?:number;deviceLabel?:string;ip?:string;userAgent?:string}){const token=randomBytes(32).toString("base64url");const now=new Date();const expiresAt=new Date(now.getTime()+(input.ttlHours??12)*3600_000);const session=await prisma.session.create({data:{userId:input.userId,clinicId:input.clinicId,tokenHash:hashSessionToken(token),expiresAt,deviceLabel:input.deviceLabel,ipHash:input.ip?hashSessionToken(input.ip):undefined,userAgentHash:input.userAgent?hashSessionToken(input.userAgent):undefined}});return{token,session};}
-export async function sessionFromToken(token:string){const now=new Date();const session=await prisma.session.findUnique({where:{tokenHash:hashSessionToken(token)},include:{user:{include:{staffProfile:true,patientGrants:{where:{active:true}}}}}});if(!session||session.revokedAt||session.expiresAt<=now||!session.user.active)return null;await prisma.session.update({where:{id:session.id},data:{lastSeenAt:now}});return session;}
-export async function revokeSession(token:string){await prisma.session.updateMany({where:{tokenHash:hashSessionToken(token),revokedAt:null},data:{revokedAt:new Date()}})}

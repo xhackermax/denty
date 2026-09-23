@@ -47,8 +47,8 @@
       ctx.globalAlpha=alpha; ctx.fillStyle=COLORS[(colorIndex-1)%COLORS.length]; ctx.fill(); ctx.globalAlpha=1;
     }
     function draw(){
-      ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,W*CELL,H*CELL);
-      ctx.strokeStyle='rgba(104,118,137,.055)'; ctx.lineWidth=1;
+      ctx.fillStyle=global.DentyGames.shared.cssVar('--dg-canvas-bg','#f8fafc'); ctx.fillRect(0,0,W*CELL,H*CELL);
+      ctx.strokeStyle=global.DentyGames.shared.cssVar('--dg-canvas-grid','rgba(104,118,137,.055)'); ctx.lineWidth=1;
       for(let x=1;x<W;x++){ctx.beginPath();ctx.moveTo(x*CELL,0);ctx.lineTo(x*CELL,H*CELL);ctx.stroke();}
       for(let y=1;y<H;y++){ctx.beginPath();ctx.moveTo(0,y*CELL);ctx.lineTo(W*CELL,y*CELL);ctx.stroke();}
       board.forEach((row,y)=>row.forEach((v,x)=>{if(v) drawTile(x,y,v,.82);}));

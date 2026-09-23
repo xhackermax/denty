@@ -1,0 +1,1494 @@
+.board {
+  display: grid;
+  gap: 18px;
+}
+
+.controlPanel,
+.chartPanel {
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-board);
+  background: var(--denty-card);
+  box-shadow: var(--denty-card-shadow);
+  backdrop-filter: blur(16px);
+}
+
+.controlPanel {
+  padding: 18px;
+}
+
+.panelHeading,
+.chartHeader {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.chartPanel {
+  position: relative;
+  overflow: hidden;
+  padding: 20px 18px 22px;
+}
+
+.chartPanel::before {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  top: -210px;
+  right: -110px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--denty-glow), transparent 70%);
+  content: "";
+  pointer-events: none;
+}
+
+.surfaceKey {
+  display: flex;
+  max-width: 620px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  justify-content: flex-end;
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+}
+
+.surfaceKey span {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.surfaceKey b {
+  color: var(--denty-text);
+}
+
+.archBlock {
+  position: relative;
+  display: grid;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--denty-teal) 28%, transparent) transparent;
+}
+
+.archLabel {
+  color: var(--denty-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.arch {
+  display: grid;
+  min-width: 1030px;
+  grid-template-columns: repeat(16, minmax(56px, 1fr));
+  gap: 5px;
+  overflow: visible;
+  padding: 4px 2px;
+}
+
+.toothButton {
+  display: flex;
+  min-width: 56px;
+  min-height: 114px;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 2px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--denty-text);
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.toothButton:nth-child(8) {
+  margin-right: 10px;
+}
+
+.toothButton:hover {
+  border-color: color-mix(in srgb, var(--denty-teal) 25%, transparent);
+  background: color-mix(in srgb, var(--denty-teal) 5%, transparent);
+  transform: translateY(-2px);
+}
+
+.toothButton[data-selected="true"] {
+  border-color: color-mix(in srgb, var(--denty-teal) 48%, transparent);
+  background: color-mix(in srgb, var(--denty-teal) 9%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--denty-teal) 12%, transparent);
+}
+
+.toothButton[data-prosthesis-range="true"] {
+  border-color: color-mix(in srgb, var(--denty-violet) 58%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-violet) 10%, var(--denty-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-violet) 24%, transparent);
+}
+
+.toothButton[data-prosthesis-endpoint="true"] {
+  border-color: var(--denty-violet);
+  background: color-mix(in srgb, var(--denty-violet) 16%, var(--denty-card));
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--denty-violet) 30%, transparent),
+    0 7px 18px color-mix(in srgb, var(--denty-violet) 14%, transparent);
+}
+
+.toothSvg {
+  width: 54px;
+  height: 82px;
+  overflow: visible;
+  filter: drop-shadow(0 4px 5px rgb(24 47 70 / 8%));
+}
+
+.toothLabel {
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 1;
+}
+
+.toothButton[data-arch="upper"] .toothSvg {
+  order: 1;
+  transform: scaleY(-1);
+}
+
+.toothButton[data-arch="upper"] .toothLabel {
+  order: 2;
+}
+
+.toothButton[data-arch="lower"] .toothLabel {
+  order: 1;
+}
+
+.toothButton[data-arch="lower"] .toothSvg {
+  order: 2;
+}
+
+.rootShape {
+  fill: color-mix(in srgb, var(--denty-card-solid) 93%, var(--denty-blue) 7%);
+  stroke: color-mix(in srgb, var(--denty-muted) 55%, var(--denty-line));
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.crownBase {
+  fill: color-mix(in srgb, var(--denty-card-solid) 96%, var(--denty-blue) 4%);
+  stroke: none;
+}
+
+.crownOutline {
+  fill: none;
+  stroke: color-mix(in srgb, var(--denty-muted) 62%, var(--denty-line));
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.surface {
+  fill: color-mix(in srgb, var(--denty-card-solid) 95%, var(--denty-blue) 5%);
+  stroke: color-mix(in srgb, var(--denty-line-strong) 82%, transparent);
+  stroke-width: 1.05;
+  cursor: crosshair;
+  transition:
+    fill 120ms ease,
+    stroke 120ms ease,
+    filter 120ms ease;
+}
+
+.surface:hover {
+  fill: color-mix(in srgb, var(--denty-teal) 13%, var(--denty-card-solid));
+  stroke: var(--denty-teal);
+  stroke-width: 1.8;
+  filter: brightness(1.03);
+}
+
+.surfaceHitbox {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 0;
+  cursor: crosshair;
+}
+
+.surfaceHitbox:hover {
+  fill: transparent;
+  stroke: transparent;
+}
+
+.surface[data-state="caries"],
+.surface[data-state="extraction"] {
+  fill: color-mix(in srgb, var(--denty-danger) 68%, transparent);
+  stroke: var(--denty-danger);
+}
+
+.surface[data-state="healthy"] {
+  fill: color-mix(in srgb, var(--denty-green) 34%, var(--denty-card-solid));
+  stroke: color-mix(in srgb, var(--denty-green) 70%, var(--denty-line));
+}
+
+.surface[data-state="filling"],
+.surface[data-state="crown"],
+.surface[data-state="endo"],
+.surface[data-state="post"] {
+  fill: color-mix(in srgb, var(--denty-blue) 45%, var(--denty-card-solid));
+  stroke: var(--denty-blue);
+}
+
+.surface[data-state="filling_bad"],
+.surface[data-state="crown_bad"],
+.surface[data-state="endo_bad"],
+.surface[data-state="post_bad"],
+.surface[data-state="implant_review"],
+.surface[data-state="prosthesis_bad"],
+.surface[data-state="removable_bad"] {
+  fill: color-mix(in srgb, var(--denty-blue) 35%, var(--denty-card-solid));
+  stroke: var(--denty-danger);
+  stroke-width: 2;
+}
+
+.surface[data-state="filling_pending"],
+.surface[data-state="crown_pending"],
+.surface[data-state="endo_indicated"],
+.surface[data-state="post_pending"],
+.surface[data-state="implant_indicated"],
+.surface[data-state="prosthesis_pending"],
+.surface[data-state="removable_pending"] {
+  fill: color-mix(in srgb, var(--denty-danger) 24%, var(--denty-card-solid));
+  stroke: var(--denty-danger);
+  stroke-dasharray: 2.5 2;
+}
+
+.surface[data-state="implant"],
+.surface[data-state="prosthesis"],
+.surface[data-state="removable"] {
+  fill: color-mix(in srgb, var(--denty-violet) 36%, var(--denty-card-solid));
+  stroke: var(--denty-violet);
+}
+
+.toothSvg[data-state="missing"] {
+  opacity: 0.38;
+}
+
+.toothSvg[data-state="missing"] .surface {
+  fill: transparent;
+}
+
+.endoMark,
+.postMark,
+.extractionMark,
+.missingMark,
+.implantMark,
+.prosthesisMark {
+  pointer-events: none;
+}
+
+.endoMark {
+  fill: none;
+  stroke: var(--denty-danger);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.postMark {
+  stroke: var(--denty-blue);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+}
+
+.implantMark {
+  fill: color-mix(in srgb, var(--denty-violet) 15%, var(--denty-card-solid));
+  stroke: var(--denty-violet);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.prosthesisMark {
+  fill: color-mix(in srgb, var(--denty-violet) 20%, var(--denty-card-solid));
+  stroke: var(--denty-violet);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.extractionMark {
+  fill: none;
+  stroke: var(--denty-danger);
+  stroke-width: 2.7;
+  stroke-linecap: round;
+}
+
+.missingMark {
+  stroke: var(--denty-muted);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.toothButton[data-selected="true"] .toothLabel {
+  color: var(--denty-teal);
+}
+
+.occlusalPlane {
+  position: relative;
+  display: flex;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  margin: 2px 0;
+  color: var(--denty-muted);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.occlusalPlane::before,
+.occlusalPlane::after {
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, var(--denty-line-strong), transparent);
+  content: "";
+}
+
+.occlusalPlane span {
+  padding-inline: 10px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--denty-line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--denty-card) 92%, transparent);
+}
+
+.legendItem {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--denty-muted);
+  font-size: 0.72rem;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--denty-blue);
+}
+
+.legendDot[data-tone="red"] {
+  background: var(--denty-danger);
+}
+
+.legendDot[data-tone="green"] {
+  background: var(--denty-green);
+}
+
+.legendDot[data-tone="violet"] {
+  background: var(--denty-violet);
+}
+
+.clinicalTabs {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--denty-line);
+}
+
+.clinicalPanel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-board);
+  background: var(--denty-card);
+  box-shadow: var(--denty-card-shadow);
+}
+
+.clinicalSummary > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--denty-card-solid) 86%, transparent);
+}
+
+.clinicalSummary span {
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.clinicalSummary strong {
+  color: var(--denty-text);
+  font-size: 1rem;
+}
+
+.periodontalGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.periodontalTooth {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 10px;
+}
+
+.periodontalSites {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(92px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.periodontalCell {
+  display: grid;
+  gap: 4px;
+  min-width: 92px;
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+  font-weight: 780;
+}
+
+.periodontalCell small {
+  color: var(--denty-text);
+  font-size: 0.66rem;
+}
+
+.riskBadge {
+  text-transform: uppercase;
+}
+
+.pediatricToothGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+  gap: 6px;
+}
+
+.pediatricTooth {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed color-mix(in srgb, var(--denty-teal) 34%, var(--denty-line));
+  border-radius: 8px;
+  color: var(--denty-text);
+  font-size: 0.74rem;
+  font-weight: 820;
+}
+
+.ghostRoot {
+  position: relative;
+  padding-left: 24px;
+  color: var(--denty-muted);
+}
+
+.ghostRoot::before {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  width: 16px;
+  height: 22px;
+  border: 1.5px dashed var(--denty-muted);
+  border-top: 0;
+  border-radius: 0 0 9px 9px;
+  opacity: 0.55;
+  content: "";
+}
+
+.endoVisualMark {
+  fill: color-mix(in srgb, var(--denty-danger) 18%, transparent);
+  stroke: var(--denty-danger);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.endoVisualMark[data-severity="info"] {
+  stroke: var(--denty-blue);
+}
+
+.endoVisualMark[data-severity="warning"] {
+  stroke: var(--denty-danger);
+}
+
+.entityList {
+  display: grid;
+  gap: 6px;
+}
+
+.entityRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1px solid var(--denty-line);
+  border-radius: 10px;
+}
+
+html[data-mantine-color-scheme="dark"] .controlPanel,
+html[data-mantine-color-scheme="dark"] .chartPanel {
+  background: linear-gradient(180deg, rgb(9 19 35 / 96%), rgb(6 15 28 / 92%));
+  box-shadow:
+    var(--denty-card-shadow),
+    inset 0 0 0 1px rgb(108 208 255 / 4%);
+}
+
+html[data-mantine-color-scheme="dark"] .rootShape,
+html[data-mantine-color-scheme="dark"] .crownBase {
+  fill: rgb(17 32 49 / 94%);
+}
+
+html[data-mantine-color-scheme="dark"] .surface:hover {
+  fill: rgb(27 65 82 / 96%);
+}
+
+@media (width <= 70em) {
+  .arch {
+    min-width: 970px;
+    grid-template-columns: repeat(16, 52px);
+  }
+
+  .toothSvg {
+    width: 50px;
+  }
+}
+
+@media (width <= 48em) {
+  .controlPanel,
+  .chartPanel {
+    border-radius: 18px;
+  }
+
+  .panelHeading,
+  .chartHeader {
+    flex-direction: column;
+  }
+
+  .surfaceKey {
+    justify-content: flex-start;
+  }
+
+  .chartPanel {
+    padding-inline: 12px;
+  }
+
+  .arch {
+    min-width: 900px;
+    grid-template-columns: repeat(16, 48px);
+    gap: 4px;
+  }
+
+  .toothButton {
+    min-width: 48px;
+  }
+
+  .toothSvg {
+    width: 46px;
+    height: 76px;
+  }
+}
+
+/* Clinical legend: visible next to the chart instead of relying on color memory. */
+.legendCard {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid var(--denty-line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--denty-card-solid) 95%, var(--denty-blue) 5%);
+}
+
+.legendHeading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.legendHeading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.legendHeading strong {
+  color: var(--denty-text);
+  font-size: 0.82rem;
+}
+
+.legendHeading span,
+.legendHint {
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+}
+
+.legendHint {
+  padding: 5px 8px;
+  border: 1px solid var(--denty-line);
+  border-radius: 999px;
+  background: var(--denty-card);
+  white-space: nowrap;
+}
+
+.legendGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.legendEntry {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  gap: 9px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--denty-line) 78%, transparent);
+  border-radius: 12px;
+  appearance: none;
+  background: color-mix(in srgb, var(--denty-card) 82%, transparent);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.legendEntry:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--denty-teal) 42%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-teal) 7%, var(--denty-card));
+  transform: translateY(-1px);
+}
+
+.legendEntry[data-selected="true"] {
+  border-color: color-mix(in srgb, var(--denty-teal) 66%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-teal) 11%, var(--denty-card));
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--denty-teal) 10%, transparent);
+}
+
+.legendEntry:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--denty-teal) 72%, white);
+  outline-offset: 2px;
+}
+
+.legendEntry:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.legendSwatch,
+.legendSymbol {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border: 1.6px solid var(--denty-line-strong);
+  border-radius: 8px;
+  background: var(--denty-card-solid);
+}
+
+.legendSwatch[data-state="healthy"] {
+  border-color: color-mix(in srgb, var(--denty-green) 70%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-green) 34%, var(--denty-card-solid));
+}
+
+.legendSwatch[data-state="caries"] {
+  border-color: var(--denty-danger);
+  background: color-mix(in srgb, var(--denty-danger) 68%, transparent);
+}
+
+.legendSwatch[data-state="filling"] {
+  border-color: var(--denty-blue);
+  background: color-mix(in srgb, var(--denty-blue) 45%, var(--denty-card-solid));
+}
+
+.legendSwatch[data-state="crown"],
+.legendSwatch[data-state="endo"],
+.legendSwatch[data-state="post"] {
+  border-color: var(--denty-blue);
+  background: color-mix(in srgb, var(--denty-blue) 45%, var(--denty-card-solid));
+}
+
+.legendSwatch[data-state="filling_bad"] {
+  border: 2px solid var(--denty-danger);
+  background: color-mix(in srgb, var(--denty-blue) 35%, var(--denty-card-solid));
+}
+
+.legendSwatch[data-state="crown_bad"],
+.legendSwatch[data-state="endo_bad"],
+.legendSwatch[data-state="post_bad"],
+.legendSwatch[data-state="implant_review"],
+.legendSwatch[data-state="prosthesis_bad"],
+.legendSwatch[data-state="removable_bad"] {
+  border: 2px solid var(--denty-danger);
+  background: color-mix(in srgb, var(--denty-blue) 30%, var(--denty-card-solid));
+}
+
+.legendSwatch[data-state="filling_pending"] {
+  border: 2px dashed var(--denty-danger);
+  background: color-mix(in srgb, var(--denty-danger) 24%, var(--denty-card-solid));
+}
+
+.legendSwatch[data-state="crown_pending"],
+.legendSwatch[data-state="endo_indicated"],
+.legendSwatch[data-state="post_pending"],
+.legendSwatch[data-state="implant_indicated"],
+.legendSwatch[data-state="prosthesis_pending"],
+.legendSwatch[data-state="removable_pending"] {
+  border: 2px dashed var(--denty-danger);
+  background: color-mix(in srgb, var(--denty-danger) 20%, var(--denty-card-solid));
+}
+
+.legendSwatch[data-state="implant"] {
+  border-color: var(--denty-violet);
+  background: color-mix(in srgb, var(--denty-violet) 36%, var(--denty-card-solid));
+}
+
+.legendSwatch[data-state="prosthesis"],
+.legendSwatch[data-state="removable"] {
+  border-color: var(--denty-violet);
+  background: color-mix(in srgb, var(--denty-violet) 36%, var(--denty-card-solid));
+}
+
+.legendSymbol {
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.legendSymbol[data-tone="danger"] {
+  border-color: color-mix(in srgb, var(--denty-danger) 45%, var(--denty-line));
+  color: var(--denty-danger);
+}
+
+.legendSymbol[data-tone="muted"] {
+  color: var(--denty-muted);
+}
+
+.legendCopy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.legendCopy strong {
+  overflow: hidden;
+  color: var(--denty-text);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legendCopy small {
+  overflow: hidden;
+  color: var(--denty-muted);
+  font-size: 0.62rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legendChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.legendChipRow em {
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--denty-line) 82%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--denty-card-solid) 88%, transparent);
+  color: var(--denty-muted);
+  font-size: 0.56rem;
+  font-style: normal;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.legendEntry[data-selected="true"] .legendChipRow em:first-child {
+  border-color: color-mix(in srgb, var(--denty-teal) 38%, var(--denty-line));
+  color: var(--denty-teal);
+}
+
+.surfaceLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--denty-line);
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+}
+
+.surfaceLegend strong,
+.surfaceLegend b {
+  color: var(--denty-text);
+}
+
+.bridgePicker {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--denty-violet) 34%, var(--denty-line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--denty-violet) 6%, var(--denty-card-solid));
+}
+
+.bridgePickerHeading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.bridgeSelectionBanner {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: -6px 0 14px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--denty-violet) 30%, var(--denty-line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--denty-violet) 7%, var(--denty-card-solid));
+  color: var(--denty-muted);
+  font-size: 0.7rem;
+}
+
+.bridgeSelectionBanner strong {
+  color: var(--denty-violet);
+  white-space: nowrap;
+}
+
+@media (width <= 70em) {
+  .legendGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width <= 48em) {
+  .legendHeading {
+    flex-direction: column;
+  }
+
+  .legendHint {
+    white-space: normal;
+  }
+
+  .legendGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .legendCopy strong,
+  .legendCopy small {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+
+/* Full periodontal editor */
+.perioArch {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+
+.perioToothCard {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--denty-line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--denty-card-solid) 97%, var(--denty-blue) 3%);
+}
+
+.perioToothHeader {
+  display: grid;
+  gap: 5px;
+}
+
+.perioToothHeader strong {
+  font-size: 0.82rem;
+}
+
+.perioToothMeta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.perioSiteStrip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(76px, 1fr));
+  gap: 5px;
+  overflow-x: auto;
+}
+
+.perioSiteCell {
+  display: grid;
+  gap: 3px;
+  padding: 5px;
+  border: 1px solid color-mix(in srgb, var(--denty-line) 76%, transparent);
+  border-radius: 9px;
+  background: var(--denty-card-solid);
+}
+
+.perioSiteName {
+  color: var(--denty-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.perioCal {
+  color: var(--denty-muted);
+  font-size: 0.55rem;
+  text-align: center;
+}
+
+.perioFlags {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+}
+
+.perioDivider,
+.orthoOcclusalLine {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+  color: var(--denty-muted);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.perioDivider::before,
+.perioDivider::after,
+.orthoOcclusalLine::before,
+.orthoOcclusalLine::after {
+  height: 1px;
+  flex: 1;
+  background: var(--denty-line);
+  content: "";
+}
+
+/* Orthodontic odontogram */
+.orthoArch,
+.pediatricArch {
+  display: flex;
+  gap: 4px;
+  padding: 8px 2px;
+  overflow-x: auto;
+}
+
+.orthoTooth,
+.pediatricToothButton {
+  display: grid;
+  min-width: 48px;
+  gap: 2px;
+  place-items: center;
+  padding: 4px 3px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--denty-text);
+  cursor: pointer;
+}
+
+.orthoTooth:hover,
+.pediatricToothButton:hover,
+.pediatricToothButton[data-selected="true"] {
+  border-color: var(--denty-line-strong);
+  background: var(--denty-card);
+}
+
+.orthoTooth > span,
+.pediatricToothButton > span {
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.orthoTooth svg,
+.pediatricToothButton svg {
+  width: 42px;
+  height: 58px;
+  overflow: visible;
+  fill: color-mix(in srgb, var(--denty-card-solid) 92%, var(--denty-blue) 8%);
+  stroke: var(--denty-line-strong);
+  stroke-width: 1.4;
+}
+
+.orthoTooth[data-mark="bracket"] svg rect,
+.orthoTooth[data-mark="attachment"] svg circle {
+  fill: color-mix(in srgb, var(--denty-blue) 65%, var(--denty-card-solid));
+  stroke: var(--denty-blue);
+}
+
+.orthoTooth[data-mark="band"] svg path:last-child {
+  fill: none;
+  stroke: var(--denty-violet);
+  stroke-width: 3;
+}
+
+.orthoTooth[data-mark="extract"] svg path:last-child {
+  fill: none;
+  stroke: var(--denty-danger);
+  stroke-width: 2.4;
+}
+
+.orthoTooth[data-mark="space"] svg path:last-child {
+  fill: none;
+  stroke: var(--denty-muted);
+  stroke-width: 3;
+}
+
+.orthoLegend,
+.pediatricLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  margin-top: 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--denty-line);
+  border-radius: 12px;
+  background: var(--denty-card);
+}
+
+.orthoLegend span,
+.pediatricLegend span {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--denty-muted);
+  font-size: 0.63rem;
+}
+
+.orthoLegend i {
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--denty-line-strong);
+  border-radius: 3px;
+}
+
+.orthoLegend i[data-mark="bracket"] {
+  border-color: var(--denty-blue);
+}
+.orthoLegend i[data-mark="band"] {
+  border-color: var(--denty-violet);
+}
+.orthoLegend i[data-mark="attachment"] {
+  border-radius: 50%;
+  background: var(--denty-blue);
+}
+.orthoLegend i[data-mark="extract"] {
+  border-color: var(--denty-danger);
+  transform: rotate(45deg);
+}
+.orthoLegend i[data-mark="space"] {
+  width: 16px;
+  height: 2px;
+  border: 0;
+  background: var(--denty-muted);
+}
+
+/* Pediatric chart */
+.pediatricToothButton[data-status="healthy"] svg {
+  stroke: color-mix(in srgb, var(--denty-green) 64%, var(--denty-line));
+}
+.pediatricToothButton[data-status="early_caries"] svg {
+  stroke: var(--denty-danger);
+}
+.pediatricToothButton[data-status="sealant"] svg {
+  stroke: var(--denty-blue);
+}
+.pediatricToothButton[data-status="pulpotomy"] svg,
+.pediatricToothButton[data-status="pulpectomy"] svg {
+  stroke: var(--denty-violet);
+}
+.pediatricToothButton[data-status="pediatric_crown"] svg {
+  stroke: var(--denty-blue);
+}
+.pediatricToothButton[data-status="exfoliated"] svg {
+  opacity: 0.48;
+}
+.pediatricToothButton[data-status="erupting"] svg {
+  stroke: var(--denty-gold);
+}
+.pediatricToothButton[data-status="space_maintainer"] svg {
+  stroke: var(--denty-turquoise);
+}
+
+.pediatricCrown,
+.pediatricRoot {
+  fill: color-mix(in srgb, var(--denty-card-solid) 94%, var(--denty-blue) 6%);
+}
+
+.pediatricRoot,
+.pediatricMark {
+  fill: none;
+}
+
+.pediatricMark {
+  stroke: currentColor;
+  stroke-width: 2.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.pediatricLegend span::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--denty-blue);
+  content: "";
+}
+
+.pediatricLegend span[data-status="healthy"]::before {
+  background: var(--denty-green);
+}
+.pediatricLegend span[data-status="early_caries"]::before {
+  background: var(--denty-danger);
+}
+.pediatricLegend span[data-status="pulpotomy"]::before,
+.pediatricLegend span[data-status="pulpectomy"]::before {
+  background: var(--denty-violet);
+}
+.pediatricLegend span[data-status="erupting"]::before {
+  background: var(--denty-gold);
+}
+
+/* Endodontic visual diagnosis library */
+.endoEditorGrid {
+  align-items: end;
+}
+
+.endoDiagnosisPreview {
+  display: flex;
+  min-height: 68px;
+  gap: 9px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--denty-line);
+  border-radius: 12px;
+  background: var(--denty-card);
+}
+
+.endoDiagnosisPreview svg,
+.endoVisualLibrary svg {
+  width: 42px;
+  height: 60px;
+  flex: 0 0 auto;
+}
+
+.endoDiagnosisPreview > div {
+  display: grid;
+  gap: 2px;
+}
+
+.endoDiagnosisPreview strong {
+  font-size: 0.72rem;
+}
+
+.endoDiagnosisPreview span {
+  color: var(--denty-muted);
+  font-size: 0.6rem;
+}
+
+.endoPreviewTooth {
+  fill: none;
+  stroke: var(--denty-line-strong);
+  stroke-width: 1.2;
+}
+
+.endoPreviewMark {
+  fill: none;
+  stroke: var(--denty-gold);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.7;
+}
+
+.endoDiagnosisPreview[data-severity="danger"] .endoPreviewMark,
+.endoVisualLibrary [data-severity="danger"] .endoPreviewMark {
+  stroke: var(--denty-danger);
+}
+
+.endoDiagnosisPreview[data-severity="info"] .endoPreviewMark,
+.endoVisualLibrary [data-severity="info"] .endoPreviewMark {
+  stroke: var(--denty-blue);
+}
+
+.endoDiagnosisPreview[data-severity="neutral"] .endoPreviewMark,
+.endoVisualLibrary [data-severity="neutral"] .endoPreviewMark {
+  stroke: var(--denty-muted);
+}
+
+.endoVisualLibrary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.endoVisualLibrary > div {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 7px;
+  border: 1px solid var(--denty-line);
+  border-radius: 10px;
+}
+
+.endoVisualLibrary span {
+  color: var(--denty-muted);
+  font-size: 0.62rem;
+}
+
+@media (width <= 48em) {
+  .perioToothCard {
+    grid-template-columns: 86px minmax(560px, 1fr);
+    overflow-x: auto;
+  }
+
+  .orthoTooth,
+  .pediatricToothButton {
+    min-width: 44px;
+  }
+}
+
+/* R8 minimal clinical workspace */
+.board {
+  gap: 16px;
+}
+
+.chartPanel,
+.controlPanel,
+.clinicalPanel {
+  border-color: var(--denty-line);
+  background: var(--denty-card);
+  box-shadow: var(--denty-card-shadow);
+}
+
+.chartPanel {
+  padding: 18px;
+}
+
+.chartPanel::before {
+  opacity: 0.45;
+}
+
+.clinicalTabs {
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 3px;
+  border: 1px solid var(--denty-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--denty-card-solid) 72%, var(--denty-bg) 28%);
+  scrollbar-width: none;
+}
+
+.clinicalTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.clinicalTabs :global(.mantine-Button-root) {
+  min-height: 34px;
+  border-radius: 999px;
+}
+
+.legendCard {
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--denty-card-solid) 84%, transparent);
+}
+
+.legendHeading {
+  align-items: center;
+}
+
+.legendHeading strong {
+  font-size: 0.82rem;
+  font-weight: 730;
+}
+
+.legendHeading span,
+.legendHint {
+  font-size: 0.66rem;
+}
+
+.legendGrid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.legendEntry {
+  min-height: 54px;
+  gap: 7px;
+  padding: 8px;
+  border-radius: 12px;
+  background: transparent;
+}
+
+.legendEntry:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--denty-blue) 5%, var(--denty-card));
+  transform: none;
+}
+
+.legendEntry[data-selected="true"] {
+  border-color: color-mix(in srgb, var(--denty-blue) 35%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-blue) 8%, var(--denty-card));
+  box-shadow: none;
+}
+
+.legendSwatch,
+.legendSymbol {
+  width: 25px;
+  height: 25px;
+  flex-basis: 25px;
+  border-radius: 7px;
+}
+
+.legendCopy strong {
+  font-size: 0.69rem;
+}
+
+.legendCopy small {
+  font-size: 0.58rem;
+}
+
+.legendMore {
+  border-top: 1px solid var(--denty-line);
+  padding-top: 8px;
+}
+
+.legendMore > summary {
+  width: fit-content;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: var(--denty-blue);
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 720;
+  list-style: none;
+}
+
+.legendMore > summary::-webkit-details-marker {
+  display: none;
+}
+
+.legendMore[open] > summary {
+  margin-bottom: 8px;
+  background: color-mix(in srgb, var(--denty-blue) 8%, transparent);
+}
+
+.advancedTools {
+  overflow: hidden;
+  border: 1px solid var(--denty-line);
+  border-radius: 18px;
+  background: var(--denty-card);
+}
+
+.advancedTools > summary {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.advancedTools > summary::-webkit-details-marker {
+  display: none;
+}
+
+.advancedTools > summary > span {
+  display: grid;
+  gap: 2px;
+}
+
+.advancedTools > summary strong {
+  color: var(--denty-text);
+  font-size: 0.82rem;
+  font-weight: 720;
+}
+
+.advancedTools > summary small {
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+}
+
+.advancedTools[open] > summary {
+  border-bottom: 1px solid var(--denty-line);
+}
+
+.advancedTools .controlPanel {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.surfaceKey {
+  gap: 5px 10px;
+  font-size: 0.64rem;
+}
+
+.toothButton {
+  border-radius: 12px;
+}
+
+.toothButton:hover {
+  transform: none;
+}
+
+@media (width <= 78em) {
+  .legendGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (width <= 48em) {
+  .legendGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .legendEntry {
+    min-height: 50px;
+  }
+
+  .chartHeader {
+    gap: 8px;
+  }
+}

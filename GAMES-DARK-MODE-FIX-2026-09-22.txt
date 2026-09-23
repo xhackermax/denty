@@ -1,0 +1,8 @@
+Denty Games dark-mode integration
+
+- Games iframe now inherits/synchronizes the host Mantine color scheme.
+- Supports standalone prefers-color-scheme and optional ?theme=dark|light.
+- Dark palette added to Games surfaces, cards, menus, sheets, overlays, boards and status states.
+- Canvas games now read Denty CSS theme variables for their main board backgrounds/grids.
+- iframe background follows --denty-bg instead of forcing white.
+- Cache-busted Games static assets to v109.

@@ -1,0 +1,28 @@
+Denty R8 · Pipeline, laboratorios, finanzas y móvil · 2026-09-23
+
+- Pipeline clínico navegable: Odontograma → Diagnóstico → Plan → Presupuesto → Citas.
+- Contexto de paciente preservado entre pasos.
+- Progreso calculado desde datos clínicos, no fijado manualmente.
+- Ajuste de administrador para intervalo entre visitas; demo por defecto: 7 días.
+- Agenda permite crear series de visitas respetando el intervalo configurado.
+- Catálogo de múltiples laboratorios, asignación por trabajo y vistas Trabajos/Laboratorios/Saldos.
+- En demo se registran pagos a laboratorios y se calcula acumulado/pagado/pendiente.
+- En servidor no se inventa deuda si faltan datos de facturación/pagos del proveedor.
+- Finanzas: producido, facturado, cobrado, pendiente y margen separados.
+- Gráfico donut por tratamiento, barras por doctor, tendencia mensual y tablas de detalle.
+- Producción sin doctor asociado se muestra como "Sin profesional asignado".
+- Navegación móvil deslizable con scroll-snap y etiquetas completas en superficies clave.
+- Barra inferior móvil permite deslizar los cinco accesos principales.
+
+Verificación local disponible en este entorno:
+- Parseo sintáctico de 201 TS/TSX: 0 errores.
+- Regresión pura pipeline/labs/finance: PASS.
+- Matriz histórica de Vercel: 0 warnings.
+- Gate de paquete Vercel: OK.
+- Integridad Denty Games: 20 assets OK.
+- Pipeline self-check: OK.
+
+Limitaciones del entorno de verificación:
+- El proyecto exige Node 24.x; este entorno dispone de Node 22.16.0.
+- No se ejecutó next build completo localmente.
+- Algunos gates históricos/API requieren documentos externos del repositorio completo que no forman parte del ZIP plano.

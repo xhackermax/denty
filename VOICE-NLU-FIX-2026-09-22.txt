@@ -1,0 +1,39 @@
+Denty R7 - Micrófono + NLU funcional
+
+Flujo implementado
+==================
+1. El botón de micrófono solicita permiso real con getUserMedia sobre HTTPS.
+2. Cuando el navegador ofrece SpeechRecognition/webkitSpeechRecognition, Denty escucha en español y pasa automáticamente el texto al NLU local.
+3. Si el navegador no ofrece un SpeechRecognition funcional (incluido el fallback previsto para Opera), Denty graba la orden con MediaRecorder y la envía al endpoint servidor /api/voice/transcribe.
+4. El endpoint servidor puede transcribir con OPENAI_API_KEY y gpt-4o-mini-transcribe (modelo configurable con OPENAI_TRANSCRIBE_MODEL). La clave nunca se expone al navegador.
+5. La transcripción vuelve al mismo NLU local de Denty. No se ejecutan órdenes saltándose el NLU.
+
+Ejemplo comprobado
+==================
+"Oye Denty abre el paciente Juan Pérez"
+- El NLU extrae: patient.resolve("Juan Pérez") + navigation.patient.
+- El resolvedor ignora tildes y admite nombre/apellidos o número de ficha.
+- En demo resuelve Juan Pérez -> id juan-perez, ficha 000104.
+- Navega directamente a /app/patients/juan-perez.
+
+Cambios de NLU
+==============
+- Corregido "abre el paciente ..." (antes el artículo "el" impedía extraer el nombre).
+- Resolución por nombre exacto, nombre sin tildes, orden nombre/apellido, coincidencia por tokens y número de ficha.
+- Si hay dos coincidencias similares, Denty no elige silenciosamente: muestra ambigüedad.
+- El patientId resuelto se inyecta como contextPatientId para las órdenes clínicas posteriores del mismo plan.
+
+Seguridad de acciones
+=====================
+- Navegación y apertura de fichas: ejecución directa.
+- Cobros, ausencias y actos clínicos sensibles: conservan previsualización/confirmación.
+- El endpoint de transcripción acepta solo peticiones same-origin y limita las grabaciones a 12 MB.
+
+Vercel
+======
+Para Chrome/Safari con Web Speech no hace falta una clave de transcripción adicional.
+Para el fallback de grabación, configura en Vercel:
+OPENAI_API_KEY=...
+OPENAI_TRANSCRIBE_MODEL=gpt-4o-mini-transcribe
+
+La transcripción cloud es opcional. En una instalación clínica real debe habilitarse solo dentro del marco de privacidad y tratamiento de datos que adopte la clínica.

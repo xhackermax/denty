@@ -1,3 +1,0 @@
-import { z } from "zod";
-export const createPlanItemSchema=z.object({tooth:z.string().optional(),treatmentCode:z.string().min(1),label:z.string().min(1),patientLabel:z.string().optional(),clinicalReason:z.string().optional(),phase:z.number().int().min(1).max(5).optional(),priority:z.number().int().default(0),durationMin:z.number().int().positive().optional(),priceCents:z.number().int().nonnegative().optional(),dependsOnIds:z.array(z.string()).default([])});
-export const recordPreferenceSchema=z.object({optionId:z.string(),preference:z.enum(["INTERESTED","PREFERRED","NOT_INTERESTED","DISCUSS"]),note:z.string().max(1000).optional()});

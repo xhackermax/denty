@@ -1,0 +1,66 @@
+:root {
+  color-scheme: light;
+  --denty-bg: #f5f5f7;
+  --denty-bg-elevated: #fbfbfd;
+  --denty-card: rgb(255 255 255 / 92%);
+  --denty-card-solid: #ffffff;
+  --denty-text: #1d1d1f;
+  --denty-muted: #6e6e73;
+  --denty-line: rgb(60 60 67 / 12%);
+  --denty-line-strong: rgb(60 60 67 / 20%);
+  --denty-blue: #007aff;
+  --denty-teal: #0a84ff;
+  --denty-cyan: #32ade6;
+  --denty-green: #30a46c;
+  --denty-amber: #b7791f;
+  --denty-gold: #c58a10;
+  --denty-violet: #7c5cff;
+  --denty-indigo: #5856d6;
+  --denty-danger: #d93b3b;
+  --denty-glow: rgb(0 122 255 / 8%);
+  --denty-card-shadow: 0 1px 2px rgb(15 23 42 / 3%), 0 8px 26px rgb(15 23 42 / 5%);
+  --denty-card-shadow-hover: 0 2px 4px rgb(15 23 42 / 4%), 0 14px 34px rgb(15 23 42 / 8%);
+  --denty-shell-shadow: 0 18px 50px rgb(15 23 42 / 12%);
+  --denty-shadow-sm: 0 1px 2px rgb(15 23 42 / 4%), 0 5px 16px rgb(15 23 42 / 5%);
+  --denty-radius-control: 12px;
+  --denty-radius-card: 20px;
+  --denty-radius-panel: 24px;
+  --denty-radius-board: 24px;
+  --denty-space-unit: 4px;
+  --denty-control-height: 42px;
+  --denty-page-gap: 26px;
+  --denty-shell-header: 64px;
+  --denty-shell-mobile-nav: 70px;
+  --denty-content-max: 1320px;
+}
+
+html[data-density="compact"] {
+  --denty-control-height: 36px;
+  --denty-page-gap: 20px;
+}
+
+html[data-mantine-color-scheme="dark"] {
+  color-scheme: dark;
+  --denty-bg: #000000;
+  --denty-bg-elevated: #0b0b0d;
+  --denty-card: rgb(28 28 30 / 92%);
+  --denty-card-solid: #1c1c1e;
+  --denty-text: #f5f5f7;
+  --denty-muted: #98989d;
+  --denty-line: rgb(84 84 88 / 34%);
+  --denty-line-strong: rgb(99 99 102 / 52%);
+  --denty-blue: #0a84ff;
+  --denty-teal: #64d2ff;
+  --denty-cyan: #64d2ff;
+  --denty-green: #30d158;
+  --denty-amber: #ffd60a;
+  --denty-gold: #ffd60a;
+  --denty-violet: #bf5af2;
+  --denty-indigo: #5e5ce6;
+  --denty-danger: #ff453a;
+  --denty-glow: rgb(10 132 255 / 16%);
+  --denty-card-shadow: 0 1px 0 rgb(255 255 255 / 3%), 0 14px 34px rgb(0 0 0 / 18%);
+  --denty-card-shadow-hover: 0 1px 0 rgb(255 255 255 / 4%), 0 20px 48px rgb(0 0 0 / 28%);
+  --denty-shell-shadow: 0 22px 64px rgb(0 0 0 / 42%);
+  --denty-shadow-sm: 0 8px 24px rgb(0 0 0 / 20%);
+}

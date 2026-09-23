@@ -1,0 +1,18 @@
+.next
+.vercel/
+node_modules
+coverage
+playwright-report
+test-results
+package-lock.json
+
+# Documentation and reports are non-runtime artifacts and should not block deployment.
+docs/
+README.md
+# These files are validated by their dedicated tooling or consumed directly by Vercel.
+playwright.config.ts
+src/styles/global.css
+stylelint.config.mjs
+vercel.json
+.artifacts/
+public/games/**

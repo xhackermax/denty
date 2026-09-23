@@ -1,0 +1,21 @@
+Denty R7 - Vercel syntax hotfix
+Date: 2026-09-22
+
+Fixed invalid TSX arrow-function line breaks reported by Turbopack in:
+- src/features/agenda/agenda-page.tsx
+- src/features/parity/modules/documents-module.tsx
+- src/features/parity/modules/finance-module.tsx
+- src/features/odontogram/odontogram-workspace.tsx
+- src/features/parity/modules/prescriptions-module.tsx
+- src/features/odontogram/endodontic-panel.tsx
+
+The broken pattern was a newline between an arrow function parameter list and the => token, e.g.:
+  .map((patient)\n    => (...))
+which is invalid JavaScript/TypeScript syntax.
+
+All occurrences in src/**/*.ts and src/**/*.tsx were normalized so the arrow token stays on the same logical line as its parameters.
+
+Validation performed:
+- Global scan confirms no remaining `) + newline + =>` patterns in src TS/TSX.
+- TypeScript parser pass on affected files reports no syntax/parser diagnostics.
+- Full local Next build could not be completed because this environment has Node 22 while package.json intentionally requires Node 24.x. Vercel should run with Node 24.x.
