@@ -13,6 +13,12 @@ function createSupabaseFetch() {
   return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+    const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+    const apiKey = headers.get("apikey");
+
+    if (apiKey?.startsWith("sb_") && headers.get("authorization") === `Bearer ${apiKey}`) {
+      return json({ code: "PGRST301", message: "JWT could not be decoded" }, 401);
+    }
 
     if (url.pathname === "/rest/v1/clinics" && method === "GET") {
       return json([{ id: "clinic-1" }]);
@@ -63,7 +69,7 @@ function createSupabaseFetch() {
 describe("RESTful patient routes", () => {
   beforeEach(() => {
     process.env.SUPABASE_URL = "https://example.supabase.co";
-    process.env.SUPABASE_SECRET_KEY = "test-secret";
+    process.env.SUPABASE_SECRET_KEY = "sb_secret_test-key";
     vi.stubGlobal("fetch", createSupabaseFetch());
   });
 
