@@ -26,4 +26,23 @@ describe("Supabase health route", () => {
     await expect(response.json()).resolves.toEqual({ ok: true, service: "supabase", status: 200 });
     expect(fetchMock).toHaveBeenCalledOnce();
   });
+
+  it("extrae la secret key cuando Vercel contiene un bloque de variables pegado", async () => {
+    process.env.SUPABASE_URL = "https://example.supabase.co";
+    process.env.SUPABASE_SECRET_KEY = [
+      "SUPABASE_SECRET_KEY=sb_secret_test-key",
+      "SUPABASE_PUBLISHABLE_KEY=sb_publishable_test-key",
+    ].join("\n");
+    const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.get("apikey")).toBe("sb_secret_test-key");
+      return Response.json({ openapi: "3.0.0" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await GET();
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
 });

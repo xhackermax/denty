@@ -5,6 +5,7 @@ import { odontogramBatchSchema } from "@/shared/api/schemas/clinical";
 import { getServerEnv } from "@/shared/config/env";
 
 import { PatientRepository } from "./patient-repository";
+import { resolveSupabaseCredentials } from "../supabase/credentials";
 import { SupabaseRestClient, SupabaseRestError } from "../supabase/rest-client";
 
 function json(status: number, body: unknown): Response {
@@ -20,43 +21,12 @@ function error(status: number, code: string, message: string, details?: unknown)
 
 function configuredRepository(): PatientRepository | null {
   const env = getServerEnv();
-  const url = firstCleanEnvValue(
-    "SUPABASE_URL",
-    env.SUPABASE_URL,
-    env.SUPABASE_SECRET_KEY,
-    env.SUPABASE_PUBLISHABLE_KEY,
-    env.NEXT_PUBLIC_SUPABASE_URL,
+  const credentials = resolveSupabaseCredentials(env);
+  if (!credentials) return null;
+  return new PatientRepository(
+    new SupabaseRestClient(credentials),
+    env.DENTY_DEFAULT_CLINIC_ID,
   );
-  const key = firstCleanEnvValue(
-    "SUPABASE_SERVICE_ROLE_KEY",
-    env.SUPABASE_SERVICE_ROLE_KEY,
-    readAssignment("SUPABASE_SECRET_KEY", env.SUPABASE_SECRET_KEY),
-    readAssignment("SUPABASE_SECRET_KEY", env.SUPABASE_PUBLISHABLE_KEY),
-    readAssignment("SUPABASE_PUBLISHABLE_KEY", env.SUPABASE_PUBLISHABLE_KEY),
-    readAssignment("SUPABASE_PUBLISHABLE_KEY", env.SUPABASE_SECRET_KEY),
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  );
-  if (!url || !key) return null;
-  return new PatientRepository(new SupabaseRestClient({ url, key }), env.DENTY_DEFAULT_CLINIC_ID);
-}
-
-function readAssignment(name: string, value: string | undefined): string | undefined {
-  if (!value?.includes("=")) return value;
-  const line = value
-    .split(/\r?\n/)
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${name}=`));
-  return line?.slice(name.length + 1).trim();
-}
-
-function firstCleanEnvValue(name: string, ...values: Array<string | undefined>): string | undefined {
-  for (const value of values) {
-    const resolved = readAssignment(name, value)?.trim();
-    if (!resolved || resolved.includes("\n") || resolved.includes("\r")) continue;
-    if (resolved === "API Keys") continue;
-    return resolved;
-  }
-  return undefined;
 }
 
 function segments(pathname: string): string[] {
