@@ -123,7 +123,9 @@ export async function handleSupabaseDentyRoute(
     if (caught instanceof SupabaseRestError) {
       return error(caught.status >= 400 && caught.status < 600 ? caught.status : 502, "SUPABASE_ERROR", caught.message, caught.details);
     }
-    return error(500, "SUPABASE_ROUTE_ERROR", "No se pudo completar la operacion.");
+    return error(500, "SUPABASE_ROUTE_ERROR", "No se pudo completar la operacion.", {
+      message: caught instanceof Error ? caught.message : String(caught),
+    });
   }
 
   return null;

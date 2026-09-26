@@ -91,10 +91,18 @@ export class SupabaseRestClient {
 
   private async parseJson<T>(response: Response): Promise<T> {
     const raw = await response.text();
-    const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+    const parsed = raw ? safeJson(raw) : null;
     if (!response.ok) {
       throw new SupabaseRestError("Supabase devolvio un error.", response.status, parsed);
     }
     return parsed as T;
+  }
+}
+
+function safeJson(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
   }
 }
