@@ -30,7 +30,8 @@ export class ApiClient {
 
   constructor(options: ApiClientOptions) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl);
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    const fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = (...args) => fetchImpl(...args);
   }
 
   createIdempotencyKey(): string {

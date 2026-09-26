@@ -14,6 +14,21 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 describe("ApiClient", () => {
+  it("invokes browser fetch without binding it to the ApiClient instance", async () => {
+    const browserFetch = function (this: unknown): Promise<Response> {
+      if (this !== undefined) {
+        return Promise.reject(new TypeError("Illegal invocation"));
+      }
+      return Promise.resolve(jsonResponse({ ok: true, id: "browser-1" }));
+    } as typeof fetch;
+    const client = new ApiClient({ baseUrl: "https://api.example.test", fetchImpl: browserFetch });
+
+    await expect(client.request("/api/test", responseSchema)).resolves.toEqual({
+      ok: true,
+      id: "browser-1",
+    });
+  });
+
   it("validates successful responses with Zod", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ ok: true, id: "x1" }));
     const client = new ApiClient({ baseUrl: "https://api.example.test", fetchImpl });
