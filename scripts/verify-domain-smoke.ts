@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { clinicalPipelineState } from "../src/domain/clinical-pipeline.ts";
+import {
+  budgetSignatureFingerprint,
+  isBudgetSignatureCurrent,
+} from "../src/domain/budget-signature.ts";
 import { endodonticConsistency } from "../src/domain/endodontics.ts";
 import { formatEUR, mulQty, parseEUR, taxFromBps } from "../src/domain/money.ts";
 import {
@@ -181,6 +185,27 @@ assert.equal(
   }).nextAction,
   "READY",
 );
+
+const budgetFingerprint = budgetSignatureFingerprint({
+  budgetId: "b1",
+  totalCents: 185000,
+  sourcePlanVersion: 3,
+});
+assert.equal(
+  isBudgetSignatureCurrent(
+    { budgetId: "b1", totalCents: 185000, sourcePlanVersion: 3 },
+    budgetFingerprint,
+  ),
+  true,
+);
+assert.equal(
+  isBudgetSignatureCurrent(
+    { budgetId: "b1", totalCents: 190000, sourcePlanVersion: 3 },
+    budgetFingerprint,
+  ),
+  false,
+);
+
 
 assert.equal(rewardCents(2), 0);
 assert.equal(rewardCents(3), 100);

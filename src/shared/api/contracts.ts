@@ -38,6 +38,16 @@ export const patientAcquisitionSourceSchema = z.enum([
   "OTHER",
 ]);
 
+
+export const medicalProfileSchema = z.object({
+  allergies: z.array(z.string()).default([]),
+  medications: z.array(z.string()).default([]),
+  conditions: z.array(z.string()).default([]),
+  dentalRisks: z.array(z.string()).default([]),
+  notes: z.string().default(""),
+  dentitionStage: z.enum(["primary", "mixed", "permanent"]).default("permanent"),
+});
+
 export const patientSchema = z.object({
   id: idSchema,
   clinicId: idSchema,
@@ -58,6 +68,7 @@ export const patientSchema = z.object({
   version: versionSchema,
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
+  medicalProfile: medicalProfileSchema.optional(),
 });
 
 export const createPatientSchema = z.object({
@@ -69,16 +80,7 @@ export const createPatientSchema = z.object({
   birthDate: isoDateTimeSchema.optional(),
   declaredSource: patientAcquisitionSourceSchema.optional(),
   declaredSourceDetail: z.string().max(200).optional(),
-  medicalProfile: z
-    .object({
-      allergies: z.array(z.string()).default([]),
-      medications: z.array(z.string()).default([]),
-      conditions: z.array(z.string()).default([]),
-      dentalRisks: z.array(z.string()).default([]),
-      notes: z.string().default(""),
-      dentitionStage: z.enum(["primary", "mixed", "permanent"]),
-    })
-    .optional(),
+  medicalProfile: medicalProfileSchema.optional(),
 });
 
 export const updatePatientSchema = createPatientSchema.partial().extend({

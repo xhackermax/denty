@@ -23,7 +23,7 @@ import {
   IconPlus,
   IconSearch,
 } from "@tabler/icons-react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -38,6 +38,10 @@ import {
   suggestedDentitionForBirthDate,
   type PatientAdmissionDraft,
 } from "./patient-admission";
+import {
+  getInfiniteCarouselRecenteringDelta,
+  PATIENT_CAROUSEL_SCROLL_SETTLE_MS,
+} from "./patient-carousel-loop";
 import { createPatientPayload, parsePatientCsv, type ParsedPatientRow } from "./patient-import";
 import {
   patientCardFromApi,
@@ -99,6 +103,7 @@ function demoPatientFromRow(
 
 export function PatientsPage() {
   const demoMode = publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
+  const reducedMotion = useReducedMotion();
   const [query, setQuery] = useState("");
   const [opened, setOpened] = useState(false);
   const [demoPatients, setDemoPatients] = useState<readonly DemoPatient[]>(DEMO_PATIENTS);
@@ -107,6 +112,7 @@ export function PatientsPage() {
   const [notice, setNotice] = useState<ImportNotice | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const scrollFrameRef = useRef<number | null>(null);
+  const scrollSettleTimerRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const patientsQuery = usePatientsQuery(!demoMode);
   const createMutation = useCreatePatientMutation();
@@ -314,31 +320,52 @@ export function PatientsPage() {
     ],
   );
 
+  const normalizeCarouselAfterScroll = useCallback(() => {
+    const viewport = carouselRef.current;
+    const closest = getClosestCarouselCard();
+    if (!viewport || !closest || filtered.length <= 1) return;
+
+    const firstCycle = viewport.querySelector<HTMLElement>('[data-carousel-cycle="0"]');
+    const middleCycle = viewport.querySelector<HTMLElement>('[data-carousel-cycle="1"]');
+    if (!firstCycle || !middleCycle) return;
+
+    const copy = Number(closest.dataset.carouselCopy ?? 1);
+    const cycleSpan = middleCycle.offsetTop - firstCycle.offsetTop;
+    const delta = getInfiniteCarouselRecenteringDelta({
+      copy,
+      cycleSpan,
+      settled: true,
+    });
+
+    if (delta !== 0) {
+      viewport.scrollTop += delta;
+    }
+  }, [filtered.length, getClosestCarouselCard]);
+
+  const scheduleCarouselNormalization = useCallback(() => {
+    if (scrollSettleTimerRef.current !== null) {
+      window.clearTimeout(scrollSettleTimerRef.current);
+    }
+
+    scrollSettleTimerRef.current = window.setTimeout(() => {
+      scrollSettleTimerRef.current = null;
+      normalizeCarouselAfterScroll();
+    }, PATIENT_CAROUSEL_SCROLL_SETTLE_MS);
+  }, [normalizeCarouselAfterScroll]);
+
   const syncCarouselIndex = useCallback(() => {
+    scheduleCarouselNormalization();
     if (scrollFrameRef.current !== null) return;
 
     scrollFrameRef.current = window.requestAnimationFrame(() => {
       scrollFrameRef.current = null;
-      const viewport = carouselRef.current;
       const closest = getClosestCarouselCard();
-      if (!viewport || !closest) return;
+      if (!closest) return;
 
       const nextIndex = Number(closest.dataset.carouselIndex ?? 0);
-      const copy = Number(closest.dataset.carouselCopy ?? 0);
       setActiveIndex(nextIndex);
-
-      if (filtered.length > 1 && (copy === 0 || copy === 2)) {
-        const firstCycle = viewport.querySelector<HTMLElement>('[data-carousel-cycle="0"]');
-        const middleCycle = viewport.querySelector<HTMLElement>('[data-carousel-cycle="1"]');
-        if (!firstCycle || !middleCycle) return;
-
-        const cycleSpan = middleCycle.offsetTop - firstCycle.offsetTop;
-        if (cycleSpan <= 0) return;
-
-        viewport.scrollTop += copy === 0 ? cycleSpan : -cycleSpan;
-      }
     });
-  }, [filtered.length, getClosestCarouselCard]);
+  }, [getClosestCarouselCard, scheduleCarouselNormalization]);
 
   useEffect(() => {
     if (!filtered.length) {
@@ -364,6 +391,9 @@ export function PatientsPage() {
     () => () => {
       if (scrollFrameRef.current !== null) {
         window.cancelAnimationFrame(scrollFrameRef.current);
+      }
+      if (scrollSettleTimerRef.current !== null) {
+        window.clearTimeout(scrollSettleTimerRef.current);
       }
     },
     [],
@@ -516,12 +546,18 @@ export function PatientsPage() {
                           data-carousel-index={index}
                           data-carousel-copy={copy}
                           data-active={active}
-                          animate={{
-                            scale: active ? 1 : distance === 1 ? 0.975 : 0.94,
-                            opacity: active ? 1 : distance === 1 ? 0.72 : 0.4,
-                            x: active ? 0 : Math.min(distance, 2) * 8,
-                          }}
-                          transition={{ type: "spring", stiffness: 310, damping: 30 }}
+                          animate={
+                            reducedMotion
+                              ? { scale: 1, opacity: 1, x: 0, rotateY: 0, z: 0 }
+                              : {
+                                  scale: active ? 1.065 : distance === 1 ? 0.93 : 0.84,
+                                  opacity: active ? 1 : distance === 1 ? 0.58 : 0.2,
+                                  x: active ? 0 : Math.min(distance, 2) * 34,
+                                  rotateY: active ? 0 : -Math.min(distance, 2) * 9,
+                                  z: active ? 58 : -Math.min(distance, 2) * 18,
+                                }
+                          }
+                          transition={{ type: "spring", stiffness: 330, damping: 31, mass: 0.72 }}
                           role="option"
                           aria-selected={active}
                         >
@@ -531,8 +567,30 @@ export function PatientsPage() {
                             aria-label={`Abrir ficha de ${fullName}`}
                             tabIndex={copy === (filtered.length > 1 ? 1 : 0) ? 0 : -1}
                           >
-                            <PatientAvatar name={fullName} src={patient.photoUrl} size={56} />
-                            <div className={styles.patientCarouselInfo}>
+                            <motion.div
+                              className={styles.patientCarouselAvatar}
+                              animate={
+                                reducedMotion
+                                  ? { x: 0, y: 0, scale: 1 }
+                                  : {
+                                      x: active ? 0 : -Math.min(distance, 2) * 8,
+                                      y: active ? 0 : distance === 1 ? 2 : 4,
+                                      scale: active ? 1.14 : 0.9,
+                                    }
+                              }
+                              transition={{ type: "spring", stiffness: 350, damping: 32 }}
+                            >
+                              <PatientAvatar name={fullName} src={patient.photoUrl} size={56} />
+                            </motion.div>
+                            <motion.div
+                              className={styles.patientCarouselInfo}
+                              animate={
+                                reducedMotion
+                                  ? { x: 0 }
+                                  : { x: active ? 0 : Math.min(distance, 2) * 15 }
+                              }
+                              transition={{ type: "spring", stiffness: 350, damping: 32 }}
+                            >
                               <div className={styles.patientCarouselIdentity}>
                                 <span className={styles.patientCarouselName}>{fullName}</span>
                                 <span className={styles.patientCarouselRecord}>
@@ -552,7 +610,7 @@ export function PatientsPage() {
                                   </dd>
                                 </div>
                               </dl>
-                            </div>
+                            </motion.div>
                             <div className={styles.patientCarouselAside}>
                               {patient.balanceCents === undefined ? null : patient.balanceCents >
                                 0 ? (

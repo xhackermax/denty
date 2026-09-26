@@ -2,5 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "npm ci",
-  "buildCommand": "node scripts/pipeline/run.mjs vercel-build"
+  "buildCommand": "node scripts/pipeline/run.mjs vercel-build",
+  "env": {
+    "NEXT_PUBLIC_DEMO_MODE": "true",
+    "NEXT_PUBLIC_DENTY_REALTIME": "false"
+  }
 }

@@ -1,0 +1,67 @@
+.ambient {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.orb {
+  position: absolute;
+  width: min(46vw, 620px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  opacity: 0.2;
+  filter: blur(72px) saturate(125%);
+  will-change: transform, opacity;
+}
+
+.orbA {
+  top: -16%;
+  right: -10%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--denty-blue) 62%, transparent), transparent 68%);
+}
+
+.orbB {
+  bottom: -24%;
+  left: -12%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--denty-teal) 58%, transparent), transparent 70%);
+}
+
+.orbC {
+  top: 34%;
+  left: 38%;
+  width: min(32vw, 420px);
+  opacity: 0.12;
+  background: radial-gradient(circle, color-mix(in srgb, var(--denty-violet) 52%, transparent), transparent 70%);
+}
+
+.gridGlow {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--denty-blue) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--denty-blue) 7%, transparent) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
+}
+
+@media (max-width: 700px) {
+  .orb {
+    width: 72vw;
+    opacity: 0.15;
+    filter: blur(58px) saturate(120%);
+  }
+
+  .gridGlow {
+    opacity: 0.1;
+    background-size: 34px 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb {
+    opacity: 0.11;
+  }
+}

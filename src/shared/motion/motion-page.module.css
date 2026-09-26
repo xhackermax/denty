@@ -1,0 +1,19 @@
+.page {
+  width: 100%;
+  min-width: 0;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform, opacity, filter;
+}
+
+.page[data-transition-kind="cube"][data-transition-direction="1"] {
+  transform-origin: left center;
+}
+
+.page[data-transition-kind="cube"][data-transition-direction="-1"] {
+  transform-origin: right center;
+}
+
+.page[data-transition-kind="flip"] {
+  transform-origin: center center;
+}

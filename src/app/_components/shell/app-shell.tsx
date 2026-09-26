@@ -4,12 +4,15 @@ import { ActionIcon, Menu, Text, Tooltip } from "@mantine/core";
 import { IconChecklist, IconDots, IconLogout, IconSettings } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
 import { LogoutButton } from "@/features/auth";
 import { VoiceCommandBar } from "@/features/voice/voice-command-bar";
+import { MotionAmbientBackdrop, MotionPage } from "@/shared/motion";
+import { resolveRouteTransition } from "@/shared/motion/route-transition";
 import { DemoBanner, OfflineBanner } from "@/shared/ui";
 import { DemoAccountSwitcher } from "@/shared/ui/demo-account-switcher";
 import { DevicePermissions } from "@/shared/ui/device-permissions";
@@ -27,6 +30,15 @@ export function DentyAppShell({ children, demoMode }: { children: ReactNode; dem
   const tShell = useTranslations("Shell");
   const tCommon = useTranslations("Common");
   const pathname = usePathname();
+  const previousPathnameRef = useRef(pathname);
+  const routeTransition = useMemo(
+    () => resolveRouteTransition(previousPathnameRef.current, pathname),
+    [pathname],
+  );
+
+  useEffect(() => {
+    previousPathnameRef.current = pathname;
+  }, [pathname]);
 
   const currentItem = [...PRIMARY_NAV, ...SECONDARY_NAV]
     .sort((left, right) => right.href.length - left.href.length)
@@ -45,8 +57,23 @@ export function DentyAppShell({ children, demoMode }: { children: ReactNode; dem
           data-tone={item.tone}
           aria-current={active ? "page" : undefined}
         >
-          <Icon size={20} stroke={1.8} aria-hidden={true} />
-          <span className={styles.navLabel}>{tNav(item.key)}</span>
+          {active ? (
+            <motion.span
+              className={styles.navIndicator}
+              layoutId="denty-desktop-nav-indicator"
+              transition={{ type: "spring", stiffness: 420, damping: 38, mass: 0.68 }}
+              aria-hidden="true"
+            />
+          ) : null}
+          <motion.span
+            className={styles.navLinkContent}
+            animate={active ? { scale: 1.05, y: -1 } : { scale: 1, y: 0 }}
+            whileTap={{ scale: 0.965 }}
+            transition={{ type: "spring", stiffness: 440, damping: 34 }}
+          >
+            <Icon size={20} stroke={1.8} aria-hidden={true} />
+            <span className={styles.navLabel}>{tNav(item.key)}</span>
+          </motion.span>
         </Link>
       </Tooltip>
     );
@@ -81,6 +108,7 @@ export function DentyAppShell({ children, demoMode }: { children: ReactNode; dem
 
   return (
     <div className={styles.root}>
+      <MotionAmbientBackdrop />
       <aside className={styles.sidebar} aria-label={tShell("clinic")}>
         <Link className={styles.brand} href="/app" aria-label={tShell("brand")}>
           <Image
@@ -175,7 +203,17 @@ export function DentyAppShell({ children, demoMode }: { children: ReactNode; dem
             <DemoBanner enabled={demoMode} message={tShell("demo")} />
             <OfflineBanner message={tShell("offline")} />
           </div>
-          {children}
+          <div className={styles.routeStage} data-transition-kind={routeTransition.kind}>
+            <AnimatePresence mode="popLayout" initial={false}>
+              <MotionPage
+                key={pathname}
+                transitionKind={routeTransition.kind}
+                transitionDirection={routeTransition.direction}
+              >
+                {children}
+              </MotionPage>
+            </AnimatePresence>
+          </div>
         </div>
       </main>
 
@@ -193,8 +231,23 @@ export function DentyAppShell({ children, demoMode }: { children: ReactNode; dem
               data-tone={item.tone}
               aria-current={active ? "page" : undefined}
             >
-              <Icon size={20} aria-hidden={true} />
-              <span>{tNav(item.key)}</span>
+              {active ? (
+                <motion.span
+                  className={styles.bottomIndicator}
+                  layoutId="denty-mobile-nav-indicator"
+                  transition={{ type: "spring", stiffness: 420, damping: 38, mass: 0.68 }}
+                  aria-hidden="true"
+                />
+              ) : null}
+              <motion.span
+                className={styles.bottomLinkContent}
+                animate={active ? { scale: 1.06, y: -1 } : { scale: 1, y: 0 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ type: "spring", stiffness: 440, damping: 34 }}
+              >
+                <Icon size={20} aria-hidden={true} />
+                <span>{tNav(item.key)}</span>
+              </motion.span>
             </Link>
           );
         })}

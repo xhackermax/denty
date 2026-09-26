@@ -13,8 +13,10 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { IconDots, IconDownload, IconFileText, IconReceiptRefund } from "@tabler/icons-react";
-import { useEffect, useMemo, useState } from "react";
+import { IconDots, IconDownload, IconFileText, IconReceiptRefund, IconSignature } from "@tabler/icons-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   projectDoctorMetrics,
@@ -30,8 +32,9 @@ import {
   type TerminalCheckoutStatus,
   type TerminalReader,
 } from "@/features/payments/card-terminal";
-import { usePatientsQuery } from "@/shared/patients/patient-data";
+import { usePatientQuery, usePatientsQuery } from "@/shared/patients/patient-data";
 import { publicEnv } from "@/shared/config/env";
+import { useClinicalPlanQuery } from "@/shared/clinical/clinical-data";
 import {
   DEMO_BUDGETS,
   DEMO_DOCTOR_ANALYTICS,
@@ -40,6 +43,26 @@ import {
   DEMO_TREATMENT_ANALYTICS,
 } from "@/shared/demo/demo-data";
 import { HorizontalSnapNav } from "@/shared/ui";
+import {
+  BudgetSignatureFlow,
+  type BudgetSignatureBudget,
+  type BudgetSignatureLine,
+  type BudgetSignaturePatient,
+} from "@/features/budgets/budget-signature-flow";
+import { readDemoBudgetSignature } from "@/features/budgets/budget-signature-storage";
+import {
+  CONSENT_SIGNATURE_CHANGED_EVENT,
+  demoRequiredConsentTemplates,
+  readDemoSignedConsentCodes,
+} from "@/features/documents/consent-status";
+import {
+  budgetSignatureFingerprint,
+  requiredConsentTemplates,
+  signedConsentTemplateCodes,
+  type ConsentTemplateCode,
+} from "@/domain";
+import { getBrowserApi } from "@/shared/api/browser";
+import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
 import {
   downloadAccountingCsv,
@@ -111,6 +134,22 @@ function optionalStringField(value: object, key: string): string | undefined {
   const field = (value as Record<string, unknown>)[key];
   return typeof field === "string" ? field : undefined;
 }
+const DEMO_JUAN_BUDGET_LINES: readonly BudgetSignatureLine[] = [
+  { id: "hygiene", description: "Higiene periodontal", phase: 2, unitPriceCents: 6500, totalCents: 6500 },
+  { id: "endo-46", description: "Endodoncia", tooth: "46", phase: 1, unitPriceCents: 28000, totalCents: 28000 },
+  { id: "implant-46", description: "Implante", tooth: "46", phase: 4, unitPriceCents: 95000, totalCents: 95000 },
+  { id: "crown-46", description: "Corona de zirconio", tooth: "46", phase: 5, unitPriceCents: 55500, totalCents: 55500 },
+];
+
+function numericField(value: object, key: string): number | undefined {
+  const field = (value as Record<string, unknown>)[key];
+  return typeof field === "number" && Number.isFinite(field) ? field : undefined;
+}
+
+function signatureSourcePlanVersion(value: object, fallback?: number): number | null {
+  return numericField(value, "sourcePlanVersion") ?? fallback ?? null;
+}
+
 export function FinanceModule() {
   const searchParams = useSearchParams();
   const requestedPatientId = searchParams.get("patientId");
@@ -133,6 +172,18 @@ export function FinanceModule() {
   const [patientId, setPatientId] = useState<string | null>(
     requestedPatientId ?? (demoMode ? "juan-perez" : null),
   );
+  const patientQuery = usePatientQuery(patientId ?? "", Boolean(patientId) && !demoMode);
+  const clinicalPlanQuery = useClinicalPlanQuery(patientId ?? "", Boolean(patientId) && !demoMode);
+  const consentDocumentsQuery = useQuery({
+    queryKey: dentyQueryKeys.documents.patient(patientId ?? ""),
+    queryFn: () => getBrowserApi().documents.list(patientId ?? undefined),
+    enabled: Boolean(patientId) && !demoMode,
+  });
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
+  const [signatureOpened, setSignatureOpened] = useState(false);
+  const [signedFingerprints, setSignedFingerprints] = useState<Record<string, string>>({});
+  const [demoConsentVersion, setDemoConsentVersion] = useState(0);
+  const autoSignatureHandledRef = useRef(false);
   const [financeSection, setFinanceSection] = useState<FinanceSection>(requestedView);
   const [seriesId, setSeriesId] = useState<string | null>(null);
   const [concept, setConcept] = useState("");
@@ -236,9 +287,136 @@ export function FinanceModule() {
     [collectedCents, invoicedCents, treatmentMetrics],
   );
   const budgets = demoMode ? DEMO_BUDGETS : (finance.budgets.data?.items ?? []);
-  const visibleBudgets = patientId
-    ? budgets.filter((budget) => budget.patientId === patientId)
-    : budgets;
+  const visibleBudgets = useMemo(
+    () => (patientId ? budgets.filter((budget) => budget.patientId === patientId) : budgets),
+    [budgets, patientId],
+  );
+
+  const requiredConsents = useMemo(() => {
+    if (!patientId) return [];
+    return demoMode
+      ? demoRequiredConsentTemplates(patientId)
+      : requiredConsentTemplates(clinicalPlanQuery.data?.items ?? []);
+  }, [clinicalPlanQuery.data?.items, demoConsentVersion, demoMode, patientId]);
+
+  const signedConsentCodes = useMemo(() => {
+    if (!patientId) return new Set<ConsentTemplateCode>();
+    return demoMode
+      ? readDemoSignedConsentCodes(patientId)
+      : signedConsentTemplateCodes(consentDocumentsQuery.data?.items ?? []);
+  }, [consentDocumentsQuery.data?.items, demoConsentVersion, demoMode, patientId]);
+
+  const missingConsents = useMemo(
+    () => requiredConsents.filter((requirement) => !signedConsentCodes.has(requirement.code)),
+    [requiredConsents, signedConsentCodes],
+  );
+  const consentsComplete = requiredConsents.length === 0 || missingConsents.length === 0;
+
+  const selectedBudget = selectedBudgetId
+    ? (visibleBudgets.find((budget) => budget.id === selectedBudgetId) ?? null)
+    : null;
+
+  const signaturePatient = useMemo<BudgetSignaturePatient | null>(() => {
+    if (!patientId) return null;
+    if (demoMode) {
+      const patient = DEMO_PATIENTS.find((item) => item.id === patientId);
+      if (!patient) return null;
+      return {
+        id: patient.id,
+        name: `${patient.firstName} ${patient.lastName}`.trim(),
+        recordNumber: patient.recordNumber ?? null,
+        dni: patient.dni ?? null,
+      };
+    }
+    const patient = patientQuery.data;
+    if (!patient) return null;
+    return {
+      id: patient.id,
+      name: `${patient.firstName} ${patient.lastName}`.trim(),
+      recordNumber: patient.recordNumber ?? null,
+      dni: patient.dni ?? null,
+    };
+  }, [demoMode, patientId, patientQuery.data]);
+
+  const signatureBudget = useMemo<BudgetSignatureBudget | null>(() => {
+    if (!selectedBudget) return null;
+    return {
+      id: selectedBudget.id,
+      code: optionalStringField(selectedBudget, "code") ?? selectedBudget.id,
+      status: optionalStringField(selectedBudget, "status") ?? "DRAFT",
+      totalCents: selectedBudget.totalCents ?? 0,
+      sourcePlanVersion: signatureSourcePlanVersion(
+        selectedBudget,
+        clinicalPlanQuery.data?.version,
+      ),
+      createdAt: optionalStringField(selectedBudget, "createdAt") ?? null,
+    };
+  }, [clinicalPlanQuery.data?.version, selectedBudget]);
+
+  const signatureLines = useMemo<readonly BudgetSignatureLine[]>(() => {
+    if (!selectedBudget) return [];
+    if (demoMode && selectedBudget.id === "PRE-2026-0104") return DEMO_JUAN_BUDGET_LINES;
+
+    const planBudget = clinicalPlanQuery.data?.budgets.find((item) => item.id === selectedBudget.id);
+    if (planBudget?.items.length) {
+      return planBudget.items.map((item) => {
+        const planItem = clinicalPlanQuery.data?.items.find(
+          (candidate) => candidate.id === item.clinicalPlanItemId,
+        );
+        return {
+          id: item.id,
+          description: item.description,
+          tooth: item.tooth ?? planItem?.tooth ?? null,
+          phase: planItem?.phase ?? null,
+          unitPriceCents: item.unitPriceCents,
+          totalCents: item.totalCents,
+        };
+      });
+    }
+
+    const totalCents = selectedBudget.totalCents ?? 0;
+    return [
+      {
+        id: `${selectedBudget.id}-plan`,
+        description: "Tratamientos incluidos en el plan clínico",
+        unitPriceCents: totalCents,
+        totalCents,
+      },
+    ];
+  }, [clinicalPlanQuery.data, demoMode, selectedBudget]);
+
+  useEffect(() => {
+    if (!demoMode) return;
+    const refresh = () => setDemoConsentVersion((current) => current + 1);
+    window.addEventListener(CONSENT_SIGNATURE_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(CONSENT_SIGNATURE_CHANGED_EVENT, refresh);
+  }, [demoMode]);
+
+  useEffect(() => {
+    if (!demoMode) return;
+    const next: Record<string, string> = {};
+    for (const budget of visibleBudgets) {
+      const sourcePlanVersion = signatureSourcePlanVersion(budget, 1);
+      const source = {
+        budgetId: budget.id,
+        totalCents: budget.totalCents ?? 0,
+        sourcePlanVersion,
+      };
+      const stored = readDemoBudgetSignature(source);
+      if (stored) next[budget.id] = stored.fingerprint;
+    }
+    setSignedFingerprints(next);
+  }, [demoMode, visibleBudgets]);
+
+  useEffect(() => {
+    if (searchParams.get("action") !== "sign" || autoSignatureHandledRef.current) return;
+    const first = visibleBudgets[0];
+    if (!first || !consentsComplete) return;
+    autoSignatureHandledRef.current = true;
+    setSelectedBudgetId(first.id);
+    setSignatureOpened(true);
+  }, [consentsComplete, searchParams, visibleBudgets]);
+
   const busy =
     createInvoiceMutation.isPending ||
     issueInvoiceMutation.isPending ||
@@ -548,6 +726,22 @@ export function FinanceModule() {
           </div>
           {patientId ? <Badge variant="light">Paciente activo</Badge> : null}
         </div>
+        {!consentsComplete && patientId ? (
+          <Alert color="yellow" title="Firma del presupuesto bloqueada" mb="md">
+            Antes de firmar el presupuesto deben estar firmados los consentimientos informados
+            correspondientes al plan. Faltan {missingConsents.length}: {missingConsents.map((item) => item.label).join(" · ")}
+            <Group mt="sm">
+              <Button
+                component={Link}
+                href={`/app/documents?patientId=${encodeURIComponent(patientId)}&workflow=consents`}
+                size="xs"
+                variant="light"
+              >
+                Ir a consentimientos
+              </Button>
+            </Group>
+          </Alert>
+        ) : null}
         <div className={styles.rowList}>
           {visibleBudgets.length ? (
             visibleBudgets.map((budget) => (
@@ -562,6 +756,64 @@ export function FinanceModule() {
                 <div className={styles.rowActions}>
                   <strong>{formatEUR(budget.totalCents ?? 0)}</strong>
                   <Badge variant="light">{optionalStringField(budget, "status") ?? "Activo"}</Badge>
+                  {(() => {
+                    const sourcePlanVersion = signatureSourcePlanVersion(
+                      budget,
+                      demoMode ? 1 : clinicalPlanQuery.data?.version,
+                    );
+                    const fingerprint = budgetSignatureFingerprint({
+                      budgetId: budget.id,
+                      totalCents: budget.totalCents ?? 0,
+                      sourcePlanVersion,
+                    });
+                    const signed = signedFingerprints[budget.id] === fingerprint;
+                    if (!consentsComplete) {
+                      return (
+                        <>
+                          <Button
+                            component={Link}
+                            href={`/app/documents?patientId=${encodeURIComponent(budget.patientId)}&workflow=consents`}
+                            size="xs"
+                            variant="light"
+                          >
+                            Firmar consentimientos ({missingConsents.length})
+                          </Button>
+                          <Button size="xs" variant="default" disabled>
+                            Firma del presupuesto bloqueada
+                          </Button>
+                        </>
+                      );
+                    }
+                    return signed ? (
+                      <>
+                        <Badge color="green">Firmado</Badge>
+                        <Button
+                          component={Link}
+                          href={`/app/agenda?patientId=${encodeURIComponent(budget.patientId)}`}
+                          size="xs"
+                        >
+                          Continuar a citas
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          size="xs"
+                          variant="light"
+                          leftSection={<IconSignature size={15} />}
+                          onClick={() => {
+                            setSelectedBudgetId(budget.id);
+                            setSignatureOpened(true);
+                          }}
+                        >
+                          Generar PDF y firmar
+                        </Button>
+                        <Button size="xs" variant="default" disabled>
+                          Firma para continuar a citas
+                        </Button>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             ))
@@ -917,6 +1169,23 @@ export function FinanceModule() {
           </Group>
         </Stack>
       </Modal>
+      {signaturePatient && signatureBudget ? (
+        <BudgetSignatureFlow
+          opened={signatureOpened}
+          onClose={() => setSignatureOpened(false)}
+          demoMode={demoMode}
+          patient={signaturePatient}
+          budget={signatureBudget}
+          lines={signatureLines}
+          onSigned={(fingerprint) =>
+            setSignedFingerprints((current) => ({
+              ...current,
+              [signatureBudget.id]: fingerprint,
+            }))
+          }
+        />
+      ) : null}
+
     </>
   );
 }

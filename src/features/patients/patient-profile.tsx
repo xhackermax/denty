@@ -18,12 +18,22 @@ import { dateDMY, epochMillis, hhmm } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
 import { ClinicalPipelineCard } from "@/shared/clinical/clinical-pipeline-card";
 import { ClinicalSyncCard } from "@/shared/clinical/clinical-sync-card";
-import { DEMO_PATIENTS } from "@/shared/demo/demo-data";
+import { DEMO_PATIENTS, type DemoPatient } from "@/shared/demo/demo-data";
 import { PatientClinicalSummary } from "./patient-clinical-summary";
 import styles from "@/shared/ui/parity.module.css";
-import { usePatientProjectionQuery, usePatientQuery } from "@/shared/patients/patient-data";
+import {
+  usePatientProjectionQuery,
+  usePatientQuery,
+  useUpdatePatientMutation,
+} from "@/shared/patients/patient-data";
 import { publicEnv } from "@/shared/config/env";
 import { HorizontalSnapNav, PageHeader, PatientAvatar } from "@/shared/ui";
+import { PatientMedicalHistory } from "./patient-medical-history";
+import {
+  optionLabels,
+  suggestedDentitionForBirthDate,
+  type PatientMedicalProfile,
+} from "./patient-admission";
 
 const SOURCE_LABELS: Readonly<Record<string, string>> = {
   GOOGLE: "Google",
@@ -35,6 +45,32 @@ const SOURCE_LABELS: Readonly<Record<string, string>> = {
   EXISTING_PATIENT: "Paciente existente",
   OTHER: "Otro",
 };
+
+function medicalProfileFromDemo(patient?: DemoPatient): PatientMedicalProfile {
+  return {
+    allergies: [...(patient?.allergies ?? [])],
+    medications: [...(patient?.medications ?? [])],
+    conditions: [...(patient?.conditions ?? [])],
+    dentalRisks: [],
+    notes: "",
+    dentitionStage: suggestedDentitionForBirthDate(patient?.birthDate ?? ""),
+  };
+}
+
+function emptyMedicalProfile(birthDate?: string | null): PatientMedicalProfile {
+  return {
+    allergies: [],
+    medications: [],
+    conditions: [],
+    dentalRisks: [],
+    notes: "",
+    dentitionStage: suggestedDentitionForBirthDate(birthDate ?? ""),
+  };
+}
+
+function isClinicalAlert(value: string): boolean {
+  return !/^sin (alergias|medicación|antecedentes)/i.test(value);
+}
 
 function PatientRouteCard({
   href,
@@ -66,8 +102,11 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const demoPatient = DEMO_PATIENTS.find((candidate) => candidate.id === patientId);
   const patientQuery = usePatientQuery(patientId, !demoMode);
   const projectionQuery = usePatientProjectionQuery(patientId, !demoMode);
+  const updatePatientMutation = useUpdatePatientMutation(patientId);
   const [now] = useState(() => Date.now());
   const [activeTab, setActiveTab] = useState<string | null>("summary");
+  const [medicalProfileOverride, setMedicalProfileOverride] =
+    useState<PatientMedicalProfile | null>(null);
 
   if (demoMode && !demoPatient) {
     return <PageHeader title="Ficha no encontrada" description="No existe esta ficha." />;
@@ -116,7 +155,9 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
   const nextVisitTitle =
     demoPatient?.nextStep ??
-    (upcoming ? `${dateDMY(upcoming.startsAt)} · ${hhmm(upcoming.startsAt)}` : "Sin próxima cita");
+    (upcoming
+      ? `${dateDMY(upcoming.startsAt)} · ${hhmm(upcoming.startsAt)}`
+      : "Sin próxima cita");
   const nextVisitDescription = demoPatient
     ? "Próximo paso clínico registrado en la ficha."
     : (upcoming?.reason ?? upcoming?.title ?? "La agenda no tiene una cita futura activa.");
@@ -127,19 +168,37 @@ export function PatientProfile({ patientId }: { patientId: string }) {
     ? "Saldo pendiente"
     : `${projection?.budgets.length ?? 0} presupuestos abiertos`;
 
-  const medicalItems = demoPatient
-    ? [
-        ...(demoPatient.allergies ?? []).map((item) => ({
-          label: `Alergia · ${item}`,
-          tone: "red" as const,
-        })),
-        ...(demoPatient.medications ?? []).map((item) => ({
-          label: `Medicación · ${item}`,
-          tone: "blue" as const,
-        })),
-        ...(demoPatient.conditions ?? []).map((item) => ({ label: item, tone: "yellow" as const })),
-      ]
-    : [];
+  const baseMedicalProfile = demoPatient
+    ? medicalProfileFromDemo(demoPatient)
+    : (patient?.medicalProfile ?? emptyMedicalProfile(patient?.birthDate));
+  const medicalProfile = medicalProfileOverride ?? baseMedicalProfile;
+  const saveMedicalProfile = async (nextProfile: PatientMedicalProfile) => {
+    if (demoMode) {
+      setMedicalProfileOverride(nextProfile);
+      return;
+    }
+    if (!patient) return;
+    await updatePatientMutation.mutateAsync({
+      expectedVersion: patient.version,
+      medicalProfile: nextProfile,
+    });
+    setMedicalProfileOverride(nextProfile);
+  };
+
+  const medicalItems = [
+    ...optionLabels("allergies", medicalProfile.allergies)
+      .filter(isClinicalAlert)
+      .map((item) => ({ label: `Alergia · ${item}`, tone: "red" as const })),
+    ...optionLabels("medications", medicalProfile.medications)
+      .filter(isClinicalAlert)
+      .map((item) => ({ label: `Medicación · ${item}`, tone: "blue" as const })),
+    ...optionLabels("conditions", medicalProfile.conditions)
+      .filter(isClinicalAlert)
+      .map((item) => ({ label: item, tone: "yellow" as const })),
+    ...optionLabels("dentalRisks", medicalProfile.dentalRisks)
+      .filter(isClinicalAlert)
+      .map((item) => ({ label: item, tone: "violet" as const })),
+  ];
 
   return (
     <div className={styles.grid}>
@@ -299,6 +358,11 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
         <Tabs.Panel value="clinical" pt="lg">
           <div className={styles.grid}>
+            <PatientMedicalHistory
+              profile={medicalProfile}
+              saving={updatePatientMutation.isPending}
+              onSave={saveMedicalProfile}
+            />
             <ClinicalPipelineCard patientId={patientId} />
             <ClinicalSyncCard patientId={patientId} demoMode={demoMode} />
             <PatientClinicalSummary patientId={patientId} demoMode={demoMode} />

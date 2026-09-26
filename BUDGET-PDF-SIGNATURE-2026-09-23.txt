@@ -1,0 +1,9 @@
+Denty · Presupuesto PDF firmado · 2026-09-23
+
+- Pipeline clínico: Odontograma → Diagnóstico → Plan → Presupuesto → Firma → Citas.
+- Presupuesto: botón "Generar PDF y firmar" desde Plan + presupuesto y desde Finanzas.
+- Vista previa detallada: fase, diente/zona, tratamiento, precio, subtotal y total.
+- Firma manuscrita obligatoria del paciente y aceptación explícita.
+- Producción: documento BUDGET → finalize → sign → aceptación → descarga PDF firmado.
+- Demo: copia imprimible para Guardar como PDF y evidencia de firma en memoria de la sesión.
+- La firma se vincula a ID de presupuesto, total y versión del plan; si cambia, requiere nueva firma.

@@ -1,0 +1,372 @@
+{
+  "meta": {
+    "nombre": "Catálogo de dominio clínico para odontograma digital",
+    "version": "1.0.0",
+    "descripcion": "Estructura de referencia (enums, entidades y reglas de compatibilidad) para programar un odontograma completo. No es un esquema de base de datos definitivo, sino un catálogo de dominio a partir del cual derivar tablas, enums y validaciones.",
+    "idioma": "es"
+  },
+
+  "sistemas_numeracion": [
+    { "codigo": "FDI", "nombre": "FDI / ISO-3950", "rango_permanente": "11-48", "rango_temporal": "51-85", "default": true },
+    { "codigo": "UNIVERSAL", "nombre": "Universal (ADA)", "rango_permanente": "1-32", "rango_temporal": "A-T" },
+    { "codigo": "PALMER", "nombre": "Palmer", "notacion": "cuadrante + numero (simbolo grafico)" }
+  ],
+
+  "denticiones": [
+    { "codigo": "TEMPORAL", "label_es": "Temporal / decidua", "cuadrantes_fdi": [5, 6, 7, 8] },
+    { "codigo": "PERMANENTE", "label_es": "Permanente", "cuadrantes_fdi": [1, 2, 3, 4] },
+    { "codigo": "MIXTA", "label_es": "Dentición mixta", "descripcion": "Coexisten piezas temporales y permanentes; requiere mapa de sucesión" }
+  ],
+
+  "superficies_dentales": [
+    { "codigo": "M", "label_es": "Mesial" },
+    { "codigo": "D", "label_es": "Distal" },
+    { "codigo": "V", "label_es": "Vestibular / bucal" },
+    { "codigo": "L", "label_es": "Lingual / palatino" },
+    { "codigo": "O", "label_es": "Oclusal", "aplica_a": ["premolar", "molar"] },
+    { "codigo": "I", "label_es": "Incisal", "aplica_a": ["incisivo", "canino"] },
+    { "codigo": "CERVICAL", "label_es": "Cervical / tercio cervical" }
+  ],
+
+  "estados_existencia_pieza": [
+    { "codigo": "PRESENTE", "label_es": "Diente presente" },
+    { "codigo": "AUSENTE", "label_es": "Diente ausente (sin especificar causa)" },
+    { "codigo": "AGENESIA", "label_es": "Agenesia", "descripcion": "Nunca existió; congénito" },
+    { "codigo": "EXTRAIDO", "label_es": "Extraído", "descripcion": "Existió y fue removido" },
+    { "codigo": "A_EXTRAER", "label_es": "Indicado para extracción (pendiente)", "es_plan": true },
+    { "codigo": "NO_ERUPCIONADO", "label_es": "No erupcionado / incluido", "descripcion": "Existe pero no ha salido a boca (ej. cordal incluido)" },
+    { "codigo": "SUPERNUMERARIO", "label_es": "Diente supernumerario" },
+    { "codigo": "ECTOPICO", "label_es": "Diente ectópico / en posición anómala" },
+    { "codigo": "ANQUILOSADO", "label_es": "Anquilosis dentaria", "restriccion": "incompatible con pilar de puente y con tracción ortodóncica" },
+    { "codigo": "IMPLANTE_PERDIDO", "label_es": "Implante fallido / perdido", "aplica_solo_a": "implante" }
+  ],
+
+  "anomalias_dentales": [
+    { "codigo": "DIENTE_NATAL", "label_es": "Diente natal (presente al nacer)" },
+    { "codigo": "DIENTE_NEONATAL", "label_es": "Diente neonatal (erupciona primeras semanas)" },
+    { "codigo": "FUSION", "label_es": "Fusión dentaria" },
+    { "codigo": "GEMINACION", "label_es": "Geminación dentaria" },
+    { "codigo": "MIH", "label_es": "Hipomineralización molar-incisiva" },
+    { "codigo": "GIROVERSION", "label_es": "Giroversión" },
+    { "codigo": "VESTIBULOVERSION", "label_es": "Vestibuloversión" },
+    { "codigo": "LINGUOVERSION", "label_es": "Linguoversión" },
+    { "codigo": "EXTRUSION", "label_es": "Extrusión" },
+    { "codigo": "INTRUSION", "label_es": "Intrusión" },
+    { "codigo": "TRANSPOSICION", "label_es": "Transposición dentaria" }
+  ],
+
+  "movilidad_dentaria": {
+    "escala": "Miller",
+    "grados": [
+      { "grado": 0, "label_es": "Sin movilidad" },
+      { "grado": 1, "label_es": "Grado I - leve" },
+      { "grado": 2, "label_es": "Grado II - moderada" },
+      { "grado": 3, "label_es": "Grado III - severa", "restriccion": "alerta si se marca como pilar de puente" }
+    ]
+  },
+
+  "endodoncia": {
+    "diagnostico_pulpar": ["pulpa_normal", "pulpitis_reversible", "pulpitis_irreversible", "necrosis_pulpar"],
+    "diagnostico_periapical": [
+      "tejidos_normales",
+      "periodontitis_apical_aguda",
+      "periodontitis_apical_cronica",
+      "absceso_apical_agudo",
+      "absceso_apical_cronico",
+      "granuloma_periapical",
+      "quiste_periapical"
+    ],
+    "tests_vitalidad": ["frio", "calor", "electrico", "percusion", "palpacion", "fistula_activa"],
+    "hallazgos_especificos": [
+      { "codigo": "PINK_SPOT", "label_es": "Pink spot (mancha rosada)", "descripcion": "Signo de reabsorción interna visible a través del esmalte", "requiere": "REABSORCION_INTERNA_registrada" },
+      { "codigo": "REABSORCION_INTERNA", "label_es": "Reabsorción radicular interna" },
+      { "codigo": "REABSORCION_EXTERNA", "label_es": "Reabsorción radicular externa", "restriccion_severa": "contraindica uso como pilar" },
+      { "codigo": "REABSORCION_CERVICAL_INVASIVA", "label_es": "Reabsorción cervical invasiva", "descripcion": "Mimetiza caries cervical; diagnóstico diferencial obligatorio" },
+      { "codigo": "CONDUCTO_TIPO_C", "label_es": "Conducto tipo C", "descripcion": "Anatomía frecuente en 2do molar inferior; limita número de conductos tratables" },
+      { "codigo": "CONDUCTO_CALCIFICADO", "label_es": "Conducto calcificado / no negociable" },
+      { "codigo": "PERFORACION_RADICULAR", "label_es": "Perforación radicular iatrogénica", "tipo": "complicacion" },
+      { "codigo": "INSTRUMENTO_FRACTURADO", "label_es": "Instrumento fracturado intraconducto", "tipo": "complicacion" }
+    ],
+    "materiales_selladores": ["MTA", "Biodentine", "gutapercha_cemento_sellador"],
+    "sellado_temporal": { "codigo": "SELLADO_CORONAL_TEMPORAL", "label_es": "Sellado coronal temporal (Cavit/IRM)", "alerta": "si permanece mucho tiempo sin restauración definitiva" },
+    "tratamientos": [
+      { "codigo": "ENDODONCIA_CONVENCIONAL", "label_es": "Tratamiento de conducto (permanente maduro)", "conductos": "1-4 según pieza, individualizable" },
+      { "codigo": "RETRATAMIENTO", "label_es": "Retratamiento de conducto", "excluye_simultaneo": ["APICECTOMIA"] },
+      { "codigo": "APICECTOMIA", "label_es": "Apicectomía (cirugía periapical)", "excluye_simultaneo": ["RETRATAMIENTO"] },
+      { "codigo": "PULPOTOMIA", "label_es": "Pulpotomía", "restriccion": "temporal o permanente joven con ápice inmaduro" },
+      { "codigo": "PULPECTOMIA", "label_es": "Pulpectomía", "restriccion": "temporal o permanente joven con ápice inmaduro" },
+      { "codigo": "APEXIFICACION", "label_es": "Apexificación", "restriccion": "solo con ápice inmaduro" },
+      { "codigo": "APEXOGENESIS", "label_es": "Apexogénesis", "restriccion": "solo con ápice inmaduro, pulpa vital" },
+      { "codigo": "REVASCULARIZACION", "label_es": "Revascularización / regeneración pulpar", "restriccion": "diente inmaduro necrótico" }
+    ],
+    "conductos_por_tipo_diente": {
+      "unirradicular": { "max_conductos_tipico": 2 },
+      "multirradicular": { "max_conductos_tipico": 4, "nota": "molares superiores hasta 3-4 raíces, inferiores tipo C variable" }
+    }
+  },
+
+  "restauradora_operatoria": {
+    "clasificacion_black": ["I", "II", "III", "IV", "V", "VI"],
+    "escala_caries_icdas_simplificada": ["sano", "esmalte", "dentina_superficial", "dentina_profunda", "exposicion_pulpar"],
+    "materiales_restauracion": ["amalgama", "resina_compuesta", "ionomero_vidrio", "ionomero_modificado_resina"],
+    "hallazgos": [
+      { "codigo": "CARIES_PRIMARIA", "label_es": "Caries primaria" },
+      { "codigo": "CARIES_SECUNDARIA", "label_es": "Caries secundaria / recurrente", "descripcion": "bajo restauración existente, distinta de primaria" },
+      { "codigo": "RESTAURACION_DEFECTUOSA", "label_es": "Restauración defectuosa / filtrada, pendiente de reemplazo" },
+      { "codigo": "ABRASION", "label_es": "Abrasión" },
+      { "codigo": "ATRICION", "label_es": "Atrición" },
+      { "codigo": "EROSION", "label_es": "Erosión" },
+      { "codigo": "ABFRACCION", "label_es": "Abfracción" },
+      { "codigo": "HIPERSENSIBILIDAD", "label_es": "Hipersensibilidad dentinaria (hallazgo aislado)" },
+      { "codigo": "FRACTURA_ELLIS", "label_es": "Fractura dental (clasificación Ellis)", "subtipos": ["esmalte", "esmalte_dentina", "esmalte_dentina_pulpa", "corono_radicular", "radicular"] }
+    ],
+    "tratamientos": [
+      { "codigo": "OBTURACION", "label_es": "Obturación / restauración directa", "requiere_superficie": true },
+      { "codigo": "SELLANTE", "label_es": "Sellante de fosas y fisuras", "restriccion": "solo en superficie sana, sin caries ni obturación previa", "aplica_tipico": ["premolar", "molar", "permanente_joven"] },
+      { "codigo": "INLAY", "label_es": "Incrustación inlay" },
+      { "codigo": "ONLAY", "label_es": "Incrustación onlay" },
+      { "codigo": "OVERLAY", "label_es": "Incrustación overlay" },
+      { "codigo": "CARILLA_COMPOSITE", "label_es": "Carilla de composite (directa)", "excluye": "corona_completa_en_misma_pieza" },
+      { "codigo": "CARILLA_DISILICATO", "label_es": "Carilla de disilicato de litio / cerámica (indirecta)", "excluye": "corona_completa_en_misma_pieza" },
+      { "codigo": "CIERRE_DIASTEMA_RESINA", "label_es": "Cierre de diastema con resina", "advertencia_si": "ortodoncia_activa_mismo_espacio" },
+      { "codigo": "BLANQUEAMIENTO", "label_es": "Blanqueamiento dental", "tipo": ["consultorio", "ambulatorio_ferula"], "nota": "tratamiento de superficie/color, no estructural" }
+    ]
+  },
+
+  "coronas": {
+    "materiales": ["disilicato_litio", "zirconio", "metal_ceramica", "metal_porcelana", "resina", "acero_cromado_SSC"],
+    "requisitos_soporte": [
+      "diente_vital_tallado",
+      "diente_con_endodoncia_perno_muñon",
+      "implante_con_pilar"
+    ],
+    "restriccion": "nunca corona sin soporte válido registrado ('corona flotante')",
+    "corona_acero_cromado": { "codigo": "SSC", "restriccion": "uso típico restringido a dentición temporal" }
+  },
+
+  "pernos_muñones": {
+    "codigo": "PERNO_MUÑON",
+    "label_es": "Perno y muñón",
+    "requiere_previo": "ENDODONCIA_CONVENCIONAL_o_equivalente_registrada",
+    "regla": "perno sin endodoncia previa = inconsistencia a bloquear"
+  },
+
+  "protesis_fija": {
+    "puente": {
+      "componentes": ["pilar", "pontico", "cantilever"],
+      "reglas": [
+        "los extremos de un tramo de puente no son siempre pilares; puede haber diseño en cantilever",
+        "el póntico ocupa espacio de diente ausente, no debe confundirse con diente presente",
+        "puente mixto: parte soportada por diente natural, parte por implante",
+        "cantilever puede darse en cualquiera de los dos extremos, no solo intermedio"
+      ]
+    }
+  },
+
+  "protesis_removible": {
+    "tipos": ["total", "parcial"],
+    "regla_pilares": "una prótesis removible clásica NO tiene dientes pilares en el sentido de puente",
+    "anclajes": [
+      { "codigo": "GANCHO_CIRCUNFERENCIAL", "label_es": "Gancho / retenedor circunferencial", "descripcion": "diente de anclaje, no es 'pilar de puente'" },
+      { "codigo": "ATTACHMENT_INTRACORONARIO", "label_es": "Attachment intracoronario", "requiere": "diente/corona preparada para ese fin" },
+      { "codigo": "ATTACHMENT_EXTRACORONARIO", "label_es": "Attachment extracoronario / resiliente" },
+      { "codigo": "BARRA_ACKERMANN", "label_es": "Barra de conexión tipo Ackermann (dentosoportada)" }
+    ],
+    "removible_implantorretenida": {
+      "distincion_clave": "implanto-retenida (mucosoportada, el implante solo retiene) vs implanto-soportada (carga la llevan los implantes)"
+    }
+  },
+
+  "implantologia": {
+    "tipos_conexion": ["hexagono_externo", "hexagono_interno", "cono_morse"],
+    "datos_fixture": {
+      "longitud_mm": { "rango_tipico": [6, 16] },
+      "diametro_mm": { "categorias": ["estrecho", "regular", "ancho"], "rango_tipico": [3, 6] },
+      "marca_sistema": "string libre, relevante porque componentes no son intercambiables entre sistemas",
+      "fecha_colocacion": "date",
+      "fecha_carga_protesica": "date"
+    },
+    "protocolo_quirurgico": {
+      "momento_colocacion": ["inmediato_post_extraccion", "diferido"],
+      "estabilidad_primaria": {
+        "descripcion": "estabilidad mecánica al insertar",
+        "isq_primario": { "tipo": "numero", "rango": [0, 100], "instrumento": "Osstell u equivalente" },
+        "torque_insercion_ncm": { "tipo": "numero" }
+      },
+      "estabilidad_secundaria": {
+        "descripcion": "estabilidad biológica por remodelado óseo, se mide en control posterior",
+        "isq_secundario": { "tipo": "numero", "rango": [0, 100] },
+        "fecha_control": "date"
+      },
+      "protocolo_carga": ["inmediata", "temprana", "diferida_convencional"]
+    },
+    "hueso": {
+      "clasificacion_lekholm_zarb": ["I", "II", "III", "IV"],
+      "injerto": {
+        "origen": ["autologo", "aloinjerto", "xenoinjerto", "aloplastico"],
+        "momento": ["simultaneo_al_implante", "previo_dos_tiempos"]
+      },
+      "tecnicas_asociadas": ["regeneracion_osea_guiada", "preservacion_alveolar_socket_preservation", "expansion_cresta_split_crest"]
+    },
+    "membrana": {
+      "tipo": ["reabsorbible", "no_reabsorbible_ptfe"],
+      "reforzada_titanio": "boolean",
+      "regla": "membrana sin injerto asociado registrado = inconsistencia a validar"
+    },
+    "elevacion_seno": {
+      "tipos": ["interna_osteotomo_summers", "externa_ventana_lateral_caldwell_luc"],
+      "restriccion_zona": "solo aplica en sector posterosuperior (premolares/molares superiores)"
+    },
+    "componentes_protesicos": [
+      { "codigo": "PILAR_RECTO", "label_es": "Pilar recto" },
+      { "codigo": "PILAR_ANGULADO", "label_es": "Pilar angulado", "grados_tipicos": [15, 17, 25, 30], "nota": "condiciona salida del acceso del tornillo" },
+      { "codigo": "TORNILLO_ANGULADO", "label_es": "Tornillo de acceso angulado (screw-access anguladO)", "descripcion": "permite atornillar corona con eje no ideal, evita cementado" },
+      { "codigo": "MULTIUNIT", "label_es": "Pilar multiunidad", "restriccion": "solo válido en prótesis múltiple/atornillada tipo híbrida, no en corona unitaria" },
+      { "codigo": "TIBASE", "label_es": "TiBase", "descripcion": "pilar de titanio sobre el que se cementa estructura de laboratorio; conjunto se atornilla al implante", "requiere": "corona_o_estructura_cementada_asociada" },
+      { "codigo": "LOCATOR", "label_es": "Aditamento Locator", "tipo": "retencion_removible_implantorretenida" },
+      { "codigo": "BOLA_BALL_ATTACHMENT", "label_es": "Aditamento de bola (ball attachment)", "tipo": "retencion_removible_implantorretenida" },
+      { "codigo": "BARRA", "label_es": "Barra (Dolder / Hader / barra-clip)", "tipo": "retencion_removible_implantorretenida", "excluye_en_mismo_implante": ["LOCATOR"] },
+      { "codigo": "IMAN", "label_es": "Anclaje magnético", "tipo": "retencion_removible_implantorretenida" }
+    ],
+    "torques": {
+      "torque_pilar_implante_ncm": "numero, según fabricante",
+      "torque_corona_pilar_ncm": "numero, según fabricante, distinto del anterior"
+    },
+    "protesis_sobre_implantes": [
+      { "codigo": "CORONA_UNITARIA_IMPLANTE", "label_es": "Corona unitaria sobre implante" },
+      { "codigo": "PROTESIS_HIBRIDA_ALL_ON_X", "label_es": "Prótesis híbrida tipo all-on-4/all-on-6", "descripcion": "fija atornillada sobre número reducido de implantes, pilares angulados/multiunit" },
+      { "codigo": "OBTURACION_CHIMENEA", "label_es": "Obturación de chimenea de acceso", "restriccion": "solo válida sobre implante con pilar atornillado, no sobre pilar cementado" }
+    ],
+    "complicaciones": [
+      { "codigo": "MUCOSITIS_PERIIMPLANTARIA", "label_es": "Mucositis periimplantaria", "aplica_solo_a": "implante" },
+      { "codigo": "PERIIMPLANTITIS", "label_es": "Periimplantitis", "aplica_solo_a": "implante", "no_confundir_con": "periodontitis (solo diente natural)" },
+      { "codigo": "IMPLANTE_FALLIDO", "label_es": "Implante fallido / perdido" }
+    ]
+  },
+
+  "odontopediatria": {
+    "mapa_sucesion": "cada pieza temporal debe enlazar obligatoriamente a su sucesor permanente",
+    "cronologia_erupcion": "tabla de referencia para marcar retraso/adelanto eruptivo",
+    "hallazgos": [
+      { "codigo": "EXFOLIACION_FISIOLOGICA", "label_es": "Exfoliación fisiológica" },
+      { "codigo": "PERDIDA_PREMATURA", "label_es": "Pérdida prematura (caries/trauma)", "habilita": "mantenedor_de_espacio" },
+      { "codigo": "ANQUILOSIS_TEMPORAL", "label_es": "Anquilosis de temporal (diente sumergido / infraoclusión)" },
+      { "codigo": "ODONTOMA_QUISTE_BLOQUEO", "label_es": "Odontoma/quiste que bloquea erupción" }
+    ],
+    "mantenedores_espacio": {
+      "tipos": ["fijo_banda_asa", "fijo_corona_asa", "removible"],
+      "regla": "válido solo si hay pérdida prematura de temporal Y el sucesor aún no ha erupcionado"
+    },
+    "trauma_denticion_temporal": ["luxacion", "intrusion", "avulsion"],
+    "otros": ["diente_natal", "diente_neonatal", "fusion", "geminacion", "MIH"]
+  },
+
+  "cirugia": {
+    "exodoncia": {
+      "tipos": ["simple", "quirurgica"],
+      "regla": "exodoncia quirúrgica debería exigir diente marcado como incluido/impactado; si no, se considera simple"
+    },
+    "impactacion": {
+      "clasificaciones": ["Winter", "Pell_Gregory"],
+      "aplica_tipico": "terceros_molares"
+    },
+    "otros_procedimientos": [
+      "germectomia",
+      "alveoloplastia",
+      "frenectomia_labial_lingual",
+      "biopsia_tejido_blando_o_duro",
+      "exposicion_quirurgica_traccion_ortodoncica"
+    ],
+    "lesiones_asociadas": ["quiste_dentigero", "quiste_radicular", "queratoquiste_odontogenico", "tumor_odontogenico"]
+  },
+
+  "ortodoncia": {
+    "malposiciones_individuales": ["giroversion", "vestibuloversion", "linguoversion", "extrusion", "intrusion", "transposicion"],
+    "relaciones_arcada": {
+      "clasificacion_angle": ["I", "II", "III"],
+      "otros": ["mordida_cruzada", "mordida_abierta", "overbite", "overjet", "apinamiento", "diastema"]
+    },
+    "anclaje_temporal": {
+      "codigo": "TAD",
+      "label_es": "Mini-implante de anclaje (TAD)",
+      "distincion": "NO es implante protésico: sin corona, temporal, se retira al finalizar"
+    },
+    "procedimientos": [
+      "traccion_ortodoncica_diente_incluido",
+      "extraccion_con_fines_ortodoncicos",
+      "expansion_palatina_hyrax_haas",
+      "stripping_ipr_mm",
+      "retencion_fija_splint_lingual",
+      "retencion_removible_hawley_essix",
+      "recidiva_post_tratamiento"
+    ],
+    "restricciones": [
+      "diente anquilosado no responde a fuerzas ortodóncicas / incompatible con tracción",
+      "TAD no debe registrarse como implante protésico"
+    ]
+  },
+
+  "periodoncia": {
+    "hallazgos": [
+      "profundidad_sondaje_mm",
+      "recesion_mm",
+      "sangrado_al_sondaje",
+      { "codigo": "FURCA", "label_es": "Afectación de furca (Glickman I-III)", "restriccion": "solo válido en piezas multirradiculares (molares, algunos premolares superiores)" },
+      "dehiscencia_osea",
+      "fenestracion_osea"
+    ],
+    "diagnostico_diferencial": [
+      { "codigo": "ABSCESO_PERIODONTAL", "label_es": "Absceso periodontal" },
+      { "codigo": "ABSCESO_PERIAPICAL", "label_es": "Absceso periapical", "nota": "mismo diente, origen distinto al absceso periodontal" }
+    ]
+  },
+
+  "capa_estado_tratamiento": {
+    "descripcion": "capa temporal transversal aplicable a casi cualquier hallazgo/tratamiento",
+    "estados": [
+      { "codigo": "HALLAZGO_EXISTENTE", "label_es": "Hallazgo existente" },
+      { "codigo": "PLANIFICADO", "label_es": "Tratamiento planificado" },
+      { "codigo": "REALIZADO", "label_es": "Tratamiento realizado" },
+      { "codigo": "REALIZADO_OTRA_CLINICA", "label_es": "Realizado en otra clínica" }
+    ],
+    "nota": "normalmente se representa con colores distintos en el odontograma"
+  },
+
+  "matriz_reglas_compatibilidad": [
+    { "id": "R001", "tipo": "excluye", "regla": "Diente ausente no puede tener obturación, endodoncia, corona natural ni sellante" },
+    { "id": "R002", "tipo": "excluye", "regla": "Implante y diente natural no pueden coexistir en la misma posición" },
+    { "id": "R003", "tipo": "requiere", "regla": "Corona requiere soporte válido: diente vital tallado, diente con endodoncia+perno+muñón, o implante con pilar" },
+    { "id": "R004", "tipo": "requiere", "regla": "Perno requiere endodoncia previa registrada en la misma pieza" },
+    { "id": "R005", "tipo": "requiere", "regla": "Obturación de chimenea solo válida sobre implante con pilar atornillado, no cementado" },
+    { "id": "R006", "tipo": "advertencia", "regla": "Diente con movilidad grado III marcado como pilar de puente" },
+    { "id": "R007", "tipo": "excluye", "regla": "Sellante incompatible si la superficie ya tiene caries u obturación registrada" },
+    { "id": "R008", "tipo": "advertencia", "regla": "Pilar de puente marcado simultáneamente como 'a extraer'" },
+    { "id": "R009", "tipo": "no_confundir", "regla": "Gancho de removible no equivale a pilar de puente" },
+    { "id": "R010", "tipo": "restringe", "regla": "Número de conductos tratables limitado según tipo de diente (uni vs multirradicular)" },
+    { "id": "R011", "tipo": "restringe", "regla": "Pulpotomía/pulpectomía solo en temporales o permanentes jóvenes con ápice inmaduro" },
+    { "id": "R012", "tipo": "restringe", "regla": "Corona de acero cromado (SSC) restringida típicamente a dentición temporal" },
+    { "id": "R013", "tipo": "requiere", "regla": "Mantenedor de espacio requiere pérdida prematura registrada Y sucesor no erupcionado" },
+    { "id": "R014", "tipo": "no_confundir", "regla": "TAD ortodóncico no debe registrarse como implante protésico" },
+    { "id": "R015", "tipo": "restringe", "regla": "Apexificación/apexogénesis solo aplican con ápice inmaduro" },
+    { "id": "R016", "tipo": "excluye", "regla": "Diente anquilosado incompatible con tracción ortodóncica y con pilar de puente" },
+    { "id": "R017", "tipo": "restringe", "regla": "Reabsorción radicular externa severa contraindica uso como pilar" },
+    { "id": "R018", "tipo": "requiere", "regla": "Exodoncia quirúrgica debería exigir diente marcado como incluido/impactado" },
+    { "id": "R019", "tipo": "advertencia", "regla": "Diastema con plan simultáneo de ortodoncia y de restauración (soluciones alternativas)" },
+    { "id": "R020", "tipo": "requiere", "regla": "Pink spot solo debe marcarse si hay reabsorción interna registrada" },
+    { "id": "R021", "tipo": "restringe", "regla": "Elevación de seno solo aplica en sector posterosuperior" },
+    { "id": "R022", "tipo": "requiere", "regla": "Attachment (Locator/bola/barra) solo válido sobre implante o diente con muñón preparado" },
+    { "id": "R023", "tipo": "excluye", "regla": "Barra y Locator son sistemas de retención alternativos, no acumulables en el mismo implante" },
+    { "id": "R024", "tipo": "excluye", "regla": "Carilla (composite o disilicato) incompatible con corona completa en la misma pieza" },
+    { "id": "R025", "tipo": "restringe", "regla": "Periimplantitis solo sobre implante; periodontitis solo sobre diente natural" },
+    { "id": "R026", "tipo": "restringe", "regla": "Furca solo habilitada en molares y algunos premolares superiores birradiculares" },
+    { "id": "R027", "tipo": "advertencia", "regla": "ISQ o torque de inserción bajo umbral (ISQ<60-65 o torque<35Ncm) con carga inmediata marcada" },
+    { "id": "R028", "tipo": "requiere", "regla": "TiBase requiere corona/estructura cementada asociada; no puede quedar aislado" },
+    { "id": "R029", "tipo": "restringe", "regla": "Multiunit solo válido en prótesis múltiple/atornillada, no en corona unitaria" },
+    { "id": "R030", "tipo": "excluye", "regla": "Pilar angulado fuerte + acceso de tornillo recto son mutuamente excluyentes en ciertas conexiones" },
+    { "id": "R031", "tipo": "advertencia", "regla": "Membrana registrada sin injerto asociado" },
+    { "id": "R032", "tipo": "restringe", "regla": "Diámetro y longitud del implante deben estar dentro de rango real de fabricante" },
+    { "id": "R033", "tipo": "requiere", "regla": "Puente: los extremos no siempre son pilares; validar posibilidad de cantilever en cualquier extremo" },
+    { "id": "R034", "tipo": "no_confundir", "regla": "Póntico ocupa espacio ausente; no debe tratarse como diente presente" },
+    { "id": "R035", "tipo": "restringe", "regla": "Retratamiento de conducto y apicectomía son alternativas, no se registran simultáneas activas" }
+  ]
+}

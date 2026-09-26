@@ -1,0 +1,8 @@
+DENTY VERCEL BUILD TYPE FIX · 2026-09-23
+
+Corrección aplicada:
+- PatientMedicalProfile deja de usar readonly string[] en allergies/medications/conditions/dentalRisks.
+- Ahora el perfil médico es asignable a UpdatePatient.medicalProfile durante el typecheck de Next.js.
+- Se añade scripts/tests/medical-history-build-contract-regression.mjs para impedir regresión.
+
+No se modifican versiones de dependencias ni package-lock.json.

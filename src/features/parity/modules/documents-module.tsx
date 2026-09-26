@@ -17,9 +17,19 @@ import {
 } from "@mantine/core";
 import { IconDots, IconFileCertificate, IconPrinter, IconSignature } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { canTransitionDocument, type DocumentState } from "@/domain/state-machines";
+import { requiredConsentTemplates, signedConsentTemplateCodes } from "@/domain/consent-requirements";
+import {
+  DEMO_CLINICAL_DOCUMENTS_STORAGE_KEY,
+  demoRequiredConsentTemplates,
+  syncDemoConsentStatus,
+} from "@/features/documents/consent-status";
 import { DEMO_PATIENTS, DEMO_STAFF } from "@/shared/demo/demo-data";
+import { publicEnv } from "@/shared/config/env";
+import { useClinicalPlanQuery } from "@/shared/clinical/clinical-data";
 import { SignaturePad } from "@/shared/ui/signature-pad";
 import { HorizontalSnapNav } from "@/shared/ui";
 import styles from "@/shared/ui/parity.module.css";
@@ -46,7 +56,7 @@ interface DocumentRow {
   doctorSignatureDataUrl?: string;
 }
 
-const STORAGE_KEY = "denty:clinical-documents:v3";
+const STORAGE_KEY = DEMO_CLINICAL_DOCUMENTS_STORAGE_KEY;
 const ARAGON_BASE = "https://www.dentistasaragon.es";
 const ARAGON_PDF_BASE = `${ARAGON_BASE}/images/archivosPDF/documentacion`;
 
@@ -306,6 +316,10 @@ function printSignedConsent(document: DocumentRow): void {
 }
 
 export function DocumentsModule() {
+  const searchParams = useSearchParams();
+  const demoMode = publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
+  const workflowConsents = searchParams.get("workflow") === "consents";
+  const workflowPatientId = searchParams.get("patientId");
   const [documents, setDocuments] = useState<DocumentRow[]>(() => [...INITIAL_DOCUMENTS]);
   const [storageReady, setStorageReady] = useState(false);
   const [createOpened, setCreateOpened] = useState(false);
@@ -316,6 +330,11 @@ export function DocumentsModule() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [patientFilterId, setPatientFilterId] = useState<string | null>(null);
   const [patientId, setPatientId] = useState("juan-perez");
+  const activeWorkflowPatientId = workflowPatientId ?? patientFilterId ?? patientId;
+  const clinicalPlanQuery = useClinicalPlanQuery(
+    activeWorkflowPatientId,
+    workflowConsents && !demoMode && Boolean(activeWorkflowPatientId),
+  );
   const [templateId, setTemplateId] = useState("CONSENT_IMPLANT");
   const [title, setTitle] = useState("CI Implantes");
   const [doctorId, setDoctorId] = useState("maximo");
@@ -330,11 +349,13 @@ export function DocumentsModule() {
         const parsed = JSON.parse(stored) as DocumentRow[];
         if (Array.isArray(parsed)) setDocuments(parsed);
       }
-      const fromPatient = new URLSearchParams(window.location.search).get("patientId");
+      const params = new URLSearchParams(window.location.search);
+      const fromPatient = params.get("patientId");
       if (fromPatient && DEMO_PATIENTS.some((patient) => patient.id === fromPatient)) {
         setPatientId(fromPatient);
         setPatientFilterId(fromPatient);
       }
+      if (params.get("workflow") === "consents") setDocumentTab("pending");
     } catch {
       // Si el navegador bloquea storage, la sesión actual sigue siendo funcional.
     } finally {
@@ -346,6 +367,7 @@ export function DocumentsModule() {
     if (!storageReady) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(documents));
+      syncDemoConsentStatus(documents);
     } catch {
       // Las firmas pueden superar la cuota del navegador; el estado en memoria se conserva.
     }
@@ -368,6 +390,20 @@ export function DocumentsModule() {
   const workingDocuments = visibleDocuments.filter(
     (document) => document.state !== "ARCHIVED" && !isCompleteSignedConsent(document),
   );
+
+  const workflowRequiredConsents = workflowConsents
+    ? demoMode
+      ? demoRequiredConsentTemplates(activeWorkflowPatientId)
+      : requiredConsentTemplates(clinicalPlanQuery.data?.items ?? [])
+    : [];
+  const workflowSignedCodes = signedConsentTemplateCodes(
+    documents.filter((document) => document.patientId === activeWorkflowPatientId),
+  );
+  const workflowMissingConsents = workflowRequiredConsents.filter(
+    (requirement) => !workflowSignedCodes.has(requirement.code),
+  );
+  const workflowConsentsComplete =
+    workflowRequiredConsents.length === 0 || workflowMissingConsents.length === 0;
 
   const resetSignatureState = () => {
     setPatientSignatureDataUrl(null);
@@ -460,6 +496,44 @@ export function DocumentsModule() {
     setViewOpened(true);
   };
 
+  const prepareWorkflowConsents = () => {
+    const patient = DEMO_PATIENTS.find((item) => item.id === activeWorkflowPatientId);
+    const doctor = DEMO_STAFF.find((item) => item.id === doctorId) ?? DEMO_STAFF[0];
+    if (!patient || !doctor) return;
+    const existingCodes = new Set(
+      documents
+        .filter((document) => document.patientId === activeWorkflowPatientId)
+        .map((document) => document.templateCode)
+        .filter((code): code is string => Boolean(code)),
+    );
+    const missingDocuments = workflowMissingConsents.flatMap((requirement) => {
+      if (existingCodes.has(requirement.code)) return [];
+      const template = TEMPLATES.find((item) => item.value === requirement.code);
+      if (!template) return [];
+      const document: DocumentRow = {
+        id: `DOC-${crypto.randomUUID().slice(0, 6).toUpperCase()}`,
+        patientId: patient.id,
+        patientName: `${patient.firstName} ${patient.lastName}`,
+        patientRecordNumber: patient.recordNumber,
+        patientDni: patient.dni,
+        title: template.label,
+        type: "CONSENT",
+        state: "FINALIZED",
+        createdAt: new Date().toISOString(),
+        templateCode: template.value,
+        doctorId: doctor.id,
+        doctorName: doctor.displayName,
+        clinicSite: doctor.site,
+        ...("sourceUrl" in template ? { sourceUrl: template.sourceUrl } : {}),
+      };
+      return [document];
+    });
+    if (missingDocuments.length) setDocuments((current) => [...missingDocuments, ...current]);
+    setPatientId(activeWorkflowPatientId);
+    setPatientFilterId(activeWorkflowPatientId);
+    setDocumentTab("pending");
+  };
+
   return (
     <>
       <HorizontalSnapNav
@@ -472,6 +546,42 @@ export function DocumentsModule() {
           { value: "archive", label: "Archivo", badge: archivedDocuments.length },
         ]}
       />
+      {workflowConsents ? (
+        <Alert
+          color={workflowConsentsComplete ? "green" : "blue"}
+          title={workflowConsentsComplete ? "Consentimientos completos" : "Paso clínico · Consentimientos informados"}
+          mt="md"
+        >
+          {workflowConsentsComplete ? (
+            <>
+              Ya están firmados los consentimientos requeridos por el plan.
+              <Group mt="sm">
+                <Button
+                  component={Link}
+                  href={`/app/finance?patientId=${encodeURIComponent(activeWorkflowPatientId)}&view=budgets`}
+                  size="xs"
+                >
+                  Continuar a presupuesto
+                </Button>
+              </Group>
+            </>
+          ) : (
+            <>
+              Firma antes del presupuesto los consentimientos correspondientes al tratamiento: {workflowMissingConsents.map((item) => item.label).join(" · ")}.
+              <Text size="xs" mt="xs">
+                Completados {workflowRequiredConsents.length - workflowMissingConsents.length} de {workflowRequiredConsents.length}.
+              </Text>
+              {demoMode ? (
+                <Group mt="sm">
+                  <Button size="xs" variant="light" onClick={prepareWorkflowConsents}>
+                    Preparar consentimientos requeridos
+                  </Button>
+                </Group>
+              ) : null}
+            </>
+          )}
+        </Alert>
+      ) : null}
       <Tabs
         value={documentTab}
         onChange={setDocumentTab}

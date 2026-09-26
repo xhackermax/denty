@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { Alert, Badge, Button, Group, Select, SimpleGrid, Text } from "@mantine/core";
 import { IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
@@ -39,6 +39,7 @@ import {
 import { OdontogramHistory } from "./odontogram-history";
 import { OdontogramLegend, type OdontogramLegendSelection } from "./odontogram-legend";
 import { PeriodontalQuickEntry } from "./periodontal-quick-entry";
+import { ImplantSurgeryPanel } from "./implant-surgery-panel";
 import {
   createStateEntity,
   persistedEntityToDomain,
@@ -56,6 +57,7 @@ import styles from "./odontogram.module.css";
 import { OrthodonticPanel } from "./orthodontic-panel";
 import { PediatricPanel } from "./pediatric-panel";
 import { PeriodontogramPanel } from "./periodontogram-panel";
+import { SurgeryPanel } from "./surgery-panel";
 const INITIAL_ENTITIES: readonly DentalEntity[] = [
   {
     id: "state-46",
@@ -195,11 +197,20 @@ const SURFACE_HITBOX_PATHS = {
     left: "M4 5 L23 27 V46 L4 61 Z",
     right: "M60 5 L41 27 V46 L60 61 Z",
   },
-  narrow: {
+  expanded: {
     left: "M2 4 L26 27 V47 L2 63 Z",
     right: "M62 4 L38 27 V47 L62 63 Z",
   },
 } as const;
+const SURFACE_NAMES: Readonly<Record<ToothSurface, string>> = {
+  V: "vestibular",
+  M: "mesial",
+  O: "oclusal",
+  I: "incisal",
+  D: "distal",
+  P: "palatina",
+  L: "lingual",
+};
 function Tooth({
   tooth,
   state,
@@ -218,15 +229,14 @@ function Tooth({
   const occlusal = occlusalSurfaceForTooth(tooth);
   const inner: ToothSurface = arch === "upper" ? "P" : "L";
   const quadrant = Number(tooth[0]);
+  const position = Number(tooth[1]);
   const mesialOnRight = quadrant === 1 || quadrant === 4;
   const left: ToothSurface = mesialOnRight ? "D" : "M";
   const right: ToothSurface = mesialOnRight ? "M" : "D";
   const clipId = `denty-crown-${tooth}`;
   const statusFor = (surface: ToothSurface) => surfaceState(state, tooth, surface) ?? status ?? "";
   const sideHitboxes =
-    type === "incisor" || type === "canine"
-      ? SURFACE_HITBOX_PATHS.narrow
-      : SURFACE_HITBOX_PATHS.regular;
+    position <= 5 ? SURFACE_HITBOX_PATHS.expanded : SURFACE_HITBOX_PATHS.regular;
   const surfaceProps = (surface: ToothSurface) => ({
     onClick: (event: React.MouseEvent<SVGElement>) => {
       event.stopPropagation();
@@ -301,13 +311,6 @@ function Tooth({
             {...surfaceProps(left)}
           />
           <path
-            className={styles.surfaceHitbox}
-            data-surface={left}
-            d={sideHitboxes.left}
-            aria-hidden="true"
-            {...surfaceProps(left)}
-          />
-          <path
             className={styles.surface}
             data-state={statusFor(occlusal)}
             d={SURFACE_PATHS.occlusal}
@@ -320,13 +323,6 @@ function Tooth({
             {...surfaceProps(right)}
           />
           <path
-            className={styles.surfaceHitbox}
-            data-surface={right}
-            d={sideHitboxes.right}
-            aria-hidden="true"
-            {...surfaceProps(right)}
-          />
-          <path
             className={styles.surface}
             data-state={statusFor(inner)}
             d={SURFACE_PATHS.inner}
@@ -334,6 +330,22 @@ function Tooth({
           />
         </g>
         <path className={styles.crownOutline} d={CROWN_PATHS[type]} />
+        <path
+          className={styles.surfaceHitbox}
+          data-surface={left}
+          data-proximal-hitbox={position <= 5 ? "expanded" : "regular"}
+          d={sideHitboxes.left}
+          aria-label={`Diente ${tooth} superficie ${SURFACE_NAMES[left]}`}
+          {...surfaceProps(left)}
+        />
+        <path
+          className={styles.surfaceHitbox}
+          data-surface={right}
+          data-proximal-hitbox={position <= 5 ? "expanded" : "regular"}
+          d={sideHitboxes.right}
+          aria-label={`Diente ${tooth} superficie ${SURFACE_NAMES[right]}`}
+          {...surfaceProps(right)}
+        />
         {endo ? <path className={styles.endoMark} d="M31 46 C31 58 30 70 31 82" /> : null}
         {post ? <path className={styles.postMark} d="M32 35 L32 73" /> : null}
         {implant ? (
@@ -361,6 +373,7 @@ function Tooth({
 interface OdontogramEditorProps {
   patientId: string;
   initialSection?: "odontogram" | "diagnosis" | "plan";
+  initialAction?: "implant-surgery";
   birthDate?: string;
   initialEntities: readonly DentalEntity[];
   demoMode: boolean;
@@ -376,6 +389,7 @@ interface OdontogramEditorProps {
 function OdontogramEditor({
   patientId,
   initialSection = "odontogram",
+  initialAction,
   birthDate,
   initialEntities,
   demoMode,
@@ -393,13 +407,21 @@ function OdontogramEditor({
   );
   const [tool, setTool] = useState<ToothState>("caries");
   const [placementMode, setPlacementMode] = useState<"tooth" | "bridge">("tooth");
-  const [selectedTooth, setSelectedTooth] = useState("25");
+  const [selectedTooth, setSelectedTooth] = useState(() => {
+    if (initialAction === "implant-surgery") {
+      const plannedImplant = initialEntities.find(
+        (entity) => entity.active && entity.entityType === "IMPLANT" && entity.tooth,
+      );
+      if (plannedImplant?.tooth) return plannedImplant.tooth;
+    }
+    return "25";
+  });
   const [bridgeFrom, setBridgeFrom] = useState<string | null>(null);
   const [bridgeTo, setBridgeTo] = useState<string | null>(null);
   const [bridgePick, setBridgePick] = useState<"from" | "to">("from");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ClinicalTab>(
-    initialSection === "diagnosis" ? "endodontic" : "general",
+    initialAction === "implant-surgery" ? "surgery" : initialSection === "diagnosis" ? "endodontic" : "general",
   );
   const entities = useMemo(
     () => Object.values(history.present.entitiesById).filter((entity) => entity.active),
@@ -604,6 +626,18 @@ function OdontogramEditor({
             ? "Hay cambios nuevos. Recarga antes de guardar."
             : "No se guardaron los cambios."}
         </Alert>
+      ) : null}
+
+      {initialAction === "implant-surgery" ? (
+        <div className={parityStyles.section}>
+          <ImplantSurgeryPanel
+            entities={entities}
+            selectedTooth={selectedTooth}
+            readOnly={historical}
+            onSelectTooth={setSelectedTooth}
+            onCommit={commit}
+          />
+        </div>
       ) : null}
 
       <ClinicalTabs active={activeTab} onChange={setActiveTab} />
@@ -852,6 +886,9 @@ function OdontogramEditor({
       {activeTab === "endodontic" ? (
         <EndodonticPanel selectedTooth={selectedTooth} readOnly={historical} onCommit={commit} />
       ) : null}
+      {activeTab === "surgery" ? (
+        <SurgeryPanel selectedTooth={selectedTooth} readOnly={historical} onCommit={commit} />
+      ) : null}
 
       {!historical && activeTab === "periodontal" ? (
         <PeriodontalQuickEntry patientId={patientId} demoMode={demoMode} />
@@ -917,8 +954,10 @@ function OdontogramEditor({
 export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   const searchParams = useSearchParams();
   const sectionParam = searchParams.get("section");
+  const actionParam = searchParams.get("action");
   const initialSection =
     sectionParam === "diagnosis" || sectionParam === "plan" ? sectionParam : "odontogram";
+  const initialAction = actionParam === "implant-surgery" ? "implant-surgery" : undefined;
   const demoMode = publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string>();
   const query = useOdontogramQuery(patientId, !demoMode);
@@ -960,9 +999,10 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
       : `${query.data?.id ?? patientId}-${expectedVersion ?? 0}`;
   return (
     <OdontogramEditor
-      key={`${editorKey}-${initialSection}`}
+      key={`${editorKey}-${initialSection}-${initialAction ?? "default"}`}
       patientId={patientId}
       initialSection={initialSection}
+      {...(initialAction ? { initialAction } : {})}
       {...(birthDate === undefined ? {} : { birthDate })}
       initialEntities={initialEntities}
       demoMode={demoMode}

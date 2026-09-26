@@ -7,10 +7,10 @@ export interface AdmissionOption {
 }
 
 export interface PatientMedicalProfile {
-  allergies: readonly string[];
-  medications: readonly string[];
-  conditions: readonly string[];
-  dentalRisks: readonly string[];
+  allergies: string[];
+  medications: string[];
+  conditions: string[];
+  dentalRisks: string[];
   notes: string;
   dentitionStage: DentitionStage;
 }
@@ -22,10 +22,10 @@ export interface PatientAdmissionDraft {
   dni?: string;
   phone?: string;
   email?: string;
-  allergies: readonly string[];
-  medications: readonly string[];
-  conditions: readonly string[];
-  dentalRisks: readonly string[];
+  allergies: string[];
+  medications: string[];
+  conditions: string[];
+  dentalRisks: string[];
   notes: string;
 }
 
@@ -35,53 +35,88 @@ export type PatientAdmissionPayload = CreatePatient & {
 
 export const dentalMedicalAdmissionOptions = {
   allergies: [
-    { value: "penicillin", label: "Penicilina / betalactámicos" },
-    { value: "nsaid", label: "AINEs: ibuprofeno, naproxeno, aspirina" },
+    { value: "no_known_allergies", label: "Sin alergias conocidas" },
+    { value: "penicillin", label: "Penicilina / amoxicilina / betalactámicos" },
+    { value: "macrolides", label: "Macrólidos: azitromicina / claritromicina" },
+    { value: "clindamycin", label: "Clindamicina" },
+    { value: "sulfonamides", label: "Sulfamidas" },
+    { value: "nsaid", label: "AINEs: ibuprofeno / naproxeno / AAS" },
+    { value: "paracetamol", label: "Paracetamol" },
     { value: "local_anesthetic", label: "Anestésicos locales" },
     { value: "latex", label: "Látex" },
     { value: "chlorhexidine", label: "Clorhexidina" },
-    { value: "iodine", label: "Yodo / povidona" },
-    { value: "metals", label: "Metales dentales" },
+    { value: "iodine", label: "Yodo / povidona yodada" },
+    { value: "metals", label: "Níquel / metales dentales" },
     { value: "other_allergy", label: "Otra alergia relevante" },
   ],
   medications: [
-    { value: "anticoagulants", label: "Anticoagulantes: Sintrom, warfarina, DOAC" },
-    { value: "antiplatelets", label: "Antiagregantes: aspirina, clopidogrel" },
-    { value: "bisphosphonates", label: "Bisfosfonatos / denosumab" },
+    {
+      value: "anticoagulants",
+      label:
+        "Anticoagulantes: Sintrom / warfarina / apixabán / rivaroxabán / dabigatrán / edoxabán",
+    },
+    { value: "antiplatelets", label: "Antiagregantes: Adiro/AAS / clopidogrel" },
+    { value: "bisphosphonates", label: "Bisfosfonatos / denosumab (Prolia, Xgeva)" },
     { value: "corticosteroids", label: "Corticoides crónicos" },
     { value: "immunosuppressants", label: "Inmunosupresores / biológicos" },
+    { value: "chemotherapy", label: "Quimioterapia / tratamientos antineoplásicos" },
     { value: "antihypertensives", label: "Antihipertensivos" },
-    { value: "diabetes_meds", label: "Insulina / antidiabéticos" },
-    { value: "psychiatric_meds", label: "Ansiolíticos, antidepresivos o neurolépticos" },
+    { value: "statins", label: "Estatinas / tratamiento para colesterol" },
+    { value: "diabetes_meds", label: "Metformina / insulina / otros antidiabéticos" },
+    { value: "glp1_meds", label: "Agonistas GLP-1: semaglutida / tirzepatida y similares" },
+    { value: "thyroid_meds", label: "Levotiroxina / medicación tiroidea" },
+    { value: "antiepileptics", label: "Antiepilépticos" },
+    {
+      value: "psychiatric_meds",
+      label: "Antidepresivos / ansiolíticos / antipsicóticos",
+    },
+    { value: "inhalers", label: "Inhaladores para asma / EPOC" },
     { value: "contraceptives", label: "Anticonceptivos hormonales" },
     { value: "no_medication", label: "No toma medicación habitual" },
   ],
   conditions: [
-    { value: "diabetes", label: "Diabetes" },
+    { value: "diabetes", label: "Diabetes (tipo no especificado)" },
+    { value: "diabetes_type_1", label: "Diabetes tipo 1" },
+    { value: "diabetes_type_2", label: "Diabetes tipo 2" },
     { value: "hypertension", label: "Hipertensión arterial" },
     { value: "heart_disease", label: "Cardiopatía / infarto / angina" },
+    { value: "arrhythmia", label: "Arritmia" },
+    { value: "heart_failure", label: "Insuficiencia cardiaca" },
     { value: "pacemaker", label: "Marcapasos o desfibrilador" },
-    { value: "endocarditis_risk", label: "Riesgo de endocarditis / válvula protésica" },
-    { value: "pregnancy", label: "Embarazo o lactancia" },
-    { value: "epilepsy", label: "Epilepsia" },
-    { value: "asthma", label: "Asma / EPOC" },
-    { value: "kidney_disease", label: "Enfermedad renal" },
-    { value: "liver_disease", label: "Enfermedad hepática" },
+    {
+      value: "endocarditis_risk",
+      label: "Válvula protésica / antecedente o riesgo de endocarditis",
+    },
+    { value: "pregnancy", label: "Embarazo" },
+    { value: "breastfeeding", label: "Lactancia" },
+    { value: "epilepsy", label: "Epilepsia / convulsiones" },
+    { value: "asthma", label: "Asma" },
+    { value: "copd", label: "EPOC" },
+    { value: "kidney_disease", label: "Enfermedad renal / diálisis" },
+    { value: "liver_disease", label: "Enfermedad hepática / cirrosis" },
+    { value: "viral_hepatitis", label: "Hepatitis B o C" },
+    { value: "thyroid_disease", label: "Enfermedad tiroidea: hipo/hipertiroidismo" },
     { value: "immunosuppression", label: "Inmunosupresión" },
+    { value: "hiv", label: "VIH" },
+    { value: "autoimmune", label: "Enfermedad autoinmune / reumatológica" },
+    { value: "organ_transplant", label: "Trasplante de órgano" },
+    { value: "cancer", label: "Cáncer / antecedente oncológico" },
     { value: "radiotherapy_head_neck", label: "Radioterapia en cabeza o cuello" },
-    { value: "osteoporosis", label: "Osteoporosis" },
-    { value: "bleeding_disorder", label: "Trastorno de coagulación" },
-    { value: "none_relevant", label: "Sin antecedentes relevantes" },
+    { value: "osteoporosis", label: "Osteoporosis / enfermedad ósea" },
+    { value: "bleeding_disorder", label: "Trastorno de coagulación / sangrado" },
+    { value: "prosthetic_joint", label: "Prótesis articular" },
+    { value: "none_relevant", label: "Sin antecedentes relevantes conocidos" },
   ],
   dentalRisks: [
-    { value: "dental_anxiety", label: "Ansiedad dental" },
+    { value: "dental_anxiety", label: "Ansiedad / miedo dental" },
     { value: "bruxism", label: "Bruxismo / apretamiento" },
-    { value: "periodontal_history", label: "Antecedente periodontal" },
+    { value: "periodontal_history", label: "Antecedente de periodontitis" },
     { value: "high_caries_risk", label: "Alto riesgo de caries" },
     { value: "xerostomia", label: "Xerostomía / boca seca" },
-    { value: "sleep_apnea", label: "Apnea del sueño" },
+    { value: "sleep_apnea", label: "Apnea obstructiva del sueño" },
     { value: "smoker", label: "Tabaco" },
-    { value: "alcohol", label: "Alcohol relevante" },
+    { value: "vaping", label: "Vapeo / cigarrillo electrónico" },
+    { value: "alcohol", label: "Consumo de alcohol relevante" },
     { value: "orthodontic_history", label: "Tratamiento ortodóntico previo" },
   ],
 } satisfies Record<string, readonly AdmissionOption[]>;

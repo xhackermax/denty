@@ -1,0 +1,18 @@
+Denty · Historia médica + odontograma pediátrico · 23/09/2026
+
+CAMBIOS
+- Odontograma pediátrico limitado a dentición Temporal o Mixta, con selector manual.
+- Sin fecha de nacimiento inicia en Temporal, nunca en permanente.
+- Numeración temporal FDI fijada:
+  Maxilar: 55 54 53 52 51 | 61 62 63 64 65
+  Mandíbula: 85 84 83 82 81 | 71 72 73 74 75
+- Se muestra orientación Derecha del paciente / línea media / Izquierda del paciente.
+- Nueva sección Historia médica en Ficha del paciente > Clínica.
+- Edición de alergias, medicación habitual, enfermedades/condiciones, riesgos odontológicos y observaciones.
+- Listas ampliadas para uso habitual en España y entrada libre para valores no listados.
+- Alertas médicas visibles en la cabecera de la ficha.
+- En demo, la edición funciona durante la sesión sin backend.
+- En servidor, medicalProfile se conserva en el schema de paciente y se envía por PATCH con expectedVersion.
+
+NOTA
+Esta compilación sigue siendo una demo autocontenida para Vercel cuando NEXT_PUBLIC_DEMO_MODE=true.

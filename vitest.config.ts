@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    exclude: [...configDefaults.exclude, "e2e/**", ".worktrees/**"],
+    exclude: [...configDefaults.exclude, "e2e/**", ".worktrees/**", "scripts/tests/**"],
     setupFiles: ["./src/test/setup.ts"],
     coverage: {
       provider: "v8",

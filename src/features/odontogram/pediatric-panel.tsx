@@ -1,5 +1,5 @@
 "use client";
-import { Alert, Badge, Button, Group, Select, Text } from "@mantine/core";
+import { Alert, Badge, Button, Group, SegmentedControl, Select, Text } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 import {
   PEDIATRIC_TOOTH_STATUSES,
@@ -94,15 +94,23 @@ function PediatricTooth({
   );
 }
 export function PediatricPanel({ patientId, birthDate, readOnly, onCommit }: PediatricPanelProps) {
-  const stage = useMemo(() => dentitionStageForBirthDate(birthDate), [birthDate]);
+  const suggestedStage = useMemo(() => dentitionStageForBirthDate(birthDate), [birthDate]);
+  const suggestedPediatricStage: Extract<DentitionStage, "primary" | "mixed"> =
+    !birthDate || suggestedStage === "primary" ? "primary" : "mixed";
+  const [stage, setStage] = useState<Extract<DentitionStage, "primary" | "mixed">>(
+    suggestedPediatricStage,
+  );
   const teeth = useMemo(() => teethForDentition(stage), [stage]);
   const allTeeth = useMemo(() => [...teeth.upper, ...teeth.lower], [teeth]);
-  const [selectedTooth, setSelectedTooth] = useState(allTeeth[0] ?? "75");
+  const [selectedTooth, setSelectedTooth] = useState(allTeeth[0] ?? "55");
   const [status, setStatus] = useState<PediatricToothStatus>("healthy");
   const [toothStates, setToothStates] = useState<Record<string, PediatricToothStatus>>({});
   const [saved, setSaved] = useState(false);
   useEffect(() => {
-    setSelectedTooth(allTeeth[0] ?? "75");
+    setStage(suggestedPediatricStage);
+  }, [suggestedPediatricStage]);
+  useEffect(() => {
+    setSelectedTooth(allTeeth[0] ?? "55");
   }, [allTeeth]);
   useEffect(() => {
     setToothStates({ ...(PEDIATRIC_DRAFTS.get(patientId) ?? {}) });
@@ -143,7 +151,7 @@ export function PediatricPanel({ patientId, birthDate, readOnly, onCommit }: Ped
         <div>
           <Text fw={850}>Odontograma pediátrico</Text>
           <Text size="xs" c="dimmed">
-            Dentición seleccionada automáticamente a partir de la fecha de nacimiento.
+            Denty sugiere la dentición por edad y el profesional puede cambiarla manualmente.
           </Text>
         </div>
         <Group gap="xs">
@@ -154,8 +162,8 @@ export function PediatricPanel({ patientId, birthDate, readOnly, onCommit }: Ped
 
       {!birthDate ? (
         <Alert color="yellow" mt="md" title="Falta fecha de nacimiento">
-          Sin fecha de nacimiento Denty usa dentición permanente. Añade la fecha a la ficha para
-          activar automáticamente primaria o mixta.
+          Sin fecha de nacimiento Denty inicia en dentición temporal. Añade la fecha a la ficha o
+          cambia manualmente a dentición mixta.
         </Alert>
       ) : (
         <Text size="xs" c="dimmed" mt="sm">
@@ -165,10 +173,20 @@ export function PediatricPanel({ patientId, birthDate, readOnly, onCommit }: Ped
       )}
 
       <Group mt="md" align="flex-end">
+        <SegmentedControl
+          aria-label="Dentición pediátrica"
+          value={stage}
+          onChange={(value) => setStage(value as Extract<DentitionStage, "primary" | "mixed">)}
+          data={[
+            { label: "Temporal", value: "primary" },
+            { label: "Mixta", value: "mixed" },
+          ]}
+          disabled={readOnly}
+        />
         <Select
           label="Diente seleccionado"
           value={selectedTooth}
-          onChange={(value) => setSelectedTooth(value ?? allTeeth[0] ?? "75")}
+          onChange={(value) => setSelectedTooth(value ?? allTeeth[0] ?? "55")}
           data={allTeeth}
           disabled={readOnly}
         />
@@ -197,6 +215,9 @@ export function PediatricPanel({ patientId, birthDate, readOnly, onCommit }: Ped
 
       <Text fw={800} size="sm" mt="md">
         Maxilar
+      </Text>
+      <Text size="xs" c="dimmed" ta="center">
+        Derecha del paciente · línea media · Izquierda del paciente
       </Text>
       {renderArch(teeth.upper)}
       <div className={styles.orthoOcclusalLine}>Plano oclusal</div>

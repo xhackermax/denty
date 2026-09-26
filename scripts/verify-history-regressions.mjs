@@ -104,6 +104,9 @@ for (const [name, script] of Object.entries(packageJson.scripts ?? {})) {
 }
 
 if (vercel.framework !== "nextjs") fail("vercel.json debe declarar framework=nextjs");
+if (vercel.env?.NEXT_PUBLIC_DEMO_MODE !== "true") {
+  fail("el ZIP de prueba debe declarar NEXT_PUBLIC_DEMO_MODE=true en vercel.json");
+}
 if (vercel.outputDirectory) {
   fail("Output Directory debe quedar vacío; nunca publicar .next, public u out manualmente");
 }
@@ -143,8 +146,8 @@ for (const inherited of [
     fail(`tsconfig reintroduce una referencia heredada: ${inherited}`);
   }
 }
-if (!tsconfig.includes('"jsx": "preserve"')) {
-  fail("Next debe conservar jsx=preserve en tsconfig");
+if (!tsconfig.includes('"jsx": "react-jsx"')) {
+  fail("Next 16 debe conservar jsx=react-jsx para evitar reescritura de tsconfig durante el build");
 }
 if (!tsconfig.includes('"allowImportingTsExtensions": true')) {
   fail("el smoke TypeScript necesita allowImportingTsExtensions con noEmit");
@@ -318,8 +321,8 @@ if (!authProxy.includes('"/app/:path*"')) {
 if (!authProxy.includes('"/patient/:path*"') || !authProxy.includes("canAccessPatient")) {
   fail("Next Proxy debe proteger el portal /patient con autorización por paciente");
 }
-if (!authProxy.includes('NEXT_PUBLIC_DEMO_MODE === "true"')) {
-  fail("el bypass de autenticación solo puede existir bajo demo mode explícito");
+if (!authProxy.includes('publicEnv.NEXT_PUBLIC_DEMO_MODE === "true"')) {
+  fail("el Proxy debe reutilizar el valor demo validado y su default de configuración");
 }
 if (!authProxy.includes('"/api/auth/session"')) {
   fail("el Proxy debe validar la cookie contra la sesión real del backend");

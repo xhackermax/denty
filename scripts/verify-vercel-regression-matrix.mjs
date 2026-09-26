@@ -45,6 +45,26 @@ foundForbidden.length
 
 if (pkg.workspaces) fail("workspaces", "package.json declares workspaces");
 else ok("no workspaces");
+if (pkg.engines?.node !== "24.x") fail("node-runtime", `engines.node=${pkg.engines?.node ?? "missing"}`);
+else ok("Node runtime pinned to 24.x");
+if (!String(pkg.devDependencies?.["@types/node"] ?? "").startsWith("24.")) {
+  fail("node-types", `@types/node=${pkg.devDependencies?.["@types/node"] ?? "missing"}`);
+} else {
+  ok("@types/node aligned with Node 24");
+}
+const nodeVersionFile = (await text(".node-version")).trim();
+const nvmrc = (await text(".nvmrc")).trim();
+nodeVersionFile === "24"
+  ? ok(".node-version aligned with Node 24")
+  : fail("node-version-file", nodeVersionFile || "empty");
+nvmrc === "24" ? ok(".nvmrc aligned with Node 24") : fail("nvmrc", nvmrc || "empty");
+const tsconfigJson = JSON.parse(await text("tsconfig.json"));
+tsconfigJson.compilerOptions?.jsx === "react-jsx"
+  ? ok("Next 16 JSX runtime pre-aligned")
+  : fail("next-jsx-runtime", `jsx=${tsconfigJson.compilerOptions?.jsx ?? "missing"}`);
+(await exists("tsconfig.tsbuildinfo"))
+  ? fail("tsbuildinfo", "generated tsconfig.tsbuildinfo must not ship")
+  : ok("no generated tsconfig.tsbuildinfo");
 if (vercel.rootDirectory && vercel.rootDirectory !== ".")
   fail("root-directory", String(vercel.rootDirectory));
 else ok("Root Directory compatible with flat ZIP");

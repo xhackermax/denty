@@ -214,11 +214,17 @@
   stroke: transparent;
   stroke-width: 0;
   cursor: crosshair;
+  pointer-events: all;
+  touch-action: manipulation;
 }
 
 .surfaceHitbox:hover {
-  fill: transparent;
+  fill: color-mix(in srgb, var(--denty-teal) 7%, transparent);
   stroke: transparent;
+}
+
+.surfaceHitbox[data-proximal-hitbox="expanded"] {
+  pointer-events: all;
 }
 
 .surface[data-state="caries"],
@@ -1285,6 +1291,20 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
   }
 }
 
+/* Infinite horizontal clinical odontogram wheel */
+.clinicalWheel {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  gap: 6px;
+  align-items: center;
+}
+
+.clinicalWheel :global(.mantine-ActionIcon-root) {
+  border: 1px solid var(--denty-line);
+  background: color-mix(in srgb, var(--denty-card-solid) 86%, transparent);
+}
+
 /* R8 minimal clinical workspace */
 .board {
   gap: 16px;
@@ -1307,15 +1327,21 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
 }
 
 .clinicalTabs {
-  width: fit-content;
+  display: flex;
+  width: 100%;
   max-width: 100%;
   flex-wrap: nowrap;
+  gap: 6px;
   overflow-x: auto;
+  overscroll-behavior-inline: contain;
   padding: 3px;
   border: 1px solid var(--denty-line);
   border-radius: 999px;
   background: color-mix(in srgb, var(--denty-card-solid) 72%, var(--denty-bg) 28%);
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
   scrollbar-width: none;
+  touch-action: pan-x;
 }
 
 .clinicalTabs::-webkit-scrollbar {
@@ -1323,8 +1349,16 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
 }
 
 .clinicalTabs :global(.mantine-Button-root) {
+  min-width: max-content;
   min-height: 34px;
+  flex: 0 0 auto;
   border-radius: 999px;
+  scroll-snap-align: center;
+  white-space: nowrap;
+}
+
+.clinicalTabs :global(.mantine-Button-root[data-active="true"]) {
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--denty-teal) 18%, transparent);
 }
 
 .legendCard {

@@ -20,6 +20,7 @@ import {
   IconMicrophoneOff,
   IconSparkles,
 } from "@tabler/icons-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -27,6 +28,8 @@ import { publicEnv } from "@/shared/config/env";
 import { DEMO_PATIENTS } from "@/shared/demo/demo-data";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { requestMediaPermission } from "@/shared/ui/device-permissions";
+
+import motionStyles from "./voice-command-bar.module.css";
 
 import { executeVoicePlan } from "./voice-executor";
 import { resolveVoicePatient, type VoicePatientCandidate } from "./voice-patient-resolver";
@@ -126,6 +129,7 @@ export function VoiceCommandBar() {
   const router = useRouter();
   const pathname = usePathname();
   const demoMode = publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
+  const reducedMotion = useReducedMotion();
   const patientsQuery = usePatientsQuery(!demoMode);
 
   const [text, setText] = useState("");
@@ -553,17 +557,62 @@ export function VoiceCommandBar() {
           multiline
           maw={320}
         >
-          <ActionIcon
-            size="lg"
-            radius="xl"
-            color={listening || executionError ? "red" : "gray"}
-            variant={listening ? "filled" : "subtle"}
-            aria-label={listening ? "Detener escucha" : "Escuchar comando"}
-            onClick={() => void listen()}
-            loading={executing && voiceEngine === null && !preview}
+          <div
+            className={motionStyles.voiceAction}
+            data-state={listening ? "listening" : executing ? "executing" : "idle"}
           >
-            {listening ? <IconMicrophoneOff size={18} /> : <IconMicrophone size={18} />}
-          </ActionIcon>
+            <AnimatePresence>
+              {listening && !reducedMotion
+                ? [0, 1].map((pulse) => (
+                    <motion.span
+                      className={motionStyles.voicePulse}
+                      key={pulse}
+                      initial={{ opacity: 0.42, scale: 0.88 }}
+                      animate={{ opacity: 0, scale: 1.55 }}
+                      exit={{ opacity: 0 }}
+                      transition={{
+                        duration: 1.35,
+                        delay: pulse * 0.5,
+                        repeat: Infinity,
+                        ease: "easeOut",
+                      }}
+                      aria-hidden="true"
+                    />
+                  ))
+                : null}
+            </AnimatePresence>
+            <motion.div
+              className={motionStyles.voiceButtonLayer}
+              animate={
+                reducedMotion
+                  ? { scale: 1, rotate: 0 }
+                  : listening
+                    ? { scale: [1, 1.035, 1] }
+                    : executing
+                      ? { rotate: [0, 7, -7, 0] }
+                      : { scale: 1, rotate: 0 }
+              }
+              transition={
+                reducedMotion
+                  ? { duration: 0 }
+                  : listening
+                    ? { duration: 1.25, repeat: Infinity, ease: "easeInOut" }
+                    : { type: "spring", stiffness: 380, damping: 28 }
+              }
+            >
+              <ActionIcon
+                size="lg"
+                radius="xl"
+                color={listening || executionError ? "red" : "gray"}
+                variant={listening ? "filled" : "subtle"}
+                aria-label={listening ? "Detener escucha" : "Escuchar comando"}
+                onClick={() => void listen()}
+                loading={executing && voiceEngine === null && !preview}
+              >
+                {listening ? <IconMicrophoneOff size={18} /> : <IconMicrophone size={18} />}
+              </ActionIcon>
+            </motion.div>
+          </div>
         </Tooltip>
 
         <Popover

@@ -14,6 +14,7 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import {
@@ -91,7 +92,7 @@ const PLAN_ITEMS: readonly (PlanItem & { priceCents: number })[] = [
     phase: 5,
     priority: 60,
     status: "PLANNED",
-    priceCents: 55000,
+    priceCents: 55500,
   },
 ] as const;
 
@@ -387,7 +388,7 @@ function PeriodontalPanel({ patientId, demoMode, workflow }: ClinicalPanelProps)
   );
 }
 
-function DemoPlanBudgetPanel() {
+function DemoPlanBudgetPanel({ patientId }: { patientId: string }) {
   const ordered = orderedPlan(PLAN_GRAPH);
   const [selected, setSelected] = useState<readonly string[]>(PLAN_ITEMS.map((item) => item.id));
   const kennedy = suggestKennedyClass(["36", "37", "46", "47"]);
@@ -452,6 +453,13 @@ function DemoPlanBudgetPanel() {
           </div>
           <Title order={2}>{formatEUR(total)}</Title>
         </Group>
+        <Button
+          mt="lg"
+          component={Link}
+          href={`/app/documents?patientId=${encodeURIComponent(patientId)}&workflow=consents`}
+        >
+          Continuar a consentimientos
+        </Button>
       </section>
     </div>
   );
@@ -556,6 +564,17 @@ function ServerPlanBudgetPanel({ patientId, plan, sync }: ServerPlanBudgetPanelP
         >
           Sincronizar presupuesto desde plan
         </Button>
+        {sync.budget && !sync.budget.outdated ? (
+          <Button
+            mt="xs"
+            size="xs"
+            variant="light"
+            component={Link}
+            href={`/app/documents?patientId=${encodeURIComponent(patientId)}&workflow=consents`}
+          >
+            Continuar a consentimientos
+          </Button>
+        ) : null}
       </section>
     </div>
   );
@@ -607,7 +626,7 @@ export function ClinicalWorkspace({ patientId, demoMode }: ClinicalWorkspaceProp
       {tab === "perio" ? (
         <PeriodontalPanel patientId={patientId} demoMode={demoMode} workflow={workflowQuery.data} />
       ) : null}
-      {tab === "plan" && demoMode ? <DemoPlanBudgetPanel /> : null}
+      {tab === "plan" && demoMode ? <DemoPlanBudgetPanel patientId={patientId} /> : null}
       {tab === "plan" && !demoMode && planQuery.data && syncQuery.data ? (
         <ServerPlanBudgetPanel patientId={patientId} plan={planQuery.data} sync={syncQuery.data} />
       ) : null}

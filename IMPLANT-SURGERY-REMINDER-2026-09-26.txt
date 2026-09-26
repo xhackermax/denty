@@ -1,0 +1,10 @@
+DENTY · Recordatorio quirúrgico de implantes
+
+- Las citas de cirugía/colocación de implantes del día muestran una alerta en Agenda.
+- Revisiones, controles, mantenimientos y citas ya completadas no disparan el aviso.
+- La alerta abre directamente:
+  /app/patients/{patientId}/odontogram?action=implant-surgery
+- La ficha quirúrgica exige antes de marcar el implante como realizado:
+  marca/sistema, diámetro, longitud, fecha de colocación, torque de inserción e ISQ primario.
+- Lote/referencia, conexión y notas quirúrgicas quedan disponibles como datos adicionales.
+- La planificación y el presupuesto permanecen separados del registro quirúrgico real.

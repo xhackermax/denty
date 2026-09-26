@@ -62,8 +62,9 @@ describe("clinical odontogram workspace", () => {
     expect(screen.getByRole("button", { name: "General" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Periodonto" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ortodoncia" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Pediatrico" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pediátrico" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Endodoncia" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cirugía" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Historial" })).toBeInTheDocument();
   });
 

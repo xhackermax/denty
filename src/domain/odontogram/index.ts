@@ -150,7 +150,15 @@ export type DentalEntityType =
   | "REMOVABLE"
   | "ORTHODONTIC"
   | "PEDIATRIC"
-  | "PROSTHESIS";
+  | "PROSTHESIS"
+  | "SURGERY"
+  | "BONE_GRAFT"
+  | "MEMBRANE"
+  | "SINUS_LIFT"
+  | "SURGICAL_LESION"
+  | "IMPLANT_COMPONENT"
+  | "PROSTHETIC_STRUCTURE"
+  | "PERIODONTAL_FINDING";
 
 export interface DentalEntity {
   id: string;
