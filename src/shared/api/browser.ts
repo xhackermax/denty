@@ -2,7 +2,7 @@ import { ApiClient } from "./client";
 import { createDentyApi } from "./endpoints";
 import { DENTY_EVENTS_PATH, openDentyEventStream, type DentyEventStreamOptions } from "./events";
 
-export const DENTY_BROWSER_API_BASE_URL = "/api/denty";
+export const DENTY_BROWSER_API_BASE_URL = "";
 
 let browserApi: ReturnType<typeof createDentyApi> | undefined;
 
