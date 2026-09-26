@@ -20,3 +20,4 @@ export * from "./finance-analytics";
 export * from "./budget-signature";
 
 export * from "./implant-surgery-reminder";
+export * from "./odontogram/clinical-rules";
