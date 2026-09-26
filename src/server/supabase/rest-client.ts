@@ -80,16 +80,7 @@ export class SupabaseRestClient {
   }
 
   private headers(extra?: Record<string, string>) {
-    const headers: Record<string, string> = {
-      apikey: this.credentials.key,
-      accept: "application/json",
-      "content-type": "application/json",
-      ...extra,
-    };
-    if (isLegacyJwtApiKey(this.credentials.key)) {
-      headers.authorization = `Bearer ${this.credentials.key}`;
-    }
-    return headers;
+    return buildSupabaseRestHeaders(this.credentials.key, extra);
   }
 
   private async parseJson<T>(response: Response): Promise<T> {
@@ -100,6 +91,17 @@ export class SupabaseRestClient {
     }
     return parsed as T;
   }
+}
+
+export function buildSupabaseRestHeaders(key: string, extra?: Record<string, string>) {
+  const headers: Record<string, string> = {
+    apikey: key,
+    accept: "application/json",
+    "content-type": "application/json",
+    ...extra,
+  };
+  if (isLegacyJwtApiKey(key)) headers.authorization = `Bearer ${key}`;
+  return headers;
 }
 
 function isLegacyJwtApiKey(key: string): boolean {

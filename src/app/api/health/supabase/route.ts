@@ -1,4 +1,5 @@
 import { getServerEnv } from "@/shared/config/env";
+import { buildSupabaseRestHeaders } from "@/server/supabase/rest-client";
 
 function json(status: number, body: Record<string, unknown>): Response {
   return Response.json(body, {
@@ -12,7 +13,11 @@ function json(status: number, body: Record<string, unknown>): Response {
 export async function GET(): Promise<Response> {
   const env = getServerEnv();
   const supabaseUrl = env.SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseKey =
+    env.SUPABASE_SERVICE_ROLE_KEY ??
+    env.SUPABASE_SECRET_KEY ??
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    env.SUPABASE_PUBLISHABLE_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     return json(503, {
@@ -24,10 +29,7 @@ export async function GET(): Promise<Response> {
 
   try {
     const response = await fetch(new URL("/rest/v1/", supabaseUrl), {
-      headers: {
-        apikey: supabaseKey,
-        authorization: `Bearer ${supabaseKey}`,
-      },
+      headers: buildSupabaseRestHeaders(supabaseKey),
       cache: "no-store",
     });
 
