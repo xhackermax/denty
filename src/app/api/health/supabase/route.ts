@@ -24,7 +24,10 @@ export async function GET(): Promise<Response> {
   }
 
   try {
-    const response = await fetch(new URL("/rest/v1/", credentials.url), {
+    const healthUrl = new URL("/rest/v1/clinics", credentials.url);
+    healthUrl.searchParams.set("select", "id");
+    healthUrl.searchParams.set("limit", "1");
+    const response = await fetch(healthUrl, {
       headers: buildSupabaseRestHeaders(credentials.key),
       cache: "no-store",
     });

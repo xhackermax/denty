@@ -12,7 +12,11 @@ describe("Supabase health route", () => {
   it("acepta una secret key moderna sin enviarla como bearer JWT", async () => {
     process.env.SUPABASE_URL = "https://example.supabase.co";
     process.env.SUPABASE_SECRET_KEY = "sb_secret_test-key";
-    const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      expect(url.pathname).toBe("/rest/v1/clinics");
+      expect(url.searchParams.get("select")).toBe("id");
+      expect(url.searchParams.get("limit")).toBe("1");
       const headers = new Headers(init?.headers);
       expect(headers.get("apikey")).toBe("sb_secret_test-key");
       expect(headers.has("authorization")).toBe(false);
