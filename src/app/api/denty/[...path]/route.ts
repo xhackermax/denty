@@ -1,5 +1,6 @@
 import { getServerEnv } from "@/shared/config/env";
 import { isAllowedDentyProxyRoute } from "@/shared/api/proxy-policy";
+import { handleSupabaseDentyRoute } from "@/server/denty-supabase/route-handler";
 
 interface ProxyContext {
   params: Promise<{ path: string[] }>;
@@ -80,6 +81,9 @@ async function proxyRequest(request: Request, context: ProxyContext): Promise<Re
   if (!isAllowedDentyProxyRoute(request.method, backendPath)) {
     return apiError(404, "ROUTE_NOT_ALLOWED", "La ruta no forma parte del contrato Denty.");
   }
+
+  const supabaseResponse = await handleSupabaseDentyRoute(request, backendPath);
+  if (supabaseResponse) return supabaseResponse;
 
   const { DENTY_API_URL } = getServerEnv();
   if (!DENTY_API_URL) {
