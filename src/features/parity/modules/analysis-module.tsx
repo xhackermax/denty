@@ -1,12 +1,12 @@
 "use client";
 
-import { Badge, Button, Group, Progress, SegmentedControl, SimpleGrid, Text } from "@mantine/core";
+import { Badge, Button, Group, SegmentedControl, SimpleGrid, Text } from "@mantine/core";
 import { useState } from "react";
 
 import { formatEUR } from "@/domain/money";
 
 import { FINANCE_KPIS } from "@/shared/demo/demo-data";
-import { MotionParallax, MotionPressable, MotionScrollReveal, SpeedingMetric } from "@/shared/motion";
+import { AnimatedProgress, MotionParallax, MotionPressable, MotionScrollReveal, SpeedingMetric } from "@/shared/motion";
 import styles from "@/shared/ui/parity.module.css";
 
 const TREATMENTS = [
@@ -91,7 +91,13 @@ export function AnalysisModule() {
                     <Text size="sm" fw={700}>
                       {conversion}%
                     </Text>
-                    <Progress value={conversion} w={120} />
+                    <AnimatedProgress
+                      key={`${period}-${name}-conversion`}
+                      value={conversion}
+                      delay={index * 0.045}
+                      w={120}
+                      aria-label={`Conversión de ${name}`}
+                    />
                   </div>
                 </div>
               </MotionScrollReveal>
@@ -113,7 +119,7 @@ export function AnalysisModule() {
               <Text size="sm" fw={700}>
                 Presupuesto no aceptado
               </Text>
-              <Progress value={29} mt="xs" />
+              <AnimatedProgress key={`${period}-budget-loss`} value={29} mt="xs" aria-label="Presupuesto no aceptado" />
               <Text size="xs" c="dimmed" mt="xs">
                 29% del valor presentado
               </Text>
@@ -122,7 +128,7 @@ export function AnalysisModule() {
               <Text size="sm" fw={700}>
                 Repeticiones de laboratorio
               </Text>
-              <Progress value={7} mt="xs" />
+              <AnimatedProgress key={`${period}-lab-rework`} value={7} mt="xs" delay={0.045} aria-label="Repeticiones de laboratorio" />
               <Text size="xs" c="dimmed" mt="xs">
                 7% de trabajos
               </Text>
@@ -131,7 +137,7 @@ export function AnalysisModule() {
               <Text size="sm" fw={700}>
                 Huecos no ocupados
               </Text>
-              <Progress value={12} mt="xs" />
+              <AnimatedProgress key={`${period}-idle-slots`} value={12} mt="xs" delay={0.09} aria-label="Huecos no ocupados" />
               <Text size="xs" c="dimmed" mt="xs">
                 12% de capacidad
               </Text>

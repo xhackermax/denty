@@ -5,7 +5,7 @@ import type {
   PersistedPeriodontalMeasurement,
 } from "@/shared/api/schemas/clinical";
 
-import type { SupabaseRestClient } from "../supabase/rest-client";
+import { SupabaseRestError, type SupabaseRestClient } from "../supabase/rest-client";
 
 interface ClinicRow {
   id: string;
@@ -121,7 +121,13 @@ export class PatientRepository {
       declared_source_detail: payload.declaredSourceDetail ?? null,
       medical_profile: payload.medicalProfile ?? {},
     });
-    return rowToPatient(row);
+    const confirmed = await this.getPatient(row.id);
+    if (!confirmed) {
+      throw new SupabaseRestError("Supabase no confirmo la ficha creada en lectura posterior.", 502, {
+        insertedPatientId: row.id,
+      });
+    }
+    return confirmed;
   }
 
   async updatePatient(id: string, payload: UpdatePatient): Promise<Patient> {

@@ -15,11 +15,9 @@ function createSupabaseFetch() {
     const method = init?.method ?? (input instanceof Request ? input.method : "GET");
     const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
     const apiKey = headers.get("apikey");
-
-    if (apiKey?.startsWith("sb_") && headers.get("authorization") === `Bearer ${apiKey}`) {
-      return json({ code: "PGRST301", message: "JWT could not be decoded" }, 401);
+    if (apiKey && headers.get("authorization") !== `Bearer ${apiKey}`) {
+      return json({ code: "PGRST301", message: "Missing bearer token" }, 401);
     }
-
     if (url.pathname === "/rest/v1/clinics" && method === "GET") {
       return json([{ id: "clinic-1" }]);
     }

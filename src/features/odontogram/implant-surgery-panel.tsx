@@ -45,6 +45,44 @@ function surgeryDataFromEntity(entity: DentalEntity | undefined): ImplantSurgery
   return implantSurgeryDataFromAttributes(entity?.attributes ?? {});
 }
 
+export function buildCompletedImplantEntity(
+  entity: DentalEntity | undefined,
+  selectedTooth: string,
+  data: ImplantSurgeryData,
+): DentalEntity {
+  const missing = missingImplantSurgeryFields(data);
+  if (missing.length) {
+    throw new Error(`Faltan ${missing.length} campos obligatorios del implante`);
+  }
+  const optionalEntries = Object.entries({
+    lotNumber: data.lotNumber,
+    connection: data.connection,
+    notes: data.notes,
+  }).filter(([, value]) => typeof value === "string" && value.trim().length > 0);
+  return {
+    ...(entity ?? {
+      id: `implant-${selectedTooth}`,
+      tooth: selectedTooth,
+      entityType: "IMPLANT" as const,
+      active: true,
+    }),
+    status: "implant",
+    attributes: {
+      ...(entity?.attributes ?? {}),
+      system: data.system,
+      diameterMm: data.diameterMm,
+      lengthMm: data.lengthMm,
+      placementDate: data.placementDate,
+      insertionTorqueNcm: data.insertionTorqueNcm,
+      primaryIsq: data.primaryIsq,
+      ...Object.fromEntries(optionalEntries),
+      lifecycle: "REALIZADO",
+      surgicalRecordCompleted: true,
+    },
+    active: true,
+  };
+}
+
 export function ImplantSurgeryPanel({
   entities,
   selectedTooth,
@@ -79,22 +117,7 @@ export function ImplantSurgeryPanel({
 
   const save = () => {
     if (readOnly || missing.length > 0) return;
-    const baseId = entity?.id ?? `implant-${selectedTooth}`;
-    onCommit({
-      ...(entity ?? {
-        id: baseId,
-        tooth: selectedTooth,
-        entityType: "IMPLANT" as const,
-        active: true,
-      }),
-      status: "implant",
-      attributes: {
-        ...(entity?.attributes ?? {}),
-        ...data,
-        surgicalRecordCompleted: true,
-      },
-      active: true,
-    });
+    onCommit(buildCompletedImplantEntity(entity, selectedTooth, data));
   };
 
   return (

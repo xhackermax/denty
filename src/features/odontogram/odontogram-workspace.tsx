@@ -18,7 +18,8 @@ import {
   createEndoPostCrown,
   createImplantStack,
   createOdontogramEntityState,
-  executeOdontogramCommand,
+  executeValidatedOdontogramBatch,
+  executeValidatedOdontogramCommand,
   redoHistory,
   undoHistory,
   type BoundedHistory,
@@ -58,6 +59,7 @@ import { OrthodonticPanel } from "./orthodontic-panel";
 import { PediatricPanel } from "./pediatric-panel";
 import { PeriodontogramPanel } from "./periodontogram-panel";
 import { SurgeryPanel } from "./surgery-panel";
+import { surgicalVisualsForTooth } from "./surgery-visuals";
 const INITIAL_ENTITIES: readonly DentalEntity[] = [
   {
     id: "state-46",
@@ -265,6 +267,7 @@ function Tooth({
     typeof visualCode === "string" && visualCode in ENDODONTIC_VISUAL_MARKS
       ? ENDODONTIC_VISUAL_MARKS[visualCode as keyof typeof ENDODONTIC_VISUAL_MARKS]
       : undefined;
+  const surgicalMarks = surgicalVisualsForTooth(tooth, Object.values(state.entitiesById));
   return (
     <button
       className={styles.toothButton}
@@ -366,6 +369,18 @@ function Tooth({
             <path d={visualMark.svgPath} />
           </g>
         ) : null}
+        {surgicalMarks.map((mark) => (
+          <g
+            key={mark.key}
+            className={styles.surgeryVisualMark}
+            data-kind={mark.kind}
+            data-lifecycle={mark.lifecycle}
+            role="img"
+            aria-label={mark.ariaLabel}
+          >
+            <path d={mark.path} />
+          </g>
+        ))}
       </svg>
     </button>
   );
@@ -423,6 +438,7 @@ function OdontogramEditor({
   const [activeTab, setActiveTab] = useState<ClinicalTab>(
     initialAction === "implant-surgery" ? "surgery" : initialSection === "diagnosis" ? "endodontic" : "general",
   );
+  const [clinicalRuleMessage, setClinicalRuleMessage] = useState<string | null>(null);
   const entities = useMemo(
     () => Object.values(history.present.entitiesById).filter((entity) => entity.active),
     [history.present.entitiesById],
@@ -441,7 +457,19 @@ function OdontogramEditor({
   const dirty = history.present.revision !== 0;
   const commit = (entity: DentalEntity) => {
     if (historical) return;
-    setHistory((current) => executeOdontogramCommand(current, { type: "UPSERT_ENTITY", entity }));
+    setHistory((current) => {
+      const result = executeValidatedOdontogramCommand(current, { type: "UPSERT_ENTITY", entity });
+      setClinicalRuleMessage(result.evaluation.messages[0] ?? null);
+      return result.history;
+    });
+  };
+  const commitBatch = (batch: readonly DentalEntity[]) => {
+    if (historical) return;
+    setHistory((current) => {
+      const result = executeValidatedOdontogramBatch(current, batch);
+      setClinicalRuleMessage(result.evaluation.messages[0] ?? null);
+      return result.history;
+    });
   };
   const applyWhole = (tooth: string, status = tool) => {
     commit(createStateEntity(tooth, status));
@@ -535,12 +563,7 @@ function OdontogramEditor({
       setBridgeError(error instanceof Error ? error.message : "No se pudo crear la prÃ³tesis.");
       return;
     }
-    setHistory((current) =>
-      executeOdontogramCommand(current, {
-        type: "UPSERT_ENTITIES",
-        entities: entitiesToAdd,
-      }),
-    );
+    commitBatch(entitiesToAdd);
     if (template === "bridge") {
       setBridgeError(null);
       setBridgeFrom(null);
@@ -625,6 +648,11 @@ function OdontogramEditor({
           {conflict
             ? "Hay cambios nuevos. Recarga antes de guardar."
             : "No se guardaron los cambios."}
+        </Alert>
+      ) : null}
+      {clinicalRuleMessage ? (
+        <Alert color="yellow" title="Regla clínica" withCloseButton onClose={() => setClinicalRuleMessage(null)}>
+          {clinicalRuleMessage}
         </Alert>
       ) : null}
 
@@ -887,7 +915,13 @@ function OdontogramEditor({
         <EndodonticPanel selectedTooth={selectedTooth} readOnly={historical} onCommit={commit} />
       ) : null}
       {activeTab === "surgery" ? (
-        <SurgeryPanel selectedTooth={selectedTooth} readOnly={historical} onCommit={commit} />
+        <SurgeryPanel
+          selectedTooth={selectedTooth}
+          entities={entities}
+          readOnly={historical}
+          onCommitBatch={commitBatch}
+          onWarning={setClinicalRuleMessage}
+        />
       ) : null}
 
       {!historical && activeTab === "periodontal" ? (

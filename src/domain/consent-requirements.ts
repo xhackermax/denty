@@ -44,6 +44,20 @@ export interface ConsentDocumentLike {
   templateCode?: string | undefined;
 }
 
+const SURGICAL_CONSENT_BY_TREATMENT_CODE: Readonly<Record<string, ConsentTemplateCode>> = {
+  IMPLANT_PLACEMENT: "CONSENT_IMPLANT",
+  IMPLANT: "CONSENT_IMPLANT",
+  EXTRACTION_SIMPLE: "CONSENT_EXTRACTION",
+  EXTRACTION_SURGICAL: "CONSENT_EXTRACTION",
+  BONE_GRAFT: "CONSENT_BONE_GRAFT",
+  GUIDED_BONE_REGENERATION: "CONSENT_BONE_REGEN",
+  GBR: "CONSENT_BONE_REGEN",
+  MEMBRANE: "CONSENT_BONE_REGEN",
+  APICOECTOMY: "CONSENT_PERIAPICAL",
+  PERIAPICAL_SURGERY: "CONSENT_PERIAPICAL",
+  BIOPSY: "CONSENT_BIOPSY",
+};
+
 function normalizedTreatmentText(item: ConsentTreatmentLike): string {
   return `${item.treatmentCode ?? ""} ${item.label ?? ""} ${item.description ?? ""}`
     .trim()
@@ -55,6 +69,14 @@ export function requiredConsentTemplates(
 ): ConsentRequirement[] {
   const required = new Map<ConsentTemplateCode, ConsentRequirement>();
   for (const treatment of treatments) {
+    const explicitCode = treatment.treatmentCode
+      ? SURGICAL_CONSENT_BY_TREATMENT_CODE[treatment.treatmentCode.trim().toUpperCase()]
+      : undefined;
+    if (explicitCode) {
+      const template = CONSENT_TEMPLATES.find((item) => item.code === explicitCode);
+      if (template) required.set(template.code, { code: template.code, label: template.label });
+      continue;
+    }
     const text = normalizedTreatmentText(treatment);
     if (!text) continue;
     for (const template of CONSENT_TEMPLATES) {

@@ -43,6 +43,7 @@ import {
   DEMO_TREATMENT_ANALYTICS,
 } from "@/shared/demo/demo-data";
 import { HorizontalSnapNav } from "@/shared/ui";
+import { MotionNumber } from "@/shared/motion";
 import {
   BudgetSignatureFlow,
   type BudgetSignatureBudget,
@@ -631,29 +632,29 @@ export function FinanceModule() {
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Producido</span>
           <strong className={styles.metricValue}>
-            {treatmentMetrics.length ? formatEUR(dashboardMetrics.producedCents) : "Sin datos"}
+            {treatmentMetrics.length ? <MotionNumber value={dashboardMetrics.producedCents / 100} format="currency" duration={1} ariaLabel="Producido" /> : "Sin datos"}
           </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Facturado</span>
           <strong className={styles.metricValue}>
-            {formatEUR(dashboardMetrics.invoicedCents)}
+            <MotionNumber value={dashboardMetrics.invoicedCents / 100} format="currency" duration={1} ariaLabel="Facturado" />
           </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Cobrado</span>
           <strong className={styles.metricValue}>
-            {formatEUR(dashboardMetrics.collectedCents)}
+            <MotionNumber value={dashboardMetrics.collectedCents / 100} format="currency" duration={1} ariaLabel="Cobrado" />
           </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Pendiente</span>
-          <strong className={styles.metricValue}>{formatEUR(dashboardMetrics.pendingCents)}</strong>
+          <strong className={styles.metricValue}><MotionNumber value={dashboardMetrics.pendingCents / 100} format="currency" duration={1} ariaLabel="Pendiente" /></strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Margen</span>
           <strong className={styles.metricValue}>
-            {treatmentMetrics.length ? formatEUR(dashboardMetrics.marginCents) : "Sin datos"}
+            {treatmentMetrics.length ? <MotionNumber value={dashboardMetrics.marginCents / 100} format="currency" duration={1} ariaLabel="Margen" /> : "Sin datos"}
           </strong>
         </div>
       </SimpleGrid>

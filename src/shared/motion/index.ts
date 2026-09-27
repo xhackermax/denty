@@ -4,4 +4,6 @@ export * from "./motion-parallax";
 export * from "./motion-pressable";
 export * from "./motion-scroll-reveal";
 export * from "./motion-tokens";
+export * from "./motion-number";
+export * from "./animated-progress";
 export * from "./speeding-metric";

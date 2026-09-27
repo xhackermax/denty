@@ -31,7 +31,18 @@
     "preflight": "node scripts/pipeline/run.mjs preflight",
     "pipeline:self-check": "node scripts/pipeline/self-check.mjs",
     "api:parity": "node scripts/verify-api-parity.mjs",
-    "vercel:regressions": "node scripts/verify-vercel-regression-matrix.mjs"
+    "vercel:regressions": "node scripts/verify-vercel-regression-matrix.mjs",
+    "node24:check": "node scripts/verify-node24-release.mjs",
+    "p0:schema": "node scripts/verify-p0-schema.mjs",
+    "roadmap:p1": "node scripts/verify-roadmap-p1.mjs",
+    "roadmap:p2": "node scripts/verify-roadmap-p2.mjs",
+    "roadmap:p3": "node scripts/verify-roadmap-p3.mjs && node --experimental-strip-types scripts/roadmap/p3-contract.test.mjs",
+    "roadmap:p4": "node scripts/verify-roadmap-p4.mjs && node --experimental-strip-types scripts/roadmap/p4-contract.test.mjs",
+    "payments:check": "node scripts/verify-payment-providers.mjs && node scripts/verify-stripe-sdk.mjs",
+    "payments:security": "node scripts/payments/verify-payment-security.mjs",
+    "payments:contracts": "node --experimental-strip-types scripts/payments/provider-domain-contract.test.mjs && node scripts/payments/payment-attempt-contract.test.mjs && node --experimental-strip-types scripts/payments/payment-attempt-domain.test.mjs && node scripts/payments/provider-route-security.test.mjs && node scripts/payments/provider-adapters-contract.test.mjs && node --experimental-strip-types scripts/payments/post-payment-domain.test.mjs && node --experimental-strip-types scripts/payments/reconciliation-domain.test.mjs && node --experimental-strip-types scripts/payments/client-contract.test.mjs",
+    "payments:release": "npm run payments:efficiency && node scripts/payments/verify-payment-security.mjs",
+    "payments:efficiency": "node scripts/payments/verify-payment-efficiency.mjs"
   },
   "dependencies": {
     "@date-fns/tz": "1.5.0",
@@ -47,7 +58,8 @@
     "nuqs": "2.10.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "stripe": "22.6.2"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

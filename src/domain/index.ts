@@ -20,4 +20,6 @@ export * from "./finance-analytics";
 export * from "./budget-signature";
 
 export * from "./implant-surgery-reminder";
+export * from "./implant-budget-versioning";
 export * from "./odontogram/clinical-rules";
+export * from "./odontogram/implant-planning";

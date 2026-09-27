@@ -11,6 +11,8 @@ const analysis = read("src/features/parity/modules/analysis-module.tsx");
 const tokens = read("src/shared/motion/motion-tokens.ts");
 const parallax = read("src/shared/motion/motion-parallax.tsx");
 const metric = read("src/shared/motion/speeding-metric.tsx");
+const motionPage = read("src/shared/motion/motion-page.tsx");
+const motionPageStyles = read("src/shared/motion/motion-page.module.css");
 
 assert.match(shell, /layoutId="denty-desktop-nav-indicator"/);
 assert.match(shell, /layoutId="denty-mobile-nav-indicator"/);
@@ -18,6 +20,8 @@ assert.match(shell, /resolveRouteTransition/);
 assert.match(shell, /transitionKind=\{routeTransition\.kind\}/);
 assert.match(shell, /transitionDirection=\{routeTransition\.direction\}/);
 assert.match(shell, /mode="popLayout"/);
+assert.doesNotMatch(motionPage, /rotateY|blur\(/);
+assert.doesNotMatch(motionPageStyles, /cube|flip|filter/);
 assert.ok((shell.match(/animate=\{active \?/g) ?? []).length >= 2);
 assert.match(voice, /voicePulse/);
 assert.match(voice, /repeat: Infinity/);

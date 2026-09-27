@@ -27,6 +27,24 @@ const nextConfig = await text("next.config.ts");
 const prettierIgnore = await text(".prettierignore");
 const pipeline = await text("scripts/pipeline/catalog.mjs");
 const top = await readdir(root);
+const clinicalRegressionGates = [
+  "scripts/tests/odontogram-clinical-rules-regression.mjs",
+  "scripts/tests/surgery-odontogram-regression.mjs",
+];
+const uxRegressionGates = [
+  "scripts/tests/motion-regression.mjs",
+  "scripts/tests/appearance-schedule-regression.mjs",
+  "scripts/tests/documents-auto-open-regression.mjs",
+];
+
+for (const gate of clinicalRegressionGates) {
+  if (await exists(gate)) ok(`clinical gate ${path.basename(gate)}`);
+  else fail("clinical-gate", `${gate} missing`);
+}
+for (const gate of uxRegressionGates) {
+  if (await exists(gate)) ok(`UX gate ${path.basename(gate)}`);
+  else fail("ux-gate", `${gate} missing`);
+}
 
 const forbiddenRoots = [
   "apps",

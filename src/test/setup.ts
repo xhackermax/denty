@@ -15,6 +15,18 @@ if (typeof global.ResizeObserver === "undefined") {
   };
 }
 
+if (typeof global.IntersectionObserver === "undefined") {
+  global.IntersectionObserver = class IntersectionObserver {
+    root = null;
+    rootMargin = "0px";
+    thresholds = [0];
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() { return []; }
+  } as unknown as typeof IntersectionObserver;
+}
+
 if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
   Object.defineProperty(window, "matchMedia", {
     writable: true,

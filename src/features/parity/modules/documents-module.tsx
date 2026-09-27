@@ -34,27 +34,7 @@ import { SignaturePad } from "@/shared/ui/signature-pad";
 import { HorizontalSnapNav } from "@/shared/ui";
 import styles from "@/shared/ui/parity.module.css";
 
-interface DocumentRow {
-  id: string;
-  patientId: string;
-  patientName: string;
-  patientRecordNumber: string;
-  patientDni: string;
-  title: string;
-  type: string;
-  state: DocumentState;
-  createdAt: string;
-  sourceUrl?: string;
-  templateCode?: string;
-  doctorId?: string;
-  doctorName?: string;
-  clinicSite?: string;
-  patientSignerName?: string;
-  patientSignedAt?: string;
-  patientSignatureDataUrl?: string;
-  doctorSignedAt?: string;
-  doctorSignatureDataUrl?: string;
-}
+import { createDocumentRow, postCreateAction, type DocumentRow } from "./documents-create-flow";
 
 const STORAGE_KEY = DEMO_CLINICAL_DOCUMENTS_STORAGE_KEY;
 const ARAGON_BASE = "https://www.dentistasaragon.es";
@@ -416,25 +396,21 @@ export function DocumentsModule() {
     const doctor = DEMO_STAFF.find((item) => item.id === doctorId);
     if (!patient || !template || !title.trim()) return;
 
-    const isConsent = template.type === "CONSENT";
-    const document: DocumentRow = {
+    const document = createDocumentRow({
       id: `DOC-${crypto.randomUUID().slice(0, 6).toUpperCase()}`,
-      patientId,
-      patientName: `${patient.firstName} ${patient.lastName}`,
-      patientRecordNumber: patient.recordNumber,
-      patientDni: patient.dni,
-      title: title.trim(),
-      type: template.type,
-      state: isConsent ? "FINALIZED" : "DRAFT",
+      patient,
+      template,
+      title,
+      clinicSite,
       createdAt: new Date().toISOString(),
-      templateCode: template.value,
-      ...(doctor ? { doctorId: doctor.id, doctorName: doctor.displayName } : {}),
-      ...(clinicSite ? { clinicSite } : {}),
-      ...("sourceUrl" in template ? { sourceUrl: template.sourceUrl } : {}),
-    };
+      ...(doctor ? { doctor } : {}),
+    });
 
     setDocuments((current) => [document, ...current]);
     setCreateOpened(false);
+    const action = postCreateAction(document);
+    if (action.kind === "sign") openSigning(document);
+    else openDocumentPreview(document);
   };
 
   const advance = (id: string) => {
@@ -449,7 +425,7 @@ export function DocumentsModule() {
     );
   };
 
-  const openSigning = (document: DocumentRow) => {
+  function openSigning(document: DocumentRow) {
     const defaultDoctor =
       DEMO_STAFF.find((staff) => staff.id === document.doctorId) ?? DEMO_STAFF[0];
     if (defaultDoctor) {
@@ -459,7 +435,12 @@ export function DocumentsModule() {
     setSelectedId(document.id);
     resetSignatureState();
     setSignOpened(true);
-  };
+  }
+
+  function openDocumentPreview(document: DocumentRow) {
+    setViewingId(document.id);
+    setViewOpened(true);
+  }
 
   const sign = () => {
     if (!selectedDocument || !patientSignatureDataUrl || !doctorSignatureDataUrl) return;
@@ -491,10 +472,7 @@ export function DocumentsModule() {
     setSignOpened(false);
   };
 
-  const openSignedCopy = (document: DocumentRow) => {
-    setViewingId(document.id);
-    setViewOpened(true);
-  };
+  const openSignedCopy = openDocumentPreview;
 
   const prepareWorkflowConsents = () => {
     const patient = DEMO_PATIENTS.find((item) => item.id === activeWorkflowPatientId);
@@ -887,7 +865,7 @@ export function DocumentsModule() {
       <Modal
         opened={viewOpened}
         onClose={() => setViewOpened(false)}
-        title="Consentimiento firmado"
+        title={viewingDocument && isCompleteSignedConsent(viewingDocument) ? "Consentimiento firmado" : "Vista previa del documento"}
         size="xl"
       >
         {viewingDocument && isCompleteSignedConsent(viewingDocument) ? (
@@ -996,9 +974,57 @@ export function DocumentsModule() {
               </Button>
             </Group>
           </Stack>
+        ) : viewingDocument ? (
+          <Stack>
+            <Group justify="space-between" align="flex-start">
+              <div>
+                <Title order={3}>{viewingDocument.title}</Title>
+                <Text size="sm" c="dimmed">
+                  {viewingDocument.id} · creado {new Date(viewingDocument.createdAt).toLocaleString("es-ES")}
+                </Text>
+              </div>
+              <Badge color={stateColor(viewingDocument.state)} variant="light">
+                {stateLabel(viewingDocument.state)}
+              </Badge>
+            </Group>
+            <SimpleGrid cols={{ base: 1, md: 2 }}>
+              <Alert color="gray" title="Paciente">
+                {viewingDocument.patientName}
+                <br />
+                Ficha {viewingDocument.patientRecordNumber} · DNI {viewingDocument.patientDni}
+              </Alert>
+              <Alert color="gray" title="Documento">
+                {viewingDocument.doctorName ?? "Sin odontólogo asignado"}
+                <br />
+                {viewingDocument.clinicSite ?? "Sin sede asignada"}
+              </Alert>
+            </SimpleGrid>
+            {viewingDocument.sourceUrl ? (
+              <iframe
+                src={viewingDocument.sourceUrl}
+                title={`Vista previa de ${viewingDocument.title}`}
+                style={{
+                  width: "100%",
+                  height: 520,
+                  border: "1px solid var(--mantine-color-default-border)",
+                  borderRadius: 12,
+                  background: "white",
+                }}
+              />
+            ) : (
+              <Alert color="blue" title="Documento preparado">
+                La vista previa corresponde al documento recién creado y conserva paciente, profesional y sede.
+              </Alert>
+            )}
+            <Group justify="flex-end">
+              <Button variant="default" onClick={() => setViewOpened(false)}>
+                Cerrar
+              </Button>
+            </Group>
+          </Stack>
         ) : (
-          <Alert color="yellow" title="Firma incompleta">
-            Faltan firmas o datos.
+          <Alert color="yellow" title="Documento no disponible">
+            No se ha podido cargar la vista previa.
           </Alert>
         )}
       </Modal>

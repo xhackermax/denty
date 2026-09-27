@@ -58,6 +58,8 @@ export const clinicalBudgetSchema = z
     status: z.string().min(1),
     totalCents: z.number().int(),
     version: versionSchema.optional(),
+    signedFingerprint: z.string().nullable().optional(),
+    currentPlanFingerprint: z.string().nullable().optional(),
     items: z.array(clinicalBudgetItemSchema).default([]),
   })
   .passthrough();
@@ -136,6 +138,31 @@ export const dentalEntitySchema = z.object({
   attributes: z.record(z.string(), z.unknown()).optional(),
   parentId: idSchema.optional(),
   active: z.boolean().default(true),
+});
+
+export const implantPlanComponentSchema = z.object({
+  code: z.string().min(1),
+  label: z.string().min(1),
+  quantity: z.number().int().positive(),
+  tooth: z.string().optional(),
+  billable: z.boolean(),
+  attributes: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const plannedImplantSchema = z.object({
+  id: idSchema,
+  tooth: z.string().min(1),
+  design: z.enum([
+    "UNIT_TIBASE",
+    "MULTIUNIT_FIXED",
+    "DIRECT_SCREWED",
+    "BAR_OVERDENTURE",
+    "LOCATOR_OVERDENTURE",
+    "HYBRID_ALL_ON_X",
+    "CUSTOM",
+  ]),
+  implant: dentalEntitySchema,
+  components: z.array(implantPlanComponentSchema),
 });
 
 export const persistedDentalEntitySchema = z

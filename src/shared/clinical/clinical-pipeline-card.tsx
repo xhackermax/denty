@@ -177,7 +177,12 @@ export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
             Del odontograma a los consentimientos, presupuesto, firma y cita.
           </p>
         </div>
-        <Badge variant="light">Plan → consentimientos → presupuesto → firma → citas</Badge>
+        <div>
+          <Badge variant="light">Plan → consentimientos → presupuesto → firma → citas</Badge>
+          {syncQuery.data?.budget?.outdated ? (
+            <Badge color="yellow" variant="light" ml="xs">Crear revisión del presupuesto</Badge>
+          ) : null}
+        </div>
       </div>
       <div className={styles.pipeline} role="navigation" aria-label="Pipeline clínico">
         {STEPS.map((step, index) => {

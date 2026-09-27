@@ -100,6 +100,19 @@ function createSupabaseFetch() {
   });
 }
 
+function createSupabaseFetchWithLostPatientWrite() {
+  const baseFetch = createSupabaseFetch();
+  return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+
+    if (url.pathname === "/rest/v1/patients" && method === "GET") {
+      return json([]);
+    }
+
+    return baseFetch(input, init);
+  });
+}
 describe("Supabase-backed patient API", () => {
   beforeEach(() => {
     process.env.SUPABASE_URL = "https://example.supabase.co";
@@ -165,6 +178,35 @@ describe("Supabase-backed patient API", () => {
       entities: [],
       periodontal: [],
       snapshots: [],
+    });
+  });
+
+
+  test("rejects patient creation when Supabase does not confirm the inserted row on readback", async () => {
+    vi.stubGlobal("fetch", createSupabaseFetchWithLostPatientWrite());
+
+    const createResponse = await POST(
+      new Request("https://denty.test/api/denty/api/patients", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://denty.test",
+        },
+        body: JSON.stringify({
+          firstName: "Noelia",
+          lastName: "SinPersistir",
+          birthDate: "2018-04-03T00:00:00.000+02:00",
+        }),
+      }),
+      { params: Promise.resolve({ path: ["api", "patients"] }) },
+    );
+
+    expect(createResponse.status).toBe(502);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      error: {
+        code: "SUPABASE_ERROR",
+        message: "Supabase no confirmo la ficha creada en lectura posterior.",
+      },
     });
   });
 

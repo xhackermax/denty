@@ -9,7 +9,7 @@ describe("Supabase health route", () => {
     vi.unstubAllGlobals();
   });
 
-  it("acepta una secret key moderna sin enviarla como bearer JWT", async () => {
+  it("acepta una secret key moderna enviandola tambien como bearer", async () => {
     process.env.SUPABASE_URL = "https://example.supabase.co";
     process.env.SUPABASE_SECRET_KEY = "sb_secret_test-key";
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
@@ -19,7 +19,7 @@ describe("Supabase health route", () => {
       expect(url.searchParams.get("limit")).toBe("1");
       const headers = new Headers(init?.headers);
       expect(headers.get("apikey")).toBe("sb_secret_test-key");
-      expect(headers.has("authorization")).toBe(false);
+      expect(headers.get("authorization")).toBe("Bearer sb_secret_test-key");
       return Response.json({ openapi: "3.0.0" });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -40,6 +40,7 @@ describe("Supabase health route", () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
       const headers = new Headers(init?.headers);
       expect(headers.get("apikey")).toBe("sb_secret_test-key");
+      expect(headers.get("authorization")).toBe("Bearer sb_secret_test-key");
       return Response.json({ openapi: "3.0.0" });
     });
     vi.stubGlobal("fetch", fetchMock);

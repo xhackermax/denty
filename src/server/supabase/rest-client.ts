@@ -100,13 +100,10 @@ export function buildSupabaseRestHeaders(key: string, extra?: Record<string, str
     "content-type": "application/json",
     ...extra,
   };
-  if (isLegacyJwtApiKey(key)) headers.authorization = `Bearer ${key}`;
+  headers.authorization = `Bearer ${key}`;
   return headers;
 }
 
-function isLegacyJwtApiKey(key: string): boolean {
-  return key.startsWith("eyJ") && key.split(".").length === 3;
-}
 
 function safeJson(value: string): unknown {
   try {
