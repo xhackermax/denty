@@ -104,8 +104,8 @@ for (const [name, script] of Object.entries(packageJson.scripts ?? {})) {
 }
 
 if (vercel.framework !== "nextjs") fail("vercel.json debe declarar framework=nextjs");
-if (vercel.env?.NEXT_PUBLIC_DEMO_MODE !== "true") {
-  fail("el ZIP de prueba debe declarar NEXT_PUBLIC_DEMO_MODE=true en vercel.json");
+if (vercel.env?.NEXT_PUBLIC_DEMO_MODE !== "false") {
+  fail("el despliegue de Vercel debe nacer limpio con NEXT_PUBLIC_DEMO_MODE=false en vercel.json");
 }
 if (vercel.outputDirectory) {
   fail("Output Directory debe quedar vacío; nunca publicar .next, public u out manualmente");
