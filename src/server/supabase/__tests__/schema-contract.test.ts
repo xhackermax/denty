@@ -79,6 +79,17 @@ describe("Supabase schema contract", () => {
     expect(tableBody(sql, "appointments")).toMatch(/budget_signed_snapshot_id\s+uuid\s+references\s+public\.budget_signed_snapshots/i);
   });
 
+  test("stores local Denty users for clean admin bootstrap and role permissions", () => {
+    const sql = readMigrationSql();
+    const tables = createdTables(sql);
+
+    expect(tables).toEqual(expect.arrayContaining(["denty_users"]));
+    expect(tableBody(sql, "denty_users")).toMatch(/username\s+text\s+not\s+null/i);
+    expect(tableBody(sql, "denty_users")).toMatch(/password_hash\s+text\s+not\s+null/i);
+    expect(tableBody(sql, "denty_users")).toMatch(/permissions\s+text\[\]\s+not\s+null/i);
+    expect(tableBody(sql, "denty_users")).toMatch(/patient_id\s+uuid\s+references\s+public\.patients/i);
+  });
+
   test("enables row level security for clinical and financial tables", () => {
     const sql = readMigrationSql();
     const protectedTables = [
