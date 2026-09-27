@@ -40,11 +40,12 @@ export async function executeAssistantTool(call: AssistantToolCall): Promise<Ass
     return { type: "SELECT_TOOTH", tooth: String(args.tooth) };
   }
   if (call.name === "patient.create") {
+    if (!args.dni) throw new Error("Crear paciente requiere DNI o NIE.");
     await api.patients.create({
       firstName: String(args.firstName),
       lastName: String(args.lastName),
       ...(args.phone ? { phone: String(args.phone) } : {}),
-      ...(args.dni ? { dni: String(args.dni) } : {}),
+      dni: String(args.dni),
     });
     return { type: "NONE" };
   }

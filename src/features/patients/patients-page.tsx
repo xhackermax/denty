@@ -180,7 +180,7 @@ export function PatientsPage() {
 
   const createPatient = async () => {
     const payload = buildAdmissionPayload(admissionDraft);
-    if (!payload.firstName || !payload.lastName || !admissionDraft.birthDate) return;
+    if (!payload.firstName || !payload.lastName || !payload.dni || !admissionDraft.birthDate) return;
 
     if (demoMode) {
       const nextNumber = String(700 + demoPatients.length).padStart(6, "0");
@@ -189,7 +189,7 @@ export function PatientsPage() {
         recordNumber: nextNumber,
         firstName: payload.firstName,
         lastName: payload.lastName,
-        dni: payload.dni ?? "Pendiente",
+        dni: payload.dni,
         phone: payload.phone ?? "Pendiente",
         email: payload.email ?? "Pendiente",
         birthDate: admissionDraft.birthDate,
@@ -404,6 +404,7 @@ export function PatientsPage() {
   const admissionReady = Boolean(
     admissionDraft.firstName.trim() &&
       admissionDraft.lastName.trim() &&
+      admissionDraft.dni?.trim() &&
       admissionDraft.birthDate.trim(),
   );
 
@@ -683,7 +684,8 @@ export function PatientsPage() {
                 onChange={(event) => updateAdmissionDraft("birthDate", event.currentTarget.value)}
               />
               <TextInput
-                label="DNI / tutor"
+                label="DNI / NIE"
+                required
                 value={admissionDraft.dni ?? ""}
                 onChange={(event) => updateAdmissionDraft("dni", event.currentTarget.value)}
               />

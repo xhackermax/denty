@@ -82,26 +82,40 @@ interface OdontogramBatchInput {
 }
 
 export class PatientRepository {
+  private readonly clinicId?: string | undefined;
+  private readonly allowedPatientIds?: readonly string[] | undefined;
+
   constructor(
     private readonly client: SupabaseRestClient,
-    private readonly defaultClinicId?: string,
-  ) {}
+    defaultClinicId?: string,
+    options: { clinicId?: string | undefined; allowedPatientIds?: readonly string[] | undefined } = {},
+  ) {
+    this.clinicId = options.clinicId ?? defaultClinicId;
+    this.allowedPatientIds = options.allowedPatientIds;
+  }
 
   async listPatients() {
-    const rows = await this.client.select<PatientRow>("patients", {
+    const query: Record<string, string | number | undefined> = {
       select: "*",
       order: "created_at.desc",
-    });
-    const items = rows.map(rowToPatient);
+    };
+    if (this.clinicId) query.clinic_id = `eq.${this.clinicId}`;
+    const rows = await this.client.select<PatientRow>("patients", query);
+    const items = rows
+      .filter((row) => this.canReadPatient(row.id))
+      .map(rowToPatient);
     return { items, total: items.length, page: 1, pageSize: items.length || 50 };
   }
 
   async getPatient(id: string): Promise<Patient | null> {
-    const rows = await this.client.select<PatientRow>("patients", {
+    if (!this.canReadPatient(id)) return null;
+    const query: Record<string, string | number | undefined> = {
       select: "*",
       id: `eq.${id}`,
       limit: 1,
-    });
+    };
+    if (this.clinicId) query.clinic_id = `eq.${this.clinicId}`;
+    const rows = await this.client.select<PatientRow>("patients", query);
     const row = rows[0];
     return row ? rowToPatient(row) : null;
   }
@@ -259,7 +273,7 @@ export class PatientRepository {
   }
 
   private async resolveClinicId(): Promise<string> {
-    if (this.defaultClinicId) return this.defaultClinicId;
+    if (this.clinicId) return this.clinicId;
     const clinics = await this.client.select<ClinicRow>("clinics", {
       select: "id",
       order: "created_at.asc",
@@ -269,6 +283,10 @@ export class PatientRepository {
     if (clinic) return clinic.id;
     const created = await this.client.insert<ClinicRow>("clinics", { name: "Denty" });
     return created.id;
+  }
+
+  private canReadPatient(patientId: string) {
+    return !this.allowedPatientIds || this.allowedPatientIds.includes(patientId);
   }
 }
 

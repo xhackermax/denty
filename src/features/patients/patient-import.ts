@@ -64,7 +64,7 @@ export function createPatientPayload(row: ParsedPatientRow): CreatePatient {
   return {
     firstName: row.firstName,
     lastName: row.lastName,
-    ...(row.dni ? { dni: row.dni } : {}),
+    dni: row.dni ?? "",
     ...(row.phone ? { phone: row.phone } : {}),
     ...(row.email ? { email: row.email } : {}),
     declaredSource: "OTHER",

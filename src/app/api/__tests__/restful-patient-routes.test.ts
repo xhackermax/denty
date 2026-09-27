@@ -85,7 +85,7 @@ describe("RESTful patient routes", () => {
           "content-type": "application/json",
           origin: "https://denty.test",
         },
-        body: JSON.stringify({ firstName: "Lucia", lastName: "Perez" }),
+        body: JSON.stringify({ firstName: "Lucia", lastName: "Perez", dni: "12345678A" }),
       }),
       { params: Promise.resolve({ path: ["patients"] }) },
     );

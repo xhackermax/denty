@@ -137,6 +137,7 @@ describe("Supabase-backed patient API", () => {
         body: JSON.stringify({
           firstName: "Lucia",
           lastName: "Perez",
+          dni: "12345678A",
           birthDate: "2018-04-03T00:00:00.000+02:00",
           medicalProfile: {
             allergies: [],
@@ -195,6 +196,7 @@ describe("Supabase-backed patient API", () => {
         body: JSON.stringify({
           firstName: "Noelia",
           lastName: "SinPersistir",
+          dni: "87654321B",
           birthDate: "2018-04-03T00:00:00.000+02:00",
         }),
       }),
@@ -218,7 +220,7 @@ describe("Supabase-backed patient API", () => {
           "content-type": "application/json",
           origin: "https://denty.test",
         },
-        body: JSON.stringify({ firstName: "Lucia", lastName: "Perez" }),
+        body: JSON.stringify({ firstName: "Lucia", lastName: "Perez", dni: "12345678A" }),
       }),
       { params: Promise.resolve({ path: ["api", "patients"] }) },
     );

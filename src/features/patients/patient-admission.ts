@@ -140,9 +140,11 @@ export function suggestedDentitionForBirthDate(
 
 export function buildAdmissionPayload(draft: PatientAdmissionDraft): PatientAdmissionPayload {
   const birthDateIso = localDateToMadridIso(draft.birthDate);
+  const dni = compactOptional(draft.dni ?? "") ?? "";
   const payload: PatientAdmissionPayload = {
     firstName: draft.firstName.trim(),
     lastName: draft.lastName.trim(),
+    dni,
     medicalProfile: {
       allergies: [...draft.allergies],
       medications: [...draft.medications],
@@ -152,10 +154,8 @@ export function buildAdmissionPayload(draft: PatientAdmissionDraft): PatientAdmi
       dentitionStage: suggestedDentitionForBirthDate(draft.birthDate),
     },
   };
-  const dni = compactOptional(draft.dni ?? "");
   const phone = compactOptional(draft.phone ?? "");
   const email = compactOptional(draft.email ?? "");
-  if (dni) payload.dni = dni;
   if (phone) payload.phone = phone;
   if (email) payload.email = email;
   if (birthDateIso) payload.birthDate = birthDateIso;

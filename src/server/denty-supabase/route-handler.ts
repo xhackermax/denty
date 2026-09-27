@@ -1,9 +1,17 @@
 import { z } from "zod";
 
 import { createPatientSchema, updatePatientSchema } from "@/shared/api";
+import { createUserSchema } from "@/shared/api/schemas/admin";
 import { odontogramBatchSchema } from "@/shared/api/schemas/clinical";
 import { getServerEnv } from "@/shared/config/env";
 
+import { AuthRepository } from "../auth/auth-repository";
+import {
+  clearSessionCookie,
+  createSessionCookie,
+  readSessionFromRequest,
+  type DentySessionActor,
+} from "../auth/session-cookie";
 import { PatientRepository } from "./patient-repository";
 import { resolveSupabaseCredentials } from "../supabase/credentials";
 import { SupabaseRestClient, SupabaseRestError } from "../supabase/rest-client";
@@ -19,18 +27,37 @@ function error(status: number, code: string, message: string, details?: unknown)
   return json(status, { error: { code, message, details } });
 }
 
-function configuredRepository(): PatientRepository | null {
+function configuredClient(): SupabaseRestClient | null {
   const env = getServerEnv();
   const credentials = resolveSupabaseCredentials(env);
   if (!credentials) return null;
-  return new PatientRepository(
-    new SupabaseRestClient(credentials),
-    env.DENTY_DEFAULT_CLINIC_ID,
-  );
+  return new SupabaseRestClient(credentials);
+}
+
+function configuredRepository(request: Request): PatientRepository | null {
+  const env = getServerEnv();
+  const credentials = resolveSupabaseCredentials(env);
+  if (!credentials) return null;
+  const actor = readSessionFromRequest(request, {
+    sessionSecret: env.DENTY_SESSION_SECRET,
+    fallbackKey: credentials.key,
+  });
+  return new PatientRepository(new SupabaseRestClient(credentials), env.DENTY_DEFAULT_CLINIC_ID, {
+    clinicId: actor?.clinicId,
+    allowedPatientIds: actor?.role === "PATIENT" ? actor.patientIds : undefined,
+  });
 }
 
 function segments(pathname: string): string[] {
   return pathname.split("/").filter(Boolean);
+}
+
+function requireAdmin(actor: DentySessionActor | null): Response | null {
+  if (!actor) return error(401, "UNAUTHENTICATED", "No hay sesión activa.");
+  if (actor.role !== "ADMIN" || !actor.permissions.includes("users.manage")) {
+    return error(403, "FORBIDDEN", "Solo el administrador puede gestionar usuarios.");
+  }
+  return null;
 }
 
 async function parseJson<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
@@ -44,10 +71,95 @@ export async function handleSupabaseDentyRoute(
 ): Promise<Response | null> {
   const parts = segments(backendPath);
   const method = request.method.toUpperCase();
-  const repo = configuredRepository();
+  const env = getServerEnv();
+  const client = configuredClient();
+  if (!client) return null;
+  const credentials = resolveSupabaseCredentials(env);
+  const actor = credentials
+    ? readSessionFromRequest(request, {
+        sessionSecret: env.DENTY_SESSION_SECRET,
+        fallbackKey: credentials.key,
+      })
+    : null;
+  const repo = configuredRepository(request);
   if (!repo) return null;
 
   try {
+    if (parts.length === 3 && parts[0] === "api" && parts[1] === "auth") {
+      if (parts[2] === "login" && method === "POST") {
+        const payload = await parseJson(request, z.object({
+          identifier: z.string().min(1),
+          password: z.string().min(1),
+          deviceLabel: z.string().max(120).optional(),
+        }));
+        const auth = new AuthRepository(client);
+        const loggedIn = await auth.login(payload.identifier, payload.password);
+        if (!loggedIn) {
+          return error(401, "INVALID_CREDENTIALS", "Usuario o contraseña incorrectos.");
+        }
+        const headers = new Headers({ "cache-control": "no-store" });
+        headers.append(
+          "set-cookie",
+          createSessionCookie(
+            {
+              userId: loggedIn.userId,
+              clinicId: loggedIn.clinicId,
+              role: loggedIn.role,
+              permissions: loggedIn.permissions,
+              patientIds: loggedIn.patientIds,
+            },
+            { sessionSecret: env.DENTY_SESSION_SECRET, fallbackKey: credentials?.key },
+          ),
+        );
+        return Response.json(
+          { user: { id: loggedIn.userId, displayName: loggedIn.displayName, role: loggedIn.role } },
+          { status: 200, headers },
+        );
+      }
+
+      if (parts[2] === "session" && method === "GET") {
+        if (!actor) return error(401, "UNAUTHENTICATED", "No hay sesión activa.");
+        return json(200, { actor, permissions: actor.permissions });
+      }
+
+      if (parts[2] === "logout" && method === "POST") {
+        const headers = new Headers({ "cache-control": "no-store" });
+        headers.append("set-cookie", clearSessionCookie());
+        return Response.json({ ok: true }, { status: 200, headers });
+      }
+
+      if (parts[2] === "request-password-reset" && method === "POST") {
+        return json(200, { ok: true });
+      }
+    }
+
+    if (parts.length === 2 && parts[0] === "api" && parts[1] === "users") {
+      const adminError = requireAdmin(actor);
+      if (adminError) return adminError;
+      const adminActor = actor as DentySessionActor;
+      const auth = new AuthRepository(client);
+      if (method === "GET") return json(200, await auth.listUsers(adminActor.clinicId));
+      if (method === "POST") {
+        const payload = await parseJson(request, createUserSchema);
+        if (!payload.username) {
+          return error(400, "USERNAME_REQUIRED", "El usuario es obligatorio.");
+        }
+        if (!payload.password) {
+          return error(400, "PASSWORD_REQUIRED", "La contraseña es obligatoria.");
+        }
+        return json(
+          201,
+          await auth.createUser({
+            clinicId: adminActor.clinicId,
+            username: payload.username,
+            displayName: payload.displayName,
+            role: payload.role,
+            password: payload.password,
+          }),
+        );
+      }
+    }
+
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "patients") {
       if (method === "GET") return json(200, await repo.listPatients());
       if (method === "POST") {

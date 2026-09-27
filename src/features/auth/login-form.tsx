@@ -91,7 +91,7 @@ export function LoginForm({ demoMode, nextPath }: LoginFormProps) {
 
         {mode !== "reset" ? (
           <TextInput
-            label="Usuario o email"
+            label="Usuario, email o número de ficha"
             value={identifier}
             onChange={(event) => setIdentifier(event.currentTarget.value)}
             autoComplete="username"
@@ -101,7 +101,7 @@ export function LoginForm({ demoMode, nextPath }: LoginFormProps) {
 
         {mode === "login" ? (
           <PasswordInput
-            label="Contraseña"
+            label="Contraseña o DNI del paciente"
             value={password}
             onChange={(event) => setPassword(event.currentTarget.value)}
             autoComplete="current-password"
@@ -165,7 +165,8 @@ export function LoginForm({ demoMode, nextPath }: LoginFormProps) {
         ) : null}
 
         <Text size="xs" c="dimmed">
-          La sesión profesional se mantiene mediante cookie httpOnly del servidor.
+          Primer arranque: admin/admin crea una clínica nueva en blanco. Después cambia esa
+          contraseña creando usuarios desde Administración.
         </Text>
       </Stack>
     </form>

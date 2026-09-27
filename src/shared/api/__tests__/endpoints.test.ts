@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiClient } from "../client";
+import { createPatientSchema } from "../contracts";
 import { createDentyApi } from "../endpoints";
 
 function jsonResponse(body: unknown): Response {
@@ -10,6 +11,15 @@ function jsonResponse(body: unknown): Response {
 }
 
 describe("createDentyApi", () => {
+  it("requires DNI or NIE when creating a patient because portal login depends on it", () => {
+    expect(
+      createPatientSchema.safeParse({
+        firstName: "Juan",
+        lastName: "Perez",
+      }).success,
+    ).toBe(false);
+  });
+
   it("keeps verified legacy routes grouped by domain", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()

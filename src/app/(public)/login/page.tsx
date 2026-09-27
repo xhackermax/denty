@@ -27,7 +27,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           Acceso a Denty
         </Title>
         <Text c="dimmed" mt="xs">
-          Acceso profesional protegido por la sesión de la clínica.
+          En una instalación limpia entra con admin/admin para crear el administrador. Los
+          pacientes acceden con su número de ficha y su DNI.
         </Text>
         <LoginForm
           demoMode={publicEnv.NEXT_PUBLIC_DEMO_MODE === "true"}

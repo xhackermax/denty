@@ -74,7 +74,7 @@ export const patientSchema = z.object({
 export const createPatientSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  dni: z.string().min(1).optional(),
+  dni: z.string().min(1),
   phone: z.string().min(1).optional(),
   email: z.string().email().optional(),
   birthDate: isoDateTimeSchema.optional(),

@@ -29,11 +29,12 @@ async function executeAction(action: LocalVoiceAction, plan: LocalVoicePlan): Pr
   const api = getBrowserApi();
 
   if (action.type === "patient.create") {
+    if (!action.dni) return false;
     await api.patients.create({
       firstName: action.firstName,
       lastName: action.lastName,
       ...(action.phone ? { phone: action.phone } : {}),
-      ...(action.dni ? { dni: action.dni } : {}),
+      dni: action.dni,
     });
     return true;
   }
