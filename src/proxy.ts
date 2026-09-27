@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { canAccessPatient, decideStaffRouteAccess, type ActorContext } from "@/domain/permissions";
 import { sessionResponseSchema } from "@/shared/api/contracts";
+import { publicEnv } from "@/shared/config/env";
 
 const SESSION_PATH = "/api/auth/session";
 const SESSION_TIMEOUT_MS = 4_000;
@@ -83,8 +84,8 @@ export const config = {
 };
 
 function demoModeEnabled(): boolean {
-  return (
-    process.env.NEXT_PUBLIC_DEMO_MODE ??
-    (process.env.NODE_ENV === "production" ? "false" : "true")
-  ) === "true";
+  if (process.env.NEXT_PUBLIC_DEMO_MODE !== undefined) {
+    return process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+  }
+  return publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
 }
