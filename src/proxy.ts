@@ -41,8 +41,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return NextResponse.next();
   }
 
-  const apiUrl = process.env.DENTY_API_URL;
-  if (!apiUrl) return unavailableResponse();
+  const apiUrl = process.env.DENTY_API_URL ?? request.url;
 
   const headers = new Headers({ accept: "application/json" });
   const cookie = request.headers.get("cookie");
