@@ -161,17 +161,22 @@ export class AuthRepository {
   }
 
   private async resolveBootstrapClinic(): Promise<ClinicRow> {
-    const rows = await this.client.select<ClinicRow>("clinics", {
-      select: "id",
-      id: `eq.${BOOTSTRAP_CLINIC_ID}`,
-      limit: 1,
-    });
-    const existing = rows[0];
-    if (existing) return existing;
-    return this.client.insert<ClinicRow>("clinics", {
-      id: BOOTSTRAP_CLINIC_ID,
-      name: "Denty",
-    });
+    try {
+      const rows = await this.client.select<ClinicRow>("clinics", {
+        select: "id",
+        id: `eq.${BOOTSTRAP_CLINIC_ID}`,
+        limit: 1,
+      });
+      const existing = rows[0];
+      if (existing) return existing;
+      return await this.client.insert<ClinicRow>("clinics", {
+        id: BOOTSTRAP_CLINIC_ID,
+        name: "Denty",
+      });
+    } catch (caught) {
+      if (!isSupabasePermissionDenied(caught)) throw caught;
+      return { id: BOOTSTRAP_CLINIC_ID };
+    }
   }
 
   private async findUser(username: string): Promise<DentyUserRow | null> {
@@ -203,6 +208,13 @@ function isMissingDentyUsersTable(error: unknown): boolean {
   if (!(error instanceof SupabaseRestError)) return false;
   if (error.status !== 404) return false;
   return JSON.stringify(error.details).includes("denty_users");
+}
+
+function isSupabasePermissionDenied(error: unknown): boolean {
+  if (!(error instanceof SupabaseRestError)) return false;
+  if (error.status !== 401 && error.status !== 403) return false;
+  const details = JSON.stringify(error.details).toLowerCase();
+  return details.includes("row-level security") || details.includes('"42501"');
 }
 
 function normalizeIdentifier(value: string) {

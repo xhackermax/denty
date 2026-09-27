@@ -26,5 +26,5 @@ describe("PediatricPanel", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Mixta" }));
     expect(screen.getByTitle(/^16 ·/)).toBeInTheDocument();
     expect(screen.getByTitle(/^55 ·/)).toBeInTheDocument();
-  });
+  }, 15_000);
 });

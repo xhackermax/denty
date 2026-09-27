@@ -141,7 +141,7 @@ function createSupabaseFetch() {
   });
 }
 
-function createSupabaseFetchWithoutDentyUsersTable() {
+function createSupabaseFetchWithoutDentyUsersTable(options: { clinicInsertBlockedByRls?: boolean } = {}) {
   return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     const method = init?.method ?? (input instanceof Request ? input.method : "GET");
@@ -161,6 +161,15 @@ function createSupabaseFetchWithoutDentyUsersTable() {
     }
 
     if (url.pathname === "/rest/v1/clinics" && method === "POST") {
+      if (options.clinicInsertBlockedByRls) {
+        return json(
+          {
+            code: "42501",
+            message: 'new row violates row-level security policy for table "clinics"',
+          },
+          401,
+        );
+      }
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
       return json([{ id: body.id }], 201);
     }
@@ -329,6 +338,31 @@ describe("local Supabase auth bootstrap", () => {
 
   test("admin/admin still opens a bootstrap admin session when the denty_users migration is not applied yet", async () => {
     vi.stubGlobal("fetch", createSupabaseFetchWithoutDentyUsersTable());
+
+    const loginResponse = await POST(
+      new Request("https://denty.test/api/auth/login", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://denty.test",
+        },
+        body: JSON.stringify({ identifier: "admin", password: "admin" }),
+      }),
+      { params: Promise.resolve({ path: ["auth", "login"] }) },
+    );
+
+    expect(loginResponse.status).toBe(200);
+    await expect(loginResponse.json()).resolves.toMatchObject({
+      user: { id: "bootstrap-admin", displayName: "Administrador", role: "ADMIN" },
+    });
+    expect(loginResponse.headers.get("set-cookie")).toContain("denty_session=");
+  });
+
+  test("admin/admin still opens a bootstrap admin session when Supabase RLS blocks clinic bootstrap", async () => {
+    vi.stubGlobal(
+      "fetch",
+      createSupabaseFetchWithoutDentyUsersTable({ clinicInsertBlockedByRls: true }),
+    );
 
     const loginResponse = await POST(
       new Request("https://denty.test/api/auth/login", {

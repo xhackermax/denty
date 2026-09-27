@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { canAccessPatient, decideStaffRouteAccess, type ActorContext } from "@/domain/permissions";
 import { sessionResponseSchema } from "@/shared/api/contracts";
-import { publicEnv } from "@/shared/config/env";
 
 const SESSION_PATH = "/api/auth/session";
 const SESSION_TIMEOUT_MS = 4_000;
@@ -37,7 +36,7 @@ function actorFromSession(session: ReturnType<typeof sessionResponseSchema.parse
 }
 
 export async function proxy(request: NextRequest): Promise<Response> {
-  if (publicEnv.NEXT_PUBLIC_DEMO_MODE === "true") {
+  if (demoModeEnabled()) {
     return NextResponse.next();
   }
 
@@ -82,3 +81,10 @@ export async function proxy(request: NextRequest): Promise<Response> {
 export const config = {
   matcher: ["/app/:path*", "/patient/:path*"],
 };
+
+function demoModeEnabled(): boolean {
+  return (
+    process.env.NEXT_PUBLIC_DEMO_MODE ??
+    (process.env.NODE_ENV === "production" ? "false" : "true")
+  ) === "true";
+}

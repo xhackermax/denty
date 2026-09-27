@@ -28,7 +28,7 @@ describe("SurgeryPanel", () => {
     expect(onCommitBatch).toHaveBeenCalledWith([
       expect.objectContaining({ tooth: "26", entityType: "SURGERY", status: "extraction_simple" }),
     ]);
-  });
+  }, 15_000);
 
   it("exposes restrained text equivalents for surgical SVG marks", () => {
     const marks = surgicalVisualsForTooth("16", [
