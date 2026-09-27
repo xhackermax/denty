@@ -7,6 +7,7 @@ function json(data: unknown, status = 200): Response {
 }
 
 function createSupabaseFetch() {
+  const clinics: Array<Record<string, unknown>> = [];
   const users: Array<Record<string, unknown>> = [];
   const patients = [
     {
@@ -84,8 +85,19 @@ function createSupabaseFetch() {
       return json(users);
     }
 
+    if (url.pathname === "/rest/v1/clinics" && method === "GET") {
+      const idFilter = url.searchParams.get("id");
+      if (idFilter?.startsWith("eq.")) {
+        return json(clinics.filter((clinic) => clinic.id === idFilter.slice(3)));
+      }
+      return json(clinics);
+    }
+
     if (url.pathname === "/rest/v1/clinics" && method === "POST") {
-      return json([{ id: "bootstrap-clinic" }], 201);
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      const row = { id: "bootstrap-clinic", ...body };
+      clinics.push(row);
+      return json([row], 201);
     }
 
     if (url.pathname === "/rest/v1/denty_users" && method === "POST") {
@@ -123,6 +135,34 @@ function createSupabaseFetch() {
         return json(patients.filter((patient) => patient.clinic_id === clinicFilter.slice(3)));
       }
       return json(patients);
+    }
+
+    return json({ message: `Unhandled ${method} ${url.pathname}` }, 500);
+  });
+}
+
+function createSupabaseFetchWithoutDentyUsersTable() {
+  return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+
+    if (url.pathname === "/rest/v1/denty_users") {
+      return json(
+        {
+          code: "PGRST205",
+          message: "Could not find the table 'public.denty_users' in the schema cache",
+        },
+        404,
+      );
+    }
+
+    if (url.pathname === "/rest/v1/clinics" && method === "GET") {
+      return json([]);
+    }
+
+    if (url.pathname === "/rest/v1/clinics" && method === "POST") {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return json([{ id: body.id }], 201);
     }
 
     return json({ message: `Unhandled ${method} ${url.pathname}` }, 500);
@@ -174,7 +214,11 @@ describe("local Supabase auth bootstrap", () => {
 
     expect(sessionResponse.status).toBe(200);
     await expect(sessionResponse.json()).resolves.toMatchObject({
-      actor: { userId: "admin-user", clinicId: "bootstrap-clinic", role: "ADMIN" },
+      actor: {
+        userId: "admin-user",
+        clinicId: "00000000-0000-4000-8000-000000000001",
+        role: "ADMIN",
+      },
     });
 
     const patientsResponse = await GET(
@@ -281,5 +325,27 @@ describe("local Supabase auth bootstrap", () => {
     await expect(loginResponse.json()).resolves.toMatchObject({
       user: { displayName: "Recepción", role: "RECEPTION" },
     });
+  });
+
+  test("admin/admin still opens a bootstrap admin session when the denty_users migration is not applied yet", async () => {
+    vi.stubGlobal("fetch", createSupabaseFetchWithoutDentyUsersTable());
+
+    const loginResponse = await POST(
+      new Request("https://denty.test/api/auth/login", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://denty.test",
+        },
+        body: JSON.stringify({ identifier: "admin", password: "admin" }),
+      }),
+      { params: Promise.resolve({ path: ["auth", "login"] }) },
+    );
+
+    expect(loginResponse.status).toBe(200);
+    await expect(loginResponse.json()).resolves.toMatchObject({
+      user: { id: "bootstrap-admin", displayName: "Administrador", role: "ADMIN" },
+    });
+    expect(loginResponse.headers.get("set-cookie")).toContain("denty_session=");
   });
 });

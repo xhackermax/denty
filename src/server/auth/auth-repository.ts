@@ -2,7 +2,9 @@ import crypto from "node:crypto";
 
 import { permissionsForRole, type Permission, type Role } from "@/domain/permissions";
 
-import type { SupabaseRestClient } from "../supabase/rest-client";
+import { SupabaseRestError, type SupabaseRestClient } from "../supabase/rest-client";
+
+const BOOTSTRAP_CLINIC_ID = "00000000-0000-4000-8000-000000000001";
 
 interface DentyUserRow {
   id: string;
@@ -118,33 +120,58 @@ export class AuthRepository {
   }
 
   private async hasAnyLocalUser() {
-    const rows = await this.client.select<DentyUserRow>("denty_users", {
-      select: "id",
-      limit: 1,
-    });
-    return rows.length > 0;
+    try {
+      const rows = await this.client.select<DentyUserRow>("denty_users", {
+        select: "id",
+        limit: 1,
+      });
+      return rows.length > 0;
+    } catch (caught) {
+      if (isMissingDentyUsersTable(caught)) return false;
+      throw caught;
+    }
   }
 
   private async bootstrapAdmin(): Promise<AuthenticatedActor> {
-    const clinic = await this.client.insert<ClinicRow>("clinics", { name: "Denty" });
+    const clinic = await this.resolveBootstrapClinic();
     const permissions = permissionsForRole("ADMIN");
-    const user = await this.client.insert<DentyUserRow>("denty_users", {
-      clinic_id: clinic.id,
-      username: "admin",
-      display_name: "Administrador",
-      role: "ADMIN",
-      password_hash: hashPassword("admin"),
-      permissions,
-      active: true,
-      patient_id: null,
-    });
+    let user: DentyUserRow | null = null;
+    try {
+      user = await this.client.insert<DentyUserRow>("denty_users", {
+        clinic_id: clinic.id,
+        username: "admin",
+        display_name: "Administrador",
+        role: "ADMIN",
+        password_hash: hashPassword("admin"),
+        permissions,
+        active: true,
+        patient_id: null,
+      });
+    } catch (caught) {
+      if (!isMissingDentyUsersTable(caught)) throw caught;
+    }
+
     return {
-      userId: user.id,
+      userId: user?.id ?? "bootstrap-admin",
       clinicId: clinic.id,
-      displayName: user.display_name,
-      role: user.role,
-      permissions: user.permissions ?? permissions,
+      displayName: user?.display_name ?? "Administrador",
+      role: user?.role ?? "ADMIN",
+      permissions: user?.permissions ?? permissions,
     };
+  }
+
+  private async resolveBootstrapClinic(): Promise<ClinicRow> {
+    const rows = await this.client.select<ClinicRow>("clinics", {
+      select: "id",
+      id: `eq.${BOOTSTRAP_CLINIC_ID}`,
+      limit: 1,
+    });
+    const existing = rows[0];
+    if (existing) return existing;
+    return this.client.insert<ClinicRow>("clinics", {
+      id: BOOTSTRAP_CLINIC_ID,
+      name: "Denty",
+    });
   }
 
   private async findUser(username: string): Promise<DentyUserRow | null> {
@@ -170,6 +197,12 @@ export class AuthRepository {
     });
     return rows[0] ?? null;
   }
+}
+
+function isMissingDentyUsersTable(error: unknown): boolean {
+  if (!(error instanceof SupabaseRestError)) return false;
+  if (error.status !== 404) return false;
+  return JSON.stringify(error.details).includes("denty_users");
 }
 
 function normalizeIdentifier(value: string) {
