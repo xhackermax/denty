@@ -45,7 +45,7 @@ export class SupabaseAuthClient {
   }
 
   async signInWithPassword(identifier: string, password: string): Promise<SupabaseAuthSession> {
-    const normalized = identifier.trim();
+    const normalized = normalizeLoginIdentifier(identifier);
     const credentials = looksLikePhone(normalized)
       ? { phone: normalized, password }
       : { email: normalized.toLowerCase(), password };
@@ -155,4 +155,10 @@ function authError(
 
 function looksLikePhone(value: string): boolean {
   return /^\+?[0-9][0-9\s()-]{6,}$/.test(value) && !value.includes("@");
+}
+
+function normalizeLoginIdentifier(identifier: string): string {
+  const normalized = identifier.trim();
+  if (normalized.toLowerCase() === "admin") return "admin@denty.local";
+  return normalized;
 }
