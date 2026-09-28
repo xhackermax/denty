@@ -21,7 +21,7 @@ describe("voice router", () => {
     expect(primaryHrefForVoicePlan(preview.plan)).toBe("/app/patients/patient-42/odontogram");
   });
 
-  it("does not fall back to a hardcoded demo patient", () => {
+  it("does not fall back to a hardcoded patient", () => {
     const preview = previewVoiceCommand("hay que hacer endodoncia 22", {
       pathname: "/app/agenda",
     });
@@ -29,11 +29,11 @@ describe("voice router", () => {
     expect(primaryHrefForVoicePlan(preview.plan)).toBe("/app/patients");
   });
   it("opens the resolved patient profile instead of the generic patient list", () => {
-    const preview = previewVoiceCommand("Oye Denty abre el paciente Juan Pérez");
+    const preview = previewVoiceCommand("Oye Denty abre el paciente María García");
     const resolved = {
       ...preview.plan,
-      contextPatientId: "juan-perez",
+      contextPatientId: "patient-1",
     };
-    expect(primaryHrefForVoicePlan(resolved)).toBe("/app/patients/juan-perez");
+    expect(primaryHrefForVoicePlan(resolved)).toBe("/app/patients/patient-1");
   });
 });

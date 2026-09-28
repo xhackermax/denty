@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { Alert, Badge, Button, Group, Select, SimpleGrid, Text } from "@mantine/core";
 import { IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
@@ -18,11 +18,13 @@ import {
   createEndoPostCrown,
   createImplantStack,
   createOdontogramEntityState,
-  executeOdontogramCommand,
+  executeValidatedOdontogramBatch,
+  executeValidatedOdontogramCommand,
   redoHistory,
   undoHistory,
   type BoundedHistory,
   type DentalEntity,
+  type PeriodontalReading,
   type OdontogramEntityState,
   type ToothState,
   type ToothSurface,
@@ -39,6 +41,7 @@ import {
 import { OdontogramHistory } from "./odontogram-history";
 import { OdontogramLegend, type OdontogramLegendSelection } from "./odontogram-legend";
 import { PeriodontalQuickEntry } from "./periodontal-quick-entry";
+import { ImplantSurgeryPanel } from "./implant-surgery-panel";
 import {
   createStateEntity,
   persistedEntityToDomain,
@@ -46,8 +49,6 @@ import {
 } from "@/shared/odontogram/odontogram-wire";
 import parityStyles from "@/shared/ui/parity.module.css";
 import { DentyApiError } from "@/shared/api";
-import { publicEnv } from "@/shared/config/env";
-import { DEMO_PATIENTS } from "@/shared/demo/demo-data";
 import { usePatientQuery } from "@/shared/patients/patient-data";
 import { PageHeader } from "@/shared/ui";
 import { ClinicalTabs, type ClinicalTab } from "./clinical-tabs";
@@ -56,23 +57,8 @@ import styles from "./odontogram.module.css";
 import { OrthodonticPanel } from "./orthodontic-panel";
 import { PediatricPanel } from "./pediatric-panel";
 import { PeriodontogramPanel } from "./periodontogram-panel";
-const INITIAL_ENTITIES: readonly DentalEntity[] = [
-  {
-    id: "state-46",
-    tooth: "46",
-    entityType: "CARIES",
-    status: "caries",
-    active: true,
-  },
-  {
-    id: "restoration-11-V",
-    tooth: "11",
-    entityType: "RESTORATION",
-    status: "filling",
-    surfaces: ["V"],
-    active: true,
-  },
-];
+import { SurgeryPanel } from "./surgery-panel";
+import { surgicalVisualsForTooth } from "./surgery-visuals";
 const STATE_LABELS: Readonly<Record<ToothState, string>> = {
   healthy: "Sano",
   filling: "ObturaciÃ³n realizada",
@@ -195,11 +181,20 @@ const SURFACE_HITBOX_PATHS = {
     left: "M4 5 L23 27 V46 L4 61 Z",
     right: "M60 5 L41 27 V46 L60 61 Z",
   },
-  narrow: {
+  expanded: {
     left: "M2 4 L26 27 V47 L2 63 Z",
     right: "M62 4 L38 27 V47 L62 63 Z",
   },
 } as const;
+const SURFACE_NAMES: Readonly<Record<ToothSurface, string>> = {
+  V: "vestibular",
+  M: "mesial",
+  O: "oclusal",
+  I: "incisal",
+  D: "distal",
+  P: "palatina",
+  L: "lingual",
+};
 function Tooth({
   tooth,
   state,
@@ -218,15 +213,14 @@ function Tooth({
   const occlusal = occlusalSurfaceForTooth(tooth);
   const inner: ToothSurface = arch === "upper" ? "P" : "L";
   const quadrant = Number(tooth[0]);
+  const position = Number(tooth[1]);
   const mesialOnRight = quadrant === 1 || quadrant === 4;
   const left: ToothSurface = mesialOnRight ? "D" : "M";
   const right: ToothSurface = mesialOnRight ? "M" : "D";
   const clipId = `denty-crown-${tooth}`;
   const statusFor = (surface: ToothSurface) => surfaceState(state, tooth, surface) ?? status ?? "";
   const sideHitboxes =
-    type === "incisor" || type === "canine"
-      ? SURFACE_HITBOX_PATHS.narrow
-      : SURFACE_HITBOX_PATHS.regular;
+    position <= 5 ? SURFACE_HITBOX_PATHS.expanded : SURFACE_HITBOX_PATHS.regular;
   const surfaceProps = (surface: ToothSurface) => ({
     onClick: (event: React.MouseEvent<SVGElement>) => {
       event.stopPropagation();
@@ -255,6 +249,7 @@ function Tooth({
     typeof visualCode === "string" && visualCode in ENDODONTIC_VISUAL_MARKS
       ? ENDODONTIC_VISUAL_MARKS[visualCode as keyof typeof ENDODONTIC_VISUAL_MARKS]
       : undefined;
+  const surgicalMarks = surgicalVisualsForTooth(tooth, Object.values(state.entitiesById));
   return (
     <button
       className={styles.toothButton}
@@ -301,13 +296,6 @@ function Tooth({
             {...surfaceProps(left)}
           />
           <path
-            className={styles.surfaceHitbox}
-            data-surface={left}
-            d={sideHitboxes.left}
-            aria-hidden="true"
-            {...surfaceProps(left)}
-          />
-          <path
             className={styles.surface}
             data-state={statusFor(occlusal)}
             d={SURFACE_PATHS.occlusal}
@@ -320,13 +308,6 @@ function Tooth({
             {...surfaceProps(right)}
           />
           <path
-            className={styles.surfaceHitbox}
-            data-surface={right}
-            d={sideHitboxes.right}
-            aria-hidden="true"
-            {...surfaceProps(right)}
-          />
-          <path
             className={styles.surface}
             data-state={statusFor(inner)}
             d={SURFACE_PATHS.inner}
@@ -334,6 +315,22 @@ function Tooth({
           />
         </g>
         <path className={styles.crownOutline} d={CROWN_PATHS[type]} />
+        <path
+          className={styles.surfaceHitbox}
+          data-surface={left}
+          data-proximal-hitbox={position <= 5 ? "expanded" : "regular"}
+          d={sideHitboxes.left}
+          aria-label={`Diente ${tooth} superficie ${SURFACE_NAMES[left]}`}
+          {...surfaceProps(left)}
+        />
+        <path
+          className={styles.surfaceHitbox}
+          data-surface={right}
+          data-proximal-hitbox={position <= 5 ? "expanded" : "regular"}
+          d={sideHitboxes.right}
+          aria-label={`Diente ${tooth} superficie ${SURFACE_NAMES[right]}`}
+          {...surfaceProps(right)}
+        />
         {endo ? <path className={styles.endoMark} d="M31 46 C31 58 30 70 31 82" /> : null}
         {post ? <path className={styles.postMark} d="M32 35 L32 73" /> : null}
         {implant ? (
@@ -354,6 +351,18 @@ function Tooth({
             <path d={visualMark.svgPath} />
           </g>
         ) : null}
+        {surgicalMarks.map((mark) => (
+          <g
+            key={mark.key}
+            className={styles.surgeryVisualMark}
+            data-kind={mark.kind}
+            data-lifecycle={mark.lifecycle}
+            role="img"
+            aria-label={mark.ariaLabel}
+          >
+            <path d={mark.path} />
+          </g>
+        ))}
       </svg>
     </button>
   );
@@ -361,9 +370,10 @@ function Tooth({
 interface OdontogramEditorProps {
   patientId: string;
   initialSection?: "odontogram" | "diagnosis" | "plan";
+  initialAction?: "implant-surgery";
   birthDate?: string;
   initialEntities: readonly DentalEntity[];
-  demoMode: boolean;
+  initialPeriodontal: readonly PeriodontalReading[];
   expectedVersion: number | undefined;
   saving: boolean;
   saveError: unknown;
@@ -376,9 +386,10 @@ interface OdontogramEditorProps {
 function OdontogramEditor({
   patientId,
   initialSection = "odontogram",
+  initialAction,
   birthDate,
   initialEntities,
-  demoMode,
+  initialPeriodontal,
   expectedVersion,
   saving,
   saveError,
@@ -393,14 +404,23 @@ function OdontogramEditor({
   );
   const [tool, setTool] = useState<ToothState>("caries");
   const [placementMode, setPlacementMode] = useState<"tooth" | "bridge">("tooth");
-  const [selectedTooth, setSelectedTooth] = useState("25");
+  const [selectedTooth, setSelectedTooth] = useState(() => {
+    if (initialAction === "implant-surgery") {
+      const plannedImplant = initialEntities.find(
+        (entity) => entity.active && entity.entityType === "IMPLANT" && entity.tooth,
+      );
+      if (plannedImplant?.tooth) return plannedImplant.tooth;
+    }
+    return "25";
+  });
   const [bridgeFrom, setBridgeFrom] = useState<string | null>(null);
   const [bridgeTo, setBridgeTo] = useState<string | null>(null);
   const [bridgePick, setBridgePick] = useState<"from" | "to">("from");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ClinicalTab>(
-    initialSection === "diagnosis" ? "endodontic" : "general",
+    initialAction === "implant-surgery" ? "surgery" : initialSection === "diagnosis" ? "endodontic" : "general",
   );
+  const [clinicalRuleMessage, setClinicalRuleMessage] = useState<string | null>(null);
   const entities = useMemo(
     () => Object.values(history.present.entitiesById).filter((entity) => entity.active),
     [history.present.entitiesById],
@@ -419,7 +439,19 @@ function OdontogramEditor({
   const dirty = history.present.revision !== 0;
   const commit = (entity: DentalEntity) => {
     if (historical) return;
-    setHistory((current) => executeOdontogramCommand(current, { type: "UPSERT_ENTITY", entity }));
+    setHistory((current) => {
+      const result = executeValidatedOdontogramCommand(current, { type: "UPSERT_ENTITY", entity });
+      setClinicalRuleMessage(result.evaluation.messages[0] ?? null);
+      return result.history;
+    });
+  };
+  const commitBatch = (batch: readonly DentalEntity[]) => {
+    if (historical) return;
+    setHistory((current) => {
+      const result = executeValidatedOdontogramBatch(current, batch);
+      setClinicalRuleMessage(result.evaluation.messages[0] ?? null);
+      return result.history;
+    });
   };
   const applyWhole = (tooth: string, status = tool) => {
     commit(createStateEntity(tooth, status));
@@ -513,12 +545,7 @@ function OdontogramEditor({
       setBridgeError(error instanceof Error ? error.message : "No se pudo crear la prÃ³tesis.");
       return;
     }
-    setHistory((current) =>
-      executeOdontogramCommand(current, {
-        type: "UPSERT_ENTITIES",
-        entities: entitiesToAdd,
-      }),
-    );
+    commitBatch(entitiesToAdd);
     if (template === "bridge") {
       setBridgeError(null);
       setBridgeFrom(null);
@@ -561,9 +588,9 @@ function OdontogramEditor({
         actions={
           <Group>
             <Badge variant="light">
-              {demoMode ? "Demo" : historical ? "HistÃ³rico" : `v${expectedVersion ?? "?"}`}
+              {historical ? "Histórico" : `v${expectedVersion ?? "?"}`}
             </Badge>
-            {!demoMode && !historical ? (
+            {!historical ? (
               <Button
                 size="xs"
                 loading={saving}
@@ -604,6 +631,23 @@ function OdontogramEditor({
             ? "Hay cambios nuevos. Recarga antes de guardar."
             : "No se guardaron los cambios."}
         </Alert>
+      ) : null}
+      {clinicalRuleMessage ? (
+        <Alert color="yellow" title="Regla clínica" withCloseButton onClose={() => setClinicalRuleMessage(null)}>
+          {clinicalRuleMessage}
+        </Alert>
+      ) : null}
+
+      {initialAction === "implant-surgery" ? (
+        <div className={parityStyles.section}>
+          <ImplantSurgeryPanel
+            entities={entities}
+            selectedTooth={selectedTooth}
+            readOnly={historical}
+            onSelectTooth={setSelectedTooth}
+            onCommit={commit}
+          />
+        </div>
       ) : null}
 
       <ClinicalTabs active={activeTab} onChange={setActiveTab} />
@@ -836,7 +880,7 @@ function OdontogramEditor({
       ) : null}
 
       {activeTab === "periodontal" ? (
-        <PeriodontogramPanel patientId={patientId} readOnly={historical} />
+        <PeriodontogramPanel patientId={patientId} readOnly={historical} readings={initialPeriodontal} />
       ) : null}
       {activeTab === "orthodontic" ? (
         <OrthodonticPanel patientId={patientId} readOnly={historical} onCommit={commit} />
@@ -852,16 +896,24 @@ function OdontogramEditor({
       {activeTab === "endodontic" ? (
         <EndodonticPanel selectedTooth={selectedTooth} readOnly={historical} onCommit={commit} />
       ) : null}
+      {activeTab === "surgery" ? (
+        <SurgeryPanel
+          selectedTooth={selectedTooth}
+          entities={entities}
+          readOnly={historical}
+          onCommitBatch={commitBatch}
+          onWarning={setClinicalRuleMessage}
+        />
+      ) : null}
 
       {!historical && activeTab === "periodontal" ? (
-        <PeriodontalQuickEntry patientId={patientId} demoMode={demoMode} />
+        <PeriodontalQuickEntry patientId={patientId} />
       ) : null}
       {activeTab === "history" ? (
         <OdontogramHistory
           patientId={patientId}
-          demoMode={demoMode}
-          selectedSnapshotId={selectedSnapshotId}
           onSelectSnapshot={onSelectSnapshot}
+          {...(selectedSnapshotId === undefined ? {} : { selectedSnapshotId })}
         />
       ) : null}
 
@@ -879,7 +931,7 @@ function OdontogramEditor({
         <div className={parityStyles.disclosureBody}>
           <ClinicalPipelineCard patientId={patientId} />
           {!historical ? (
-            <ClinicalWorkspace patientId={patientId} demoMode={demoMode} />
+            <ClinicalWorkspace patientId={patientId} />
           ) : (
             <Alert color="yellow" title="Plan clÃ­nico actual no modificado">
               El snapshot histÃ³rico no sincroniza plan ni presupuesto. Vuelve al odontograma actual
@@ -917,22 +969,23 @@ function OdontogramEditor({
 export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   const searchParams = useSearchParams();
   const sectionParam = searchParams.get("section");
+  const actionParam = searchParams.get("action");
   const initialSection =
     sectionParam === "diagnosis" || sectionParam === "plan" ? sectionParam : "odontogram";
-  const demoMode = publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
+  const initialAction = actionParam === "implant-surgery" ? "implant-surgery" : undefined;
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string>();
-  const query = useOdontogramQuery(patientId, !demoMode);
-  const patientQuery = usePatientQuery(patientId, !demoMode);
-  const snapshotsQuery = useOdontogramSnapshotsQuery(patientId, !demoMode);
+  const query = useOdontogramQuery(patientId);
+  const patientQuery = usePatientQuery(patientId);
+  const snapshotsQuery = useOdontogramSnapshotsQuery(patientId);
   const saveMutation = useSaveOdontogramBatchMutation(patientId);
-  if (!demoMode && query.isError) {
+  if (query.isError) {
     return (
       <Alert color="red" title="No se pudo cargar el odontograma">
-        Revisa la conexiÃ³n con Denty. No se ha sustituido por un odontograma demo.
+        Revisa la conexiÃ³n con Denty e inténtalo de nuevo.
       </Alert>
     );
   }
-  if (!demoMode && !query.data) {
+  if (!query.data) {
     return (
       <PageHeader
         title="Cargando odontograma"
@@ -944,28 +997,35 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
     (snapshot) => snapshot.id === selectedSnapshotId,
   );
   const historical = Boolean(selectedSnapshot);
-  const currentEntities = demoMode ? INITIAL_ENTITIES : odontogramEntities(query.data!);
+  const currentEntities = odontogramEntities(query.data);
   const initialEntities = selectedSnapshot
     ? selectedSnapshot.entities.map(persistedEntityToDomain)
     : currentEntities;
-  const expectedVersion = demoMode || historical ? undefined : query.data?.version;
-  const demoPatient = demoMode
-    ? DEMO_PATIENTS.find((patient) => patient.id === patientId)
-    : undefined;
-  const birthDate = demoPatient?.birthDate ?? patientQuery.data?.birthDate ?? undefined;
+  const initialPeriodontal = (selectedSnapshot?.periodontal ?? query.data.periodontal).map((reading) => ({
+    tooth: reading.tooth,
+    site: reading.site as PeriodontalReading["site"],
+    probingDepth: reading.probingDepth ?? 0,
+    recession: reading.recession ?? 0,
+    bleeding: Boolean(reading.bleeding),
+    plaque: Boolean(reading.plaque),
+    suppuration: Boolean(reading.suppuration),
+    ...(reading.mobility === undefined ? {} : { mobility: reading.mobility }),
+    ...(reading.furcation === undefined ? {} : { furcation: reading.furcation }),
+  }));
+  const expectedVersion = historical ? undefined : query.data.version;
+  const birthDate = patientQuery.data?.birthDate ?? undefined;
   const editorKey = selectedSnapshot
     ? `snapshot-${selectedSnapshot.id}`
-    : demoMode
-      ? `demo-${patientId}`
-      : `${query.data?.id ?? patientId}-${expectedVersion ?? 0}`;
+    : `${query.data.id ?? patientId}-${expectedVersion ?? 0}`;
   return (
     <OdontogramEditor
-      key={`${editorKey}-${initialSection}`}
+      key={`${editorKey}-${initialSection}-${initialAction ?? "default"}`}
       patientId={patientId}
       initialSection={initialSection}
+      {...(initialAction ? { initialAction } : {})}
       {...(birthDate === undefined ? {} : { birthDate })}
       initialEntities={initialEntities}
-      demoMode={demoMode}
+      initialPeriodontal={initialPeriodontal}
       expectedVersion={expectedVersion}
       saving={saveMutation.isPending}
       saveError={saveMutation.error}

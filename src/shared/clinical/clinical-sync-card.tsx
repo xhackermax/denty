@@ -9,31 +9,12 @@ import {
 } from "@/shared/clinical/clinical-data";
 import styles from "@/shared/ui/parity.module.css";
 
-interface ClinicalSyncCardProps {
-  patientId: string;
-  demoMode: boolean;
-}
+interface ClinicalSyncCardProps { patientId: string; }
 
-export function ClinicalSyncCard({ patientId, demoMode }: ClinicalSyncCardProps) {
-  const syncQuery = useClinicalSyncQuery(patientId, !demoMode);
+export function ClinicalSyncCard({ patientId }: ClinicalSyncCardProps) {
+  const syncQuery = useClinicalSyncQuery(patientId);
   const planSync = useSyncPlanFromOdontogramMutation(patientId);
   const budgetSync = useSyncBudgetFromPlanMutation(patientId);
-
-  if (demoMode) {
-    return (
-      <section className={styles.section}>
-        <Group justify="space-between" align="flex-start">
-          <div>
-            <Title order={3}>Sincronizar</Title>
-            <Text c="dimmed" size="sm" mt="xs">
-              Odontograma → plan → presupuesto usa versiones independientes.
-            </Text>
-          </div>
-          <Badge variant="light">Demo</Badge>
-        </Group>
-      </section>
-    );
-  }
 
   if (syncQuery.isError) {
     return (

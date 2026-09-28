@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ApiClient } from "../client";
 import {
   appointmentSchema,
+  archivePatientSchema,
   createAppointmentSchema,
   createDocumentSchema,
   createLabWorkSchema,
@@ -13,12 +14,13 @@ import {
   labWorkSchema,
   loginRequestSchema,
   passwordResetRequestSchema,
-  pinLoginRequestSchema,
   resetPasswordSchema,
+  restorePatientSchema,
   loginResponseSchema,
   pageSchema,
   patientSchema,
   sessionResponseSchema,
+  authSessionsSchema,
   signDocumentSchema,
   updateAppointmentSchema,
   updatePatientSchema,
@@ -29,7 +31,6 @@ import {
   type LabTransition,
   type LoginRequest,
   type PasswordResetRequest,
-  type PinLoginRequest,
   type ResetPassword,
   type UpdateAppointment,
   type UpdatePatient,
@@ -65,8 +66,6 @@ export function createCoreResource(client: ApiClient) {
       session: () => client.request("/api/auth/session", sessionResponseSchema),
       login: (payload: LoginRequest) =>
         client.mutation("/api/auth/login", loginResponseSchema, loginRequestSchema.parse(payload)),
-      pinLogin: (payload: PinLoginRequest) =>
-        client.mutation("/api/auth/pin-login", okSchema, pinLoginRequestSchema.parse(payload)),
       requestPasswordReset: (payload: PasswordResetRequest) =>
         client.mutation(
           "/api/auth/request-password-reset",
@@ -77,10 +76,17 @@ export function createCoreResource(client: ApiClient) {
         client.mutation("/api/auth/reset-password", okSchema, resetPasswordSchema.parse(payload)),
       changePassword: (payload: ChangePassword) =>
         client.mutation("/api/auth/change-password", okSchema, changePasswordSchema.parse(payload)),
+      sessions: () => client.request("/api/auth/sessions", authSessionsSchema),
+      revokeSession: (id: string) =>
+        client.mutation(`/api/auth/sessions/${encodeId(id)}/revoke`, okSchema, {}),
       logout: () => client.mutation("/api/auth/logout", okSchema, {}),
     },
     patients: {
-      list: () => client.request("/api/patients", pageSchema(patientSchema)),
+      list: (options: { includeArchived?: boolean } = {}) =>
+        client.request(
+          withQuery("/api/patients", { includeArchived: options.includeArchived ? "true" : undefined }),
+          pageSchema(patientSchema),
+        ),
       get: (id: string) => client.request(`/api/patients/${encodeId(id)}`, patientSchema),
       create: (payload: CreatePatient) =>
         client.mutation("/api/patients", patientSchema, createPatientSchema.parse(payload)),
@@ -91,10 +97,29 @@ export function createCoreResource(client: ApiClient) {
           updatePatientSchema.parse(payload),
           { method: "PATCH" },
         ),
+      archive: (id: string, payload: z.input<typeof archivePatientSchema>) =>
+        client.mutation(
+          `/api/patients/${encodeId(id)}/archive`,
+          patientSchema,
+          archivePatientSchema.parse(payload),
+        ),
+      restore: (id: string, payload: z.input<typeof restorePatientSchema>) =>
+        client.mutation(
+          `/api/patients/${encodeId(id)}/restore`,
+          patientSchema,
+          restorePatientSchema.parse(payload),
+        ),
+      uploadPhoto: (id: string, file: File) => {
+        const form = new FormData();
+        form.set("file", file);
+        return client.upload(`/api/patients/${encodeId(id)}/patient-photo`, patientSchema, form);
+      },
+      photo: (id: string) =>
+        client.requestBlob(`/api/patients/${encodeId(id)}/photo`, { headers: { accept: "image/*" } }),
     },
     appointments: {
-      list: (date?: string) =>
-        client.request(withQuery("/api/appointments", { date }), appointmentsSchema),
+      list: (date?: string, siteId?: string) =>
+        client.request(withQuery("/api/appointments", { date, siteId }), appointmentsSchema),
       create: (payload: CreateAppointment) =>
         client.mutation(
           "/api/appointments",
@@ -205,6 +230,11 @@ export function createCoreResource(client: ApiClient) {
         ),
       archive: (id: string) =>
         client.mutation(`/api/documents/${encodeId(id)}/archive`, documentSchema, {}),
+      uploadFile: (id: string, file: File) => {
+        const form = new FormData();
+        form.set("file", file);
+        return client.upload(`/api/documents/${encodeId(id)}/file`, documentSchema, form, { method: "POST" });
+      },
       download: (id: string) =>
         client.requestBlob(`/api/documents/${encodeId(id)}/file`, {
           headers: { accept: "application/pdf" },

@@ -1,14 +1,16 @@
 "use client";
 
-import { ActionIcon, Menu, SegmentedControl, Text, useMantineColorScheme } from "@mantine/core";
+import { ActionIcon, Menu, SegmentedControl, Text } from "@mantine/core";
 import { IconAdjustments, IconMoon, IconSun, IconSunMoon } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 
 import { useDensity } from "@/shared/ui/density-provider";
 
+import { useDentyAppearance } from "./time-color-scheme-provider";
+
 export function ShellPreferences() {
   const t = useTranslations("Shell");
-  const { setColorScheme } = useMantineColorScheme();
+  const { setPreference } = useDentyAppearance();
   const { density, setDensity } = useDensity();
 
   return (
@@ -20,13 +22,13 @@ export function ShellPreferences() {
       </Menu.Target>
       <Menu.Dropdown>
         <Menu.Label>{t("theme")}</Menu.Label>
-        <Menu.Item leftSection={<IconSun size={16} />} onClick={() => setColorScheme("light")}>
+        <Menu.Item leftSection={<IconSun size={16} />} onClick={() => setPreference("light")}>
           {t("light")}
         </Menu.Item>
-        <Menu.Item leftSection={<IconMoon size={16} />} onClick={() => setColorScheme("dark")}>
+        <Menu.Item leftSection={<IconMoon size={16} />} onClick={() => setPreference("dark")}>
           {t("dark")}
         </Menu.Item>
-        <Menu.Item leftSection={<IconSunMoon size={16} />} onClick={() => setColorScheme("auto")}>
+        <Menu.Item leftSection={<IconSunMoon size={16} />} onClick={() => setPreference("time")}>
           {t("auto")}
         </Menu.Item>
         <Menu.Divider />

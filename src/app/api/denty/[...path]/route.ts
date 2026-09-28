@@ -1,120 +1,104 @@
-import { getServerEnv } from "@/shared/config/env";
-import { isAllowedDentyProxyRoute } from "@/shared/api/proxy-policy";
+import { NextResponse } from "next/server";
 
-interface ProxyContext {
-  params: Promise<{ path: string[] }>;
+import { assertPaymentAmount, normalizeCurrency, type PaymentRequest } from "@/domain/money";
+import { handleDentyApiRequest, type DentyRouteContext } from "@/server/denty-api/request-handler";
+import {
+  createStripeTerminalPayment,
+  getStripePaymentIntent,
+  mapStripePaymentIntentStatus,
+  requireFinanceSession,
+  requireSameOrigin,
+  sumupConfig,
+  sumupRequest,
+} from "../card-terminal/_sumup";
+
+function isPaymentProviderPath(path: string): boolean {
+  return path === "/payments/manual" ||
+    path === "/payments/sumup/checkout" ||
+    path === "/payments/stripe/terminal" ||
+    path === "/payments/stripe/status";
 }
 
-const FORWARDED_REQUEST_HEADERS = [
-  "accept",
-  "content-type",
-  "cookie",
-  "idempotency-key",
-  "x-correlation-id",
-] as const;
+function forbiddenClinic(bodyClinicId: string | undefined, actorClinicId: string) {
+  return bodyClinicId && bodyClinicId !== actorClinicId;
+}
 
-const FORWARDED_RESPONSE_HEADERS = [
-  "cache-control",
-  "content-disposition",
-  "content-type",
-  "etag",
-  "x-correlation-id",
-] as const;
-
-const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-
-function hasSameOriginForMutation(request: Request): boolean {
-  if (SAFE_METHODS.has(request.method.toUpperCase())) return true;
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
+async function handlePaymentProviderRequest(request: Request, routePath: string): Promise<Response | null> {
+  if (!isPaymentProviderPath(routePath)) return null;
   try {
-    return new URL(origin).origin === new URL(request.url).origin;
-  } catch {
-    return false;
+    requireSameOrigin(request);
+    if (request.method === "POST" && routePath === "/payments/manual") {
+      const actor = await requireFinanceSession(request);
+      const body = (await request.json()) as Partial<PaymentRequest> & { method?: string };
+      assertPaymentAmount(Number(body.amountCents));
+      if (forbiddenClinic(body.clinicId, actor.clinicId)) return NextResponse.json({ error: "Clínica no autorizada" }, { status: 403 });
+      if (!body.clinicId || !body.patientId) return NextResponse.json({ error: "clinicId y patientId son obligatorios" }, { status: 400 });
+      if (!body.method || !["CASH", "CARD", "TRANSFER", "FINANCING", "OTHER"].includes(body.method)) {
+        return NextResponse.json({ error: "Método manual no válido" }, { status: 400 });
+      }
+      return NextResponse.json({
+        provider: "manual",
+        status: "COMPLETED",
+        method: body.method,
+        amountCents: Number(body.amountCents),
+        clinicId: body.clinicId,
+        patientId: body.patientId,
+        providerTransactionId: null,
+      });
+    }
+    if (request.method === "POST" && routePath === "/payments/sumup/checkout") {
+      const actor = await requireFinanceSession(request);
+      const body = (await request.json()) as PaymentRequest & { readerId?: string };
+      assertPaymentAmount(Number(body.amountCents));
+      if (forbiddenClinic(body.clinicId, actor.clinicId)) return NextResponse.json({ error: "Clínica no autorizada" }, { status: 403 });
+      if (!body.clinicId || !body.patientId) return NextResponse.json({ error: "clinicId y patientId son obligatorios" }, { status: 400 });
+      const config = sumupConfig();
+      const readerId = body.readerId || config.defaultReaderId;
+      if (!readerId) return NextResponse.json({ error: "No hay lector SumUp configurado" }, { status: 400 });
+      const foreignTransactionId = body.idempotencyKey ?? crypto.randomUUID();
+      const result = await sumupRequest(`/v0.1/merchants/${encodeURIComponent(config.merchantCode)}/readers/${encodeURIComponent(readerId)}/checkout`, {
+        method: "POST",
+        body: JSON.stringify({
+          total_amount: { currency: body.currency ?? "EUR", minor_unit: 2, value: Number(body.amountCents) },
+          description: body.description?.slice(0, 120) || "Cobro Denty",
+          return_url: process.env.SUMUP_RETURN_URL,
+          ...(config.affiliateKey && config.appId ? { affiliate: { app_id: config.appId, key: config.affiliateKey, foreign_transaction_id: foreignTransactionId } } : {}),
+        }),
+      });
+      return NextResponse.json({ provider: "sumup", status: "PENDING", readerId, ...result });
+    }
+    if (request.method === "POST" && routePath === "/payments/stripe/terminal") {
+      const actor = await requireFinanceSession(request);
+      const body = (await request.json()) as PaymentRequest & { readerId?: string };
+      assertPaymentAmount(Number(body.amountCents));
+      if (forbiddenClinic(body.clinicId, actor.clinicId)) return NextResponse.json({ error: "Clínica no autorizada" }, { status: 403 });
+      if (!body.clinicId || !body.patientId || !body.readerId) {
+        return NextResponse.json({ error: "clinicId, patientId y readerId son obligatorios" }, { status: 400 });
+      }
+      const result = await createStripeTerminalPayment({ ...body, amountCents: Number(body.amountCents), currency: normalizeCurrency(body.currency) }, body.readerId, process.env.STRIPE_CONNECTED_ACCOUNT_ID);
+      return NextResponse.json(result);
+    }
+    if (request.method === "GET" && routePath === "/payments/stripe/status") {
+      await requireFinanceSession(request);
+      const url = new URL(request.url);
+      const paymentIntentId = url.searchParams.get("paymentIntentId");
+      if (!paymentIntentId) return NextResponse.json({ error: "paymentIntentId obligatorio" }, { status: 400 });
+      const intent = await getStripePaymentIntent(paymentIntentId, process.env.STRIPE_CONNECTED_ACCOUNT_ID);
+      const status = mapStripePaymentIntentStatus(intent);
+      return NextResponse.json({ provider: "stripe", status, paymentIntentId: intent.id, amountCents: intent.amount, currency: intent.currency });
+    }
+    return NextResponse.json({ error: "Método no permitido" }, { status: 405 });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo procesar el pago" }, { status: 502 });
   }
 }
 
-function apiError(status: number, code: string, message: string): Response {
-  return Response.json({ error: { code, message } }, { status });
-}
-
-function copyRequestHeaders(request: Request): Headers {
-  const headers = new Headers();
-  for (const name of FORWARDED_REQUEST_HEADERS) {
-    const value = request.headers.get(name);
-    if (value) headers.set(name, value);
-  }
-  return headers;
-}
-
-function copyResponseHeaders(upstream: Response): Headers {
-  const headers = new Headers();
-  for (const name of FORWARDED_RESPONSE_HEADERS) {
-    const value = upstream.headers.get(name);
-    if (value) headers.set(name, value);
-  }
-
-  const cookieHeaders = upstream.headers as Headers & {
-    getSetCookie?: () => string[];
-  };
-  const cookies = cookieHeaders.getSetCookie?.() ?? [];
-  if (cookies.length) {
-    for (const cookie of cookies) headers.append("set-cookie", cookie);
-  } else {
-    const cookie = upstream.headers.get("set-cookie");
-    if (cookie) headers.append("set-cookie", cookie);
-  }
-  return headers;
-}
-
-async function proxyRequest(request: Request, context: ProxyContext): Promise<Response> {
+async function proxyRequest(request: Request, context: DentyRouteContext): Promise<Response> {
   const { path } = await context.params;
-  if (!hasSameOriginForMutation(request)) {
-    return apiError(
-      403,
-      "INVALID_ORIGIN",
-      "La mutación requiere un origen de la misma aplicación.",
-    );
-  }
-  const backendPath = `/${path.join("/")}`;
-  if (!isAllowedDentyProxyRoute(request.method, backendPath)) {
-    return apiError(404, "ROUTE_NOT_ALLOWED", "La ruta no forma parte del contrato Denty.");
-  }
-
-  const { DENTY_API_URL } = getServerEnv();
-  if (!DENTY_API_URL) {
-    return apiError(
-      503,
-      "API_NOT_CONFIGURED",
-      "DENTY_API_URL no está configurado para este entorno.",
-    );
-  }
-
-  const incomingUrl = new URL(request.url);
-  const target = new URL(backendPath, `${DENTY_API_URL.replace(/\/$/, "")}/`);
-  target.search = incomingUrl.search;
-
-  const init: RequestInit = {
-    method: request.method,
-    headers: copyRequestHeaders(request),
-    cache: "no-store",
-    redirect: "manual",
-  };
-  if (!new Set(["GET", "HEAD"]).has(request.method)) {
-    const body = await request.arrayBuffer();
-    if (body.byteLength > 0) init.body = body;
-  }
-
-  try {
-    const upstream = await fetch(target, init);
-    return new Response(upstream.body, {
-      status: upstream.status,
-      statusText: upstream.statusText,
-      headers: copyResponseHeaders(upstream),
-    });
-  } catch {
-    return apiError(502, "API_UNREACHABLE", "No se pudo contactar con Denty API.");
-  }
+  const routePath = `/${path.join("/")}`;
+  const paymentResponse = await handlePaymentProviderRequest(request, routePath);
+  if (paymentResponse) return paymentResponse;
+  return handleDentyApiRequest(request, routePath);
 }
 
 export const GET = proxyRequest;

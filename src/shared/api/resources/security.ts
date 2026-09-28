@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { ApiClient } from "../client";
 import {
   auditVerificationSchema,
-  backupCreationSchema,
   backupsSchema,
   createPrivacyRequestSchema,
   patientExportSchema,
@@ -15,7 +14,6 @@ import {
 import { encodeId } from "./shared";
 
 const okSchema = z.object({ ok: z.literal(true) });
-const backupVerificationSchema = z.object({}).passthrough();
 
 export function createSecurityResource(client: ApiClient) {
   return {
@@ -34,13 +32,6 @@ export function createSecurityResource(client: ApiClient) {
     },
     backups: {
       list: () => client.request("/api/security/backups", backupsSchema),
-      create: () => client.mutation("/api/security/backups", backupCreationSchema, {}),
-      verify: (id: string) =>
-        client.mutation(
-          `/api/security/backups/${encodeId(id)}/verify`,
-          backupVerificationSchema,
-          {},
-        ),
     },
     patientExport: (patientId: string) =>
       client.request(`/api/security/patient-export/${encodeId(patientId)}`, patientExportSchema),

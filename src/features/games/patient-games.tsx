@@ -4,8 +4,6 @@ import { Alert, Badge, Button, Group, Loader, Text, Title } from "@mantine/core"
 import Link from "next/link";
 import { useMemo } from "react";
 
-import { DEMO_PATIENTS } from "@/shared/demo/demo-data";
-import { publicEnv } from "@/shared/config/env";
 import { usePatientQuery } from "@/shared/patients/patient-data";
 import styles from "@/features/portal/portal.module.css";
 
@@ -16,22 +14,19 @@ interface PatientGamesProps {
 }
 
 export function PatientGames({ patientId, backHref, backLabel }: PatientGamesProps) {
-  const demoMode = publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
-  const demoPatient = DEMO_PATIENTS.find((candidate) => candidate.id === patientId);
-  const patientQuery = usePatientQuery(patientId, !demoMode);
+  const patientQuery = usePatientQuery(patientId);
 
-  const patient = demoMode ? demoPatient : patientQuery.data;
+  const patient = patientQuery.data;
   const recordNumber = patient?.recordNumber ?? "";
   const fullName = patient ? `${patient.firstName ?? ""} ${patient.lastName ?? ""}`.trim() : "";
 
   const gamesUrl = useMemo(() => {
     const params = new URLSearchParams({ patientId });
     if (recordNumber) params.set("recordNumber", recordNumber);
-    if (demoMode) params.set("demo", "legacy-preview");
     return `/games/index.html?${params.toString()}`;
-  }, [demoMode, patientId, recordNumber]);
+  }, [patientId, recordNumber]);
 
-  if (!demoMode && patientQuery.isPending) {
+  if (patientQuery.isPending) {
     return (
       <div className={styles.root}>
         <Group>
@@ -42,7 +37,7 @@ export function PatientGames({ patientId, backHref, backLabel }: PatientGamesPro
     );
   }
 
-  if (!demoMode && patientQuery.isError) {
+  if (patientQuery.isError) {
     return (
       <div className={styles.root}>
         <Alert color="red" title="No se pudo vincular Denty Games a la ficha">

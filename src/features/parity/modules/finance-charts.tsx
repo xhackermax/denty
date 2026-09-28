@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { motion, useReducedMotion } from "motion/react";
 
 import { formatEUR } from "@/domain/money";
 import type { DoctorMetric, MonthlyMetric, TreatmentMetric } from "@/domain";
@@ -22,6 +22,7 @@ function safeTotal(values: readonly number[]) {
 }
 
 export function TreatmentDonut({ metrics }: { metrics: readonly TreatmentMetric[] }) {
+  const reducedMotion = useReducedMotion();
   const rows = metrics.filter((item) => item.producedCents > 0);
   const total = safeTotal(rows.map((item) => item.producedCents));
   if (!total) return <div className={styles.chartEmpty}>Sin datos</div>;
@@ -31,18 +32,23 @@ export function TreatmentDonut({ metrics }: { metrics: readonly TreatmentMetric[
     cursor += (item.producedCents / total) * 100;
     return `var(${SEGMENT_VARS[index % SEGMENT_VARS.length]}) ${start.toFixed(2)}% ${cursor.toFixed(2)}%`;
   });
-  const donutStyle = { background: `conic-gradient(${segments.join(",")})` } as CSSProperties;
+  const donutStyle = { background: `conic-gradient(${segments.join(",")})` };
   return (
     <div className={styles.chartBlock} aria-label="Producción por tratamiento">
       <div className={styles.donutWrap}>
-        <div
+        <motion.div
           className={styles.donut}
+          data-motion="treatment-donut"
           style={donutStyle}
           role="img"
           aria-label={`Producción total ${formatEUR(total)}`}
+          initial={reducedMotion ? false : { clipPath: "inset(0 100% 0 0)", opacity: 0.6 }}
+          whileInView={{ clipPath: "inset(0 0% 0 0)", opacity: 1 }}
+          viewport={{ once: true, amount: 0.45 }}
+          transition={{ duration: reducedMotion ? 0 : 0.65, ease: "easeOut" }}
         >
           <span>{formatEUR(total)}</span>
-        </div>
+        </motion.div>
         <div className={styles.chartLegend}>
           {rows.map((item, index) => {
             const percent = (item.producedCents / total) * 100;
@@ -63,11 +69,12 @@ export function TreatmentDonut({ metrics }: { metrics: readonly TreatmentMetric[
 }
 
 export function DoctorBars({ metrics }: { metrics: readonly DoctorMetric[] }) {
+  const reducedMotion = useReducedMotion();
   const max = Math.max(0, ...metrics.map((item) => item.producedCents));
   if (!max) return <div className={styles.chartEmpty}>Sin datos</div>;
   return (
     <div className={styles.barChart} aria-label="Producción por odontólogo">
-      {metrics.map((item) => {
+      {metrics.map((item, index) => {
         const width = Math.max(2, (item.producedCents / max) * 100);
         return (
           <div className={styles.barRow} key={item.id ?? item.name}>
@@ -76,7 +83,14 @@ export function DoctorBars({ metrics }: { metrics: readonly DoctorMetric[] }) {
               <strong>{formatEUR(item.producedCents)}</strong>
             </div>
             <div className={styles.barTrack} aria-hidden="true">
-              <span style={{ width: `${width}%` }} />
+              <motion.span
+                data-motion="doctor-bar"
+                style={{ width: `${width}%`, transformOrigin: "left center" }}
+                initial={reducedMotion ? false : { scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true, amount: 0.6 }}
+                transition={{ duration: reducedMotion ? 0 : 0.6, delay: reducedMotion ? 0 : index * 0.05, ease: "easeOut" }}
+              />
             </div>
           </div>
         );
@@ -86,6 +100,7 @@ export function DoctorBars({ metrics }: { metrics: readonly DoctorMetric[] }) {
 }
 
 export function MonthlyTrend({ metrics }: { metrics: readonly MonthlyMetric[] }) {
+  const reducedMotion = useReducedMotion();
   const max = Math.max(0, ...metrics.map((item) => item.producedCents));
   if (!max || metrics.length < 2) return <div className={styles.chartEmpty}>Sin datos</div>;
   const points = metrics
@@ -103,7 +118,16 @@ export function MonthlyTrend({ metrics }: { metrics: readonly MonthlyMetric[] })
         aria-label="Curva de producción mensual"
         preserveAspectRatio="none"
       >
-        <polyline points={points} fill="none" vectorEffect="non-scaling-stroke" />
+        <motion.polyline
+          data-motion="monthly-line"
+          points={points}
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+          initial={reducedMotion ? false : { pathLength: 0, opacity: 0.5 }}
+          whileInView={{ pathLength: 1, opacity: 1 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: reducedMotion ? 0 : 0.7, ease: "easeOut" }}
+        />
       </svg>
       <div className={styles.trendLabels}>
         {metrics.map((item) => (

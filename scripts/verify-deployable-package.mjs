@@ -50,6 +50,8 @@ async function resolvesRelativeImport(fromFile, specifier) {
 
 for (const required of [
   "package.json",
+  ".node-version",
+  ".nvmrc",
   "tsconfig.json",
   "next.config.ts",
   "vercel.json",
@@ -83,6 +85,20 @@ const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "
 if (packageJson.workspaces) fail("package.json no puede declarar workspaces en el ZIP plano");
 if (!packageJson.dependencies?.next) fail("Next.js debe estar declarado en dependencies");
 if (packageJson.engines?.node !== "24.x") fail("engines.node debe mantenerse en 24.x");
+if (!String(packageJson.devDependencies?.["@types/node"] ?? "").startsWith("24.")) {
+  fail("@types/node debe seguir la línea 24.x para coincidir con el runtime");
+}
+const nodeVersionFile = (await readFile(path.join(root, ".node-version"), "utf8")).trim();
+const nvmrc = (await readFile(path.join(root, ".nvmrc"), "utf8")).trim();
+if (nodeVersionFile !== "24") fail(".node-version debe fijar Node 24");
+if (nvmrc !== "24") fail(".nvmrc debe fijar Node 24");
+const tsconfigJson = JSON.parse(await readFile(path.join(root, "tsconfig.json"), "utf8"));
+if (tsconfigJson.compilerOptions?.jsx !== "react-jsx") {
+  fail("tsconfig debe fijar jsx=react-jsx para evitar mutaciones de Next durante el build");
+}
+if (await exists("tsconfig.tsbuildinfo")) {
+  fail("tsconfig.tsbuildinfo es caché local y no debe incluirse en el ZIP de Vercel");
+}
 if (!packageJson.scripts?.build?.includes("next build")) fail("build debe ejecutar next build");
 if (!packageJson.scripts?.lint?.includes("--max-warnings=0")) {
   fail("ESLint debe tratar los warnings como fallos de entrega");

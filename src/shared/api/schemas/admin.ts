@@ -8,6 +8,7 @@ export const userSchema = z
   .object({
     id: idSchema,
     displayName: z.string().min(1),
+    email: z.string().email().optional(),
     role: userRoleSchema,
     active: z.boolean().optional(),
   })
@@ -16,13 +17,12 @@ export const userSchema = z
 export const usersSchema = z.object({ items: z.array(userSchema) });
 
 export const createUserSchema = z.object({
-  email: z.string().email().optional(),
-  username: z.string().min(1).optional(),
+  email: z.string().email(),
   displayName: z.string().min(1),
   role: userRoleSchema.default("RECEPTION"),
-  password: z.string().min(8).optional(),
-  pin: z.string().min(4).max(12).optional(),
+  password: z.string().min(12),
   staffId: idSchema.optional(),
+  patientId: idSchema.optional(),
 });
 
 export const updateUserSchema = z.object({
@@ -85,3 +85,39 @@ export const financialDashboardSchema = z
     monthly: z.array(z.object({}).passthrough()),
   })
   .passthrough();
+
+export const treatmentCatalogItemSchema = z.object({
+  id: idSchema,
+  code: z.string().min(1),
+  name: z.string().min(1),
+  specialty: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  defaultPriceCents: z.number().int().nonnegative(),
+  baseCostCents: z.number().int().nonnegative(),
+  defaultDurationMin: z.number().int().positive().nullable().optional(),
+  requiresLab: z.boolean(),
+  active: z.boolean(),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+  version: z.number().int().positive(),
+  createdAt: z.coerce.string(),
+  updatedAt: z.coerce.string(),
+});
+
+export const treatmentCatalogSchema = z.object({ items: z.array(treatmentCatalogItemSchema) });
+
+export const treatmentCatalogCreateSchema = z.object({
+  code: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).max(160),
+  specialty: z.string().trim().max(120).nullable().optional(),
+  category: z.string().trim().max(120).nullable().optional(),
+  defaultPriceCents: z.number().int().nonnegative().default(0),
+  baseCostCents: z.number().int().nonnegative().default(0),
+  defaultDurationMin: z.number().int().positive().nullable().optional(),
+  requiresLab: z.boolean().default(false),
+  active: z.boolean().default(true),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+});
+
+export const treatmentCatalogUpdateSchema = treatmentCatalogCreateSchema.partial().extend({
+  expectedVersion: z.number().int().positive(),
+});

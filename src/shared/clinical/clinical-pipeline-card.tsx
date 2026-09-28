@@ -5,14 +5,17 @@ import Link from "next/link";
 import { useMemo } from "react";
 
 import {
+  canNavigateToClinicalPipelineStep,
   clinicalPipelineHref,
   clinicalPipelineProgress,
   type BudgetLifecycleStatus,
   type ClinicalPipelineStepKey,
 } from "@/domain";
-import { useClinicalSyncQuery, useClinicalWorkflowQuery } from "@/shared/clinical/clinical-data";
-import { publicEnv } from "@/shared/config/env";
-import { DEMO_APPOINTMENTS } from "@/shared/demo/demo-data";
+import {
+  useClinicalSyncQuery,
+  useClinicalWorkflowQuery,
+  useConsentRequirementsQuery,
+} from "@/shared/clinical/clinical-data";
 import { usePatientProjectionQuery } from "@/shared/patients/patient-data";
 import styles from "@/shared/ui/parity.module.css";
 
@@ -20,46 +23,38 @@ const STEPS: readonly { key: ClinicalPipelineStepKey; label: string }[] = [
   { key: "odontogram", label: "Odontograma" },
   { key: "diagnosis", label: "Diagnóstico" },
   { key: "plan", label: "Plan" },
+  { key: "consents", label: "Consentimientos" },
   { key: "budget", label: "Presupuesto" },
+  { key: "signature", label: "Firma" },
   { key: "appointments", label: "Citas" },
 ];
 
 function lifecycleStatus(value: string | undefined): BudgetLifecycleStatus {
-  return value === "PRESENTED" || value === "ACCEPTED" || value === "REJECTED" ? value : "DRAFT";
+  return value === "PRESENTED" || value === "ACCEPTED" || value === "REJECTED" || value === "SIGNED" ? value : "DRAFT";
 }
 
 export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
-  const demoMode = publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
-  const syncQuery = useClinicalSyncQuery(patientId ?? "", Boolean(patientId) && !demoMode);
-  const workflowQuery = useClinicalWorkflowQuery(patientId ?? "", Boolean(patientId) && !demoMode);
+  const syncQuery = useClinicalSyncQuery(patientId ?? "", Boolean(patientId));
+  const workflowQuery = useClinicalWorkflowQuery(patientId ?? "", Boolean(patientId));
+  const consentRequirementsQuery = useConsentRequirementsQuery(patientId ?? "", Boolean(patientId));
   const projectionQuery = usePatientProjectionQuery(
     patientId ?? "",
-    Boolean(patientId) && !demoMode,
+    Boolean(patientId),
   );
-
   const progress = useMemo(() => {
     if (!patientId) return null;
-    if (demoMode) {
-      const futureCount = DEMO_APPOINTMENTS.filter(
-        (item) =>
-          item.patientId === patientId &&
-          !["CANCELLED", "NO_SHOW", "COMPLETED"].includes(item.status),
-      ).length;
-      return clinicalPipelineProgress({
-        patientId,
-        odontogramVersion: 1,
-        diagnosisCount: 1,
-        activePlanItemCount: 0,
-        plan: null,
-        budget: null,
-        futureAppointmentCount: futureCount,
-      });
-    }
     const sync = syncQuery.data;
     if (!sync) return null;
     const futureCount = (projectionQuery.data?.appointments ?? []).filter(
       (item) => !["CANCELLED", "NO_SHOW", "COMPLETED"].includes(item.status),
     ).length;
+    const requiredConsents = (consentRequirementsQuery.data?.items ?? []).filter(
+      (item) => item.requiredBefore === "BUDGET_SIGNATURE",
+    );
+    const signedRequiredConsentCount = requiredConsents.filter(
+      (item) => item.status === "SATISFIED",
+    ).length;
+    const budgetSigned = sync.budget?.status === "SIGNED";
     return clinicalPipelineProgress({
       patientId,
       odontogramVersion: sync.odontogram.version,
@@ -69,6 +64,8 @@ export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
         version: sync.plan.version,
         sourceOdontogramVersion: sync.plan.sourceOdontogramVersion ?? -1,
       },
+      requiredConsentCount: requiredConsents.length,
+      signedRequiredConsentCount,
       budget: sync.budget
         ? {
             id: sync.budget.id,
@@ -76,10 +73,11 @@ export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
             sourcePlanVersion: sync.budget.sourcePlanVersion ?? -1,
           }
         : null,
+      budgetSigned,
       futureAppointmentCount: futureCount,
     });
   }, [
-    demoMode,
+    consentRequirementsQuery.data?.items,
     patientId,
     projectionQuery.data?.appointments,
     syncQuery.data,
@@ -92,29 +90,69 @@ export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
         <div className={styles.sectionHeaderText}>
           <h2 className={styles.sectionTitle}>Pipeline clínico</h2>
           <p className={styles.sectionDescription}>
-            Del odontograma a la cita, sin perder el paciente.
+            Del odontograma a los consentimientos, presupuesto, firma y cita.
           </p>
         </div>
-        <Badge variant="light">Odontograma → citas</Badge>
+        <div>
+          <Badge variant="light">Plan → consentimientos → presupuesto → firma → citas</Badge>
+          {syncQuery.data?.budget?.outdated ? (
+            <Badge color="yellow" variant="light" ml="xs">Crear revisión del presupuesto</Badge>
+          ) : null}
+        </div>
       </div>
       <div className={styles.pipeline} role="navigation" aria-label="Pipeline clínico">
         {STEPS.map((step, index) => {
           const completed = progress?.completed.has(step.key) ?? false;
           const current = progress?.current === step.key;
-          return (
+          const navigable = progress ? canNavigateToClinicalPipelineStep(progress, step.key) : false;
+          const className = `${styles.pipelineStep} ${completed || current ? styles.pipelineStepActive : ""}`;
+          const content = (
+            <>
+              <span className={styles.pipelineNumber}>{index + 1}</span>
+              <Text fw={750} size="sm">
+                {step.label}
+              </Text>
+              <small>
+                {completed
+                  ? "Hecho"
+                  : current
+                    ? "Ahora"
+                    : step.key === "consents"
+                      ? "Firma CI"
+                      : step.key === "appointments"
+                        ? "Firma presupuesto"
+                        : "Pendiente"}
+              </small>
+            </>
+          );
+
+          return navigable ? (
             <Link
-              className={`${styles.pipelineStep} ${completed || current ? styles.pipelineStepActive : ""}`}
+              className={className}
               data-current={current}
               href={clinicalPipelineHref(step.key, patientId)}
               key={step.key}
               aria-current={current ? "step" : undefined}
             >
-              <span className={styles.pipelineNumber}>{index + 1}</span>
-              <Text fw={750} size="sm">
-                {step.label}
-              </Text>
-              <small>{completed ? "Hecho" : current ? "Ahora" : "Abrir"}</small>
+              {content}
             </Link>
+          ) : (
+            <div
+              className={className}
+              data-current={current}
+              data-disabled="true"
+              key={step.key}
+              aria-disabled="true"
+              title={
+                step.key === "budget" || step.key === "signature"
+                  ? "Firma primero todos los consentimientos informados requeridos por el plan."
+                  : step.key === "appointments"
+                    ? "El paciente debe firmar el presupuesto antes de crear citas."
+                    : "Completa el paso anterior."
+              }
+            >
+              {content}
+            </div>
           );
         })}
       </div>

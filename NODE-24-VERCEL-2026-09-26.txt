@@ -1,0 +1,31 @@
+DENTY — NODE 24 / VERCEL ALIGNMENT — 2026-09-26
+
+Objetivo
+- Unificar desarrollo, tipado, instalación y despliegue en la línea Node.js 24.
+- Mantener el ZIP plano y determinista para Vercel.
+
+Configuración activa
+- package.json -> engines.node = 24.x
+- .node-version -> 24
+- .nvmrc -> 24
+- @types/node -> 24.13.6
+- package-lock.json -> actualizado a @types/node 24.13.6 y undici-types 7.18.0
+- .npmrc -> engine-strict=true
+- vercel.json -> framework=nextjs, installCommand=npm ci
+- vercel.json -> buildCommand=node scripts/pipeline/run.mjs vercel-build
+- Output Directory -> no se fuerza; Vercel gestiona la salida de Next.js
+
+Reglas de compatibilidad
+- No se fija una versión menor/parche de Node en Vercel: 24.x permite las actualizaciones de mantenimiento de la plataforma.
+- No se fuerza npm a una versión exacta para evitar acoplar el proyecto a un parche concreto del build image.
+- No se añade runtime manual por función: las funciones Next.js usan el runtime Node del proyecto; las rutas que lo requieren pueden declarar runtime="nodejs".
+- package.json engines.node es la fuente de verdad de la versión Node del despliegue.
+
+Verificación
+- El gate de paquete desplegable exige Node 24, .node-version, .nvmrc y @types/node 24.
+- La matriz de regresión de Vercel comprueba la misma alineación.
+
+Hardening adicional para Next.js 16 / Vercel
+- tsconfig.json -> jsx=react-jsx, prealineado con el cambio obligatorio observado por Next 16 en Vercel.
+- tsconfig.tsbuildinfo -> excluido del artefacto; Vercel genera su propia caché de compilación.
+- El gate histórico y la matriz Vercel bloquean una regresión a jsx=preserve o la inclusión de tsconfig.tsbuildinfo.

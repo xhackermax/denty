@@ -8,7 +8,7 @@ Corregidos los errores TypeScript reportados por Vercel:
 - ausencias: indices regex validados y ruta API corregida a api.attendance.createAbsence
 - documentos: sourceUrl opcional no se envia como undefined
 - pagos: terminalName/terminalStatus opcionales no se envian como undefined
-- recetas demo: eliminado estado DISPENSED imposible en PrescriptionState demo
+- recetas: eliminado estado DISPENSED imposible en PrescriptionState
 
 Se mantiene ZIP plano para Vercel:
 - Root Directory: raiz

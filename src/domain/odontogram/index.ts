@@ -1,4 +1,5 @@
 import { todayMadrid, type DateInput } from "../dates.ts";
+import type { ClinicalLifecycleState } from "./clinical-rules/types.ts";
 
 export const PERMANENT_UPPER = [
   "18",
@@ -150,7 +151,15 @@ export type DentalEntityType =
   | "REMOVABLE"
   | "ORTHODONTIC"
   | "PEDIATRIC"
-  | "PROSTHESIS";
+  | "PROSTHESIS"
+  | "SURGERY"
+  | "BONE_GRAFT"
+  | "MEMBRANE"
+  | "SINUS_LIFT"
+  | "SURGICAL_LESION"
+  | "IMPLANT_COMPONENT"
+  | "PROSTHETIC_STRUCTURE"
+  | "PERIODONTAL_FINDING";
 
 export interface DentalEntity {
   id: string;
@@ -162,6 +171,32 @@ export interface DentalEntity {
   parentId?: string;
   attributes?: Readonly<Record<string, unknown>>;
   active: boolean;
+}
+
+const CLINICAL_LIFECYCLE_STATES = new Set<ClinicalLifecycleState>([
+  "HALLAZGO_EXISTENTE",
+  "PLANIFICADO",
+  "REALIZADO",
+  "REALIZADO_OTRA_CLINICA",
+]);
+
+export function clinicalLifecycleState(entity: DentalEntity): ClinicalLifecycleState | null {
+  const explicit = entity.attributes?.lifecycle;
+  if (
+    typeof explicit === "string" &&
+    CLINICAL_LIFECYCLE_STATES.has(explicit as ClinicalLifecycleState)
+  ) {
+    return explicit as ClinicalLifecycleState;
+  }
+  if (/_pending$|_indicated$/.test(entity.status)) return "PLANIFICADO";
+  if (/_bad$/.test(entity.status) || entity.status === "implant_review") {
+    return "HALLAZGO_EXISTENTE";
+  }
+  if (["healthy", "caries", "missing"].includes(entity.status)) return "HALLAZGO_EXISTENTE";
+  if (["filling", "crown", "endo", "post", "implant"].includes(entity.status)) {
+    return "REALIZADO";
+  }
+  return null;
 }
 
 const TRI_STATE_STATUS: Record<TriStateFamily, Record<TreatmentStateKind, ToothState>> = {

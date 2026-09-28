@@ -10,6 +10,8 @@ import type {
   PeriodontalExamInput,
 } from "@/shared/api";
 import { getBrowserApi } from "@/shared/api/browser";
+import { createPlanItemSchema } from "@/shared/api/schemas/clinical";
+import { z } from "zod";
 import { dentyQueryKeys } from "@/shared/query";
 
 function invalidateClinicalPatient(
@@ -24,6 +26,9 @@ function invalidateClinicalPatient(
   });
   void queryClient.invalidateQueries({
     queryKey: dentyQueryKeys.clinical.sync(patientId),
+  });
+  void queryClient.invalidateQueries({
+    queryKey: dentyQueryKeys.clinical.consents(patientId),
   });
 }
 
@@ -40,6 +45,22 @@ export function useClinicalWorkflowQuery(patientId: string, enabled = true) {
     queryKey: dentyQueryKeys.clinical.workflow(patientId),
     queryFn: () => getBrowserApi().clinical.workflow.get(patientId),
     enabled: enabled && Boolean(patientId),
+  });
+}
+
+export function useConsentRequirementsQuery(patientId: string, enabled = true) {
+  return useQuery({
+    queryKey: dentyQueryKeys.clinical.consents(patientId),
+    queryFn: () => getBrowserApi().clinical.consents.requirements(patientId),
+    enabled: enabled && Boolean(patientId),
+  });
+}
+
+export function useTreatmentCatalogQuery(enabled = true) {
+  return useQuery({
+    queryKey: dentyQueryKeys.treatmentCatalog.all,
+    queryFn: () => getBrowserApi().admin.treatmentCatalog.list(),
+    enabled,
   });
 }
 
@@ -93,6 +114,19 @@ export function useCreatePeriodontalExamMutation(patientId: string) {
     mutationFn: (payload: PeriodontalExamInput) =>
       getBrowserApi().clinical.workflow.createPeriodontalExam(patientId, payload),
     onSuccess: () => invalidateClinicalPatient(queryClient, patientId),
+  });
+}
+
+export function useAddClinicalPlanItemMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: z.input<typeof createPlanItemSchema>) =>
+      getBrowserApi().clinical.plan.addItem(patientId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.plan(patientId) });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.sync(patientId) });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.consents(patientId) });
+    },
   });
 }
 

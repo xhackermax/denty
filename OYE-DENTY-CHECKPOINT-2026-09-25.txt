@@ -1,0 +1,26 @@
+OYE DENTY — CHECKPOINT 2026-09-25
+
+Este ZIP es un checkpoint de desarrollo, no la implementación final.
+
+Incluye sobre el último Denty estable:
+- contratos y máquina de estados del asistente;
+- estado OFF/ARMED/WAKE_DETECTED/CONNECTING/LISTENING/THINKING/EXECUTING/CONFIRMING/PAUSED_HIDDEN/ERROR;
+- adaptador Local NLU -> AssistantToolCall;
+- Tool Registry con riesgos GREEN/YELLOW/RED;
+- frontera de confirmación para acciones RED;
+- executor común para varias acciones clínicas ya soportadas;
+- context broker por ruta/paciente;
+- AssistantProvider con pausa automática cuando Denty no está visible;
+- interfaz WakeWordEngine y fallback NullWakeWordEngine;
+- especificación y planes aprobados de Oye Denty.
+
+Aún NO incluye como funcionalidad terminada:
+- Porcupine real / entrenamiento de Oye Denty;
+- OpenAI Realtime/WebRTC;
+- modo conversación de 45 s;
+- aprendizaje por dentista / Mem0;
+- proactividad;
+- UI final Asistente activo;
+- hardening y build final de la feature.
+
+El micrófono manual y el sistema de voz anterior permanecen sin modificar en este checkpoint.

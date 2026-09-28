@@ -38,9 +38,9 @@ import {
 } from "@/domain/dates";
 import {
   DEFAULT_PLAN_VISIT_GAP_DAYS,
-  DEMO_SCHEDULING_STORAGE_KEY,
   normalizePlanVisitGapDays,
   planVisitDates,
+  implantSurgeryReminderForAppointment,
 } from "@/domain";
 import {
   useAgendaContextQuery,
@@ -54,22 +54,14 @@ import {
   projectApiPatients,
   projectApiSites,
   projectApiStaff,
-  projectDemoAppointments,
-  projectDemoPatients,
-  projectDemoStaff,
   type AgendaAppointmentView,
   type AgendaStatus,
 } from "./agenda-projection";
-import {
-  DEMO_APPOINTMENTS,
-  DEMO_PATIENTS,
-  DEMO_STAFF,
-  type DemoAppointment,
-} from "@/shared/demo/demo-data";
 import styles from "@/shared/ui/parity.module.css";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
-import { publicEnv } from "@/shared/config/env";
 import { PageHeader } from "@/shared/ui";
+import { useActiveTenant } from "@/shared/tenancy/active-context";
+import { slotMinuteFromOffset } from "@/domain/agenda/slot-selection";
 const PIPELINE = [
   { key: "planned", title: "Llegarán", statuses: ["PLANNED", "CONFIRMED"] },
   { key: "waiting", title: "En sala", statuses: ["ARRIVED"] },
@@ -144,17 +136,15 @@ interface DragPayload {
 export function AgendaPage() {
   const searchParams = useSearchParams();
   const requestedPatientId = searchParams.get("patientId") ?? "";
-  const demoMode = publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
-  const demoDate = DEMO_APPOINTMENTS[0]?.startsAt.slice(0, 10) ?? todayMadrid();
-  const [date] = useState(demoMode ? demoDate : todayMadrid());
-  const [demoAppointments, setDemoAppointments] =
-    useState<readonly DemoAppointment[]>(DEMO_APPOINTMENTS);
+  const [date] = useState(todayMadrid());
+  const { activeSiteId, setActiveSiteId } = useActiveTenant();
   const [view, setView] = useState("day");
   const [opened, setOpened] = useState(false);
   const [patientId, setPatientId] = useState(requestedPatientId);
   const [staffId, setStaffId] = useState("");
-  const [siteId, setSiteId] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("15:00");
+  const [appointmentDuration, setAppointmentDuration] = useState(30);
+  const [selectedSlot, setSelectedSlot] = useState<{ staffId: string; minute: number } | null>(null);
   const [reason, setReason] = useState("Revisión");
   const [visitCount, setVisitCount] = useState(1);
   const [planVisitGapDays, setPlanVisitGapDays] = useState(DEFAULT_PLAN_VISIT_GAP_DAYS);
@@ -166,44 +156,35 @@ export function AgendaPage() {
     startY: number;
     initialDuration: number;
   } | null>(null);
-  const appointmentsQuery = useAppointmentsQuery(date, !demoMode);
-  const patientsQuery = usePatientsQuery(!demoMode);
-  const contextQuery = useAgendaContextQuery(!demoMode);
+  const appointmentsQuery = useAppointmentsQuery(date, true, activeSiteId);
+  const patientsQuery = usePatientsQuery();
+  const contextQuery = useAgendaContextQuery();
   const createMutation = useCreateAppointmentMutation(date);
   const updateMutation = useUpdateAppointmentForDayMutation(date);
   const transitions = useAppointmentTransitionMutation(date);
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(DEMO_SCHEDULING_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { defaultPlanVisitGapDays?: unknown };
-      setPlanVisitGapDays(normalizePlanVisitGapDays(parsed.defaultPlanVisitGapDays));
-    } catch {
-      setPlanVisitGapDays(DEFAULT_PLAN_VISIT_GAP_DAYS);
-    }
-  }, []);
-  const appointments = useMemo(() => {
-    if (demoMode) return projectDemoAppointments(demoAppointments);
-    return projectApiAppointments(appointmentsQuery.data ?? [], patientsQuery.data?.items ?? []);
-  }, [appointmentsQuery.data, demoAppointments, demoMode, patientsQuery.data]);
-  const staff = useMemo(
-    () => (demoMode ? projectDemoStaff(DEMO_STAFF) : projectApiStaff(contextQuery.data)),
-    [contextQuery.data, demoMode],
+  const appointments = useMemo(
+    () => projectApiAppointments(appointmentsQuery.data ?? [], patientsQuery.data?.items ?? []),
+    [appointmentsQuery.data, patientsQuery.data],
   );
-  const patientOptions = useMemo(
+  const implantSurgeryReminders = useMemo(
     () =>
-      demoMode
-        ? projectDemoPatients(DEMO_PATIENTS)
-        : projectApiPatients(patientsQuery.data?.items ?? []),
-    [demoMode, patientsQuery.data],
+      appointments.flatMap((appointment) => {
+        const reminder = implantSurgeryReminderForAppointment(appointment, date);
+        return reminder
+          ? [{ ...reminder, appointmentId: appointment.id, patientName: appointment.patientName }]
+          : [];
+      }),
+    [appointments, date],
   );
-  const sites = useMemo(
-    () => (demoMode ? [] : projectApiSites(contextQuery.data)),
-    [contextQuery.data, demoMode],
+  const staff = useMemo(() => projectApiStaff(contextQuery.data), [contextQuery.data]);
+  const patientOptions = useMemo(
+    () => projectApiPatients(patientsQuery.data?.items ?? []),
+    [patientsQuery.data],
   );
+  const sites = useMemo(() => projectApiSites(contextQuery.data), [contextQuery.data]);
   const effectivePatientId = patientId || patientOptions[0]?.id || "";
   const effectiveStaffId = staffId || staff[0]?.id || "";
-  const effectiveSiteId = siteId || sites[0]?.id || "";
+  const effectiveSiteId = activeSiteId || sites[0]?.id || "";
   const byStaff = useMemo(
     () =>
       staff.map((member) => ({
@@ -226,23 +207,6 @@ export function AgendaPage() {
       >,
     ) => {
       setAgendaNotice(null);
-      if (demoMode) {
-        setDemoAppointments((current) =>
-          current.map((candidate) =>
-            candidate.id === appointment.id
-              ? {
-                  ...candidate,
-                  ...(patch.staffId ? { staffId: patch.staffId } : {}),
-                  ...(patch.startsAt ? { startsAt: patch.startsAt } : {}),
-                  ...(patch.endsAt ? { endsAt: patch.endsAt } : {}),
-                  ...(patch.reason ? { reason: patch.reason } : {}),
-                  ...(patch.status ? { status: patch.status as DemoAppointment["status"] } : {}),
-                }
-              : candidate,
-          ),
-        );
-        return;
-      }
       await updateMutation.mutateAsync({
         id: appointment.id,
         payload: {
@@ -255,15 +219,11 @@ export function AgendaPage() {
         },
       });
     },
-    [demoMode, updateMutation],
+    [updateMutation],
   );
   const advance = async (appointment: AgendaAppointmentView) => {
     const status = nextStatus(appointment.status);
     if (!status) return;
-    if (demoMode) {
-      await updateAppointment(appointment, { status });
-      return;
-    }
     const input = { id: appointment.id, expectedVersion: appointment.version };
     if (status === "ARRIVED") await transitions.arrive.mutateAsync(input);
     if (status === "IN_CHAIR") await transitions.chair.mutateAsync(input);
@@ -272,25 +232,7 @@ export function AgendaPage() {
   const create = async () => {
     if (!effectivePatientId || !effectiveStaffId || !appointmentTime) return;
     const dates = planVisitDates(date, Math.max(1, visitCount), planVisitGapDays);
-    if (demoMode) {
-      const patient = DEMO_PATIENTS.find((candidate) => candidate.id === effectivePatientId);
-      if (!patient) return;
-      const created: DemoAppointment[] = dates.map((visitDate) => {
-        const startsAt = madridLocalDateTime(visitDate, appointmentTime);
-        return {
-          id: `demo-${crypto.randomUUID().slice(0, 8)}`,
-          patientId: patient.id,
-          patientName: `${patient.firstName} ${patient.lastName}`,
-          staffId: effectiveStaffId,
-          startsAt: toMadridISO(startsAt),
-          endsAt: toMadridISO(addMinutes(startsAt, 30)),
-          status: "PLANNED",
-          reason: reason.trim() || "Cita",
-        };
-      });
-      setDemoAppointments((current) => [...current, ...created]);
-    } else {
-      if (!effectiveSiteId) return;
+    if (!effectiveSiteId) return;
       for (const visitDate of dates) {
         const startsAt = madridLocalDateTime(visitDate, appointmentTime);
         await createMutation.mutateAsync({
@@ -298,39 +240,24 @@ export function AgendaPage() {
           staffId: effectiveStaffId,
           siteId: effectiveSiteId,
           startsAt: toMadridISO(startsAt),
-          endsAt: toMadridISO(addMinutes(startsAt, 30)),
+          endsAt: toMadridISO(addMinutes(startsAt, appointmentDuration)),
           title: reason.trim() || "Cita",
           ...(reason.trim() ? { reason: reason.trim() } : {}),
         });
       }
-    }
     setAgendaNotice(
       dates.length > 1
         ? `${dates.length} citas creadas cada ${planVisitGapDays} días.`
         : "Cita creada.",
     );
     setOpened(false);
+    setSelectedSlot(null);
   };
   const duplicate = useCallback(
     async (source: AgendaAppointmentView, offsetMinutes = 30) => {
       const start = addMinutes(source.startsAt, offsetMinutes);
       const end = addMinutes(source.endsAt, offsetMinutes);
-      if (demoMode) {
-        setDemoAppointments((current) => [
-          ...current,
-          {
-            id: `demo-${crypto.randomUUID().slice(0, 8)}`,
-            patientId: source.patientId,
-            patientName: source.patientName,
-            staffId: source.staffId,
-            startsAt: toMadridISO(start),
-            endsAt: toMadridISO(end),
-            status: "PLANNED",
-            reason: source.reason,
-          },
-        ]);
-      } else {
-        const resolvedSite = source.siteId ?? effectiveSiteId;
+      const resolvedSite = source.siteId ?? effectiveSiteId;
         if (!resolvedSite) {
           setAgendaNotice("Elige una sede antes de pegar.");
           return;
@@ -344,10 +271,9 @@ export function AgendaPage() {
           title: source.reason,
           reason: source.reason,
         });
-      }
       setAgendaNotice(`Copia de ${source.patientName} creada ${offsetMinutes} min después.`);
     },
-    [createMutation, demoMode, effectiveSiteId],
+    [createMutation, effectiveSiteId],
   );
   const pasteCopied = async () => {
     if (!copied) return;
@@ -365,6 +291,22 @@ export function AgendaPage() {
       endsAt: toMadridISO(endsAt),
     });
   };
+
+  const openAppointmentAtSlot = (targetStaffId: string, clientY: number, columnTop: number) => {
+    const minute = slotMinuteFromOffset(
+      clientY - columnTop,
+      PX_PER_MINUTE,
+      SLOT_MINUTES,
+      DAY_MINUTES,
+    );
+    setStaffId(targetStaffId);
+    setAppointmentTime(timeForMinute(minute));
+    setAppointmentDuration(30);
+    setSelectedId(null);
+    setSelectedSlot({ staffId: targetStaffId, minute });
+    setOpened(true);
+  };
+
   const resizeBy = async (appointment: AgendaAppointmentView, minutes: number) => {
     const nextDuration = Math.max(15, durationMinutes(appointment) + minutes);
     await updateAppointment(appointment, {
@@ -397,20 +339,11 @@ export function AgendaPage() {
       const deltaMinutes =
         Math.round((event.clientY - resizing.startY) / PX_PER_MINUTE / SLOT_MINUTES) * SLOT_MINUTES;
       const nextDuration = Math.max(15, resizing.initialDuration + deltaMinutes);
-      if (demoMode) {
-        setDemoAppointments((current) =>
-          current.map((candidate) =>
-            candidate.id === appointment.id
-              ? { ...candidate, endsAt: toMadridISO(addMinutes(candidate.startsAt, nextDuration)) }
-              : candidate,
-          ),
-        );
-      }
     };
     const onPointerUp = async (event: PointerEvent) => {
       const resizing = resizingRef.current;
       resizingRef.current = null;
-      if (!resizing || demoMode) return;
+      if (!resizing) return;
       const appointment = appointments.find((item) => item.id === resizing.id);
       if (!appointment) return;
       const deltaMinutes =
@@ -426,9 +359,8 @@ export function AgendaPage() {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [appointments, demoMode, updateAppointment]);
-  const hasBackendError =
-    !demoMode && (appointmentsQuery.isError || patientsQuery.isError || contextQuery.isError);
+  }, [appointments, updateAppointment]);
+  const hasBackendError = appointmentsQuery.isError || patientsQuery.isError || contextQuery.isError;
   const renderAppointmentMenu = (appointment: AgendaAppointmentView) => (
     <Menu withinPortal position="bottom-end" shadow="md" width={220}>
       <Menu.Target>
@@ -477,7 +409,7 @@ export function AgendaPage() {
             {nextLabel(appointment.status)}
           </Menu.Item>
         ) : null}
-        {!demoMode && appointment.status !== "COMPLETED" ? (
+        {appointment.status !== "COMPLETED" ? (
           <Menu.Item
             color="gray"
             onClick={() =>
@@ -531,6 +463,11 @@ export function AgendaPage() {
               key={member.id}
               className={styles.agendaDoctorColumn}
               style={DAY_HEIGHT_STYLE}
+              onClick={(event) => {
+                if (event.target !== event.currentTarget) return;
+                const rect = event.currentTarget.getBoundingClientRect();
+                openAppointmentAtSlot(member.id, event.clientY, rect.top);
+              }}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();
@@ -542,6 +479,16 @@ export function AgendaPage() {
                 if (payload.id) void moveByDrop(payload.id, member.id, minute);
               }}
             >
+              {selectedSlot?.staffId === member.id ? (
+                <div
+                  aria-hidden="true"
+                  className={styles.agendaSelectedSlot}
+                  style={appointmentStyle(
+                    selectedSlot.minute * PX_PER_MINUTE,
+                    SLOT_MINUTES * PX_PER_MINUTE,
+                  )}
+                />
+              ) : null}
               {Array.from({ length: DAY_MINUTES / SLOT_MINUTES }, (_, index) => (
                 <i
                   aria-hidden="true"
@@ -620,8 +567,15 @@ export function AgendaPage() {
         description="Arrastra para mover. ··· para más."
         actions={
           <Group>
-            <Badge variant="light">{demoMode ? "Demo" : "Servidor"}</Badge>
-            <Button leftSection={<IconCalendarPlus size={16} />} onClick={() => setOpened(true)}>
+            <Badge variant="light">Servidor</Badge>
+            <Button
+              leftSection={<IconCalendarPlus size={16} />}
+              onClick={() => {
+                setSelectedSlot(null);
+                setAppointmentDuration(30);
+                setOpened(true);
+              }}
+            >
               Nueva cita
             </Button>
           </Group>
@@ -638,6 +592,28 @@ export function AgendaPage() {
           {agendaNotice}
         </Alert>
       ) : null}
+
+      {implantSurgeryReminders.map((reminder) => (
+        <Alert
+          key={reminder.appointmentId}
+          color="orange"
+          title={reminder.title}
+        >
+          <Group justify="space-between" align="center">
+            <Text size="sm">
+              {reminder.patientName} · {reminder.message}
+            </Text>
+            <Button
+              component={Link}
+              href={reminder.href}
+              size="xs"
+              variant="light"
+            >
+              Rellenar datos del implante
+            </Button>
+          </Group>
+        </Alert>
+      ))}
 
       <div className={styles.agendaViewBar} aria-label="Vistas de agenda">
         <Button
@@ -706,7 +682,7 @@ export function AgendaPage() {
                           <Button
                             size="xs"
                             variant="light"
-                            loading={transitionPending && !demoMode}
+                            loading={transitionPending}
                             onClick={() => void advance(appointment)}
                           >
                             {nextLabel(appointment.status)}
@@ -777,7 +753,14 @@ export function AgendaPage() {
         </section>
       ) : null}
 
-      <Modal opened={opened} onClose={() => setOpened(false)} title="Nueva cita">
+      <Modal
+        opened={opened}
+        onClose={() => {
+          setOpened(false);
+          setSelectedSlot(null);
+        }}
+        title={selectedSlot ? `Nueva cita · ${appointmentTime}` : "Nueva cita"}
+      >
         <Stack>
           <Select
             searchable
@@ -792,19 +775,27 @@ export function AgendaPage() {
             onChange={(value) => setStaffId(value ?? "")}
             data={staff.map((member) => ({ value: member.id, label: member.displayName }))}
           />
-          {!demoMode ? (
-            <Select
-              label="Sede"
-              value={effectiveSiteId || null}
-              onChange={(value) => setSiteId(value ?? "")}
-              data={sites.map((site) => ({ value: site.id, label: site.name }))}
-            />
-          ) : null}
+          <Select
+            label="Sede"
+            value={effectiveSiteId || null}
+            onChange={(value) => setActiveSiteId(value ?? null)}
+            data={sites.map((site) => ({ value: site.id, label: site.name }))}
+          />
+          <TextInput label="Fecha" type="date" value={date} readOnly />
           <TextInput
             label="Hora"
             type="time"
             value={appointmentTime}
             onChange={(event) => setAppointmentTime(event.currentTarget.value)}
+          />
+          <Select
+            label="Duración"
+            value={String(appointmentDuration)}
+            onChange={(value) => setAppointmentDuration(Number(value) || 30)}
+            data={[15, 30, 45, 60, 90, 120].map((minutes) => ({
+              value: String(minutes),
+              label: `${minutes} min`,
+            }))}
           />
           <TextInput
             label="Motivo"
@@ -835,7 +826,7 @@ export function AgendaPage() {
             <Button variant="default" onClick={() => setOpened(false)}>
               Cancelar
             </Button>
-            <Button loading={createMutation.isPending && !demoMode} onClick={() => void create()}>
+            <Button loading={createMutation.isPending} onClick={() => void create()}>
               Guardar cita
             </Button>
           </Group>

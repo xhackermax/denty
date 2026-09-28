@@ -2,7 +2,6 @@ import { Paper, Text, Title } from "@mantine/core";
 import Image from "next/image";
 
 import { LoginForm } from "@/features/auth";
-import { publicEnv } from "@/shared/config/env";
 import { CenteredPage } from "@/shared/ui";
 
 interface LoginPageProps {
@@ -27,12 +26,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           Acceso a Denty
         </Title>
         <Text c="dimmed" mt="xs">
-          Acceso profesional protegido por la sesión de la clínica.
+          Accede con la cuenta segura asociada a tu clínica. La identidad y las sesiones se
+          gestionan mediante Supabase Auth.
         </Text>
-        <LoginForm
-          demoMode={publicEnv.NEXT_PUBLIC_DEMO_MODE === "true"}
-          nextPath={safeNextPath(params.next)}
-        />
+        <LoginForm nextPath={safeNextPath(params.next)} />
       </Paper>
     </CenteredPage>
   );

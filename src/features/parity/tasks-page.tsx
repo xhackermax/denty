@@ -1,56 +1,16 @@
 "use client";
 
-import { Button, Modal, Select, Text, TextInput } from "@mantine/core";
-import { useState } from "react";
-
-import { DEMO_TASKS } from "@/shared/demo/demo-data";
+import { Button, Group, Text } from "@mantine/core";
+import Link from "next/link";
 import styles from "@/shared/ui/parity.module.css";
-import { PageHeader } from "@/shared/ui";
+
+const QUICK_ACTIONS = [
+  ["Crear paciente", "Alta y ficha clínica", "/app/patients"],
+  ["Crear cita", "Abrir agenda", "/app/agenda"],
+  ["Emitir receta", "Abrir recetas", "/app/prescriptions"],
+  ["Registrar cobro", "Abrir finanzas", "/app/finance"],
+] as const;
 
 export function TasksPage() {
-  const [active, setActive] = useState<string | null>(null);
-  const [note, setNote] = useState("");
-  const [method, setMethod] = useState("Tarjeta");
-
-  return (
-    <div className={styles.grid}>
-      <PageHeader eyebrow="Rápido" title="Tareas" description={"Acciones frecuentes."} />
-      <div className={styles.cards}>
-        {DEMO_TASKS.map(([title, description]) => (
-          <button
-            className={styles.cardLink}
-            type="button"
-            key={title}
-            onClick={() => setActive(title)}
-          >
-            <span className={styles.cardLinkTitle}>{title}</span>
-            <span className={styles.cardLinkDescription}>{description}</span>
-          </button>
-        ))}
-      </div>
-      <Modal opened={active !== null} onClose={() => setActive(null)} title={active ?? "Tarea"}>
-        {active === "Cobrar" ? (
-          <Select
-            label="Pago"
-            value={method}
-            onChange={(value) => setMethod(value ?? "Tarjeta")}
-            data={["Tarjeta", "Efectivo", "Transferencia"]}
-          />
-        ) : null}
-        <TextInput
-          mt="md"
-          label="Detalle"
-          value={note}
-          onChange={(event) => setNote(event.currentTarget.value)}
-          placeholder="Paciente o referencia"
-        />
-        <Text c="dimmed" size="sm" mt="md">
-          Vista previa en modo demo.
-        </Text>
-        <Button mt="lg" onClick={() => setActive(null)}>
-          Confirmar
-        </Button>
-      </Modal>
-    </div>
-  );
+  return <div className={styles.rowList}>{QUICK_ACTIONS.map(([title, description, href])=><div className={styles.row} key={title}><div className={styles.rowMain}><span className={styles.rowTitle}>{title}</span><Text className={styles.rowMeta}>{description}</Text></div><Group><Button component={Link} href={href} size="xs" variant="light">Abrir</Button></Group></div>)}</div>;
 }

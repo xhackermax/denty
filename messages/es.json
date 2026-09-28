@@ -38,8 +38,7 @@
     "compact": "Compacta",
     "light": "Claro",
     "dark": "Oscuro",
-    "auto": "Automático",
-    "demo": "DEMO · datos ficticios",
+    "auto": "Automático por hora",
     "offline": "Sin conexión con el servidor",
     "phase": "Denty V3",
     "clinic": "Clínica",
@@ -66,8 +65,7 @@
     "description": "Accede a tu cuenta.",
     "identifier": "Usuario o email",
     "password": "Contraseña",
-    "submit": "Entrar",
-    "phaseNotice": "Modo demo."
+    "submit": "Entrar"
   },
   "PatientPreview": {
     "title": "Portal del paciente",
@@ -80,10 +78,7 @@
     "errorTitle": "No se pudo cargar",
     "confirmTitle": "Confirmar acción",
     "confirmBody": "Esta acción requiere una confirmación explícita.",
-    "samplePatient": "Juan Pérez",
-    "sampleStatus": "En gabinete",
     "kpi": "Citas de hoy",
-    "kpiValue": "24",
     "panelTitle": "Panel contextual"
   },
   "ModulePlaceholder": {

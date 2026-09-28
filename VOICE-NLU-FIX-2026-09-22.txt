@@ -10,11 +10,11 @@ Flujo implementado
 
 Ejemplo comprobado
 ==================
-"Oye Denty abre el paciente Juan Pérez"
-- El NLU extrae: patient.resolve("Juan Pérez") + navigation.patient.
+"Oye Denty abre el paciente María García"
+- El NLU extrae: patient.resolve("María García") + navigation.patient.
 - El resolvedor ignora tildes y admite nombre/apellidos o número de ficha.
-- En demo resuelve Juan Pérez -> id juan-perez, ficha 000104.
-- Navega directamente a /app/patients/juan-perez.
+- La resolución consulta los pacientes disponibles para la sesión actual.
+- Navega directamente a la ficha real resuelta.
 
 Cambios de NLU
 ==============

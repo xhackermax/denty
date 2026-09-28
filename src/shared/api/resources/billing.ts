@@ -7,6 +7,8 @@ import {
   allocatePaymentSchema,
   billingSettingsSchema,
   budgetsSchema,
+  finalizeBudgetSignatureInputSchema,
+  finalizedBudgetSignatureSchema,
   createInvoiceDraftSchema,
   createInvoiceSeriesSchema,
   invoiceSchema,
@@ -45,6 +47,12 @@ export function createBillingResource(client: ApiClient) {
     },
     budgets: {
       list: () => client.request("/api/budgets", budgetsSchema),
+      sign: (budgetId: string, payload: z.input<typeof finalizeBudgetSignatureInputSchema>) =>
+        client.mutation(
+          `/api/budgets/${encodeId(budgetId)}/sign`,
+          finalizedBudgetSignatureSchema,
+          finalizeBudgetSignatureInputSchema.parse(payload),
+        ),
       createInvoiceDraft: (budgetId: string, seriesId?: string) =>
         client.mutation(
           `/api/budgets/${encodeId(budgetId)}/invoice-draft`,

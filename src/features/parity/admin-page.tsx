@@ -1,9 +1,10 @@
-import { Badge, Button, SimpleGrid, Text, Title } from "@mantine/core";
+import { SimpleGrid } from "@mantine/core";
 import Link from "next/link";
 
-import { DEMO_STAFF } from "@/shared/demo/demo-data";
 import styles from "@/shared/ui/parity.module.css";
 import { PageHeader } from "@/shared/ui";
+import { AdminUsersPanel } from "./admin-users-panel";
+import { AdminTreatmentCatalogPanel } from "./admin-treatment-catalog-panel";
 
 export function AdminPage({ section = "home" }: { section?: "home" | "users" | "catalog" }) {
   return (
@@ -40,40 +41,9 @@ export function AdminPage({ section = "home" }: { section?: "home" | "users" | "
         </SimpleGrid>
       ) : null}
       {section === "users" ? (
-        <section className={styles.section}>
-          <div className={styles.rowList}>
-            {DEMO_STAFF.map((staff) => (
-              <div className={styles.row} key={staff.id}>
-                <div className={styles.rowMain}>
-                  <span className={styles.rowTitle}>{staff.displayName}</span>
-                  <span className={styles.rowMeta}>
-                    {staff.role} · {staff.site}
-                  </span>
-                </div>
-                <Badge color="green">Activo</Badge>
-              </div>
-            ))}
-          </div>
-        </section>
+        <AdminUsersPanel />
       ) : null}
-      {section === "catalog" ? (
-        <section className={styles.section}>
-          <Title order={3}>Tratamientos y costes base</Title>
-          <Text c="dimmed" size="sm" mt="xs">
-            Catálogo recuperado para alimentar plan, presupuesto, factura y analítica de margen.
-          </Text>
-          <div className={styles.rowList}>
-            {["Implante", "Corona zirconio", "Endodoncia", "Férula", "Higiene"].map((item) => (
-              <div className={styles.row} key={item}>
-                <span className={styles.rowTitle}>{item}</span>
-                <Button size="xs" variant="light">
-                  Editar
-                </Button>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      {section === "catalog" ? <AdminTreatmentCatalogPanel /> : null}
     </div>
   );
 }

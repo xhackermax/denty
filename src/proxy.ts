@@ -13,9 +13,9 @@ function loginRedirect(request: NextRequest): NextResponse {
 }
 
 function unavailableResponse(): Response {
-  return new Response("Denty API no está disponible para validar la sesión.", {
+  return new Response("Denty no está disponible para validar la sesión.", {
     status: 503,
-    headers: { "content-type": "text/plain; charset=utf-8" },
+    headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "private, no-store" },
   });
 }
 
@@ -29,27 +29,33 @@ function actorFromSession(session: ReturnType<typeof sessionResponseSchema.parse
     permissions: session.actor.permissions,
   };
   if (session.actor.staffId !== undefined) actor.staffId = session.actor.staffId;
-  if (session.actor.patientIds !== undefined) {
-    actor.patientIds = session.actor.patientIds;
-  }
+  if (session.actor.patientIds !== undefined) actor.patientIds = session.actor.patientIds;
   return actor;
 }
 
-export async function proxy(request: NextRequest): Promise<Response> {
-  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
-    return NextResponse.next();
+function carrySessionCookies(target: NextResponse, source: Response): NextResponse {
+  const headers = source.headers as Headers & { getSetCookie?: () => string[] };
+  const setCookies = headers.getSetCookie?.() ?? [];
+  if (setCookies.length > 0) {
+    for (const cookie of setCookies) target.headers.append("set-cookie", cookie);
+  } else {
+    const header = source.headers.get("set-cookie");
+    if (header) target.headers.append("set-cookie", header);
   }
+  target.headers.set("cache-control", "private, no-store");
+  return target;
+}
 
-  const apiUrl = process.env.DENTY_API_URL;
-  if (!apiUrl) return unavailableResponse();
-
+export async function proxy(request: NextRequest): Promise<Response> {
   const headers = new Headers({ accept: "application/json" });
   const cookie = request.headers.get("cookie");
   if (cookie) headers.set("cookie", cookie);
 
   let response: Response;
   try {
-    response = await fetch(new URL(SESSION_PATH, `${apiUrl.replace(/\/$/, "")}/`), {
+    // Session validation always happens on the same application origin. This prevents
+    // an external API endpoint from becoming a second identity authority.
+    response = await fetch(new URL(SESSION_PATH, request.url), {
       headers,
       cache: "no-store",
       redirect: "manual",
@@ -66,19 +72,23 @@ export async function proxy(request: NextRequest): Promise<Response> {
   if (!session.success) return unavailableResponse();
 
   const actor = actorFromSession(session.data);
+  let result: NextResponse;
   if (request.nextUrl.pathname.startsWith("/patient/")) {
     const patientId = request.nextUrl.pathname.split("/")[2];
-    return patientId && canAccessPatient(actor, patientId)
+    result = patientId && canAccessPatient(actor, patientId)
       ? NextResponse.next()
       : forbiddenRedirect(request);
+    return carrySessionCookies(result, response);
   }
 
   const decision = decideStaffRouteAccess(actor, request.nextUrl.pathname);
-  if (decision.kind === "allow") return NextResponse.next();
-  if (decision.kind === "unauthenticated") return loginRedirect(request);
-  return forbiddenRedirect(request);
+  if (decision.kind === "allow") result = NextResponse.next();
+  else if (decision.kind === "unauthenticated") result = loginRedirect(request);
+  else result = forbiddenRedirect(request);
+  return carrySessionCookies(result, response);
 }
 
 export const config = {
   matcher: ["/app/:path*", "/patient/:path*"],
 };
+

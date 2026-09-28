@@ -9,6 +9,9 @@ const LOCAL_STORAGE_ALLOWLIST = new Set([
   path.normalize("src/features/parity/modules/documents-module.tsx"),
   path.normalize("src/features/parity/modules/laboratory-module.tsx"),
   path.normalize("src/features/parity/modules/settings-module.tsx"),
+  path.normalize("src/app/_components/shell/time-color-scheme-provider.tsx"),
+  path.normalize("src/app/_components/shell/time-color-scheme-provider.test.tsx"),
+  path.normalize("src/app/layout.tsx"),
   path.normalize("src/shared/ui/density-provider.tsx"),
   path.normalize("src/shared/ui/shared-ui.test.tsx"),
 ]);
@@ -16,6 +19,14 @@ const INLINE_STYLE_ALLOWLIST = new Set([
   path.normalize("src/features/parity/modules/documents-module.tsx"),
   path.normalize("src/features/parity/modules/finance-charts.tsx"),
   path.normalize("src/features/parity/modules/finance-module.tsx"),
+]);
+const INLINE_SCRIPT_ALLOWLIST = new Set([
+  // Runs before hydration to prevent a wrong-theme flash for the Madrid schedule.
+  path.normalize("src/app/layout.tsx"),
+]);
+const BUSINESS_DATE_MODULES = new Set([
+  path.normalize("src/domain/dates.ts"),
+  path.normalize("src/domain/appearance-schedule.ts"),
 ]);
 
 const forbiddenPatterns = [
@@ -74,6 +85,9 @@ for (const file of files) {
     if (rule.message.includes("inline") && INLINE_STYLE_ALLOWLIST.has(rel)) {
       continue;
     }
+    if (rule.message.includes("dangerouslySetInnerHTML") && INLINE_SCRIPT_ALLOWLIST.has(rel)) {
+      continue;
+    }
     rule.pattern.lastIndex = 0;
     if (rule.pattern.test(source)) {
       fail(file, rule.message);
@@ -88,8 +102,7 @@ for (const file of files) {
   }
 
   const isDomainFile = rel.startsWith(path.normalize("src/domain/"));
-  const isDatesModule = rel === path.normalize("src/domain/dates.ts");
-  if (isDomainFile && !isDatesModule && /new\s+Date\s*\(/.test(source)) {
+  if (isDomainFile && !BUSINESS_DATE_MODULES.has(rel) && /new\s+Date\s*\(/.test(source)) {
     fail(file, "Las fechas de negocio deben pasar por domain/dates.ts (Europe/Madrid)");
   }
 }

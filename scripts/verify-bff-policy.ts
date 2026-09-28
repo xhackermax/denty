@@ -22,10 +22,6 @@ assert(
   "el webhook de pagos nunca debe exponerse al navegador",
 );
 assert(
-  !isAllowedDentyProxyRoute("GET", "/api/clinic/demo"),
-  "la ruta demo del backend no debe exponerse al navegador",
-);
-assert(
   !isAllowedDentyProxyRoute("DELETE", "/api/patients/patient-1"),
   "métodos no verificados deben bloquearse",
 );

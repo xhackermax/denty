@@ -2,6 +2,7 @@
 
 import { Alert, Badge, Button, Group, Menu, SimpleGrid, Tabs, Text, Title } from "@mantine/core";
 import {
+  IconArchive,
   IconCalendar,
   IconChevronRight,
   IconDots,
@@ -10,6 +11,7 @@ import {
   IconDeviceGamepad2,
   IconPill,
   IconReceipt,
+  IconRestore,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -18,12 +20,24 @@ import { dateDMY, epochMillis, hhmm } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
 import { ClinicalPipelineCard } from "@/shared/clinical/clinical-pipeline-card";
 import { ClinicalSyncCard } from "@/shared/clinical/clinical-sync-card";
-import { DEMO_PATIENTS } from "@/shared/demo/demo-data";
 import { PatientClinicalSummary } from "./patient-clinical-summary";
 import styles from "@/shared/ui/parity.module.css";
-import { usePatientProjectionQuery, usePatientQuery } from "@/shared/patients/patient-data";
-import { publicEnv } from "@/shared/config/env";
+import {
+  useArchivePatientMutation,
+  usePatientProjectionQuery,
+  usePatientQuery,
+  useRestorePatientMutation,
+  useUpdatePatientMutation,
+  useUploadPatientPhotoMutation,
+} from "@/shared/patients/patient-data";
 import { HorizontalSnapNav, PageHeader, PatientAvatar } from "@/shared/ui";
+import { PatientMedicalHistory } from "./patient-medical-history";
+import { PatientPhotoCapture } from "./patient-photo-capture";
+import {
+  optionLabels,
+  suggestedDentitionForBirthDate,
+  type PatientMedicalProfile,
+} from "./patient-admission";
 
 const SOURCE_LABELS: Readonly<Record<string, string>> = {
   GOOGLE: "Google",
@@ -35,6 +49,21 @@ const SOURCE_LABELS: Readonly<Record<string, string>> = {
   EXISTING_PATIENT: "Paciente existente",
   OTHER: "Otro",
 };
+
+function emptyMedicalProfile(birthDate?: string | null): PatientMedicalProfile {
+  return {
+    allergies: [],
+    medications: [],
+    conditions: [],
+    dentalRisks: [],
+    notes: "",
+    dentitionStage: suggestedDentitionForBirthDate(birthDate ?? ""),
+  };
+}
+
+function isClinicalAlert(value: string): boolean {
+  return !/^sin (alergias|medicación|antecedentes)/i.test(value);
+}
 
 function PatientRouteCard({
   href,
@@ -62,18 +91,20 @@ function PatientRouteCard({
 }
 
 export function PatientProfile({ patientId }: { patientId: string }) {
-  const demoMode = publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
-  const demoPatient = DEMO_PATIENTS.find((candidate) => candidate.id === patientId);
-  const patientQuery = usePatientQuery(patientId, !demoMode);
-  const projectionQuery = usePatientProjectionQuery(patientId, !demoMode);
+  const patientQuery = usePatientQuery(patientId);
+  const projectionQuery = usePatientProjectionQuery(patientId);
+  const updatePatientMutation = useUpdatePatientMutation(patientId);
+  const archivePatientMutation = useArchivePatientMutation();
+  const restorePatientMutation = useRestorePatientMutation();
+  const uploadPhotoMutation = useUploadPatientPhotoMutation();
   const [now] = useState(() => Date.now());
   const [activeTab, setActiveTab] = useState<string | null>("summary");
+  const [photoEditorOpen, setPhotoEditorOpen] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [medicalProfileOverride, setMedicalProfileOverride] =
+    useState<PatientMedicalProfile | null>(null);
 
-  if (demoMode && !demoPatient) {
-    return <PageHeader title="Ficha no encontrada" description="No existe esta ficha." />;
-  }
-
-  if (!demoMode && patientQuery.isError) {
+  if (patientQuery.isError) {
     return (
       <Alert color="red" title="Error al cargar ficha">
         Revisa la conexión con Denty.
@@ -81,22 +112,26 @@ export function PatientProfile({ patientId }: { patientId: string }) {
     );
   }
 
-  if (!demoMode && !patientQuery.data) {
+  if (!patientQuery.data) {
     return <PageHeader title="Cargando" description="Cargando datos del paciente." />;
   }
 
-  const patient = demoMode ? null : patientQuery.data;
-  const fullName = demoPatient
-    ? `${demoPatient.firstName} ${demoPatient.lastName}`
-    : `${patient?.firstName ?? ""} ${patient?.lastName ?? ""}`.trim();
-  const recordNumber = demoPatient?.recordNumber ?? patient?.recordNumber ?? "—";
-  const phone = demoPatient?.phone ?? patient?.phone ?? "Sin teléfono";
-  const email = demoPatient?.email ?? patient?.email ?? "Sin email";
-  const source =
-    demoPatient?.source ??
-    (patient?.declaredSource
-      ? (SOURCE_LABELS[patient.declaredSource] ?? patient.declaredSource)
-      : "Sin origen registrado");
+  const patient = patientQuery.data;
+  const fullName = `${patient.firstName ?? ""} ${patient.lastName ?? ""}`.trim();
+  const recordNumber = patient.recordNumber ?? "—";
+  const phone = patient.phone ?? "Sin teléfono";
+  const email = patient.email ?? "Sin email";
+  const source = patient.declaredSource
+    ? (SOURCE_LABELS[patient.declaredSource] ?? patient.declaredSource)
+    : "Sin origen registrado";
+
+  const archivePatient = async () => {
+    await archivePatientMutation.mutateAsync({ patientId, expectedVersion: patient.version });
+  };
+
+  const restorePatient = async () => {
+    await restorePatientMutation.mutateAsync({ patientId, expectedVersion: patient.version });
+  };
 
   const projection = projectionQuery.data;
   const upcoming = [...(projection?.appointments ?? [])]
@@ -114,32 +149,37 @@ export function PatientProfile({ patientId }: { patientId: string }) {
     0,
   );
 
-  const nextVisitTitle =
-    demoPatient?.nextStep ??
-    (upcoming ? `${dateDMY(upcoming.startsAt)} · ${hhmm(upcoming.startsAt)}` : "Sin próxima cita");
-  const nextVisitDescription = demoPatient
-    ? "Próximo paso clínico registrado en la ficha."
-    : (upcoming?.reason ?? upcoming?.title ?? "La agenda no tiene una cita futura activa.");
-  const economyValue = demoPatient
-    ? formatEUR(demoPatient.balanceCents)
-    : formatEUR(openBudgetTotal);
-  const economyDescription = demoPatient
-    ? "Saldo pendiente"
-    : `${projection?.budgets.length ?? 0} presupuestos abiertos`;
+  const nextVisitTitle = upcoming
+    ? `${dateDMY(upcoming.startsAt)} · ${hhmm(upcoming.startsAt)}`
+    : "Sin próxima cita";
+  const nextVisitDescription = upcoming?.reason ?? upcoming?.title ?? "La agenda no tiene una cita futura activa.";
+  const economyValue = formatEUR(openBudgetTotal);
+  const economyDescription = `${projection?.budgets.length ?? 0} presupuestos abiertos`;
 
-  const medicalItems = demoPatient
-    ? [
-        ...(demoPatient.allergies ?? []).map((item) => ({
-          label: `Alergia · ${item}`,
-          tone: "red" as const,
-        })),
-        ...(demoPatient.medications ?? []).map((item) => ({
-          label: `Medicación · ${item}`,
-          tone: "blue" as const,
-        })),
-        ...(demoPatient.conditions ?? []).map((item) => ({ label: item, tone: "yellow" as const })),
-      ]
-    : [];
+  const baseMedicalProfile = patient.medicalProfile ?? emptyMedicalProfile(patient.birthDate);
+  const medicalProfile = medicalProfileOverride ?? baseMedicalProfile;
+  const saveMedicalProfile = async (nextProfile: PatientMedicalProfile) => {
+    await updatePatientMutation.mutateAsync({
+      expectedVersion: patient.version,
+      medicalProfile: nextProfile,
+    });
+    setMedicalProfileOverride(nextProfile);
+  };
+
+  const medicalItems = [
+    ...optionLabels("allergies", medicalProfile.allergies)
+      .filter(isClinicalAlert)
+      .map((item) => ({ label: `Alergia · ${item}`, tone: "red" as const })),
+    ...optionLabels("medications", medicalProfile.medications)
+      .filter(isClinicalAlert)
+      .map((item) => ({ label: `Medicación · ${item}`, tone: "blue" as const })),
+    ...optionLabels("conditions", medicalProfile.conditions)
+      .filter(isClinicalAlert)
+      .map((item) => ({ label: item, tone: "yellow" as const })),
+    ...optionLabels("dentalRisks", medicalProfile.dentalRisks)
+      .filter(isClinicalAlert)
+      .map((item) => ({ label: item, tone: "violet" as const })),
+  ];
 
   return (
     <div className={styles.grid}>
@@ -198,6 +238,25 @@ export function PatientProfile({ patientId }: { patientId: string }) {
                 >
                   Denty Games
                 </Menu.Item>
+                <Menu.Divider />
+                {patient.archivedAt ? (
+                  <Menu.Item
+                    leftSection={<IconRestore size={16} />}
+                    onClick={() => void restorePatient()}
+                    disabled={restorePatientMutation.isPending}
+                  >
+                    Restaurar ficha
+                  </Menu.Item>
+                ) : (
+                  <Menu.Item
+                    color="gray"
+                    leftSection={<IconArchive size={16} />}
+                    onClick={() => void archivePatient()}
+                    disabled={archivePatientMutation.isPending}
+                  >
+                    Archivar ficha
+                  </Menu.Item>
+                )}
               </Menu.Dropdown>
             </Menu>
           </Group>
@@ -205,7 +264,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
       />
 
       <section className={styles.patientHero}>
-        <PatientAvatar name={fullName || "Paciente"} size={58} src={demoPatient?.photoUrl} />
+        <PatientAvatar name={fullName || "Paciente"} size={58} src={patient.photoUrl} />
         <div className={styles.patientHeroIdentity}>
           <strong>{fullName}</strong>
           <span>
@@ -213,9 +272,36 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           </span>
         </div>
         <div className={styles.patientHeroStatus}>
-          <Badge variant="light">{demoMode ? "Demo" : "Servidor"}</Badge>
+          {patient.archivedAt ? <Badge color="gray" variant="light">Archivado</Badge> : null}
+          <Badge variant="light">Servidor</Badge>
+          {!patient.archivedAt ? (
+            <Button size="xs" variant="subtle" onClick={() => setPhotoEditorOpen((value) => !value)}>
+              {photoEditorOpen ? "Cerrar foto" : "Cambiar foto"}
+            </Button>
+          ) : null}
         </div>
       </section>
+
+      {photoEditorOpen ? (
+        <section className={styles.section}>
+          <PatientPhotoCapture value={photoFile} onPhotoReady={setPhotoFile} disabled={uploadPhotoMutation.isPending} />
+          <Group mt="sm">
+            <Button
+              disabled={!photoFile}
+              loading={uploadPhotoMutation.isPending}
+              onClick={() => {
+                if (!photoFile) return;
+                void uploadPhotoMutation.mutateAsync({ patientId, file: photoFile }).then(() => {
+                  setPhotoFile(null);
+                  setPhotoEditorOpen(false);
+                });
+              }}
+            >
+              Guardar foto
+            </Button>
+          </Group>
+        </section>
+      ) : null}
 
       {medicalItems.length ? (
         <div className={styles.patientAlertStrip} aria-label="Alertas clínicas del paciente">
@@ -227,7 +313,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         </div>
       ) : null}
 
-      {!demoMode && projectionQuery.isError ? (
+      {projectionQuery.isError ? (
         <Alert color="yellow" title="Resumen incompleto">
           Faltan algunos datos clínicos.
         </Alert>
@@ -240,7 +326,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           <Text c="dimmed" size="sm">
             {nextVisitDescription}
           </Text>
-          {!demoMode && completed ? (
+          {completed ? (
             <Text c="dimmed" size="xs">
               Última visita: {dateDMY(completed.startsAt)} · {hhmm(completed.startsAt)}
             </Text>
@@ -299,9 +385,14 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
         <Tabs.Panel value="clinical" pt="lg">
           <div className={styles.grid}>
+            <PatientMedicalHistory
+              profile={medicalProfile}
+              saving={updatePatientMutation.isPending}
+              onSave={saveMedicalProfile}
+            />
             <ClinicalPipelineCard patientId={patientId} />
-            <ClinicalSyncCard patientId={patientId} demoMode={demoMode} />
-            <PatientClinicalSummary patientId={patientId} demoMode={demoMode} />
+            <ClinicalSyncCard patientId={patientId} />
+            <PatientClinicalSummary patientId={patientId} />
           </div>
         </Tabs.Panel>
 

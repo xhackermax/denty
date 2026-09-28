@@ -3,7 +3,6 @@ import { addDaysMadrid, dateYMDMadrid } from "./dates";
 export const DEFAULT_PLAN_VISIT_GAP_DAYS = 7;
 export const PLAN_VISIT_GAP_MIN_DAYS = 0;
 export const PLAN_VISIT_GAP_MAX_DAYS = 180;
-export const DEMO_SCHEDULING_STORAGE_KEY = "denty.demo.scheduling.v1";
 
 export interface SchedulingPreferences {
   defaultPlanVisitGapDays: number;

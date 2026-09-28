@@ -21,14 +21,7 @@ import {
   type PeriodontalSite,
 } from "@/domain";
 import { useCreatePeriodontalExamMutation } from "@/shared/clinical/clinical-data";
-import { publicEnv } from "@/shared/config/env";
 import styles from "./odontogram.module.css";
-const DEMO_READINGS: readonly PeriodontalReading[] = [
-  { tooth: "16", site: "MV", probingDepth: 6, recession: 2, bleeding: true, plaque: true },
-  { tooth: "16", site: "V", probingDepth: 5, recession: 1, bleeding: true },
-  { tooth: "16", site: "P/L", probingDepth: 4, recession: 1, mobility: 2, furcation: 1 },
-  { tooth: "36", site: "DV", probingDepth: 5, recession: 1, plaque: true, suppuration: true },
-];
 interface PeriodontogramPanelProps {
   patientId: string;
   readOnly: boolean;
@@ -54,21 +47,18 @@ function buildCompleteReadings(seed: readonly PeriodontalReading[]): Periodontal
     }),
   );
 }
-const PERIODONTAL_DRAFTS = new Map<string, PeriodontalReading[]>();
 export function PeriodontogramPanel({
   patientId,
   readOnly,
-  readings = DEMO_READINGS,
+  readings = [],
 }: PeriodontogramPanelProps) {
-  const demoMode = publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
   const examMutation = useCreatePeriodontalExamMutation(patientId);
   const [fieldMode, setFieldMode] = useState<FieldMode>("probing");
   const [values, setValues] = useState<PeriodontalReading[]>(() => buildCompleteReadings(readings));
   const [savedAt, setSavedAt] = useState<string | null>(null);
   useEffect(() => {
-    const draft = PERIODONTAL_DRAFTS.get(patientId);
-    setValues(buildCompleteReadings(draft ?? readings));
-    setSavedAt(draft ? "Sesión actual" : null);
+    setValues(buildCompleteReadings(readings));
+    setSavedAt(null);
   }, [patientId, readings]);
   const chart = useMemo(() => buildPeriodontalChart(values), [values]);
   const risk = periodontalRiskForSummary(chart.summary);
@@ -93,18 +83,10 @@ export function PeriodontogramPanel({
   };
   const save = async () => {
     if (readOnly) return;
-    PERIODONTAL_DRAFTS.set(
-      patientId,
-      values.map((reading) => ({ ...reading })),
-    );
     const displayTime = new Date().toLocaleTimeString("es-ES", {
       hour: "2-digit",
       minute: "2-digit",
     });
-    if (demoMode) {
-      setSavedAt(displayTime);
-      return;
-    }
     try {
       await examMutation.mutateAsync({
         title: "Periodontograma completo",
@@ -134,13 +116,12 @@ export function PeriodontogramPanel({
       });
       setSavedAt(displayTime);
     } catch {
-      setSavedAt("borrador local");
+      setSavedAt(null);
     }
   };
   const reset = () => {
     if (readOnly) return;
     setValues(buildCompleteReadings([]));
-    PERIODONTAL_DRAFTS.delete(patientId);
     setSavedAt(null);
   };
   const renderArch = (teeth: readonly string[]) => (
@@ -338,8 +319,7 @@ export function PeriodontogramPanel({
 
       {examMutation.isError ? (
         <Alert mt="md" color="red" title="No se pudo sincronizar">
-          El periodontograma queda como borrador local de esta sesión. Reintenta cuando el servidor
-          vuelva a estar disponible.
+          No se ha persistido ningún sustituto local. Reintenta cuando el servidor vuelva a estar disponible.
         </Alert>
       ) : null}
 

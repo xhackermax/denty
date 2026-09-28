@@ -2,6 +2,7 @@ import { PERMISSIONS, ROLES } from "@/domain/permissions";
 import { z } from "zod";
 
 export const isoDateTimeSchema = z.string().datetime({ offset: true });
+export const isoDateSchema = z.string().date();
 export const versionSchema = z.number().int().positive();
 export const idSchema = z.string().min(1);
 
@@ -38,51 +39,72 @@ export const patientAcquisitionSourceSchema = z.enum([
   "OTHER",
 ]);
 
+
+export const medicalProfileSchema = z.object({
+  allergies: z.array(z.string()).default([]),
+  medications: z.array(z.string()).default([]),
+  conditions: z.array(z.string()).default([]),
+  dentalRisks: z.array(z.string()).default([]),
+  notes: z.string().default(""),
+  dentitionStage: z.enum(["primary", "mixed", "permanent"]).default("permanent"),
+});
+
 export const patientSchema = z.object({
   id: idSchema,
   clinicId: idSchema,
   legacyId: z.number().int().positive().nullable().optional(),
-  recordNumber: z.string().min(1).nullable().optional(),
+  recordNumber: z.string().min(1),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   dni: z.string().min(1).nullable().optional(),
   phone: z.string().min(1).nullable().optional(),
   email: z.string().email().nullable().optional(),
-  birthDate: isoDateTimeSchema.nullable().optional(),
+  birthDate: isoDateSchema.nullable().optional(),
   declaredSource: patientAcquisitionSourceSchema.nullable().optional(),
   declaredSourceDetail: z.string().max(200).nullable().optional(),
-  photoUrl: z.string().url().nullable().optional(),
+  photoUrl: z.string().trim().min(1).max(500).nullable().optional(),
   lastVisitAt: isoDateTimeSchema.nullable().optional(),
   nextVisitAt: isoDateTimeSchema.nullable().optional(),
   archivedAt: isoDateTimeSchema.nullable().optional(),
+  archivedReason: z.string().nullable().optional(),
   version: versionSchema,
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
+  medicalProfile: medicalProfileSchema.optional(),
 });
 
 export const createPatientSchema = z.object({
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  dni: z.string().min(1).optional(),
-  phone: z.string().min(1).optional(),
+  firstName: z.string().trim().min(1),
+  lastName: z.string().trim().min(1),
+  recordNumber: z.string().trim().min(1).optional(),
+  dni: z.string().trim().min(1).nullable().optional(),
+  phone: z.string().trim().min(1).optional(),
   email: z.string().email().optional(),
-  birthDate: isoDateTimeSchema.optional(),
+  birthDate: isoDateSchema.optional(),
   declaredSource: patientAcquisitionSourceSchema.optional(),
   declaredSourceDetail: z.string().max(200).optional(),
-  medicalProfile: z
-    .object({
-      allergies: z.array(z.string()).default([]),
-      medications: z.array(z.string()).default([]),
-      conditions: z.array(z.string()).default([]),
-      dentalRisks: z.array(z.string()).default([]),
-      notes: z.string().default(""),
-      dentitionStage: z.enum(["primary", "mixed", "permanent"]),
-    })
-    .optional(),
+  medicalProfile: medicalProfileSchema.optional(),
 });
 
-export const updatePatientSchema = createPatientSchema.partial().extend({
+export const updatePatientSchema = createPatientSchema.omit({ recordNumber: true }).partial().extend({
   expectedVersion: versionSchema,
+});
+
+export const archivePatientSchema = z.object({
+  expectedVersion: versionSchema,
+  reason: z.string().trim().max(500).optional(),
+});
+
+export const restorePatientSchema = z.object({
+  expectedVersion: versionSchema,
+});
+
+export const patientLifecycleResultSchema = z.object({
+  conflict: z.boolean(),
+  id: idSchema.optional(),
+  version: versionSchema.optional(),
+  archivedAt: isoDateTimeSchema.nullable().optional(),
+  archivedReason: z.string().nullable().optional(),
 });
 
 export const appointmentStatusSchema = z.enum([
@@ -203,6 +225,12 @@ export const documentSchema = z.object({
   type: z.string().min(1),
   title: z.string().min(1),
   status: z.string().min(1),
+  fileName: z.string().nullable().optional(),
+  mimeType: z.string().nullable().optional(),
+  checksum: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
+  version: z.number().int().positive(),
+  previousVersionId: idSchema.nullable().optional(),
+  fileSizeBytes: z.number().int().nonnegative().nullable().optional(),
   createdAt: isoDateTimeSchema,
 });
 
@@ -293,15 +321,11 @@ export const loginRequestSchema = z.object({
   identifier: z.string().min(1),
   password: z.string().min(1),
   deviceLabel: z.string().max(120).optional(),
-});
-
-export const pinLoginRequestSchema = z.object({
-  identifier: z.string().min(1),
-  pin: z.string().min(4).max(12),
+  clinicId: idSchema.optional(),
 });
 
 export const passwordResetRequestSchema = z.object({
-  identifier: z.string().min(1),
+  identifier: z.string().email(),
 });
 
 export const resetPasswordSchema = z.object({
@@ -337,6 +361,17 @@ export const sessionResponseSchema = z.object({
   permissions: z.array(permissionSchema),
 });
 
+export const authSessionSchema = z.object({
+  id: idSchema,
+  device: z.string().min(1),
+  lastSeenAt: isoDateTimeSchema,
+  expiresAt: isoDateTimeSchema,
+  current: z.boolean(),
+  revoked: z.boolean(),
+});
+
+export const authSessionsSchema = z.object({ items: z.array(authSessionSchema) });
+
 export const eventEnvelopeSchema = z.object({
   id: idSchema,
   type: z.string().min(1),
@@ -357,7 +392,6 @@ export type LabTransition = z.infer<typeof labTransitionSchema>;
 export type RecordPayment = z.infer<typeof recordPaymentSchema>;
 export type Prescription = z.infer<typeof prescriptionSchema>;
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
-export type PinLoginRequest = z.infer<typeof pinLoginRequestSchema>;
 export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>;
 export type ResetPassword = z.infer<typeof resetPasswordSchema>;
 export type ChangePassword = z.infer<typeof changePasswordSchema>;

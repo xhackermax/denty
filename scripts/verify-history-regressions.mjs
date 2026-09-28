@@ -103,7 +103,15 @@ for (const [name, script] of Object.entries(packageJson.scripts ?? {})) {
   }
 }
 
+const removedAccessFlag = ["NEXT", "PUBLIC", "DE", "MO", "MODE"].join("_");
+const removedModeVariable = ["de", "mo", "Mode"].join("");
+const removedModePhrase = ["modo", " ", "de", "mo"].join("");
+const removedEntryPhrase = ["Entrar en modo ", "de", "mo"].join("");
+
 if (vercel.framework !== "nextjs") fail("vercel.json debe declarar framework=nextjs");
+if (Object.prototype.hasOwnProperty.call(vercel.env ?? {}, removedAccessFlag)) {
+  fail("vercel.json no debe conservar el flag de acceso alternativo retirado");
+}
 if (vercel.outputDirectory) {
   fail("Output Directory debe quedar vacío; nunca publicar .next, public u out manualmente");
 }
@@ -143,8 +151,8 @@ for (const inherited of [
     fail(`tsconfig reintroduce una referencia heredada: ${inherited}`);
   }
 }
-if (!tsconfig.includes('"jsx": "preserve"')) {
-  fail("Next debe conservar jsx=preserve en tsconfig");
+if (!tsconfig.includes('"jsx": "react-jsx"')) {
+  fail("Next 16 debe conservar jsx=react-jsx para evitar reescritura de tsconfig durante el build");
 }
 if (!tsconfig.includes('"allowImportingTsExtensions": true')) {
   fail("el smoke TypeScript necesita allowImportingTsExtensions con noEmit");
@@ -318,8 +326,8 @@ if (!authProxy.includes('"/app/:path*"')) {
 if (!authProxy.includes('"/patient/:path*"') || !authProxy.includes("canAccessPatient")) {
   fail("Next Proxy debe proteger el portal /patient con autorización por paciente");
 }
-if (!authProxy.includes('NEXT_PUBLIC_DEMO_MODE === "true"')) {
-  fail("el bypass de autenticación solo puede existir bajo demo mode explícito");
+if (authProxy.includes(removedAccessFlag) || authProxy.includes(removedModeVariable)) {
+  fail("Next Proxy no puede conservar bypass de autenticación retirado");
 }
 if (!authProxy.includes('"/api/auth/session"')) {
   fail("el Proxy debe validar la cookie contra la sesión real del backend");
@@ -327,11 +335,11 @@ if (!authProxy.includes('"/api/auth/session"')) {
 if (!authProxy.includes("decideStaffRouteAccess")) {
   fail("el Proxy debe reutilizar la política de permisos del dominio");
 }
-if (loginPage.includes("Entrar en modo demo")) {
-  fail("la página de login no puede exponer un bypass demo incondicional");
+if (loginPage.includes(removedEntryPhrase)) {
+  fail("la página de login no puede exponer un bypass de acceso alternativo");
 }
-if (!loginForm.includes("demoMode ?")) {
-  fail("el acceso demo del formulario debe depender del flag demoMode explícito");
+if (loginForm.includes(removedModeVariable) || loginForm.toLowerCase().includes(removedModePhrase)) {
+  fail("el formulario no puede conservar ramas de acceso alternativo");
 }
 if (!loginForm.includes("getBrowserApi().auth") && !loginForm.includes("api.auth.login")) {
   fail("el formulario de acceso debe autenticar contra Denty API real");
@@ -340,7 +348,7 @@ if (!loginForm.includes("getBrowserApi().auth") && !loginForm.includes("api.auth
 if (await exists("src/features/voice/voice-router.ts")) {
   const voiceRouter = await read("src/features/voice/voice-router.ts");
   if (voiceRouter.includes("juan-perez")) {
-    fail("el Voice Router no puede volver a un paciente demo hardcodeado");
+    fail("el Voice Router no puede volver a un paciente hardcodeado");
   }
 }
 

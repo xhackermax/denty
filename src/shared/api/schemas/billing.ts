@@ -53,6 +53,34 @@ export const budgetSchema = z
 
 export const budgetsSchema = z.object({ items: z.array(budgetSchema) });
 
+export const finalizeBudgetSignatureInputSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  signerName: z.string().trim().min(1),
+  signatureData: z.string().min(1),
+});
+
+export const finalizedBudgetSignatureSchema = z.object({
+  budget: z
+    .object({
+      id: idSchema,
+      status: z.literal("SIGNED"),
+      version: z.number().int().positive(),
+      revision: z.number().int().positive(),
+      totalCents: z.number().int().nonnegative(),
+      sourcePlanVersion: z.number().int().positive().nullable().optional(),
+    })
+    .passthrough(),
+  snapshot: z
+    .object({
+      id: idSchema,
+      budgetId: idSchema,
+      revision: z.number().int().positive(),
+      signedAt: z.coerce.string(),
+    })
+    .passthrough(),
+});
+
+
 export const invoiceSeriesSchema = z
   .object({
     id: idSchema,

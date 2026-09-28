@@ -1,0 +1,29 @@
+DENTY · ODONTOGRAMA M/D + RUEDA INFINITA · 23/09/2026
+
+Cambios incluidos:
+1. Mesial y distal:
+   - Las zonas tactiles M/D ya no quedan recortadas por el clipPath de la corona.
+   - Las piezas 1, 2, 3, 4 y 5 de los cuatro cuadrantes usan hitboxes proximales ampliados.
+   - Los hitboxes capturan explicitamente eventos de puntero/toque.
+   - Se conserva la orientacion anatomica M/D por cuadrante.
+
+2. Selector de odontogramas:
+   - General, Periodonto, Ortodoncia, Pediatrico, Endodoncia e Historial se muestran en rueda horizontal.
+   - Tres ciclos visuales permiten desplazamiento continuo/infinito.
+   - Al acercarse a un extremo, el scroll se recentra sin cambiar la seleccion.
+   - Flechas anterior/siguiente envuelven de principio a fin y viceversa.
+   - Los nombres no se cortan y cada elemento hace scroll-snap al centro.
+   - Rueda de raton y gesto horizontal desplazan el carrusel.
+
+Validacion dependency-free:
+- scripts/tests/odontogram-ui-regression.mjs
+- verify-history-regressions
+- verify-deployable-package
+- verify-api-parity
+- verify-bff-policy
+- verify-vercel-regression-matrix
+
+Nota de entorno:
+El proyecto declara Node 24.x. El contenedor de validacion disponible usa Node 22.16,
+por lo que el build completo de Next no se certifica localmente en este artefacto.
+Vercel debe respetar engines.node=24.x durante el despliegue.

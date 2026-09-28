@@ -11,6 +11,27 @@ import "@/styles/global.css";
 
 import { Providers } from "./providers";
 
+const timeColorSchemeScript = `
+(function () {
+  try {
+    var preference = localStorage.getItem("denty-appearance");
+    var scheme = preference === "light" || preference === "dark" ? preference : null;
+    if (!scheme) {
+      var parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/Madrid",
+        hour: "2-digit",
+        hourCycle: "h23"
+      }).formatToParts(new Date());
+      var hourPart = parts.find(function (part) { return part.type === "hour"; });
+      var hour = Number(hourPart && hourPart.value);
+      scheme = hour >= 7 && hour < 21 ? "light" : "dark";
+    }
+    document.documentElement.setAttribute("data-mantine-color-scheme", scheme);
+  } catch {
+    document.documentElement.setAttribute("data-mantine-color-scheme", "light");
+  }
+})();`;
+
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
   display: "swap",
@@ -27,7 +48,8 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="es" data-density="comfortable" {...mantineHtmlProps}>
       <head>
-        <ColorSchemeScript defaultColorScheme="auto" />
+        <ColorSchemeScript defaultColorScheme="light" />
+        <script dangerouslySetInnerHTML={{ __html: timeColorSchemeScript }} />
       </head>
       <body className={inter.variable}>
         <Providers messages={ES_MESSAGES}>{children}</Providers>

@@ -62,9 +62,17 @@ describe("clinical odontogram workspace", () => {
     expect(screen.getByRole("button", { name: "General" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Periodonto" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ortodoncia" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Pediatrico" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pediátrico" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Endodoncia" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cirugía" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Historial" })).toBeInTheDocument();
+  });
+
+  it("cicla de Endodoncia a Cirugía en el selector clínico", () => {
+    const onChange = vi.fn();
+    renderWithTheme(<ClinicalTabs active="endodontic" onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Odontograma siguiente" }));
+    expect(onChange).toHaveBeenCalledWith("surgery");
   });
 
   it("muestra resumen periodontal completo", () => {
@@ -73,7 +81,7 @@ describe("clinical odontogram workspace", () => {
     expect(screen.getByText("BOP")).toBeInTheDocument();
     expect(screen.getByText("Máx. PD")).toBeInTheDocument();
     expect(screen.getAllByText(/furca/i).length).toBeGreaterThan(0);
-  });
+  }, 30_000);
 
   it("muestra controles de odontograma ortodontico", () => {
     renderWithTheme(

@@ -1,140 +1,52 @@
 "use client";
 
-import { Badge, Button, Select, Text } from "@mantine/core";
-import { useState } from "react";
+import { Alert, Badge, Button, Group, Stack, Text } from "@mantine/core";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { getBrowserApi } from "@/shared/api/browser";
+import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
 
-type AlertPriority = "HIGH" | "MEDIUM" | "LOW";
-type AlertStatus = "OPEN" | "IN_REVIEW" | "SNOOZED" | "RESOLVED";
-
-interface AlertRow {
-  id: string;
-  priority: AlertPriority;
-  status: AlertStatus;
-  message: string;
-  area: string;
-  assignee?: string | undefined;
-}
-
-const INITIAL_ALERTS: readonly AlertRow[] = [
-  {
-    id: "ALT-101",
-    priority: "HIGH",
-    status: "OPEN",
-    message: "Laboratorio retrasado LAB-1042",
-    area: "Laboratorio",
-  },
-  {
-    id: "ALT-102",
-    priority: "MEDIUM",
-    status: "IN_REVIEW",
-    message: "Presupuesto de Juan Pérez pendiente",
-    area: "Pacientes",
-    assignee: "Máximo Tiburcio",
-  },
-  {
-    id: "ALT-103",
-    priority: "LOW",
-    status: "SNOOZED",
-    message: "Revisar copia cifrada semanal",
-    area: "Seguridad",
-    assignee: "Administración",
-  },
-];
-
-function priorityColor(priority: AlertPriority): string {
-  if (priority === "HIGH") return "red";
-  if (priority === "MEDIUM") return "yellow";
-  return "blue";
-}
-
-function statusColor(status: AlertStatus): string {
-  if (status === "RESOLVED") return "green";
-  if (status === "SNOOZED") return "gray";
-  if (status === "IN_REVIEW") return "blue";
-  return "orange";
+function textValue(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value : fallback;
 }
 
 export function AlertsModule() {
-  const [alerts, setAlerts] = useState<AlertRow[]>(() => [...INITIAL_ALERTS]);
-
-  const patch = (id: string, update: Partial<AlertRow>) => {
-    setAlerts((current) =>
-      current.map((alert) => (alert.id === id ? { ...alert, ...update } : alert)),
-    );
+  const queryClient = useQueryClient();
+  const alerts = useQuery({
+    queryKey: dentyQueryKeys.alerts.all,
+    queryFn: () => getBrowserApi().engagement.alerts.list(),
+  });
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.alerts.root });
+    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.dashboard.root });
   };
+  const resolve = useMutation({ mutationFn: (id: string) => getBrowserApi().engagement.alerts.resolve(id), onSuccess: invalidate });
+  const review = useMutation({ mutationFn: (id: string) => getBrowserApi().engagement.alerts.review(id), onSuccess: invalidate });
+
+  if (alerts.isError) return <Alert color="red">No se pudieron cargar las alertas. No se muestran sustitutos locales.</Alert>;
 
   return (
-    <section className={styles.section}>
-      <div className={styles.sectionHeader}>
-        <div className={styles.sectionHeaderText}>
-          <h2 className={styles.sectionTitle}>Centro de alertas</h2>
-          <p className={styles.sectionDescription}>
-            Asignación, revisión, aplazado y resolución con estado explícito.
-          </p>
-        </div>
-        <Text size="sm" c="dimmed">
-          {alerts.filter((alert) => alert.status !== "RESOLVED").length} pendientes
-        </Text>
-      </div>
-
+    <Stack gap="md">
+      <Group justify="space-between"><Text fw={700}>Alertas abiertas</Text><Badge color={alerts.data?.criticalCount ? "red" : "gray"}>{alerts.data?.openCount ?? 0}</Badge></Group>
       <div className={styles.rowList}>
-        {alerts.map((alert) => (
-          <div className={styles.row} key={alert.id}>
-            <div className={styles.rowMain}>
-              <span className={styles.rowTitle}>{alert.message}</span>
-              <span className={styles.rowMeta}>
-                {alert.id} · {alert.area}
-                {alert.assignee ? ` · ${alert.assignee}` : " · Sin asignar"}
-              </span>
+        {(alerts.data?.items ?? []).map((item) => {
+          const row = item as Record<string, unknown>;
+          return (
+            <div className={styles.row} key={item.id}>
+              <div className={styles.rowMain}>
+                <span className={styles.rowTitle}>{textValue(row.title, "Alerta")}</span>
+                <span className={styles.rowMeta}>{textValue(row.message, textValue(row.description, "Pendiente de revisión"))}</span>
+              </div>
+              <div className={styles.rowActions}>
+                <Button size="xs" variant="light" onClick={() => review.mutate(item.id)} loading={review.isPending}>Revisada</Button>
+                <Button size="xs" onClick={() => resolve.mutate(item.id)} loading={resolve.isPending}>Resolver</Button>
+              </div>
             </div>
-            <div className={styles.rowActions}>
-              <Badge color={priorityColor(alert.priority)} variant="light">
-                {alert.priority}
-              </Badge>
-              <Badge color={statusColor(alert.status)} variant="outline">
-                {alert.status}
-              </Badge>
-              <Select
-                size="xs"
-                placeholder="Asignar"
-                value={alert.assignee ?? null}
-                onChange={(value) => patch(alert.id, { assignee: value ?? undefined })}
-                data={["Máximo Tiburcio", "Isaac Tiburcio", "Recepción", "Administración"]}
-              />
-              {alert.status === "OPEN" ? (
-                <Button
-                  size="xs"
-                  variant="light"
-                  onClick={() => patch(alert.id, { status: "IN_REVIEW" })}
-                >
-                  Revisar
-                </Button>
-              ) : null}
-              {alert.status !== "RESOLVED" ? (
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  onClick={() => patch(alert.id, { status: "SNOOZED" })}
-                >
-                  Posponer
-                </Button>
-              ) : null}
-              {alert.status !== "RESOLVED" ? (
-                <Button
-                  size="xs"
-                  color="green"
-                  variant="light"
-                  onClick={() => patch(alert.id, { status: "RESOLVED" })}
-                >
-                  Resolver
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        ))}
+          );
+        })}
+        {!alerts.isLoading && (alerts.data?.items.length ?? 0) === 0 ? <Text c="dimmed">No hay alertas persistidas.</Text> : null}
       </div>
-    </section>
+    </Stack>
   );
 }

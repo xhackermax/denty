@@ -15,6 +15,10 @@ import {
   updateUserSchema,
   userSchema,
   usersSchema,
+  treatmentCatalogCreateSchema,
+  treatmentCatalogItemSchema,
+  treatmentCatalogSchema,
+  treatmentCatalogUpdateSchema,
 } from "../schemas/admin";
 import { encodeId } from "./shared";
 import { withQuery } from "./shared";
@@ -23,6 +27,22 @@ const okSchema = z.object({ ok: z.literal(true) });
 
 export function createAdminResource(client: ApiClient) {
   return {
+    treatmentCatalog: {
+      list: () => client.request("/api/admin/treatment-catalog", treatmentCatalogSchema),
+      create: (payload: z.input<typeof treatmentCatalogCreateSchema>) =>
+        client.mutation(
+          "/api/admin/treatment-catalog",
+          treatmentCatalogItemSchema,
+          treatmentCatalogCreateSchema.parse(payload),
+        ),
+      update: (id: string, payload: z.input<typeof treatmentCatalogUpdateSchema>) =>
+        client.mutation(
+          `/api/admin/treatment-catalog/${encodeId(id)}`,
+          treatmentCatalogItemSchema,
+          treatmentCatalogUpdateSchema.parse(payload),
+          { method: "PATCH" },
+        ),
+    },
     users: {
       list: () => client.request("/api/users", usersSchema),
       create: (payload: z.input<typeof createUserSchema>) =>

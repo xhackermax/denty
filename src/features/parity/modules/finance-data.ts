@@ -14,7 +14,9 @@ import { recordPaymentSchema } from "@/shared/api/contracts";
 import { dentyQueryKeys } from "@/shared/query";
 
 function invalidateFinance(queryClient: ReturnType<typeof useQueryClient>) {
-  void queryClient.invalidateQueries({ queryKey: ["finance"] });
+  void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.finance.root });
+  void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.analytics.root });
+  void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.dashboard.root });
 }
 
 export function useFinanceQueries(enabled: boolean) {
@@ -44,22 +46,22 @@ export function useFinanceQueries(enabled: boolean) {
     enabled,
   });
   const treatments = useQuery({
-    queryKey: ["finance", "analytics", "treatments"],
+    queryKey: dentyQueryKeys.analytics.treatments(),
     queryFn: () => getBrowserApi().analytics.treatments(),
     enabled,
   });
   const doctors = useQuery({
-    queryKey: ["finance", "analytics", "doctors"],
+    queryKey: dentyQueryKeys.analytics.doctors(),
     queryFn: () => getBrowserApi().analytics.doctors(),
     enabled,
   });
   const monthly = useQuery({
-    queryKey: ["finance", "analytics", "monthly"],
+    queryKey: dentyQueryKeys.analytics.monthly(),
     queryFn: () => getBrowserApi().analytics.monthly(),
     enabled,
   });
   const profitability = useQuery({
-    queryKey: ["finance", "analytics", "profitability"],
+    queryKey: dentyQueryKeys.analytics.profitability(),
     queryFn: () => getBrowserApi().analytics.profitability(),
     enabled,
   });

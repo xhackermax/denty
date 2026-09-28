@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Alert,
-  Button,
-  PasswordInput,
-  SegmentedControl,
-  Stack,
-  Text,
-  TextInput,
-} from "@mantine/core";
+import { Alert, Button, PasswordInput, SegmentedControl, Stack, Text, TextInput } from "@mantine/core";
 import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -16,10 +8,9 @@ import { useState, type FormEvent } from "react";
 import { DentyApiError } from "@/shared/api/errors";
 import { getBrowserApi } from "@/shared/api/browser";
 
-type AccessMode = "login" | "request" | "reset";
+type AccessMode = "login" | "request";
 
 interface LoginFormProps {
-  demoMode: boolean;
   nextPath: string;
 }
 
@@ -28,13 +19,11 @@ function errorMessage(error: unknown): string {
   return "No se pudo completar la operación.";
 }
 
-export function LoginForm({ demoMode, nextPath }: LoginFormProps) {
+export function LoginForm({ nextPath }: LoginFormProps) {
   const router = useRouter();
   const [mode, setMode] = useState<AccessMode>("login");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [token, setToken] = useState("");
-  const [newPassword, setNewPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -51,25 +40,15 @@ export function LoginForm({ demoMode, nextPath }: LoginFormProps) {
         await api.auth.login({
           identifier,
           password,
-          deviceLabel: navigator.platform || "Navegador",
+          deviceLabel: navigator.userAgent || "Navegador",
         });
         router.replace(nextPath);
         router.refresh();
         return;
       }
 
-      if (mode === "request") {
-        await api.auth.requestPasswordReset({ identifier });
-        setMessage("Si la cuenta existe, se han generado instrucciones de recuperación.");
-        setMode("reset");
-        return;
-      }
-
-      await api.auth.resetPassword({ token, newPassword });
-      setMessage("Contraseña actualizada. Ya puedes iniciar sesión.");
-      setToken("");
-      setNewPassword("");
-      setMode("login");
+      await api.auth.requestPasswordReset({ identifier });
+      setMessage("Si la cuenta existe, Supabase Auth ha enviado un enlace seguro de recuperación.");
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -89,15 +68,14 @@ export function LoginForm({ demoMode, nextPath }: LoginFormProps) {
           ]}
         />
 
-        {mode !== "reset" ? (
-          <TextInput
-            label="Usuario o email"
-            value={identifier}
-            onChange={(event) => setIdentifier(event.currentTarget.value)}
-            autoComplete="username"
-            required
-          />
-        ) : null}
+        <TextInput
+          label={mode === "login" ? "Email o teléfono" : "Email"}
+          type={mode === "request" ? "email" : "text"}
+          value={identifier}
+          onChange={(event) => setIdentifier(event.currentTarget.value)}
+          autoComplete="username"
+          required
+        />
 
         {mode === "login" ? (
           <PasswordInput
@@ -107,24 +85,6 @@ export function LoginForm({ demoMode, nextPath }: LoginFormProps) {
             autoComplete="current-password"
             required
           />
-        ) : null}
-
-        {mode === "reset" ? (
-          <>
-            <TextInput
-              label="Token de recuperación"
-              value={token}
-              onChange={(event) => setToken(event.currentTarget.value)}
-              required
-            />
-            <PasswordInput
-              label="Nueva contraseña"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.currentTarget.value)}
-              autoComplete="new-password"
-              required
-            />
-          </>
         ) : null}
 
         {error ? (
@@ -139,33 +99,11 @@ export function LoginForm({ demoMode, nextPath }: LoginFormProps) {
         ) : null}
 
         <Button type="submit" loading={pending}>
-          {mode === "login"
-            ? "Entrar"
-            : mode === "request"
-              ? "Solicitar recuperación"
-              : "Cambiar contraseña"}
+          {mode === "login" ? "Entrar" : "Enviar enlace de recuperación"}
         </Button>
 
-        {mode === "reset" ? (
-          <Button variant="subtle" onClick={() => setMode("login")}>
-            Volver al acceso
-          </Button>
-        ) : null}
-
-        {demoMode ? (
-          <Button
-            variant="light"
-            onClick={() => {
-              router.replace("/app");
-              router.refresh();
-            }}
-          >
-            Entrar en modo demo
-          </Button>
-        ) : null}
-
         <Text size="xs" c="dimmed">
-          La sesión profesional se mantiene mediante cookie httpOnly del servidor.
+          El acceso real usa Supabase Auth. El número de ficha y el DNI no funcionan como credenciales.
         </Text>
       </Stack>
     </form>

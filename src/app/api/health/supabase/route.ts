@@ -1,4 +1,6 @@
 import { getServerEnv } from "@/shared/config/env";
+import { resolveSupabaseCredentials } from "@/server/supabase/credentials";
+import { buildSupabaseRestHeaders } from "@/server/supabase/rest-client";
 
 function json(status: number, body: Record<string, unknown>): Response {
   return Response.json(body, {
@@ -11,10 +13,9 @@ function json(status: number, body: Record<string, unknown>): Response {
 
 export async function GET(): Promise<Response> {
   const env = getServerEnv();
-  const supabaseUrl = env.SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const credentials = resolveSupabaseCredentials(env);
 
-  if (!supabaseUrl || !supabaseKey) {
+  if (!credentials) {
     return json(503, {
       ok: false,
       service: "supabase",
@@ -23,11 +24,11 @@ export async function GET(): Promise<Response> {
   }
 
   try {
-    const response = await fetch(new URL("/rest/v1/", supabaseUrl), {
-      headers: {
-        apikey: supabaseKey,
-        authorization: `Bearer ${supabaseKey}`,
-      },
+    const healthUrl = new URL("/rest/v1/clinics", credentials.url);
+    healthUrl.searchParams.set("select", "id");
+    healthUrl.searchParams.set("limit", "1");
+    const response = await fetch(healthUrl, {
+      headers: buildSupabaseRestHeaders(credentials.key),
       cache: "no-store",
     });
 

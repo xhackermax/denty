@@ -1,0 +1,485 @@
+import { normalizeRole, permissionsForRole, type Permission, type Role } from "@/domain/permissions";
+
+import type { SupabaseAuthClient } from "../supabase/auth-client";
+import type { SupabaseRestClient } from "../supabase/rest-client";
+
+const APP_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+interface ProfileRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  active: boolean;
+}
+
+interface ClinicMemberRow {
+  id: string;
+  clinic_id: string;
+  profile_id: string;
+  role: string;
+  active: boolean;
+  is_default?: boolean | null;
+}
+
+interface PatientAccountRow {
+  id: string;
+  clinic_id: string;
+  patient_id: string;
+  profile_id: string;
+  active: boolean;
+  is_default?: boolean | null;
+}
+
+interface UserPermissionRow {
+  permission: Permission;
+  allowed: boolean;
+}
+
+interface StaffMemberRow {
+  id: string;
+  clinic_id: string;
+  profile_id: string | null;
+  display_name: string;
+  role: string;
+  active: boolean;
+}
+
+interface AppSessionRow {
+  id: string;
+  profile_id: string;
+  clinic_id: string;
+  auth_session_id: string | null;
+  device_label: string;
+  user_agent: string | null;
+  last_seen_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  created_at: string;
+}
+
+export interface AuthenticatedActor {
+  userId: string;
+  clinicId: string;
+  displayName: string;
+  role: Role;
+  permissions: Permission[];
+  staffId?: string | undefined;
+  patientIds?: string[] | undefined;
+}
+
+export interface AuthSessionView {
+  id: string;
+  device: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  current: boolean;
+  revoked: boolean;
+}
+
+export class ClinicSelectionRequiredError extends Error {
+  constructor(readonly clinics: string[]) {
+    super("La cuenta pertenece a varias clínicas y necesita una clínica predeterminada.");
+  }
+}
+
+export class IdentityConfigurationError extends Error {}
+
+export class AuthRepository {
+  constructor(
+    private readonly client: SupabaseRestClient,
+    private readonly options: {
+      adminClient?: SupabaseRestClient | undefined;
+      authClient?: SupabaseAuthClient | undefined;
+    } = {},
+  ) {}
+
+  async resolveActor(
+    userId: string,
+    options: { appSessionId?: string | undefined; requestedClinicId?: string | undefined } = {},
+  ): Promise<AuthenticatedActor | null> {
+    const profile = await this.getProfile(userId);
+    if (!profile?.active) return null;
+
+    const sessionClinicId = options.appSessionId
+      ? await this.getActiveSessionClinic(userId, options.appSessionId)
+      : null;
+    if (options.appSessionId && !sessionClinicId) return null;
+    const requestedClinicId = options.requestedClinicId ?? sessionClinicId ?? undefined;
+
+    const memberships = await this.client.select<ClinicMemberRow>("clinic_members", {
+      select: "id,clinic_id,profile_id,role,active,is_default",
+      profile_id: `eq.${userId}`,
+      active: "eq.true",
+    });
+    const staffMemberships = memberships.filter((row) => normalizeRole(row.role) !== "PATIENT");
+
+    const patientAccounts = await this.client.select<PatientAccountRow>("patient_accounts", {
+      select: "id,clinic_id,patient_id,profile_id,active,is_default",
+      profile_id: `eq.${userId}`,
+      active: "eq.true",
+    });
+
+    if (staffMemberships.length > 0) {
+      const membership = chooseRecord(staffMemberships, requestedClinicId);
+      if (!membership) return null;
+      const role = normalizeRole(membership.role);
+      const permissions = await this.resolvePermissions(role, membership.id);
+      const staffId = await this.resolveStaffId(userId, membership.clinic_id, role);
+      return {
+        userId,
+        clinicId: membership.clinic_id,
+        displayName: displayName(profile),
+        role,
+        permissions,
+        ...(staffId ? { staffId } : {}),
+      };
+    }
+
+    if (patientAccounts.length > 0) {
+      const selected = chooseRecord(patientAccounts, requestedClinicId);
+      if (!selected) return null;
+      const patientIds = patientAccounts
+        .filter((row) => row.clinic_id === selected.clinic_id)
+        .map((row) => row.patient_id);
+      return {
+        userId,
+        clinicId: selected.clinic_id,
+        displayName: displayName(profile),
+        role: "PATIENT",
+        permissions: permissionsForRole("PATIENT"),
+        patientIds,
+      };
+    }
+
+    return null;
+  }
+
+  async createAppSession(input: {
+    actor: AuthenticatedActor;
+    authSessionId?: string | null | undefined;
+    deviceLabel?: string | undefined;
+    userAgent?: string | null | undefined;
+  }): Promise<AppSessionRow> {
+    return this.client.insert<AppSessionRow>("app_sessions", {
+      profile_id: input.actor.userId,
+      clinic_id: input.actor.clinicId,
+      auth_session_id: input.authSessionId ?? null,
+      device_label: cleanDeviceLabel(input.deviceLabel),
+      user_agent: input.userAgent?.slice(0, 500) ?? null,
+      expires_at: new Date(Date.now() + APP_SESSION_TTL_MS).toISOString(),
+    });
+  }
+
+  async touchAppSession(userId: string, appSessionId: string): Promise<void> {
+    await this.client.patchMany(
+      "app_sessions",
+      { id: `eq.${appSessionId}`, profile_id: `eq.${userId}`, revoked_at: "is.null" },
+      {
+        last_seen_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + APP_SESSION_TTL_MS).toISOString(),
+      },
+    );
+  }
+
+  async listSessions(userId: string, currentSessionId: string): Promise<{ items: AuthSessionView[] }> {
+    const rows = await this.client.select<AppSessionRow>("app_sessions", {
+      select: "id,profile_id,clinic_id,auth_session_id,device_label,user_agent,last_seen_at,expires_at,revoked_at,created_at",
+      profile_id: `eq.${userId}`,
+      order: "last_seen_at.desc",
+    });
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        device: row.device_label,
+        lastSeenAt: row.last_seen_at,
+        expiresAt: row.expires_at,
+        current: row.id === currentSessionId,
+        revoked: Boolean(row.revoked_at),
+      })),
+    };
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    await this.client.patchMany(
+      "app_sessions",
+      { id: `eq.${sessionId}`, profile_id: `eq.${userId}`, revoked_at: "is.null" },
+      { revoked_at: new Date().toISOString() },
+    );
+  }
+
+  async listUsers(clinicId: string) {
+    const memberships = await this.client.select<ClinicMemberRow>("clinic_members", {
+      select: "id,clinic_id,profile_id,role,active,is_default",
+      clinic_id: `eq.${clinicId}`,
+      order: "created_at.asc",
+    });
+    if (memberships.length === 0) return { items: [] };
+    const profileIds = memberships.map((row) => row.profile_id);
+    const profiles = await this.client.select<ProfileRow>("profiles", {
+      select: "id,first_name,last_name,email,active",
+      id: `in.(${profileIds.join(",")})`,
+    });
+    const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
+    return {
+      items: memberships
+        .map((membership) => {
+          const profile = profileMap.get(membership.profile_id);
+          return {
+            id: membership.profile_id,
+            displayName: profile ? displayName(profile) : "Usuario",
+            email: profile?.email ?? undefined,
+            role: normalizeRole(membership.role),
+            active: membership.active && (profile?.active ?? true),
+          };
+        })
+        .sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    };
+  }
+
+  async createUser(input: {
+    clinicId: string;
+    email: string;
+    displayName: string;
+    role: Role;
+    password: string;
+    staffId?: string | undefined;
+    patientId?: string | undefined;
+  }) {
+    const admin = this.requireAdminDependencies();
+    if (input.role === "PATIENT" && !input.patientId) {
+      throw new IdentityConfigurationError("patientId es obligatorio para una cuenta de paciente.");
+    }
+
+    const authUser = await admin.authClient.adminCreateUser({
+      email: input.email,
+      password: input.password,
+      displayName: input.displayName,
+      emailConfirm: true,
+    });
+
+    try {
+      await ensureProfile(admin.adminClient, authUser.id, input.email, input.displayName);
+
+      if (input.role === "PATIENT") {
+        await admin.adminClient.insert<PatientAccountRow>("patient_accounts", {
+          clinic_id: input.clinicId,
+          patient_id: input.patientId as string,
+          profile_id: authUser.id,
+          active: true,
+          is_default: true,
+        });
+      } else {
+        await admin.adminClient.insert<ClinicMemberRow>("clinic_members", {
+          clinic_id: input.clinicId,
+          profile_id: authUser.id,
+          role: input.role,
+          staff_type: staffTypeForRole(input.role),
+          active: true,
+          is_default: true,
+        });
+
+        if (input.staffId) {
+          await admin.adminClient.patchMany(
+            "staff_members",
+            { id: `eq.${input.staffId}`, clinic_id: `eq.${input.clinicId}` },
+            { profile_id: authUser.id, role: input.role, active: true },
+          );
+        } else {
+          await admin.adminClient.insert<StaffMemberRow>("staff_members", {
+            clinic_id: input.clinicId,
+            profile_id: authUser.id,
+            display_name: input.displayName,
+            role: input.role,
+            active: true,
+          });
+        }
+      }
+    } catch (caught) {
+      await admin.authClient.adminDeleteUser(authUser.id).catch(() => undefined);
+      throw caught;
+    }
+
+    return {
+      id: authUser.id,
+      displayName: input.displayName,
+      email: input.email.trim().toLowerCase(),
+      role: input.role,
+      active: true,
+    };
+  }
+
+  async updateUser(
+    clinicId: string,
+    userId: string,
+    input: { displayName?: string | undefined; role?: Role | undefined; active?: boolean | undefined },
+  ) {
+    const admin = this.requireAdminDependencies();
+    const memberships = await admin.adminClient.select<ClinicMemberRow>("clinic_members", {
+      select: "id,clinic_id,profile_id,role,active,is_default",
+      clinic_id: `eq.${clinicId}`,
+      profile_id: `eq.${userId}`,
+      limit: 1,
+    });
+    const membership = memberships[0];
+    if (!membership) throw new IdentityConfigurationError("El usuario no pertenece a esta clínica.");
+
+    if (input.displayName) {
+      const { firstName, lastName } = splitDisplayName(input.displayName);
+      await admin.adminClient.patchMany("profiles", { id: `eq.${userId}` }, {
+        first_name: firstName,
+        last_name: lastName,
+      });
+      await admin.authClient.adminUpdateUser(userId, {
+        user_metadata: { display_name: input.displayName },
+      });
+    }
+    if (input.role || input.active !== undefined) {
+      await admin.adminClient.patchMany("clinic_members", { id: `eq.${membership.id}` }, {
+        ...(input.role ? { role: input.role, staff_type: staffTypeForRole(input.role) } : {}),
+        ...(input.active !== undefined ? { active: input.active } : {}),
+      });
+      await admin.adminClient.patchMany(
+        "staff_members",
+        { clinic_id: `eq.${clinicId}`, profile_id: `eq.${userId}` },
+        {
+          ...(input.role ? { role: input.role } : {}),
+          ...(input.active !== undefined ? { active: input.active } : {}),
+        },
+      );
+    }
+    const profile = await this.getProfileWith(admin.adminClient, userId);
+    return {
+      id: userId,
+      displayName: profile ? displayName(profile) : input.displayName ?? "Usuario",
+      email: profile?.email ?? undefined,
+      role: input.role ?? normalizeRole(membership.role),
+      active: input.active ?? membership.active,
+    };
+  }
+
+  async resetUserPassword(userId: string, password: string): Promise<void> {
+    const { authClient } = this.requireAdminDependencies();
+    await authClient.adminUpdateUser(userId, { password });
+  }
+
+  private async getProfile(userId: string): Promise<ProfileRow | null> {
+    return this.getProfileWith(this.client, userId);
+  }
+
+  private async getProfileWith(client: SupabaseRestClient, userId: string): Promise<ProfileRow | null> {
+    const rows = await client.select<ProfileRow>("profiles", {
+      select: "id,first_name,last_name,email,active",
+      id: `eq.${userId}`,
+      limit: 1,
+    });
+    return rows[0] ?? null;
+  }
+
+  private async getActiveSessionClinic(userId: string, sessionId: string): Promise<string | null> {
+    const rows = await this.client.select<AppSessionRow>("app_sessions", {
+      select: "id,profile_id,clinic_id,auth_session_id,device_label,user_agent,last_seen_at,expires_at,revoked_at,created_at",
+      id: `eq.${sessionId}`,
+      profile_id: `eq.${userId}`,
+      revoked_at: "is.null",
+      limit: 1,
+    });
+    const row = rows[0];
+    if (!row || new Date(row.expires_at).getTime() <= Date.now()) return null;
+    return row.clinic_id;
+  }
+
+  private async resolvePermissions(role: Role, membershipId: string): Promise<Permission[]> {
+    const permissions = new Set<Permission>(permissionsForRole(role));
+    const rows = await this.client.select<UserPermissionRow>("user_permissions", {
+      select: "permission,allowed",
+      clinic_member_id: `eq.${membershipId}`,
+    });
+    for (const row of rows) {
+      if (row.allowed) permissions.add(row.permission);
+      else permissions.delete(row.permission);
+    }
+    return [...permissions];
+  }
+
+  private async resolveStaffId(userId: string, clinicId: string, role: Role): Promise<string | undefined> {
+    const rows = await this.client.select<StaffMemberRow>("staff_members", {
+      select: "id,clinic_id,profile_id,display_name,role,active",
+      clinic_id: `eq.${clinicId}`,
+      profile_id: `eq.${userId}`,
+      active: "eq.true",
+    });
+    if (role === "DENTIST" && rows.length !== 1) {
+      throw new IdentityConfigurationError(
+        `Un DENTIST autenticado debe resolver exactamente un staff_member activo; encontrados: ${rows.length}.`,
+      );
+    }
+    return rows[0]?.id;
+  }
+
+  private requireAdminDependencies(): { adminClient: SupabaseRestClient; authClient: SupabaseAuthClient } {
+    if (!this.options.adminClient || !this.options.authClient) {
+      throw new IdentityConfigurationError("Faltan dependencias administrativas de Supabase Auth.");
+    }
+    return { adminClient: this.options.adminClient, authClient: this.options.authClient };
+  }
+}
+
+function chooseRecord<T extends { clinic_id: string; is_default?: boolean | null }>(
+  records: T[],
+  requestedClinicId?: string,
+): T | null {
+  if (requestedClinicId) return records.find((row) => row.clinic_id === requestedClinicId) ?? null;
+  if (records.length === 1) return records[0] ?? null;
+  const defaults = records.filter((row) => row.is_default === true);
+  if (defaults.length === 1) return defaults[0] ?? null;
+  throw new ClinicSelectionRequiredError([...new Set(records.map((row) => row.clinic_id))]);
+}
+
+async function ensureProfile(
+  client: SupabaseRestClient,
+  userId: string,
+  email: string,
+  name: string,
+): Promise<void> {
+  const rows = await client.select<ProfileRow>("profiles", { select: "id", id: `eq.${userId}`, limit: 1 });
+  const { firstName, lastName } = splitDisplayName(name);
+  if (rows[0]) {
+    await client.patchMany("profiles", { id: `eq.${userId}` }, {
+      first_name: firstName,
+      last_name: lastName,
+      email: email.trim().toLowerCase(),
+      active: true,
+    });
+    return;
+  }
+  await client.insert<ProfileRow>("profiles", {
+    id: userId,
+    first_name: firstName,
+    last_name: lastName,
+    email: email.trim().toLowerCase(),
+    active: true,
+  });
+}
+
+function splitDisplayName(value: string): { firstName: string; lastName: string } {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  const firstName = parts.shift() ?? value.trim();
+  return { firstName, lastName: parts.join(" ") };
+}
+
+function displayName(profile: ProfileRow): string {
+  const full = `${profile.first_name} ${profile.last_name}`.trim();
+  return full || profile.email || "Usuario";
+}
+
+function cleanDeviceLabel(value?: string): string {
+  const normalized = value?.trim().slice(0, 120);
+  return normalized || "Navegador";
+}
+
+function staffTypeForRole(role: Role): string | null {
+  if (role === "DENTIST") return "DENTIST";
+  if (role === "RECEPTION") return "SECRETARY";
+  return null;
+}

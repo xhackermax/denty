@@ -21,21 +21,18 @@ import {
 } from "@/shared/clinical/clinical-data";
 import styles from "@/shared/ui/parity.module.css";
 
-interface PatientClinicalSummaryProps {
-  patientId: string;
-  demoMode: boolean;
-}
+interface PatientClinicalSummaryProps { patientId: string; }
 
-export function PatientClinicalSummary({ patientId, demoMode }: PatientClinicalSummaryProps) {
+export function PatientClinicalSummary({ patientId }: PatientClinicalSummaryProps) {
   const [problemTooth, setProblemTooth] = useState("");
   const [problemTitle, setProblemTitle] = useState("");
   const [note, setNote] = useState("");
-  const workflowQuery = useClinicalWorkflowQuery(patientId, !demoMode);
+  const workflowQuery = useClinicalWorkflowQuery(patientId);
   const problemMutation = useCreateClinicalProblemMutation(patientId);
   const encounterMutation = useCreateClinicalEncounterMutation(patientId);
 
   const createProblem = async () => {
-    if (demoMode || !problemTitle.trim()) return;
+    if (!problemTitle.trim()) return;
     await problemMutation.mutateAsync({
       ...(problemTooth.trim() ? { tooth: problemTooth.trim() } : {}),
       title: problemTitle.trim(),
@@ -47,7 +44,7 @@ export function PatientClinicalSummary({ patientId, demoMode }: PatientClinicalS
   };
 
   const createEncounter = async () => {
-    if (demoMode || !note.trim()) return;
+    if (!note.trim()) return;
     await encounterMutation.mutateAsync({
       narrativeNote: note.trim(),
       sign: true,
@@ -55,10 +52,10 @@ export function PatientClinicalSummary({ patientId, demoMode }: PatientClinicalS
     setNote("");
   };
 
-  if (!demoMode && workflowQuery.isError) {
+  if (workflowQuery.isError) {
     return (
       <Alert color="red" title="Error al cargar historia">
-        Denty no ha sustituido la historia remota por datos demo.
+        No se pudo cargar la historia clínica remota.
       </Alert>
     );
   }
@@ -76,14 +73,8 @@ export function PatientClinicalSummary({ patientId, demoMode }: PatientClinicalS
               Hallazgos y diagnósticos separados de los tratamientos del plan.
             </Text>
           </div>
-          <Badge variant="light">{demoMode ? "Demo" : problems.length}</Badge>
+          <Badge variant="light">{problems.length}</Badge>
         </Group>
-
-        {demoMode ? (
-          <Alert mt="lg" color="blue" title="Historia clínica demo">
-            La creación de problemas clínicos solo se persiste con backend configurado.
-          </Alert>
-        ) : (
           <>
             <SimpleGrid cols={{ base: 1, sm: 2 }} mt="lg">
               <TextInput
@@ -109,7 +100,6 @@ export function PatientClinicalSummary({ patientId, demoMode }: PatientClinicalS
               Registrar problema
             </Button>
           </>
-        )}
 
         {problemMutation.isError ? (
           <Alert mt="lg" color="red" title="No se guardó el problema">
@@ -140,11 +130,10 @@ export function PatientClinicalSummary({ patientId, demoMode }: PatientClinicalS
               Notas clínicas firmadas y separadas de la agenda.
             </Text>
           </div>
-          <Badge variant="light">{demoMode ? "Demo" : encounters.length}</Badge>
+          <Badge variant="light">{encounters.length}</Badge>
         </Group>
 
-        {!demoMode ? (
-          <>
+        <>
             <Textarea
               mt="lg"
               minRows={3}
@@ -163,7 +152,6 @@ export function PatientClinicalSummary({ patientId, demoMode }: PatientClinicalS
               Firmar nota clínica
             </Button>
           </>
-        ) : null}
 
         {encounterMutation.isError ? (
           <Alert mt="lg" color="red" title="No se guardó la evolución">

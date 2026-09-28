@@ -1,0 +1,30 @@
+DENTY MOTION SYSTEM 1.0 — IMPLEMENTATION SLICE 01
+Date: 2026-09-26
+
+IMPLEMENTED IN PRODUCT CODE
+- Shared Motion primitives in src/shared/motion/
+  - MotionPage
+  - MotionPressable
+  - MotionScrollReveal
+  - MotionParallax
+  - SpeedingMetric
+  - central motion tokens
+- Desktop sidebar shared-layout active indicator
+- Mobile bottom-nav shared-layout active indicator
+- Route/page entrance motion
+- Oye Denty listening ripple + breathing + executing feedback
+- Patients carousel upgraded with depth, rotateY/Z emphasis and inner avatar/text parallax
+- Reduced-motion fallback for patient carousel
+- Dashboard one-time scroll reveals
+- Dashboard subtle scroll parallax on visual accents
+- Quick-action press feedback
+- SpeedingMetric on the three large financial KPIs only
+
+VERIFICATION PERFORMED
+- scripts/tests/motion-regression.mjs: PASS
+- TypeScript transpile/syntax diagnostics on all modified TS/TSX files: PASS
+
+FULL BUILD LIMITATION IN THIS EXECUTION ENVIRONMENT
+- Project requires Node 24.x; container provides Node 22.16.0.
+- npm dependency restoration could not complete because registry.npmjs.org returned EAI_AGAIN.
+- Therefore npm test/typecheck/build were not claimed as passing here.

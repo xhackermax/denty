@@ -16,6 +16,7 @@ import {
   clinicalSyncStateSchema,
   clinicalWorkflowSchema,
   clinicalWorkflowRecordSchema,
+  consentRequirementsSchema,
   createOdontogramSnapshotSchema,
   createPlanItemSchema,
   endodonticAssessmentInputSchema,
@@ -178,6 +179,13 @@ export function createClinicalResource(client: ApiClient) {
             createOdontogramSnapshotSchema.parse(payload),
           ),
       },
+    },
+    consents: {
+      requirements: (patientId: string) =>
+        client.request(
+          `/api/patients/${encodeId(patientId)}/consent-requirements`,
+          consentRequirementsSchema,
+        ),
     },
     sync: {
       get: (patientId: string) =>

@@ -8,8 +8,8 @@ Cambios de esta revisión:
 - Después de confirmar la firma del paciente, el consentimiento pasa automáticamente al archivo firmado.
 - Acciones "Ver firmado" e "Imprimir / PDF".
 - Desde la ficha del paciente, Documentos abre filtrado por ese paciente.
-- En modo demo las copias firmadas persisten en localStorage (denty:clinical-documents:v3) para sobrevivir recargas del navegador.
+- Las copias firmadas se persisten en el backend documental y conservan su auditoría.
 - SignaturePad acepta etiquetas específicas para distinguir firma del odontólogo y firma del paciente.
 
 Nota de arquitectura:
-La UI conserva la plantilla oficial como contenido base asociado. Para una instalación clínica real, el backend documental debe persistir además una copia inmutable del documento/PDF firmado y su auditoría, no depender únicamente de almacenamiento del navegador.
+La UI conserva la plantilla oficial como contenido base asociado. El backend documental debe persistir una copia inmutable del documento/PDF firmado y su auditoría.

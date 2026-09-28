@@ -1,6 +1,5 @@
 import type { Patient } from "@/shared/api";
 
-import type { DemoPatient } from "@/shared/demo/demo-data";
 
 export interface PatientCardView {
   id: string;
@@ -12,20 +11,8 @@ export interface PatientCardView {
   lastVisitAt?: string | null;
   nextVisitAt?: string | null;
   balanceCents?: number;
-}
-
-export function patientCardFromDemo(patient: DemoPatient): PatientCardView {
-  return {
-    id: patient.id,
-    recordNumber: patient.recordNumber,
-    firstName: patient.firstName,
-    lastName: patient.lastName,
-    ...(patient.photoUrl ? { photoUrl: patient.photoUrl } : {}),
-    dni: patient.dni,
-    ...(patient.lastVisitAt ? { lastVisitAt: patient.lastVisitAt } : {}),
-    ...(patient.nextVisitAt ? { nextVisitAt: patient.nextVisitAt } : {}),
-    balanceCents: patient.balanceCents,
-  };
+  archivedAt?: string | null;
+  version: number;
 }
 
 export function patientCardFromApi(patient: Patient): PatientCardView {
@@ -38,5 +25,7 @@ export function patientCardFromApi(patient: Patient): PatientCardView {
     ...(patient.dni ? { dni: patient.dni } : {}),
     ...(patient.lastVisitAt ? { lastVisitAt: patient.lastVisitAt } : {}),
     ...(patient.nextVisitAt ? { nextVisitAt: patient.nextVisitAt } : {}),
+    ...(patient.archivedAt ? { archivedAt: patient.archivedAt } : {}),
+    version: patient.version,
   };
 }

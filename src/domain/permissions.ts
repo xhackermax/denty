@@ -20,6 +20,7 @@ export const PERMISSIONS = [
   "lab.read",
   "lab.write",
   "settings.manage",
+  "catalog.manage",
   "users.manage",
   "audit.read",
   "analysis.read",

@@ -1,0 +1,43 @@
+// @vitest-environment jsdom
+
+import { MantineProvider } from "@mantine/core";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import { dentyTheme } from "@/styles/theme";
+import { SurgeryPanel } from "./surgery-panel";
+import { surgicalVisualsForTooth } from "./surgery-visuals";
+
+describe("SurgeryPanel", () => {
+  it("commits the selected tooth through the shared batch path", () => {
+    const onCommitBatch = vi.fn();
+    render(
+      <MantineProvider theme={dentyTheme}>
+        <SurgeryPanel
+          selectedTooth="26"
+          entities={[]}
+          readOnly={false}
+          onCommitBatch={onCommitBatch}
+          onWarning={() => undefined}
+        />
+      </MantineProvider>,
+    );
+
+    expect(screen.getByText(/Cirugía · pieza 26/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Registrar" }));
+    expect(onCommitBatch).toHaveBeenCalledWith([
+      expect.objectContaining({ tooth: "26", entityType: "SURGERY", status: "extraction_simple" }),
+    ]);
+  }, 15_000);
+
+  it("exposes restrained text equivalents for surgical SVG marks", () => {
+    const marks = surgicalVisualsForTooth("16", [
+      { id: "implant-16", tooth: "16", entityType: "IMPLANT", status: "implant_planned", active: true },
+      { id: "graft-16", tooth: "16", entityType: "BONE_GRAFT", status: "socket_preservation", active: true },
+    ]);
+    expect(marks.map((mark) => mark.ariaLabel)).toEqual([
+      "Implante planificado en 16",
+      "Regeneración ósea en 16",
+    ]);
+  });
+});

@@ -1,8 +1,6 @@
 import type { Appointment, Patient } from "@/shared/api";
 import type { AgendaContext } from "@/shared/api/schemas/agenda";
 
-import type { DemoAppointment, DemoPatient, DemoStaff } from "@/shared/demo/demo-data";
-
 export type AgendaStatus = Appointment["status"];
 
 export interface AgendaAppointmentView {
@@ -28,15 +26,6 @@ export interface AgendaSiteView {
   name: string;
 }
 
-export function projectDemoAppointments(
-  appointments: readonly DemoAppointment[],
-): readonly AgendaAppointmentView[] {
-  return appointments.map((appointment) => ({
-    ...appointment,
-    version: 1,
-  }));
-}
-
 export function projectApiAppointments(
   appointments: readonly Appointment[],
   patients: readonly Patient[],
@@ -59,26 +48,10 @@ export function projectApiAppointments(
   }));
 }
 
-export function projectDemoStaff(staff: readonly DemoStaff[]): readonly AgendaStaffView[] {
-  return staff.map((member) => ({
-    id: member.id,
-    displayName: member.displayName,
-  }));
-}
-
 export function projectApiStaff(context?: AgendaContext): readonly AgendaStaffView[] {
   return (context?.staff ?? []).map((member) => ({
     id: member.id,
     displayName: member.displayName,
-  }));
-}
-
-export function projectDemoPatients(
-  patients: readonly DemoPatient[],
-): readonly { id: string; label: string }[] {
-  return patients.map((patient) => ({
-    id: patient.id,
-    label: `${patient.firstName} ${patient.lastName} · ${patient.recordNumber}`,
   }));
 }
 

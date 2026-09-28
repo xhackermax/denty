@@ -1,0 +1,43 @@
+.root {
+  position: relative;
+  display: inline-block;
+  min-width: max-content;
+  isolation: isolate;
+}
+
+.value,
+.trail {
+  display: inline-block;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: inherit;
+  line-height: inherit;
+  white-space: nowrap;
+  will-change: transform, filter, opacity;
+}
+
+.value {
+  position: relative;
+  z-index: 2;
+}
+
+.trail {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  color: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.trailFar {
+  z-index: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trail {
+    display: none;
+  }
+}

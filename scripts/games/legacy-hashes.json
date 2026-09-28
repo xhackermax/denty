@@ -1,8 +1,8 @@
 {
   "public/games/denty-games.tokens.css": "47498377fe8daa785057eb1c89decfe9765352e0ab7323d035813d7c23a7077b",
   "public/games/index.html": "dcd6f85d334281ab517b7f233e881d63887303794c5370d2fdfe05894579b562",
-  "public/games/js/app.js": "47fd65e39ffdbe3701b3985bacf7ca90b7a87b0b3d6389733482f477bc9fe059",
-  "public/games/js/core/server-session.js": "602f1b1c29bf88a3a82d439622d8eb4a06d741ef8419ea00534cdf69681cfe55",
+  "public/games/js/app.js": "ee5bb683881f41ec02f7060f20956b4858cd3c311d9ce6a143d04d58520eb908",
+  "public/games/js/core/server-session.js": "73a7e47f185eddc0cb5a9388e43dc37cea18d393a7ee5a5561a8b9fb03c80598",
   "public/games/js/core/shared.js": "e339d0d1c77a1a7ae4552ee37add7eed1211726d293f7e71291c239c032429af",
   "public/games/js/games/air-hockey.js": "f56d178c79cf00e671642f7ced65acdb93a65123ad391c6a6a3396cfb81d91b8",
   "public/games/js/games/block-drop.js": "63cdb42257233e70ecff4b1169dd4f83964cc50eaeced35e2324a91c1927269b",
@@ -18,5 +18,5 @@
   "public/games/js/games/tic-tac-toe.js": "693d9129802d6dbef774a5d067da4856055988c35e314790a68e1e715a42652d",
   "public/games/js/games/whack-cavity.js": "80809103862adfa29ca8948c7918401384a490b56d6c7ba76fceefa656896c66",
   "public/games/README.md": "b5f5b5485df8812b961d3f94694dd9e39fc4aff21bbb7ba55ab0fd93e8454296",
-  "public/games/styles.css": "837554a8dcb2718e32cd67814ce82e8c678c4042134f5b11868c5c8f75767981"
+  "public/games/styles.css": "441f125245826a03d8f45476a96c2428341e02d398c744fcd12581adea704823"
 }

@@ -4,7 +4,6 @@ import path from "node:path";
 const ROOT = process.cwd();
 const MANIFEST = path.join(ROOT, "docs", "legacy-api-routes.json");
 const RESOURCE_DIR = path.join(ROOT, "src", "shared", "api", "resources");
-const EVENTS_FILE = path.join(ROOT, "src", "shared", "api", "events.ts");
 
 function normalizeTemplate(value) {
   return value.replace(/\$\{encodeId\((\w+)\)\}/g, ":$1").replace(/\$\{(\w+)\}/g, ":$1");
@@ -43,13 +42,13 @@ function readBalancedCall(source, start) {
 
 function extractClientRoutes(source) {
   const routes = [];
-  const callPattern = /client\.(requestBlob|requestText|request|mutation)\s*\(/g;
+  const callPattern = /client\.(requestBlob|requestText|request|mutation|upload)\s*\(/g;
   for (const match of source.matchAll(callPattern)) {
     const call = readBalancedCall(source, match.index ?? 0);
     const routeMatch = call.match(/([`"'])((?:\/api\/|\/health)[^`"']*)\1/s);
     if (!routeMatch) continue;
     const methodOverride = call.match(/method:\s*["'](GET|POST|PATCH|PUT|DELETE)["']/);
-    const method = methodOverride?.[1] ?? (match[1] === "mutation" ? "POST" : "GET");
+    const method = methodOverride?.[1] ?? (["mutation", "upload"].includes(match[1]) ? "POST" : "GET");
     routes.push(genericRoute(method, normalizeTemplate(routeMatch[2])));
   }
   return routes;
@@ -62,10 +61,6 @@ for (const file of files) {
   const source = await readFile(path.join(RESOURCE_DIR, file), "utf8");
   for (const route of extractClientRoutes(source)) current.add(route);
 }
-
-const eventSource = await readFile(EVENTS_FILE, "utf8");
-const eventMatch = eventSource.match(/DENTY_EVENTS_PATH\s*=\s*["']([^"']+)["']/);
-if (eventMatch) current.add(genericRoute("GET", eventMatch[1]));
 
 const expected = new Set();
 const forbidden = new Set();

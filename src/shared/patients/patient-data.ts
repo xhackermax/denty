@@ -6,10 +6,10 @@ import type { CreatePatient, UpdatePatient } from "@/shared/api";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 
-export function usePatientsQuery(enabled = true) {
+export function usePatientsQuery(enabled = true, includeArchived = false) {
   return useQuery({
-    queryKey: dentyQueryKeys.patients.all,
-    queryFn: () => getBrowserApi().patients.list(),
+    queryKey: dentyQueryKeys.patients.list(includeArchived),
+    queryFn: () => getBrowserApi().patients.list({ includeArchived }),
     enabled,
   });
 }
@@ -36,7 +36,7 @@ export function useCreatePatientMutation() {
     mutationFn: (payload: CreatePatient) => getBrowserApi().patients.create(payload),
     onSuccess: (patient) => {
       queryClient.setQueryData(dentyQueryKeys.patients.detail(patient.id), patient);
-      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.all });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.root });
     },
   });
 }
@@ -47,7 +47,44 @@ export function useUpdatePatientMutation(patientId: string) {
     mutationFn: (payload: UpdatePatient) => getBrowserApi().patients.update(patientId, payload),
     onSuccess: (patient) => {
       queryClient.setQueryData(dentyQueryKeys.patients.detail(patient.id), patient);
-      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.all });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.root });
+    },
+  });
+}
+
+
+export function useUploadPatientPhotoMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ patientId, file }: { patientId: string; file: File }) =>
+      getBrowserApi().patients.uploadPhoto(patientId, file),
+    onSuccess: (patient) => {
+      queryClient.setQueryData(dentyQueryKeys.patients.detail(patient.id), patient);
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.root });
+    },
+  });
+}
+
+export function useArchivePatientMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ patientId, expectedVersion, reason }: { patientId: string; expectedVersion: number; reason?: string }) =>
+      getBrowserApi().patients.archive(patientId, { expectedVersion, ...(reason ? { reason } : {}) }),
+    onSuccess: (patient) => {
+      queryClient.setQueryData(dentyQueryKeys.patients.detail(patient.id), patient);
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.root });
+    },
+  });
+}
+
+export function useRestorePatientMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ patientId, expectedVersion }: { patientId: string; expectedVersion: number }) =>
+      getBrowserApi().patients.restore(patientId, { expectedVersion }),
+    onSuccess: (patient) => {
+      queryClient.setQueryData(dentyQueryKeys.patients.detail(patient.id), patient);
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.root });
     },
   });
 }

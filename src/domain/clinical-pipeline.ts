@@ -1,5 +1,5 @@
 export type ClinicalPipelineNextAction = "SYNC_PLAN" | "SYNC_BUDGET" | "READY";
-export type BudgetLifecycleStatus = "DRAFT" | "PRESENTED" | "ACCEPTED" | "REJECTED";
+export type BudgetLifecycleStatus = "DRAFT" | "PRESENTED" | "ACCEPTED" | "REJECTED" | "SIGNED";
 
 export interface ClinicalPlanVersion {
   version: number;
@@ -33,7 +33,7 @@ export function clinicalPipelineState(input: ClinicalPipelineInput): ClinicalPip
   const budgetRevisionRequired =
     Boolean(input.budget) &&
     budgetOutdated &&
-    ["PRESENTED", "ACCEPTED"].includes(input.budget?.status ?? "DRAFT");
+    ["PRESENTED", "ACCEPTED", "SIGNED"].includes(input.budget?.status ?? "DRAFT");
 
   return {
     planOutdated,

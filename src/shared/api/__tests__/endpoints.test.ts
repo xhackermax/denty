@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiClient } from "../client";
+import { createPatientSchema } from "../contracts";
 import { createDentyApi } from "../endpoints";
 
 function jsonResponse(body: unknown): Response {
@@ -10,6 +11,16 @@ function jsonResponse(body: unknown): Response {
 }
 
 describe("createDentyApi", () => {
+  it("allows creating a patient without DNI because identity no longer depends on the clinical document", () => {
+    expect(
+      createPatientSchema.safeParse({
+        firstName: "Juan",
+        lastName: "Perez",
+        birthDate: "1994-09-23",
+      }).success,
+    ).toBe(true);
+  });
+
   it("keeps verified legacy routes grouped by domain", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
@@ -194,14 +205,19 @@ describe("createDentyApi", () => {
     expect(snapshot.entities[0]?.id).toBe("crown-11");
   });
 
-  it("does not expose the invented patient archive endpoint", () => {
-    const api = createDentyApi(
-      new ApiClient({
-        baseUrl: "https://api.example.test",
-        fetchImpl: vi.fn<typeof fetch>(),
-      }),
-    );
+  it("exposes archive and restore as explicit patient lifecycle commands", async () => {
+    const patient = {
+      id: "p1", clinicId: "c1", recordNumber: "000042", firstName: "Ana", lastName: "Ruiz",
+      dni: null, birthDate: "1994-09-23", archivedAt: "2026-09-28T08:00:00+02:00",
+      version: 3, createdAt: "2026-01-01T10:00:00+01:00", updatedAt: "2026-09-28T08:00:00+02:00",
+    };
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(patient));
+    const api = createDentyApi(new ApiClient({ baseUrl: "https://api.example.test", fetchImpl }));
 
-    expect("archive" in api.patients).toBe(false);
+    await api.patients.archive("p1", { expectedVersion: 2, reason: "Duplicada" });
+    await api.patients.restore("p1", { expectedVersion: 3 });
+
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe("https://api.example.test/api/patients/p1/archive");
+    expect(fetchImpl.mock.calls[1]?.[0]).toBe("https://api.example.test/api/patients/p1/restore");
   });
 });

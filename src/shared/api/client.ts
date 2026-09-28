@@ -30,7 +30,8 @@ export class ApiClient {
 
   constructor(options: ApiClientOptions) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl);
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    const fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = (...args) => fetchImpl(...args);
   }
 
   createIdempotencyKey(): string {
@@ -77,6 +78,20 @@ export class ApiClient {
     return response.blob();
   }
 
+  async upload<TOutput>(
+    path: string,
+    schema: z.ZodType<TOutput>,
+    formData: FormData,
+    options: Omit<ApiRequestOptions<FormData>, "body"> = {},
+  ): Promise<TOutput> {
+    return this.request(path, schema, {
+      ...options,
+      method: options.method ?? "POST",
+      body: formData,
+      idempotencyKey: options.idempotencyKey ?? makeIdempotencyKey(),
+    });
+  }
+
   async mutation<TOutput, TBody>(
     path: string,
     schema: z.ZodType<TOutput>,
@@ -100,8 +115,14 @@ export class ApiClient {
 
     let body: BodyInit | undefined;
     if (options.body !== undefined) {
-      headers.set("content-type", "application/json");
-      body = JSON.stringify(options.body);
+      if (typeof FormData !== "undefined" && options.body instanceof FormData) {
+        body = options.body;
+      } else if (options.body instanceof Blob || typeof options.body === "string") {
+        body = options.body;
+      } else {
+        headers.set("content-type", "application/json");
+        body = JSON.stringify(options.body);
+      }
     }
 
     if (options.idempotencyKey) {

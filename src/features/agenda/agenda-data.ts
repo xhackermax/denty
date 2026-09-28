@@ -6,10 +6,10 @@ import type { CreateAppointment, UpdateAppointment } from "@/shared/api";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 
-export function useAppointmentsQuery(date: string, enabled = true) {
+export function useAppointmentsQuery(date: string, enabled = true, siteId?: string | null) {
   return useQuery({
-    queryKey: dentyQueryKeys.appointments.day(date),
-    queryFn: () => getBrowserApi().appointments.list(date),
+    queryKey: dentyQueryKeys.appointments.day(date, siteId),
+    queryFn: () => getBrowserApi().appointments.list(date, siteId ?? undefined),
     enabled: enabled && Boolean(date),
   });
 }
@@ -28,7 +28,7 @@ export function useCreateAppointmentMutation(date: string) {
     mutationFn: (payload: CreateAppointment) => getBrowserApi().appointments.create(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: dentyQueryKeys.appointments.day(date),
+        queryKey: dentyQueryKeys.appointments.root,
       });
     },
   });
@@ -41,7 +41,7 @@ export function useUpdateAppointmentMutation(date: string, appointmentId: string
       getBrowserApi().appointments.update(appointmentId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: dentyQueryKeys.appointments.day(date),
+        queryKey: dentyQueryKeys.appointments.root,
       });
     },
   });
@@ -54,7 +54,7 @@ export function useUpdateAppointmentForDayMutation(date: string) {
       getBrowserApi().appointments.update(input.id, input.payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: dentyQueryKeys.appointments.day(date),
+        queryKey: dentyQueryKeys.appointments.root,
       });
     },
   });
@@ -64,7 +64,7 @@ export function useAppointmentTransitionMutation(date: string) {
   const queryClient = useQueryClient();
   const invalidate = () =>
     queryClient.invalidateQueries({
-      queryKey: dentyQueryKeys.appointments.day(date),
+      queryKey: dentyQueryKeys.appointments.root,
     });
 
   return {

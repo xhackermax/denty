@@ -11,7 +11,6 @@ svg{display:block}
 .brand-lockup{display:flex;align-items:center;gap:10px}
 .brand-mark{width:34px;height:34px;border-radius:12px;background:var(--dg-surface);border:1px solid var(--dg-line);display:grid;place-items:center;color:var(--dg-teal);box-shadow:var(--dg-shadow-card)}
 .brand-name{font-size:15px;font-weight:800;letter-spacing:-.02em}.brand-name i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--dg-teal);margin-left:3px;vertical-align:2px}.brand-sub{font-size:11px;color:var(--dg-muted);font-weight:600;margin-top:1px}
-.demo-chip{display:inline-flex;align-items:center;height:30px;padding:0 10px;border-radius:999px;background:var(--dg-surface);border:1px solid var(--dg-line);font-size:11px;font-weight:700;color:var(--dg-muted)}
 .hero{padding:4px 2px 20px}.eyebrow{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--dg-muted);font-weight:800;margin:0 0 8px}.hero h1{font-size:clamp(30px,8vw,44px);line-height:1.03;letter-spacing:-.045em;margin:0;max-width:560px}.hero p{font-size:15px;line-height:1.55;color:var(--dg-muted);margin:12px 0 0;max-width:580px}
 .summary{display:grid;grid-template-columns:1.35fr .65fr;gap:12px;margin:4px 0 24px}.summary-card{background:var(--dg-surface);border:1px solid var(--dg-line);border-radius:var(--dg-radius-card);padding:16px;box-shadow:var(--dg-shadow-card);min-width:0}.summary-card strong{display:block;font-size:17px;letter-spacing:-.02em}.summary-card small{display:block;color:var(--dg-muted);font-size:12px;line-height:1.35;margin-top:4px}.summary-value{font-size:26px!important;font-variant-numeric:tabular-nums;letter-spacing:-.035em!important}
 .section-heading{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:0 2px 12px}.section-heading h2{margin:0;font-size:16px;letter-spacing:-.02em}.section-heading span{font-size:11px;color:var(--dg-text-soft);font-weight:600}
@@ -128,7 +127,7 @@ html[data-theme="dark"] .ranking-row.is-me{background:color-mix(in srgb,var(--dg
 
 /* R8 · quieter iPhone-like Games home. Gameplay stays untouched. */
 .app-frame{width:min(100%,820px);padding:18px 18px 48px}
-.brand-row{margin:2px 0 18px}.brand-mark{box-shadow:none}.demo-chip{background:transparent}
+.brand-row{margin:2px 0 18px}.brand-mark{box-shadow:none}
 .hero{padding:2px 2px 16px}.hero h1{font-size:clamp(28px,7vw,40px);font-weight:760}.hero p{font-size:14px;max-width:540px}
 .summary{gap:10px;margin:2px 0 20px}.summary-card{padding:15px;border-radius:20px;box-shadow:none}.summary-value{font-size:24px!important}
 .games-grid{gap:10px}.game-card{min-height:128px;padding:15px;border-radius:20px;box-shadow:none}.game-card h3{margin:16px 0 3px;font-size:16px}.game-card p{font-size:11px}.game-icon{width:44px;height:44px;border-radius:14px}

@@ -2,7 +2,6 @@ export * from "./client";
 export * from "./contracts";
 export * from "./endpoints";
 export * from "./errors";
-export * from "./events";
 export * from "./schemas/admin";
 export * from "./schemas/agenda";
 export * from "./schemas/analytics";

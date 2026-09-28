@@ -138,7 +138,7 @@ export const stages = {
   unit: {
     description: "Run unit and component tests in a test React environment",
     needs: ["install"],
-    command: bin("vitest", ["run"]),
+    command: bin("vitest", ["run", "--isolate=false"]),
     env: { NODE_ENV: "test" },
     timeoutMs: 3 * MINUTE,
   },

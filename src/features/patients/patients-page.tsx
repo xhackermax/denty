@@ -23,13 +23,12 @@ import {
   IconPlus,
   IconSearch,
 } from "@tabler/icons-react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { dateDMY } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
-import { DEMO_PATIENTS, type DemoPatient } from "@/shared/demo/demo-data";
 import styles from "@/shared/ui/parity.module.css";
 import {
   buildAdmissionPayload,
@@ -38,15 +37,22 @@ import {
   suggestedDentitionForBirthDate,
   type PatientAdmissionDraft,
 } from "./patient-admission";
-import { createPatientPayload, parsePatientCsv, type ParsedPatientRow } from "./patient-import";
+import {
+  getInfiniteCarouselRecenteringDelta,
+  PATIENT_CAROUSEL_SCROLL_SETTLE_MS,
+} from "./patient-carousel-loop";
+import {
+  createPatientPayload,
+  parsePatientImportFile,
+  validatePatientImportRows,
+} from "./patient-import";
 import {
   patientCardFromApi,
-  patientCardFromDemo,
   type PatientCardView,
 } from "./patient-projection";
-import { useCreatePatientMutation, usePatientsQuery } from "@/shared/patients/patient-data";
-import { publicEnv } from "@/shared/config/env";
+import { useCreatePatientMutation, usePatientsQuery, useUploadPatientPhotoMutation } from "@/shared/patients/patient-data";
 import { PageHeader, PatientAvatar } from "@/shared/ui";
+import { PatientPhotoCapture } from "./patient-photo-capture";
 
 interface ImportNotice {
   color: "green" | "yellow" | "red";
@@ -77,44 +83,27 @@ function formatVisitDate(value?: string | null): string {
   return value ? dateDMY(value) : "xx/xx/xxxx";
 }
 
-function demoPatientFromRow(
-  row: ParsedPatientRow,
-  index: number,
-  currentCount: number,
-): DemoPatient {
-  const generated = String(800 + currentCount + index).padStart(6, "0");
-  return {
-    id: `import-${row.legacyRecordNumber ?? generated}-${index}`,
-    recordNumber: row.legacyRecordNumber?.padStart(6, "0") ?? generated,
-    firstName: row.firstName,
-    lastName: row.lastName,
-    dni: row.dni ?? "Pendiente",
-    phone: row.phone ?? "Pendiente",
-    email: row.email ?? "Pendiente",
-    source: "Importación CSV",
-    nextStep: "Revisar ficha importada",
-    balanceCents: 0,
-  };
-}
-
 export function PatientsPage() {
-  const demoMode = publicEnv.NEXT_PUBLIC_DEMO_MODE === "true";
+  const reducedMotion = useReducedMotion();
   const [query, setQuery] = useState("");
   const [opened, setOpened] = useState(false);
-  const [demoPatients, setDemoPatients] = useState<readonly DemoPatient[]>(DEMO_PATIENTS);
   const [admissionDraft, setAdmissionDraft] =
     useState<PatientAdmissionDraft>(EMPTY_ADMISSION_DRAFT);
   const [notice, setNotice] = useState<ImportNotice | null>(null);
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const scrollFrameRef = useRef<number | null>(null);
+  const scrollSettleTimerRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const patientsQuery = usePatientsQuery(!demoMode);
+  const patientsQuery = usePatientsQuery(true, includeArchived);
   const createMutation = useCreatePatientMutation();
+  const uploadPhotoMutation = useUploadPatientPhotoMutation();
 
-  const patients = useMemo<readonly PatientCardView[]>(() => {
-    if (demoMode) return demoPatients.map(patientCardFromDemo);
-    return (patientsQuery.data?.items ?? []).map(patientCardFromApi);
-  }, [demoMode, demoPatients, patientsQuery.data]);
+  const patients = useMemo<readonly PatientCardView[]>(
+    () => (patientsQuery.data?.items ?? []).map(patientCardFromApi),
+    [patientsQuery.data],
+  );
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("es");
@@ -132,77 +121,61 @@ export function PatientsPage() {
     });
   }, [patients, query]);
 
-  const importCsv = async (file: File | null) => {
+  const importPatients = async (file: File | null) => {
     if (!file) return;
     setNotice(null);
-    const rows = parsePatientCsv(await file.text());
-    if (!rows.length) {
-      setNotice({ color: "yellow", message: "No se detectaron filas válidas." });
-      return;
-    }
-
-    if (demoMode) {
-      const imported = rows.map((row, index) =>
-        demoPatientFromRow(row, index, demoPatients.length),
-      );
-      setDemoPatients((current) => [...imported, ...current]);
-      setNotice({
-        color: "green",
-        message: `${imported.length} pacientes importados en modo demo.`,
-      });
-      return;
-    }
-
-    let created = 0;
-    let failed = 0;
-    for (const row of rows) {
-      try {
-        await createMutation.mutateAsync(createPatientPayload(row));
-        created += 1;
-      } catch {
-        failed += 1;
+    try {
+      const rows = await parsePatientImportFile(file);
+      if (!rows.length) {
+        setNotice({ color: "yellow", message: "No se detectaron filas de pacientes." });
+        return;
       }
-    }
+      const issues = validatePatientImportRows(rows);
+      if (issues.length) {
+        const first = issues[0];
+        setNotice({
+          color: "red",
+          message: `Importación cancelada antes de guardar: ${issues.length} incidencias. ${first ? `Fila ${first.row}: ${first.message}` : ""}`,
+        });
+        return;
+      }
 
-    const hasLegacyNumbers = rows.some((row) => Boolean(row.legacyRecordNumber));
-    const suffix = hasLegacyNumbers ? " El backend actual asigna un número de ficha nuevo." : "";
-    setNotice({
-      color: failed ? "yellow" : "green",
-      message: `${created} creados; ${failed} rechazados.${suffix}`,
-    });
+      let created = 0;
+      let failed = 0;
+      for (const row of rows) {
+        try {
+          await createMutation.mutateAsync(createPatientPayload(row));
+          created += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      setNotice({
+        color: failed ? "yellow" : "green",
+        message: `${created} pacientes importados; ${failed} rechazados. Los números de ficha existentes se conservan.`,
+      });
+    } catch (error) {
+      setNotice({
+        color: "red",
+        message: error instanceof Error ? error.message : "No se pudo leer el archivo de importación.",
+      });
+    }
   };
 
   const createPatient = async () => {
     const payload = buildAdmissionPayload(admissionDraft);
     if (!payload.firstName || !payload.lastName || !admissionDraft.birthDate) return;
-
-    if (demoMode) {
-      const nextNumber = String(700 + demoPatients.length).padStart(6, "0");
-      const patient: DemoPatient = {
-        id: `demo-${nextNumber}`,
-        recordNumber: nextNumber,
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        dni: payload.dni ?? "Pendiente",
-        phone: payload.phone ?? "Pendiente",
-        email: payload.email ?? "Pendiente",
-        birthDate: admissionDraft.birthDate,
-        allergies: optionLabels("allergies", admissionDraft.allergies),
-        medications: optionLabels("medications", admissionDraft.medications),
-        conditions: [
-          ...optionLabels("conditions", admissionDraft.conditions),
-          ...optionLabels("dentalRisks", admissionDraft.dentalRisks),
-        ],
-        source: "Nuevo paciente",
-        nextStep: `Odontograma sugerido: ${DENTITION_LABELS[payload.medicalProfile.dentitionStage]}`,
-        balanceCents: 0,
-      };
-      setDemoPatients((current) => [patient, ...current]);
-    } else {
-      await createMutation.mutateAsync(payload);
+    const created = await createMutation.mutateAsync(payload);
+    if (photoFile) {
+      try {
+        await uploadPhotoMutation.mutateAsync({ patientId: created.id, file: photoFile });
+      } catch {
+        setNotice({ color: "yellow", message: "Paciente creado, pero la foto no pudo guardarse. Puedes repetirla desde la ficha." });
+      }
     }
 
     setAdmissionDraft(EMPTY_ADMISSION_DRAFT);
+    setPhotoFile(null);
     setOpened(false);
   };
 
@@ -314,31 +287,52 @@ export function PatientsPage() {
     ],
   );
 
+  const normalizeCarouselAfterScroll = useCallback(() => {
+    const viewport = carouselRef.current;
+    const closest = getClosestCarouselCard();
+    if (!viewport || !closest || filtered.length <= 1) return;
+
+    const firstCycle = viewport.querySelector<HTMLElement>('[data-carousel-cycle="0"]');
+    const middleCycle = viewport.querySelector<HTMLElement>('[data-carousel-cycle="1"]');
+    if (!firstCycle || !middleCycle) return;
+
+    const copy = Number(closest.dataset.carouselCopy ?? 1);
+    const cycleSpan = middleCycle.offsetTop - firstCycle.offsetTop;
+    const delta = getInfiniteCarouselRecenteringDelta({
+      copy,
+      cycleSpan,
+      settled: true,
+    });
+
+    if (delta !== 0) {
+      viewport.scrollTop += delta;
+    }
+  }, [filtered.length, getClosestCarouselCard]);
+
+  const scheduleCarouselNormalization = useCallback(() => {
+    if (scrollSettleTimerRef.current !== null) {
+      window.clearTimeout(scrollSettleTimerRef.current);
+    }
+
+    scrollSettleTimerRef.current = window.setTimeout(() => {
+      scrollSettleTimerRef.current = null;
+      normalizeCarouselAfterScroll();
+    }, PATIENT_CAROUSEL_SCROLL_SETTLE_MS);
+  }, [normalizeCarouselAfterScroll]);
+
   const syncCarouselIndex = useCallback(() => {
+    scheduleCarouselNormalization();
     if (scrollFrameRef.current !== null) return;
 
     scrollFrameRef.current = window.requestAnimationFrame(() => {
       scrollFrameRef.current = null;
-      const viewport = carouselRef.current;
       const closest = getClosestCarouselCard();
-      if (!viewport || !closest) return;
+      if (!closest) return;
 
       const nextIndex = Number(closest.dataset.carouselIndex ?? 0);
-      const copy = Number(closest.dataset.carouselCopy ?? 0);
       setActiveIndex(nextIndex);
-
-      if (filtered.length > 1 && (copy === 0 || copy === 2)) {
-        const firstCycle = viewport.querySelector<HTMLElement>('[data-carousel-cycle="0"]');
-        const middleCycle = viewport.querySelector<HTMLElement>('[data-carousel-cycle="1"]');
-        if (!firstCycle || !middleCycle) return;
-
-        const cycleSpan = middleCycle.offsetTop - firstCycle.offsetTop;
-        if (cycleSpan <= 0) return;
-
-        viewport.scrollTop += copy === 0 ? cycleSpan : -cycleSpan;
-      }
     });
-  }, [filtered.length, getClosestCarouselCard]);
+  }, [getClosestCarouselCard, scheduleCarouselNormalization]);
 
   useEffect(() => {
     if (!filtered.length) {
@@ -364,6 +358,9 @@ export function PatientsPage() {
     () => () => {
       if (scrollFrameRef.current !== null) {
         window.cancelAnimationFrame(scrollFrameRef.current);
+      }
+      if (scrollSettleTimerRef.current !== null) {
+        window.clearTimeout(scrollSettleTimerRef.current);
       }
     },
     [],
@@ -402,12 +399,15 @@ export function PatientsPage() {
                 </Button>
               </Menu.Target>
               <Menu.Dropdown>
-                <Menu.Label>{demoMode ? "Modo demo" : "Pacientes"}</Menu.Label>
+                <Menu.Label>Pacientes</Menu.Label>
+                <Menu.Item onClick={() => setIncludeArchived((current) => !current)}>
+                  {includeArchived ? "Ocultar archivados" : "Mostrar archivados"}
+                </Menu.Item>
                 <FileButton
-                  onChange={(file) => void importCsv(file)}
-                  accept=".csv,.tsv,text/csv,text/tab-separated-values"
+                  onChange={(file) => void importPatients(file)}
+                  accept=".csv,.tsv,.json,.xlsx,text/csv,text/tab-separated-values,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 >
-                  {(props) => <Menu.Item {...props}>Importar CSV / TSV</Menu.Item>}
+                  {(props) => <Menu.Item {...props}>Importar CSV / JSON / XLSX</Menu.Item>}
                 </FileButton>
               </Menu.Dropdown>
             </Menu>
@@ -415,9 +415,9 @@ export function PatientsPage() {
         }
       />
 
-      {patientsQuery.isError && !demoMode ? (
+      {patientsQuery.isError ? (
         <Alert color="red" title="Error al cargar pacientes">
-          Revisa la conexión con el backend Denty. No se ha usado información demo.
+          Revisa la conexión con Denty e inténtalo de nuevo.
         </Alert>
       ) : null}
       {notice ? (
@@ -438,7 +438,7 @@ export function PatientsPage() {
           <div>
             <h2 className={styles.sectionTitle}>Pacientes</h2>
             <p className={styles.sectionDescription}>
-              {patientsQuery.isLoading && !demoMode
+              {patientsQuery.isLoading
                 ? "Cargando fichas…"
                 : `${filtered.length} ${
                     filtered.length === 1 ? "ficha encontrada" : "fichas encontradas"
@@ -516,12 +516,18 @@ export function PatientsPage() {
                           data-carousel-index={index}
                           data-carousel-copy={copy}
                           data-active={active}
-                          animate={{
-                            scale: active ? 1 : distance === 1 ? 0.975 : 0.94,
-                            opacity: active ? 1 : distance === 1 ? 0.72 : 0.4,
-                            x: active ? 0 : Math.min(distance, 2) * 8,
-                          }}
-                          transition={{ type: "spring", stiffness: 310, damping: 30 }}
+                          animate={
+                            reducedMotion
+                              ? { scale: 1, opacity: 1, x: 0, rotateY: 0, z: 0 }
+                              : {
+                                  scale: active ? 1.065 : distance === 1 ? 0.93 : 0.84,
+                                  opacity: active ? 1 : distance === 1 ? 0.58 : 0.2,
+                                  x: active ? 0 : Math.min(distance, 2) * 34,
+                                  rotateY: active ? 0 : -Math.min(distance, 2) * 9,
+                                  z: active ? 58 : -Math.min(distance, 2) * 18,
+                                }
+                          }
+                          transition={{ type: "spring", stiffness: 330, damping: 31, mass: 0.72 }}
                           role="option"
                           aria-selected={active}
                         >
@@ -531,10 +537,37 @@ export function PatientsPage() {
                             aria-label={`Abrir ficha de ${fullName}`}
                             tabIndex={copy === (filtered.length > 1 ? 1 : 0) ? 0 : -1}
                           >
-                            <PatientAvatar name={fullName} src={patient.photoUrl} size={56} />
-                            <div className={styles.patientCarouselInfo}>
+                            <motion.div
+                              className={styles.patientCarouselAvatar}
+                              animate={
+                                reducedMotion
+                                  ? { x: 0, y: 0, scale: 1 }
+                                  : {
+                                      x: active ? 0 : -Math.min(distance, 2) * 8,
+                                      y: active ? 0 : distance === 1 ? 2 : 4,
+                                      scale: active ? 1.14 : 0.9,
+                                    }
+                              }
+                              transition={{ type: "spring", stiffness: 350, damping: 32 }}
+                            >
+                              <PatientAvatar name={fullName} src={patient.photoUrl} size={56} />
+                            </motion.div>
+                            <motion.div
+                              className={styles.patientCarouselInfo}
+                              animate={
+                                reducedMotion
+                                  ? { x: 0 }
+                                  : { x: active ? 0 : Math.min(distance, 2) * 15 }
+                              }
+                              transition={{ type: "spring", stiffness: 350, damping: 32 }}
+                            >
                               <div className={styles.patientCarouselIdentity}>
-                                <span className={styles.patientCarouselName}>{fullName}</span>
+                                <span className={styles.patientCarouselName}>
+                                  {fullName}
+                                  {patient.archivedAt ? (
+                                    <Badge color="gray" size="xs" ml="xs">Archivado</Badge>
+                                  ) : null}
+                                </span>
                                 <span className={styles.patientCarouselRecord}>
                                   Ficha {patient.recordNumber}
                                   {patient.dni ? ` · ${patient.dni}` : ""}
@@ -552,7 +585,7 @@ export function PatientsPage() {
                                   </dd>
                                 </div>
                               </dl>
-                            </div>
+                            </motion.div>
                             <div className={styles.patientCarouselAside}>
                               {patient.balanceCents === undefined ? null : patient.balanceCents >
                                 0 ? (
@@ -581,7 +614,7 @@ export function PatientsPage() {
           </div>
         ) : (
           <Text c="dimmed" size="sm">
-            {patientsQuery.isLoading && !demoMode ? "Cargando pacientes…" : "Sin resultados."}
+            {patientsQuery.isLoading ? "Cargando pacientes…" : "Sin resultados."}
           </Text>
         )}
       </section>
@@ -625,7 +658,8 @@ export function PatientsPage() {
                 onChange={(event) => updateAdmissionDraft("birthDate", event.currentTarget.value)}
               />
               <TextInput
-                label="DNI / tutor"
+                label="DNI / NIE"
+                description="Opcional; puede completarse más adelante."
                 value={admissionDraft.dni ?? ""}
                 onChange={(event) => updateAdmissionDraft("dni", event.currentTarget.value)}
               />
@@ -641,6 +675,14 @@ export function PatientsPage() {
                 onChange={(event) => updateAdmissionDraft("email", event.currentTarget.value)}
               />
             </SimpleGrid>
+          </section>
+
+          <section className={styles.section}>
+            <PatientPhotoCapture
+              value={photoFile}
+              onPhotoReady={setPhotoFile}
+              disabled={createMutation.isPending || uploadPhotoMutation.isPending}
+            />
           </section>
 
           <section className={styles.section}>
@@ -702,7 +744,7 @@ export function PatientsPage() {
             Cancelar
           </Button>
           <Button
-            loading={createMutation.isPending && !demoMode}
+            loading={createMutation.isPending || uploadPhotoMutation.isPending}
             disabled={!admissionReady}
             onClick={() => void createPatient()}
           >

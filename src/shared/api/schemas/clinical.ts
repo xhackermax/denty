@@ -4,6 +4,7 @@ import { idSchema, versionSchema } from "../contracts";
 
 export const createPlanItemSchema = z.object({
   tooth: z.string().optional(),
+  treatmentCatalogId: idSchema.optional(),
   treatmentCode: z.string().min(1),
   label: z.string().min(1),
   patientLabel: z.string().optional(),
@@ -13,12 +14,14 @@ export const createPlanItemSchema = z.object({
   durationMin: z.number().int().positive().optional(),
   priceCents: z.number().int().nonnegative().optional(),
   dependsOnIds: z.array(idSchema).default([]),
+  adHoc: z.boolean().default(false),
 });
 
 export const clinicalPlanItemSchema = z
   .object({
     id: idSchema,
     tooth: z.string().nullable().optional(),
+    treatmentCatalogId: idSchema.nullable().optional(),
     treatmentCode: z.string().min(1),
     label: z.string().min(1),
     patientLabel: z.string().nullable().optional(),
@@ -27,6 +30,8 @@ export const clinicalPlanItemSchema = z
     priority: z.number().int(),
     status: z.string().min(1),
     priceCents: z.number().int().nonnegative().nullable().optional(),
+    costCents: z.number().int().nonnegative().nullable().optional(),
+    adHoc: z.boolean().optional(),
     version: versionSchema.optional(),
   })
   .passthrough();
@@ -58,6 +63,8 @@ export const clinicalBudgetSchema = z
     status: z.string().min(1),
     totalCents: z.number().int(),
     version: versionSchema.optional(),
+    signedFingerprint: z.string().nullable().optional(),
+    currentPlanFingerprint: z.string().nullable().optional(),
     items: z.array(clinicalBudgetItemSchema).default([]),
   })
   .passthrough();
@@ -138,6 +145,31 @@ export const dentalEntitySchema = z.object({
   active: z.boolean().default(true),
 });
 
+export const implantPlanComponentSchema = z.object({
+  code: z.string().min(1),
+  label: z.string().min(1),
+  quantity: z.number().int().positive(),
+  tooth: z.string().optional(),
+  billable: z.boolean(),
+  attributes: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const plannedImplantSchema = z.object({
+  id: idSchema,
+  tooth: z.string().min(1),
+  design: z.enum([
+    "UNIT_TIBASE",
+    "MULTIUNIT_FIXED",
+    "DIRECT_SCREWED",
+    "BAR_OVERDENTURE",
+    "LOCATOR_OVERDENTURE",
+    "HYBRID_ALL_ON_X",
+    "CUSTOM",
+  ]),
+  implant: dentalEntitySchema,
+  components: z.array(implantPlanComponentSchema),
+});
+
 export const persistedDentalEntitySchema = z
   .object({
     id: idSchema,
@@ -181,6 +213,7 @@ export const periodontalMeasurementSchema = z
     recession: z.number().int().optional(),
     bleeding: z.boolean().optional(),
     plaque: z.boolean().optional(),
+    suppuration: z.boolean().optional(),
     mobility: z.number().int().nonnegative().optional(),
     furcation: z.number().int().nonnegative().optional(),
   })
@@ -237,6 +270,23 @@ export const odontogramSchema = z
 export const snapshotsSchema = z.object({
   items: z.array(odontogramSnapshotSchema),
   currentVersion: versionSchema,
+});
+
+export const consentRequirementSchema = z
+  .object({
+    id: idSchema,
+    clinicalPlanItemId: idSchema.nullable().optional(),
+    consentCode: z.string().min(1),
+    status: z.string().min(1),
+    requiredBefore: z.string().min(1),
+    templateId: idSchema.nullable().optional(),
+    satisfiedByDocumentId: idSchema.nullable().optional(),
+    ruleVersion: z.number().int().positive(),
+  })
+  .passthrough();
+
+export const consentRequirementsSchema = z.object({
+  items: z.array(consentRequirementSchema),
 });
 
 export const clinicalSyncStateSchema = z.object({
@@ -320,6 +370,18 @@ export const periodontalExamSchema = z
     stage: z.string().nullable().optional(),
     grade: z.string().nullable().optional(),
     extent: z.string().nullable().optional(),
+    version: versionSchema.optional(),
+    sites: z.array(z.object({
+      tooth: z.string().min(1),
+      site: z.string().min(1),
+      probingDepth: z.number().int().nonnegative().optional(),
+      recession: z.number().int().optional(),
+      mobility: z.number().int().nonnegative().optional(),
+      furcation: z.number().int().nonnegative().optional(),
+      bleeding: z.boolean().optional(),
+      plaque: z.boolean().optional(),
+      suppuration: z.boolean().optional(),
+    }).passthrough()).default([]),
   })
   .passthrough();
 

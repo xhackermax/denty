@@ -5,7 +5,7 @@ import { planLocalVoiceCommand } from "../local-nlu";
 describe("local voice NLU parity", () => {
   it("expands a bridge across the midline by FDI arch order", () => {
     const plan = planLocalVoiceCommand("Oye Denty, puente 13 a 23 con 22 ausente", {
-      patientName: "Juan Pérez",
+      patientName: "Paciente Test",
     });
     const bridge = plan.actions.find((action) => action.type === "odontogram.bridge");
     expect(bridge?.type).toBe("odontogram.bridge");
@@ -16,7 +16,7 @@ describe("local voice NLU parity", () => {
 
   it("reads MOD restoration surfaces", () => {
     const plan = planLocalVoiceCommand("hay que hacer empaste MOD en 26", {
-      patientName: "Juan Pérez",
+      patientName: "Paciente Test",
     });
     const item = plan.actions.find((action) => action.type === "clinical.add_item");
     expect(item?.type).toBe("clinical.add_item");
@@ -25,19 +25,19 @@ describe("local voice NLU parity", () => {
 
   it("distinguishes completed endodontics from planned treatment", () => {
     const completed = planLocalVoiceCommand("endodoncia realizada en 22", {
-      patientName: "Juan Pérez",
+      patientName: "Paciente Test",
     });
     expect(completed.actions.some((action) => action.type === "clinical.complete_item")).toBe(true);
 
     const planned = planLocalVoiceCommand("hay que hacer endodoncia 22", {
-      patientName: "Juan Pérez",
+      patientName: "Paciente Test",
     });
     expect(planned.actions.some((action) => action.type === "clinical.add_item")).toBe(true);
   });
 
   it("requires confirmation for payments", () => {
-    const plan = planLocalVoiceCommand("Juan Pérez ha pagado 120 euros con tarjeta", {
-      patientName: "Juan Pérez",
+    const plan = planLocalVoiceCommand("Paciente Test ha pagado 120 euros con tarjeta", {
+      patientName: "Paciente Test",
     });
     const payment = plan.actions.find((action) => action.type === "payment.record");
     expect(payment?.type).toBe("payment.record");
@@ -50,7 +50,7 @@ describe("local voice NLU parity", () => {
 
   it("captures periodontal measurements", () => {
     const plan = planLocalVoiceCommand("26 mesiovestibular sondaje 6 sangrado", {
-      patientName: "Juan Pérez",
+      patientName: "Paciente Test",
     });
     const perio = plan.actions.find((action) => action.type === "periodontal.update");
     expect(perio?.type).toBe("periodontal.update");
@@ -62,8 +62,8 @@ describe("local voice NLU parity", () => {
     }
   });
   it("understands open the patient with Spanish article", () => {
-    const plan = planLocalVoiceCommand("Oye Denty abre el paciente Juan Pérez");
-    expect(plan.actions).toContainEqual({ type: "patient.resolve", query: "Juan Pérez" });
-    expect(plan.actions).toContainEqual({ type: "navigation.patient", patientRef: "Juan Pérez" });
+    const plan = planLocalVoiceCommand("Oye Denty abre el paciente Paciente Test");
+    expect(plan.actions).toContainEqual({ type: "patient.resolve", query: "Paciente Test" });
+    expect(plan.actions).toContainEqual({ type: "navigation.patient", patientRef: "Paciente Test" });
   });
 });

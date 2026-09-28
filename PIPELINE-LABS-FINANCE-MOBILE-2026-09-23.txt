@@ -3,11 +3,11 @@ Denty R8 · Pipeline, laboratorios, finanzas y móvil · 2026-09-23
 - Pipeline clínico navegable: Odontograma → Diagnóstico → Plan → Presupuesto → Citas.
 - Contexto de paciente preservado entre pasos.
 - Progreso calculado desde datos clínicos, no fijado manualmente.
-- Ajuste de administrador para intervalo entre visitas; demo por defecto: 7 días.
+- Ajuste de administrador para intervalo entre visitas persistido por clínica/doctor.
 - Agenda permite crear series de visitas respetando el intervalo configurado.
 - Catálogo de múltiples laboratorios, asignación por trabajo y vistas Trabajos/Laboratorios/Saldos.
-- En demo se registran pagos a laboratorios y se calcula acumulado/pagado/pendiente.
-- En servidor no se inventa deuda si faltan datos de facturación/pagos del proveedor.
+- Los pagos a laboratorios y sus saldos proceden de persistencia de servidor.
+- No se inventa deuda si faltan datos de facturación/pagos del proveedor.
 - Finanzas: producido, facturado, cobrado, pendiente y margen separados.
 - Gráfico donut por tratamiento, barras por doctor, tendencia mensual y tablas de detalle.
 - Producción sin doctor asociado se muestra como "Sin profesional asignado".

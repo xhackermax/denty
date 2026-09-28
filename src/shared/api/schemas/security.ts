@@ -14,22 +14,19 @@ export const securitySessionsSchema = z.object({
   items: z.array(securitySessionSchema),
 });
 
-export const backupRecordSchema = z
-  .object({
-    id: idSchema,
-    sha256: z.string().min(1),
-    encrypted: z.boolean(),
-    sizeBytes: z.number().int().nonnegative(),
-    verifiedAt: z.coerce.string().nullable().optional(),
-    createdAt: z.coerce.string().optional(),
-  })
-  .passthrough();
+export const backupStatusItemSchema = z.object({
+  id: idSchema,
+  createdAt: z.string().nullable(),
+  status: z.string().nullable(),
+  type: z.string().nullable(),
+});
 
-export const backupsSchema = z.object({ items: z.array(backupRecordSchema) });
-
-export const backupCreationSchema = z.object({
-  backup: backupRecordSchema,
-  verification: z.unknown(),
+export const backupsSchema = z.object({
+  provider: z.literal("SUPABASE_MANAGED"),
+  configured: z.boolean(),
+  pitrEnabled: z.boolean().nullable(),
+  backups: z.array(backupStatusItemSchema),
+  message: z.string().nullable(),
 });
 
 export const auditVerificationSchema = z

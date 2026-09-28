@@ -5,7 +5,6 @@ export { ContextMenu } from "./context-menu";
 export { DataTable } from "./data-table";
 export type { DataTableColumnDef } from "./data-table";
 export { DateText, TimeText } from "./date-text";
-export { DemoBanner } from "./demo-banner";
 export { EmptyState } from "./empty-state";
 export { ErrorState } from "./error-state";
 export { FloatingPanel } from "./floating-panel";

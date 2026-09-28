@@ -1,0 +1,33 @@
+.voiceAction {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.voicePulse {
+  position: absolute;
+  z-index: 0;
+  width: 34px;
+  height: 34px;
+  border: 1px solid color-mix(in srgb, var(--denty-red, #fa5252) 48%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--denty-red, #fa5252) 8%, transparent);
+  pointer-events: none;
+}
+
+.voiceButtonLayer {
+  position: relative;
+  z-index: 1;
+}
+
+.voiceAction[data-state="executing"]::after {
+  position: absolute;
+  z-index: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--denty-blue) 28%, transparent);
+  border-radius: 999px;
+  content: "";
+  pointer-events: none;
+}

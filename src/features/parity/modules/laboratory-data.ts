@@ -16,7 +16,7 @@ export function useLaboratoryQuery(enabled = true) {
 
 export function useLaboratorySuppliersQuery(enabled = true) {
   return useQuery({
-    queryKey: ["laboratory", "suppliers"],
+    queryKey: dentyQueryKeys.laboratory.suppliers,
     queryFn: () => getBrowserApi().analytics.suppliers(),
     enabled,
   });

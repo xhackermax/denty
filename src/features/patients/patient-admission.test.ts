@@ -26,6 +26,30 @@ describe("patient admission workflow", () => {
     expect(dentalMedicalAdmissionOptions.allergies).toContainEqual(
       expect.objectContaining({ value: "local_anesthetic" }),
     );
+    expect(dentalMedicalAdmissionOptions.allergies).toContainEqual(
+      expect.objectContaining({ value: "macrolides" }),
+    );
+    expect(dentalMedicalAdmissionOptions.allergies).toContainEqual(
+      expect.objectContaining({ value: "clindamycin" }),
+    );
+    expect(dentalMedicalAdmissionOptions.medications).toContainEqual(
+      expect.objectContaining({ value: "thyroid_meds" }),
+    );
+    expect(dentalMedicalAdmissionOptions.medications).toContainEqual(
+      expect.objectContaining({ value: "glp1_meds" }),
+    );
+    expect(dentalMedicalAdmissionOptions.conditions).toContainEqual(
+      expect.objectContaining({ value: "diabetes_type_1" }),
+    );
+    expect(dentalMedicalAdmissionOptions.conditions).toContainEqual(
+      expect.objectContaining({ value: "diabetes_type_2" }),
+    );
+    expect(dentalMedicalAdmissionOptions.conditions).toContainEqual(
+      expect.objectContaining({ value: "pregnancy" }),
+    );
+    expect(dentalMedicalAdmissionOptions.conditions).toContainEqual(
+      expect.objectContaining({ value: "thyroid_disease" }),
+    );
   });
 
   it("builds a create patient payload with ISO birth date and clinical anamnesis", () => {
@@ -46,7 +70,7 @@ describe("patient admission workflow", () => {
     ).toMatchObject({
       firstName: "Sofia",
       lastName: "Ruiz",
-      birthDate: "2021-11-14T00:00:00.000+02:00",
+      birthDate: "2021-11-14",
       dni: "Menor",
       phone: "+34 600 731 100",
       email: "tutor.sofia@example.test",

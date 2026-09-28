@@ -125,6 +125,7 @@
 
 .patientCarouselStage {
   position: relative;
+  perspective: 900px;
   max-width: 860px;
   margin-inline: auto;
   overflow: hidden;
@@ -218,6 +219,8 @@
 
 .patientCarouselCard {
   position: relative;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--denty-line);
@@ -246,6 +249,13 @@
   padding: 13px 15px;
   color: inherit;
   text-decoration: none;
+}
+
+.patientCarouselAvatar {
+  display: grid;
+  place-items: center;
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 
 .patientCarouselInfo {
@@ -355,10 +365,17 @@
   font-weight: 850;
 }
 
+.metricValue[data-speeding="true"] {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+  will-change: transform, filter;
+}
+
+
 .pipeline {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .pipelineStep {
@@ -575,6 +592,15 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+.quickActionMotion {
+  min-width: 0;
+  height: 100%;
+}
+
+.quickActionMotion > * {
+  height: 100%;
 }
 
 .quickAction {
@@ -1709,4 +1735,194 @@ html[data-mantine-color-scheme="dark"] .disclosure {
   .donut {
     width: 148px;
   }
+}
+
+.agendaSelectedSlot {
+  position: absolute;
+  z-index: 1;
+  right: 5px;
+  left: 5px;
+  border: 1px solid color-mix(in srgb, var(--denty-blue) 45%, var(--denty-line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--denty-blue) 10%, transparent);
+  pointer-events: none;
+}
+
+/* Motion 1.1: protagonist analysis metrics are intentionally larger so Speeding Text reads as data motion, not decoration. */
+.analysisMetricGrid {
+  position: relative;
+  z-index: 1;
+}
+
+.analysisMetric {
+  min-height: 112px;
+  display: grid;
+  align-content: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--denty-blue) 13%, var(--denty-line));
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--denty-blue) 9%, transparent), transparent 48%),
+    var(--denty-card-solid);
+  box-shadow: var(--denty-shadow-sm);
+}
+
+.analysisMetricValue {
+  margin-top: 7px;
+  font-size: clamp(1.55rem, 3vw, 2.35rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.analysisMetricValue[data-speeding="true"] {
+  transform-origin: 50% 65%;
+}
+
+/* Motion 1.2: immersive depth layer. Intentionally reserved for dashboard, analysis and patient browsing. */
+.nowCardMotion,
+.analysisMetricMotion {
+  height: 100%;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.nowCardMotion > *,
+.analysisMetricMotion > * {
+  height: 100%;
+}
+
+.nowCard {
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 18px 40px rgb(15 35 55 / 8%),
+    0 2px 8px rgb(15 35 55 / 4%);
+}
+
+.nowCard::before {
+  position: absolute;
+  inset: -45% auto auto -18%;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--nav-accent, var(--denty-blue)) 18%, transparent), transparent 72%);
+  content: "";
+  filter: blur(12px);
+  opacity: 0.65;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  animation: denty-card-drift 7s ease-in-out infinite alternate;
+}
+
+.analysisMetricMotion {
+  border-radius: 18px;
+}
+
+.analysisMetric {
+  position: relative;
+  min-height: 136px;
+  border-radius: 18px;
+  box-shadow:
+    0 22px 54px rgb(15 35 55 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 34%);
+}
+
+.analysisMetric::before {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    transparent 38%,
+    color-mix(in srgb, white 38%, transparent) 49%,
+    transparent 60%,
+    transparent 100%
+  );
+  content: "";
+  opacity: 0.55;
+  pointer-events: none;
+  transform: translateX(-120%);
+  animation: denty-metric-sheen 5.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.analysisMetricValue {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(1.85rem, 4.2vw, 3rem);
+  text-shadow: 0 8px 24px color-mix(in srgb, var(--denty-blue) 12%, transparent);
+}
+
+.patientCarouselStage {
+  perspective: 1250px;
+  box-shadow:
+    0 28px 70px rgb(15 35 55 / 12%),
+    inset 0 1px 0 rgb(255 255 255 / 28%);
+}
+
+.patientCarouselFocus {
+  border-color: color-mix(in srgb, var(--denty-teal) 34%, transparent);
+  background: color-mix(in srgb, var(--denty-teal) 7%, transparent);
+  box-shadow:
+    inset 0 0 46px color-mix(in srgb, var(--denty-teal) 10%, transparent),
+    0 0 42px color-mix(in srgb, var(--denty-teal) 10%, transparent);
+  animation: denty-focus-breathe 3.6s ease-in-out infinite;
+}
+
+.patientCarouselCard[data-active="true"] {
+  border-color: color-mix(in srgb, var(--denty-teal) 52%, var(--denty-line));
+  background:
+    radial-gradient(circle at 12% 22%, color-mix(in srgb, var(--denty-teal) 12%, transparent), transparent 38%),
+    color-mix(in srgb, var(--denty-card) 93%, var(--denty-blue) 7%);
+  box-shadow:
+    0 24px 54px rgb(15 35 55 / 16%),
+    0 0 0 1px color-mix(in srgb, var(--denty-teal) 13%, transparent);
+}
+
+@keyframes denty-card-drift {
+  from {
+    transform: translate3d(-8px, -4px, 0) scale(0.96);
+  }
+  to {
+    transform: translate3d(34px, 24px, 0) scale(1.12);
+  }
+}
+
+@keyframes denty-metric-sheen {
+  0%, 58% {
+    transform: translateX(-120%);
+  }
+  82%, 100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes denty-focus-breathe {
+  0%, 100% {
+    opacity: 0.72;
+    transform: translateY(-50%) scale(0.985);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.01);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nowCard::before,
+  .analysisMetric::before,
+  .patientCarouselFocus {
+    animation: none;
+  }
+}
+
+.pipelineStep[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.46;
+  filter: saturate(0.5);
+}
+
+.pipelineStep[data-disabled="true"] .pipelineNumber {
+  box-shadow: none;
 }

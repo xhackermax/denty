@@ -1,4 +1,10 @@
-import type { DentalEntity } from "./index";
+import type { DentalEntity } from "./index.ts";
+import {
+  evaluateClinicalAction,
+  evaluateClinicalBatch,
+  type ClinicalRuleContext,
+  type ClinicalRuleEvaluation,
+} from "./clinical-rules/index.ts";
 
 export interface OdontogramEntityState {
   readonly entitiesById: Readonly<Record<string, DentalEntity>>;
@@ -19,27 +25,7 @@ export interface BoundedHistory<T> {
   readonly limit: number;
 }
 
-function assertEntityConflict(
-  entitiesById: Readonly<Record<string, DentalEntity>>,
-  entity: DentalEntity,
-): void {
-  if (!entity.active || !entity.tooth) return;
-  const current = Object.values(entitiesById).filter(
-    (item) => item.id !== entity.id && item.active && item.tooth === entity.tooth,
-  );
-  const hasImplant = current.some((item) => item.entityType === "IMPLANT");
-  const hasCaries = current.some(
-    (item) => item.entityType === "TOOTH_STATE" && item.status === "caries",
-  );
-  const proposesImplant = entity.entityType === "IMPLANT";
-  const proposesCaries = entity.entityType === "TOOTH_STATE" && entity.status === "caries";
-  if ((proposesImplant && hasCaries) || (proposesCaries && hasImplant)) {
-    throw new Error("Implante y caries activa son estados incompatibles en el mismo diente");
-  }
-}
-
 function withEntity(state: OdontogramEntityState, entity: DentalEntity): OdontogramEntityState {
-  assertEntityConflict(state.entitiesById, entity);
   return {
     entitiesById: { ...state.entitiesById, [entity.id]: entity },
     revision: state.revision + 1,
@@ -117,4 +103,67 @@ export function executeOdontogramCommand(
   command: OdontogramCommand,
 ): BoundedHistory<OdontogramEntityState> {
   return commitHistory(history, applyOdontogramCommand(history.present, command));
+}
+
+export interface ValidatedOdontogramResult {
+  readonly history: BoundedHistory<OdontogramEntityState>;
+  readonly evaluation: ClinicalRuleEvaluation;
+}
+
+const allowEvaluation: ClinicalRuleEvaluation = {
+  outcome: "ALLOW",
+  ruleIds: [],
+  messages: [],
+  decisions: [],
+};
+
+function entityProposedByCommand(
+  state: OdontogramEntityState,
+  command: OdontogramCommand,
+): DentalEntity | null {
+  if (command.type === "UPSERT_ENTITY") return command.entity;
+  if (command.type === "SET_ENTITY_STATUS") {
+    const current = state.entitiesById[command.entityId];
+    if (!current) throw new RangeError(`Entidad odontológica inexistente: ${command.entityId}`);
+    return { ...current, status: command.status };
+  }
+  return null;
+}
+
+export function executeValidatedOdontogramCommand(
+  history: BoundedHistory<OdontogramEntityState>,
+  command: Exclude<OdontogramCommand, { readonly type: "UPSERT_ENTITIES" }>,
+  context: ClinicalRuleContext = {},
+): ValidatedOdontogramResult {
+  const proposed = entityProposedByCommand(history.present, command);
+  const evaluation = proposed
+    ? evaluateClinicalAction(
+        { type: "UPSERT_ENTITY", entity: proposed },
+        Object.values(history.present.entitiesById),
+        context,
+      )
+    : allowEvaluation;
+  if (evaluation.outcome === "BLOCK" || evaluation.outcome === "REQUIRE_CONTEXT") {
+    return { history, evaluation };
+  }
+  return { history: executeOdontogramCommand(history, command), evaluation };
+}
+
+export function executeValidatedOdontogramBatch(
+  history: BoundedHistory<OdontogramEntityState>,
+  entities: readonly DentalEntity[],
+  context: ClinicalRuleContext = {},
+): ValidatedOdontogramResult {
+  const evaluation = evaluateClinicalBatch(
+    entities.map((entity) => ({ type: "UPSERT_ENTITY" as const, entity })),
+    Object.values(history.present.entitiesById),
+    context,
+  );
+  if (evaluation.outcome === "BLOCK" || evaluation.outcome === "REQUIRE_CONTEXT") {
+    return { history, evaluation };
+  }
+  return {
+    history: executeOdontogramCommand(history, { type: "UPSERT_ENTITIES", entities }),
+    evaluation,
+  };
 }

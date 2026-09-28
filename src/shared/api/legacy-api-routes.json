@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
-  "routeCount": 197,
+  "routeCount": 203,
   "routes": [
     {
       "method": "GET",
@@ -121,6 +121,21 @@
       "method": "PUT",
       "path": "/api/admin/revenue-goals",
       "source": "apps/api/src/modules/alerts/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/treatment-catalog",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/treatment-catalog",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/treatment-catalog/:id",
       "kind": "browser"
     },
     {
@@ -389,12 +404,6 @@
     },
     {
       "method": "POST",
-      "path": "/api/auth/pin-login",
-      "source": "apps/api/src/auth/routes.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "POST",
       "path": "/api/auth/request-password-reset",
       "source": "apps/api/src/auth/routes.ts",
       "kind": "browser"
@@ -413,6 +422,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/auth/sessions",
+      "source": "stage1-supabase-auth",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/sessions/:id/revoke",
+      "source": "stage1-supabase-auth",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/budgets",
       "source": "apps/api/src/modules/billing/routes.ts",
       "kind": "browser"
@@ -424,10 +445,10 @@
       "kind": "browser"
     },
     {
-      "method": "GET",
-      "path": "/api/clinic/demo",
-      "source": "apps/api/src/server.ts",
-      "kind": "server_only"
+      "method": "POST",
+      "path": "/api/budgets/:id/sign",
+      "source": "apps/api/src/modules/billing/routes.ts",
+      "kind": "browser"
     },
     {
       "method": "POST",
@@ -527,6 +548,12 @@
     },
     {
       "method": "POST",
+      "path": "/api/documents/:id/file",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
       "path": "/api/documents/:id/finalize",
       "source": "apps/api/src/modules/documents/routes.ts",
       "kind": "browser"
@@ -542,12 +569,6 @@
       "path": "/api/documents/attendance-certificate",
       "source": "apps/api/src/modules/documents/routes.ts",
       "kind": "browser"
-    },
-    {
-      "method": "GET",
-      "path": "/api/events",
-      "source": "apps/api/src/modules/events/routes.ts",
-      "kind": "sse"
     },
     {
       "method": "POST",
@@ -778,6 +799,12 @@
       "kind": "browser"
     },
     {
+      "method": "POST",
+      "path": "/api/patients/:id/archive",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
       "method": "GET",
       "path": "/api/patients/:id/attribution",
       "source": "apps/api/src/modules/patients/attribution-routes.ts",
@@ -811,6 +838,24 @@
       "method": "POST",
       "path": "/api/patients/:id/communications",
       "source": "apps/api/src/modules/communications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/patient-photo",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:id/photo",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/restore",
+      "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
     {
@@ -907,6 +952,12 @@
       "method": "POST",
       "path": "/api/patients/:patientId/clinical-workflow/problems",
       "source": "apps/api/src/modules/clinical-workflow/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:patientId/consent-requirements",
+      "source": "supabase/stage6-clinical-pipeline",
       "kind": "browser"
     },
     {
@@ -1068,18 +1119,6 @@
     {
       "method": "GET",
       "path": "/api/security/backups",
-      "source": "apps/api/src/modules/security/routes.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "POST",
-      "path": "/api/security/backups",
-      "source": "apps/api/src/modules/security/routes.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "POST",
-      "path": "/api/security/backups/:id/verify",
       "source": "apps/api/src/modules/security/routes.ts",
       "kind": "browser"
     },

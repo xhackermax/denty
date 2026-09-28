@@ -64,7 +64,7 @@ describe("shared UI", () => {
   });
 
   it("derives patient initials", () => {
-    renderWithTheme(<PatientAvatar name="Juan Pérez" />);
+    renderWithTheme(<PatientAvatar name="Paciente Test" />);
     expect(screen.getByText("JP")).toBeInTheDocument();
   });
 
