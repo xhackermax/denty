@@ -45,6 +45,28 @@ do $$ begin
   end if;
 exception when duplicate_object then null; end $$;
 
+create table if not exists public.payment_attempts (
+  id uuid primary key default gen_random_uuid(),
+  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  patient_id uuid not null references public.patients(id) on delete restrict,
+  provider text not null check (provider in ('manual','sumup','stripe')),
+  provider_status text not null default 'created' check (provider_status in ('created','processing','requires_action','succeeded','failed','cancelled','expired')),
+  idempotency_key text not null,
+  amount_cents integer not null check (amount_cents > 0),
+  currency text not null default 'EUR' check (currency ~ '^[A-Z]{3}$'),
+  budget_id uuid references public.budgets(id) on delete set null,
+  provider_transaction_id text,
+  provider_checkout_id text,
+  reader_id text,
+  error_code text,
+  error_message text,
+  ledger_payment_id uuid references public.payments(id) on delete set null,
+  created_by uuid,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  completed_at timestamptz
+);
+
 alter table public.payment_attempts add column if not exists payment_method_option_id uuid references public.clinic_payment_methods(id) on delete set null;
 alter table public.payment_attempts add column if not exists integration_mode text check (integration_mode is null or integration_mode in ('connected','semi_connected','manual'));
 alter table public.payment_attempts add column if not exists terminal_id uuid references public.payment_terminals(id) on delete set null;

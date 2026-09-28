@@ -1,20 +1,25 @@
 -- Stage 3: Supabase is the only runtime source of truth and Realtime Broadcast
 -- is scoped by clinic membership. Safe to re-run in staging.
 
-alter table realtime.messages enable row level security;
-
-drop policy if exists "denty clinic members receive broadcasts" on realtime.messages;
-create policy "denty clinic members receive broadcasts"
-on realtime.messages for select to authenticated
-using (
-  split_part(realtime.topic(), ':', 1) = 'clinic'
-  and exists (
-    select 1 from public.clinic_members cm
-    where cm.profile_id = auth.uid()
-      and cm.active = true
-      and cm.clinic_id::text = split_part(realtime.topic(), ':', 2)
-  )
-);
+do $$
+begin
+  execute 'alter table realtime.messages enable row level security';
+  execute 'drop policy if exists "denty clinic members receive broadcasts" on realtime.messages';
+  execute 'create policy "denty clinic members receive broadcasts"
+    on realtime.messages for select to authenticated
+    using (
+      split_part(realtime.topic(), '':'', 1) = ''clinic''
+      and exists (
+        select 1 from public.clinic_members cm
+        where cm.profile_id = auth.uid()
+          and cm.active = true
+          and cm.clinic_id::text = split_part(realtime.topic(), '':'', 2)
+      )
+    )';
+exception
+  when insufficient_privilege then
+    raise notice 'Skipping realtime.messages RLS policy because this role does not own Supabase managed realtime tables.';
+end $$;
 
 create or replace function private.broadcast_denty_change()
 returns trigger
