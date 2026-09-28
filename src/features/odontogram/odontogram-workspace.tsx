@@ -61,9 +61,9 @@ import { SurgeryPanel } from "./surgery-panel";
 import { surgicalVisualsForTooth } from "./surgery-visuals";
 const STATE_LABELS: Readonly<Record<ToothState, string>> = {
   healthy: "Sano",
-  filling: "ObturaciÃ³n realizada",
-  filling_bad: "ObturaciÃ³n insatisfactoria",
-  filling_pending: "ObturaciÃ³n pendiente",
+  filling: "Obturación realizada",
+  filling_bad: "Obturación insatisfactoria",
+  filling_pending: "Obturación pendiente",
   crown: "Corona realizada",
   crown_bad: "Corona insatisfactoria",
   crown_pending: "Corona pendiente",
@@ -76,9 +76,9 @@ const STATE_LABELS: Readonly<Record<ToothState, string>> = {
   implant: "Implante realizado",
   implant_review: "Implante a revisar",
   implant_indicated: "Implante indicado",
-  prosthesis: "PrÃ³tesis fija realizada",
-  prosthesis_bad: "PrÃ³tesis fija insatisfactoria",
-  prosthesis_pending: "PrÃ³tesis fija pendiente",
+  prosthesis: "Prótesis fija realizada",
+  prosthesis_bad: "Prótesis fija insatisfactoria",
+  prosthesis_pending: "Prótesis fija pendiente",
   removable: "Removible realizada",
   removable_bad: "Removible insatisfactoria",
   removable_pending: "Removible pendiente",
@@ -263,7 +263,7 @@ function Tooth({
       onClick={onSelect}
       onDoubleClick={onWholeAction}
       aria-label={`Diente ${tooth}`}
-      title={`Diente ${tooth} Â· doble clic para cambiar el estado completo`}
+      title={`Diente ${tooth} · doble clic para cambiar el estado completo`}
     >
       <span className={styles.toothLabel}>{tooth}</span>
       <svg
@@ -273,7 +273,7 @@ function Tooth({
         data-type={type}
         viewBox="0 0 64 90"
         role="img"
-        aria-label={`Odontograma anatÃ³mico del diente ${tooth}`}
+        aria-label={`Odontograma anatómico del diente ${tooth}`}
       >
         <defs>
           <clipPath id={clipId}>
@@ -542,7 +542,7 @@ function OdontogramEditor({
             ? createEndoPostCrown(selectedTooth)
             : createBridgeEntities(bridgeFrom!, bridgeTo!, prosthesisState);
     } catch (error) {
-      setBridgeError(error instanceof Error ? error.message : "No se pudo crear la prÃ³tesis.");
+      setBridgeError(error instanceof Error ? error.message : "No se pudo crear la prótesis.");
       return;
     }
     commitBatch(entitiesToAdd);
@@ -582,7 +582,7 @@ function OdontogramEditor({
   return (
     <div className={styles.board}>
       <PageHeader
-        eyebrow={historical ? "HistÃ³rico" : `Paciente ${patientId}`}
+        eyebrow={historical ? "Histórico" : `Paciente ${patientId}`}
         title={historicalLabel ?? "Odontograma"}
         description={historical ? "Solo lectura." : "Marca hallazgos y tratamientos."}
         actions={
@@ -657,9 +657,9 @@ function OdontogramEditor({
           <details className={styles.advancedTools}>
             <summary>
               <span>
-                <strong>MÃ¡s herramientas</strong>
+                <strong>Más herramientas</strong>
                 <small>
-                  Plantillas, selecciÃ³n directa y prÃ³tesis por rango Â· diente {selectedTooth}
+                  Plantillas, selección directa y prótesis por rango · diente {selectedTooth}
                 </small>
               </span>
             </summary>
@@ -693,11 +693,11 @@ function OdontogramEditor({
                   <div className={styles.bridgePickerHeading}>
                     <div>
                       <Text fw={820} size="sm">
-                        PrÃ³tesis fija / puente
+                        Prótesis fija / puente
                       </Text>
                       <Text size="xs" c="dimmed">
                         {bridgeReady && bridgeFrom && bridgeTo
-                          ? `Rango ${bridgeFrom} â†’ ${bridgeTo}. Confirma para aplicar.`
+                          ? `Rango ${bridgeFrom} -> ${bridgeTo}. Confirma para aplicar.`
                           : bridgePick === "from"
                             ? "Pulsa el diente inicial en el odontograma."
                             : `Inicio ${bridgeFrom}. Elige el final.`}
@@ -764,7 +764,7 @@ function OdontogramEditor({
                       disabled={historical || !bridgeReady}
                       onClick={() => applyTemplate("bridge")}
                     >
-                      Aplicar prÃ³tesis / puente
+                      Aplicar prótesis / puente
                     </Button>
                   </Group>
                   {bridgeError ? (
@@ -804,7 +804,7 @@ function OdontogramEditor({
                   disabled={historical}
                   onClick={() => selectTool("prosthesis_pending", "bridge")}
                 >
-                  Seleccionar prÃ³tesis / puente
+                  Seleccionar prótesis / puente
                 </Button>
               </Group>
             </section>
@@ -815,7 +815,7 @@ function OdontogramEditor({
               <div>
                 <Text fw={850}>Odontograma</Text>
                 <Text size="xs" c="dimmed">
-                  FDI permanente Â· M / D / V / P-L / O-I
+                  FDI permanente · M / D / V / P-L / O-I
                 </Text>
               </div>
               <div className={styles.surfaceKey} aria-label="Superficies dentales">
@@ -845,18 +845,18 @@ function OdontogramEditor({
               <div className={styles.bridgeSelectionBanner}>
                 <strong>
                   {bridgeReady
-                    ? "âœ“ Rango listo"
+                    ? "✓ Rango listo"
                     : bridgePick === "from"
-                      ? "1 Â· Inicio"
-                      : "2 Â· Final"}
+                      ? "1 · Inicio"
+                      : "2 · Final"}
                 </strong>
                 <span>
                   {bridgeReady && bridgeFrom && bridgeTo
                     ? `${bridgeFrom} → ${bridgeTo}. ` +
                       "Pulsa Aplicar prótesis / puente para confirmarlo."
                     : bridgePick === "from"
-                      ? "Pulsa el primer diente de la prÃ³tesis fija."
-                      : `Inicio ${bridgeFrom}. Pulsa el Ãºltimo diente de la misma arcada.`}
+                      ? "Pulsa el primer diente de la prótesis fija."
+                      : `Inicio ${bridgeFrom}. Pulsa el último diente de la misma arcada.`}
                 </span>
               </div>
             ) : null}
@@ -872,7 +872,7 @@ function OdontogramEditor({
             <div className={styles.archBlock}>
               {renderArch(PERMANENT_LOWER)}
               <Text className={styles.archLabel} fw={800}>
-                MandÃ­bula
+                Mandíbula
               </Text>
             </div>
           </section>
@@ -924,8 +924,8 @@ function OdontogramEditor({
       >
         <summary>
           <span>
-            <strong>Plan, presupuesto y sincronizaciÃ³n</strong>
-            <small>Herramientas del flujo clÃ­nico completo</small>
+            <strong>Plan, presupuesto y sincronización</strong>
+            <small>Herramientas del flujo clínico completo</small>
           </span>
         </summary>
         <div className={parityStyles.disclosureBody}>
@@ -933,9 +933,9 @@ function OdontogramEditor({
           {!historical ? (
             <ClinicalWorkspace patientId={patientId} />
           ) : (
-            <Alert color="yellow" title="Plan clÃ­nico actual no modificado">
-              El snapshot histÃ³rico no sincroniza plan ni presupuesto. Vuelve al odontograma actual
-              para realizar cambios clÃ­nicos.
+            <Alert color="yellow" title="Plan clínico actual no modificado">
+              El snapshot histórico no sincroniza plan ni presupuesto. Vuelve al odontograma actual
+              para realizar cambios clínicos.
             </Alert>
           )}
         </div>
@@ -944,8 +944,8 @@ function OdontogramEditor({
       <details className={parityStyles.disclosure}>
         <summary>
           <span>
-            <strong>InformaciÃ³n tÃ©cnica del odontograma</strong>
-            <small>{entities.length} entidades clÃ­nicas activas</small>
+            <strong>Información técnica del odontograma</strong>
+            <small>{entities.length} entidades clínicas activas</small>
           </span>
         </summary>
         <div className={parityStyles.disclosureBody}>
@@ -954,7 +954,7 @@ function OdontogramEditor({
               {entities.map((entity) => (
                 <div className={styles.entityRow} key={entity.id}>
                   <span>
-                    {entity.tooth ?? entity.arch ?? "Arcada"} Â· {entity.entityType}
+                    {entity.tooth ?? entity.arch ?? "Arcada"} · {entity.entityType}
                   </span>
                   <Badge variant="light">{entity.status}</Badge>
                 </div>
@@ -981,7 +981,7 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   if (query.isError) {
     return (
       <Alert color="red" title="No se pudo cargar el odontograma">
-        Revisa la conexiÃ³n con Denty e inténtalo de nuevo.
+        Revisa la conexión con Denty e inténtalo de nuevo.
       </Alert>
     );
   }
@@ -989,7 +989,7 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
     return (
       <PageHeader
         title="Cargando odontograma"
-        description="Consultando entidades y versiÃ³n clÃ­nica del paciente."
+        description="Consultando entidades y versión clínica del paciente."
       />
     );
   }

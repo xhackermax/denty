@@ -49,7 +49,7 @@ describe("endodontic consistency", () => {
     expect(endodonticVisualCodeForApicalDiagnosis("Absceso apical cronico")).toBe(
       "chronic_apical_abscess",
     );
-    expect(endodonticVisualCodeForApicalDiagnosis("Absceso apical crÃ³nico")).toBe(
+    expect(endodonticVisualCodeForApicalDiagnosis("Absceso apical crónico")).toBe(
       "chronic_apical_abscess",
     );
   });
