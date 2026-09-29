@@ -12,6 +12,17 @@ interface PatientPhotoCaptureProps {
   disabled?: boolean;
 }
 
+function cameraErrorMessage(caught: unknown): string {
+  const name = caught instanceof DOMException ? caught.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError")
+    return "El navegador ha bloqueado la cámara. Permite el acceso desde el candado de la barra de direcciones y vuelve a intentarlo, o elige una foto.";
+  if (name === "NotFoundError" || name === "OverconstrainedError")
+    return "No se ha encontrado ninguna cámara en este dispositivo. Puedes elegir una foto.";
+  if (name === "NotReadableError")
+    return "La cámara está en uso por otra aplicación. Ciérrala y vuelve a intentarlo.";
+  return "No se pudo acceder a la cámara. Puedes seleccionar una foto manualmente.";
+}
+
 export function PatientPhotoCapture({
   value,
   onPhotoReady,
@@ -52,19 +63,30 @@ export function PatientPhotoCapture({
       stopCamera();
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      // The <video> element only mounts once cameraActive is true; the effect below
+      // attaches the stream to it after that render.
       setCameraActive(true);
-    } catch {
-      setError("No se pudo acceder a la cámara. Puedes seleccionar una foto manualmente.");
+    } catch (caught) {
+      setError(cameraErrorMessage(caught));
     }
   };
 
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!cameraActive || !video || !stream) return;
+    video.srcObject = stream;
+    video.play().catch(() => {
+      setError("La cámara está abierta pero el navegador no pudo mostrar la imagen.");
+    });
+  }, [cameraActive]);
+
   const capturePhoto = async () => {
     const video = videoRef.current;
-    if (!video || !video.videoWidth || !video.videoHeight) return;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setError("Espera a que aparezca la imagen de la cámara y vuelve a pulsar.");
+      return;
+    }
     const maxSide = 1280;
     const scale = Math.min(1, maxSide / Math.max(video.videoWidth, video.videoHeight));
     const canvas = document.createElement("canvas");
