@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { TEST_AUTH, authenticatedHeaders, withAuthenticatedStaff } from "@/test/supabase-auth-fixture";
+import {
+  TEST_AUTH,
+  authenticatedHeaders,
+  withAuthenticatedStaff,
+} from "@/test/supabase-auth-fixture";
 
 import { GET, POST } from "../[...path]/route";
 
@@ -108,7 +112,9 @@ describe("RESTful patient routes", () => {
     });
 
     const odontogramResponse = await GET(
-      new Request("https://denty.test/api/patients/patient-1/odontogram", { headers: authenticatedHeaders() }),
+      new Request("https://denty.test/api/patients/patient-1/odontogram", {
+        headers: authenticatedHeaders(),
+      }),
       { params: Promise.resolve({ path: ["patients", "patient-1", "odontogram"] }) },
     );
 

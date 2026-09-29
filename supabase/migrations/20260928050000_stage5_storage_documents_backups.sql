@@ -25,6 +25,10 @@ set public = false,
     allowed_mime_types = excluded.allowed_mime_types;
 
 -- Object paths are always <clinic_uuid>/<patient_uuid>/<immutable_filename>.
+-- Stage 13: the policies below reference these columns; create them first so a
+-- fresh database applies in order (the later ALTERs are idempotent).
+alter table public.patients add column if not exists photo_storage_path text;
+
 drop policy if exists patient_photos_read on storage.objects;
 create policy patient_photos_read on storage.objects
 for select to authenticated

@@ -262,6 +262,7 @@ export class ClinicalRepository {
             status: budget.status,
             totalCents: budget.total_cents,
             sourcePlanVersion: budget.source_plan_version,
+            version: budget.version,
             outdated: budgetOutdated,
           }
         : null,

@@ -23,6 +23,8 @@ interface DocumentRow {
   version_series_id: string;
   previous_version_id: string | null;
   file_size_bytes: number | null;
+  signer_name?: string | null;
+  signed_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +41,9 @@ export interface DocumentView {
   version: number;
   previousVersionId: string | null;
   fileSizeBytes: number | null;
+  templateId: string | null;
+  signerName: string | null;
+  signedAt: string | null;
   createdAt: string;
 }
 
@@ -147,6 +152,36 @@ export class DocumentRepository {
     }
   }
 
+  /**
+   * Stage 13: canonical consent/document signature. The signature image is stored
+   * in the private clinical-documents bucket and the RPC marks the document SIGNED,
+   * which satisfies the Stage 6 consent requirements in the same transaction.
+   */
+  async sign(id: string, input: { signerName: string; file: File }): Promise<DocumentView> {
+    const current = await this.get(id);
+    if (!current) throw new Error("Documento no encontrado.");
+    if (input.file.type !== "image/png" && input.file.type !== "image/jpeg")
+      throw new Error("La firma debe ser PNG o JPEG.");
+    const stored = await this.storage.uploadClinicalDocument(
+      this.clinicId,
+      current.patient_id,
+      input.file,
+    );
+    try {
+      const row = await this.rest.rpc<DocumentRow>("sign_clinical_document", {
+        p_document_id: id,
+        p_signer_name: input.signerName,
+        p_signature_path: stored.path,
+        p_signature_checksum: stored.checksum,
+        p_signature_mime: stored.mimeType,
+      });
+      return toView(row);
+    } catch (error) {
+      await this.storage.remove(CLINICAL_DOCUMENTS_BUCKET, stored.path).catch(() => undefined);
+      throw error;
+    }
+  }
+
   async downloadFile(id: string): Promise<{ blob: Blob; fileName: string; mimeType: string }> {
     const row = await this.get(id);
     if (!row?.storage_path) throw new Error("Este documento todavía no tiene archivo asociado.");
@@ -172,6 +207,9 @@ function toView(row: DocumentRow): DocumentView {
     version: row.version,
     previousVersionId: row.previous_version_id,
     fileSizeBytes: row.file_size_bytes,
+    templateId: row.template_id,
+    signerName: row.signer_name ?? null,
+    signedAt: row.signed_at ?? null,
     createdAt: row.created_at,
   };
 }

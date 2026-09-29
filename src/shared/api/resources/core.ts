@@ -282,12 +282,24 @@ export function createCoreResource(client: ApiClient) {
         ),
       finalize: (id: string) =>
         client.mutation(`/api/documents/${encodeId(id)}/finalize`, documentSchema, {}),
-      sign: (id: string, payload: z.input<typeof signDocumentSchema>) =>
-        client.mutation(
-          `/api/documents/${encodeId(id)}/sign`,
-          z.object({ id: z.string().min(1) }).passthrough(),
-          signDocumentSchema.parse(payload),
-        ),
+      sign: (id: string, payload: z.input<typeof signDocumentSchema>) => {
+        const parsed = signDocumentSchema.parse(payload);
+        const [header = "", encoded = ""] = parsed.signatureDataUrl.split(",", 2);
+        const mimeType = header.includes("image/jpeg") ? "image/jpeg" : "image/png";
+        const binary = atob(encoded);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1)
+          bytes[index] = binary.charCodeAt(index);
+        const form = new FormData();
+        form.set(
+          "file",
+          new File([bytes], mimeType === "image/jpeg" ? "firma.jpg" : "firma.png", {
+            type: mimeType,
+          }),
+        );
+        form.set("signerName", parsed.signerName);
+        return client.upload(`/api/documents/${encodeId(id)}/sign`, documentSchema, form);
+      },
       deliver: (id: string, payload: z.input<typeof deliverDocumentSchema>) =>
         client.mutation(
           `/api/documents/${encodeId(id)}/deliver`,

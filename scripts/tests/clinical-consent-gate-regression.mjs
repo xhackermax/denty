@@ -87,14 +87,16 @@ try {
     "/app/documents?patientId=juan-perez&workflow=consents",
   );
 
-  const workspace = readFileSync("src/shared/clinical/clinical-workspace.tsx", "utf8");
+  // Stage 13: the consent gate lives in the canonical sync card (patient profile and
+  // Finanzas ?patientId=…), next to the budget signature it blocks.
+  const syncCard = readFileSync("src/shared/clinical/clinical-sync-card.tsx", "utf8");
   const finance = readFileSync("src/features/parity/modules/finance-module.tsx", "utf8");
   const pipelineCard = readFileSync("src/shared/clinical/clinical-pipeline-card.tsx", "utf8");
-  assert.match(workspace, /Continuar a consentimientos/);
-  assert.match(workspace, /workflow=consents/);
-  assert.match(finance, /if \(!consentsComplete\)/);
-  assert.match(finance, /Firma del presupuesto bloqueada/);
-  assert.match(finance, /!first \|\| !consentsComplete/);
+  assert.match(syncCard, /Continuar a consentimientos/);
+  assert.match(syncCard, /workflow=consents/);
+  assert.match(syncCard, /pendingConsentCount > 0/);
+  assert.match(syncCard, /useSignBudgetMutation/);
+  assert.match(finance, /<ClinicalSyncCard patientId=\{budgetPatientId\} \/>/);
   assert.match(pipelineCard, /key: "consents"/);
   assert.match(pipelineCard, /Plan → consentimientos → presupuesto → firma → citas/);
 

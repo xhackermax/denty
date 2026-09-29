@@ -58,7 +58,13 @@ export function withAuthenticatedStaff(
     }
     if (path === "/rest/v1/profiles" && method === "GET") {
       return Response.json([
-        { id: TEST_AUTH.userId, first_name: "Staff", last_name: "Test", email: "staff@denty.test", active: true },
+        {
+          id: TEST_AUTH.userId,
+          first_name: "Staff",
+          last_name: "Test",
+          email: "staff@denty.test",
+          active: true,
+        },
       ]);
     }
     if (path === "/rest/v1/app_sessions") {

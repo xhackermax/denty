@@ -1,13 +1,29 @@
 "use client";
 
-import { Alert, Badge, Button, Group, SimpleGrid, Text, Title } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Button,
+  Group,
+  Modal,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from "@mantine/core";
+import Link from "next/link";
+import { useState } from "react";
 
 import {
   useClinicalSyncQuery,
+  useConsentRequirementsQuery,
+  useSignBudgetMutation,
   useSyncBudgetFromPlanMutation,
   useSyncPlanFromOdontogramMutation,
 } from "@/shared/clinical/clinical-data";
 import styles from "@/shared/ui/parity.module.css";
+import { SignaturePad } from "@/shared/ui/signature-pad";
 
 interface ClinicalSyncCardProps {
   patientId: string;
@@ -17,6 +33,11 @@ export function ClinicalSyncCard({ patientId }: ClinicalSyncCardProps) {
   const syncQuery = useClinicalSyncQuery(patientId);
   const planSync = useSyncPlanFromOdontogramMutation(patientId);
   const budgetSync = useSyncBudgetFromPlanMutation(patientId);
+  const consents = useConsentRequirementsQuery(patientId);
+  const signBudget = useSignBudgetMutation(patientId);
+  const [signOpen, setSignOpen] = useState(false);
+  const [signerName, setSignerName] = useState("");
+  const [signature, setSignature] = useState<string | null>(null);
 
   if (syncQuery.isError) {
     return (
@@ -39,6 +60,9 @@ export function ClinicalSyncCard({ patientId }: ClinicalSyncCardProps) {
 
   const sync = syncQuery.data;
   const pendingMutation = planSync.isPending || budgetSync.isPending;
+  const pendingConsentCount = (consents.data?.items ?? []).filter(
+    (item) => item.status !== "SATISFIED",
+  ).length;
 
   return (
     <section className={styles.section}>
@@ -95,6 +119,67 @@ export function ClinicalSyncCard({ patientId }: ClinicalSyncCardProps) {
           Actualizar presupuesto desde plan
         </Button>
       ) : null}
+
+      {sync.nextAction === "READY" &&
+      sync.budget &&
+      !sync.budget.outdated &&
+      sync.budget.status !== "SIGNED" ? (
+        pendingConsentCount > 0 ? (
+          <Alert mt="lg" color="orange" title="Faltan consentimientos">
+            Firma {pendingConsentCount} consentimiento(s) antes del presupuesto.{" "}
+            <Link
+              href={`/app/documents?patientId=${encodeURIComponent(patientId)}&workflow=consents`}
+            >
+              Continuar a consentimientos
+            </Link>
+          </Alert>
+        ) : (
+          <Button mt="lg" color="teal" onClick={() => setSignOpen(true)}>
+            Firmar presupuesto {sync.budget.code}
+          </Button>
+        )
+      ) : null}
+
+      <Modal
+        opened={signOpen}
+        onClose={() => setSignOpen(false)}
+        title="Firma del presupuesto"
+        centered
+      >
+        <Stack>
+          <TextInput
+            label="Nombre de quien firma"
+            value={signerName}
+            onChange={(event) => setSignerName(event.currentTarget.value)}
+          />
+          <SignaturePad onChange={setSignature} />
+          {signBudget.isError ? (
+            <Alert color="red">
+              {signBudget.error instanceof Error
+                ? signBudget.error.message
+                : "No se pudo firmar el presupuesto."}
+            </Alert>
+          ) : null}
+          <Button
+            loading={signBudget.isPending}
+            disabled={!signature || signerName.trim().length < 2 || !sync.budget?.version}
+            onClick={() => {
+              if (!sync.budget?.version || !signature) return;
+              signBudget.mutate(
+                {
+                  budgetId: sync.budget.id,
+                  expectedVersion: sync.budget.version,
+                  signerName: signerName.trim(),
+                  signatureData: signature,
+                },
+                { onSuccess: () => setSignOpen(false) },
+              );
+            }}
+          >
+            Guardar firma
+          </Button>
+        </Stack>
+      </Modal>
 
       {planSync.isError || budgetSync.isError ? (
         <Alert mt="lg" color="red" title="No se sincronizó">

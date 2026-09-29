@@ -145,3 +145,22 @@ export function useSyncBudgetFromPlanMutation(patientId: string) {
     onSuccess: () => invalidateClinicalPatient(queryClient, patientId),
   });
 }
+
+/** Stage 13: canonical budget signature (finalize_budget_signature RPC). */
+export function useSignBudgetMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      budgetId: string;
+      expectedVersion: number;
+      signerName: string;
+      signatureData: string;
+    }) =>
+      getBrowserApi().billing.budgets.sign(input.budgetId, {
+        expectedVersion: input.expectedVersion,
+        signerName: input.signerName,
+        signatureData: input.signatureData,
+      }),
+    onSuccess: () => invalidateClinicalPatient(queryClient, patientId),
+  });
+}

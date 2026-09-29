@@ -1,3 +1,23 @@
+-- Stage 13: compatibility helpers referenced by the policies below. They were
+-- never created by an earlier migration, so a fresh database failed here. Stage 2
+-- replaces these legacy policies and Stage 13 drops the helpers again.
+create or replace function public.is_clinic_staff(target_clinic_id uuid)
+returns boolean language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.clinic_members cm
+    where cm.clinic_id = target_clinic_id and cm.profile_id = auth.uid() and cm.active and cm.role <> 'PATIENT'
+  );
+$$;
+create or replace function public.is_patient_owner(target_patient_id uuid)
+returns boolean language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.patient_accounts pa
+    where pa.patient_id = target_patient_id and pa.profile_id = auth.uid() and pa.active
+  );
+$$;
+
 -- Denty roadmap P1: treatment gates, availability safety, payment allocation and recalls.
 create table if not exists public.appointment_blocks (
   id uuid primary key default gen_random_uuid(), clinic_id uuid not null references public.clinics(id) on delete cascade,

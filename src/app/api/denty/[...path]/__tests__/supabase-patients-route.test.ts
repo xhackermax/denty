@@ -193,7 +193,9 @@ describe("Supabase-backed patient API", () => {
     });
 
     const odontogramResponse = await GET(
-      new Request("https://denty.test/api/denty/api/patients/patient-1/odontogram", { headers: authenticatedHeaders() }),
+      new Request("https://denty.test/api/denty/api/patients/patient-1/odontogram", {
+        headers: authenticatedHeaders(),
+      }),
       { params: Promise.resolve({ path: ["api", "patients", "patient-1", "odontogram"] }) },
     );
 
@@ -209,7 +211,10 @@ describe("Supabase-backed patient API", () => {
   });
 
   test("rejects patient creation when Supabase does not confirm the inserted row on readback", async () => {
-    vi.stubGlobal("fetch", withAuthenticatedStaff(createSupabaseFetchWithLostPatientWrite(), { clinicId: "clinic-1" }));
+    vi.stubGlobal(
+      "fetch",
+      withAuthenticatedStaff(createSupabaseFetchWithLostPatientWrite(), { clinicId: "clinic-1" }),
+    );
 
     const createResponse = await POST(
       new Request("https://denty.test/api/denty/api/patients", {

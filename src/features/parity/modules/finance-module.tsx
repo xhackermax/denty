@@ -2,7 +2,11 @@
 
 import { Alert, Badge, Button, Group, SimpleGrid, Stack, Text } from "@mantine/core";
 
+import { useSearchParams } from "next/navigation";
+
 import { formatEUR } from "@/domain/money";
+import { MotionNumber } from "@/shared/motion";
+import { ClinicalSyncCard } from "@/shared/clinical/clinical-sync-card";
 import styles from "@/shared/ui/parity.module.css";
 import {
   downloadAccountingCsv,
@@ -17,10 +21,14 @@ export function FinanceModule() {
   const issue = useIssueInvoiceMutation();
   const submit = useSubmitVerifactuMutation();
   const hasError = Object.values(finance).some((query) => query.isError);
+  // Stage 13: the clinical pipeline links here (?patientId=…&view=budgets[&action=sign]);
+  // the sync card shows the patient's budget and the canonical signature action.
+  const budgetPatientId = useSearchParams().get("patientId");
 
   return (
     <Stack gap="md">
       {hasError ? <Alert color="red">Hay datos financieros no disponibles.</Alert> : null}
+      {budgetPatientId ? <ClinicalSyncCard patientId={budgetPatientId} /> : null}
 
       <Group justify="space-between">
         <Badge variant="light">Ledger real</Badge>
@@ -31,21 +39,53 @@ export function FinanceModule() {
 
       <SimpleGrid cols={{ base: 1, md: 3 }}>
         <div className={styles.metric}>
+          <span className={styles.metricLabel}>Producido</span>
+          <strong className={styles.metricValue}>
+            <MotionNumber
+              value={(finance.summary.data?.producedCents ?? 0) / 100}
+              format="currency"
+              ariaLabel="Producido"
+            />
+          </strong>
+        </div>
+        <div className={styles.metric}>
+          <span className={styles.metricLabel}>Margen</span>
+          <strong className={styles.metricValue}>
+            <MotionNumber
+              value={(finance.summary.data?.marginCents ?? 0) / 100}
+              format="currency"
+              ariaLabel="Margen"
+            />
+          </strong>
+        </div>
+        <div className={styles.metric}>
           <span className={styles.metricLabel}>Facturado emitido</span>
           <strong className={styles.metricValue}>
-            {formatEUR(finance.summary.data?.invoicedCents ?? 0)}
+            <MotionNumber
+              value={(finance.summary.data?.invoicedCents ?? 0) / 100}
+              format="currency"
+              ariaLabel="Facturado"
+            />
           </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Cobrado</span>
           <strong className={styles.metricValue}>
-            {formatEUR(finance.summary.data?.collectedCents ?? 0)}
+            <MotionNumber
+              value={(finance.summary.data?.collectedCents ?? 0) / 100}
+              format="currency"
+              ariaLabel="Cobrado"
+            />
           </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Pendiente de cobro</span>
           <strong className={styles.metricValue}>
-            {formatEUR(finance.summary.data?.pendingCents ?? 0)}
+            <MotionNumber
+              value={(finance.summary.data?.pendingCents ?? 0) / 100}
+              format="currency"
+              ariaLabel="Pendiente"
+            />
           </strong>
         </div>
         <div className={styles.metric}>

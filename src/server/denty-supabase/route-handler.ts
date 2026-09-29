@@ -11,6 +11,7 @@ import {
   updateAppointmentSchema,
   updatePatientSchema,
   recordPaymentSchema,
+  signDocumentMetadataSchema,
 } from "@/shared/api";
 import {
   createUserSchema,
@@ -2073,6 +2074,32 @@ export async function handleSupabaseDentyRoute(
         responseHeaders.set("content-length", String(downloaded.blob.size));
         return new Response(downloaded.blob, { status: 200, headers: responseHeaders });
       }
+    }
+    if (
+      parts.length === 4 &&
+      parts[0] === "api" &&
+      parts[1] === "documents" &&
+      parts[3] === "sign" &&
+      method === "POST"
+    ) {
+      // Stage 13: consents are signed in the clinic (tablet/firma manuscrita) by staff.
+      if (identity.actor.role === "PATIENT")
+        return error(403, "FORBIDDEN", "La firma de documentos se realiza en la clínica.");
+      const denied = requireActorPermission(identity, "documents.sign");
+      if (denied) return denied;
+      const form = await request.formData();
+      const file = form.get("file");
+      if (!(file instanceof File))
+        return error(400, "SIGNATURE_FILE_REQUIRED", "Adjunta una firma PNG o JPEG válida.");
+      const payload = signDocumentMetadataSchema.parse({ signerName: form.get("signerName") });
+      return json(
+        200,
+        await documentRepository(identity).sign(decodeURIComponent(parts[2] ?? ""), {
+          signerName: payload.signerName,
+          file,
+        }),
+        headers,
+      );
     }
     if (
       parts.length === 4 &&

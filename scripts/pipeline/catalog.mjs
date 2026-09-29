@@ -138,7 +138,8 @@ export const stages = {
   unit: {
     description: "Run unit and component tests in a test React environment",
     needs: ["install"],
-    command: bin("vitest", ["run", "--isolate=false"]),
+    // Stage 13: isolated workers — shared module state let vi.mock leak across files.
+    command: bin("vitest", ["run"]),
     env: { NODE_ENV: "test" },
     timeoutMs: 3 * MINUTE,
   },

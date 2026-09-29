@@ -310,6 +310,7 @@ export const clinicalSyncStateSchema = z.object({
       status: z.string().min(1),
       totalCents: z.number().int(),
       sourcePlanVersion: versionSchema.nullable(),
+      version: versionSchema.optional(),
       outdated: z.boolean(),
     })
     .nullable(),

@@ -1986,3 +1986,8 @@ html[data-mantine-color-scheme="dark"] .disclosure {
 .flexField {
   flex: 1;
 }
+
+/* Stage 13: compact conversion meter on analysis treatment rows. */
+.rowMeter {
+  min-width: 120px;
+}

@@ -289,6 +289,9 @@ export const documentSchema = z.object({
   version: z.number().int().positive(),
   previousVersionId: idSchema.nullable().optional(),
   fileSizeBytes: z.number().int().nonnegative().nullable().optional(),
+  templateId: idSchema.nullable().optional(),
+  signerName: z.string().nullable().optional(),
+  signedAt: z.string().nullable().optional(),
   createdAt: isoDateTimeSchema,
 });
 
@@ -301,8 +304,13 @@ export const createDocumentSchema = z.object({
 });
 
 export const signDocumentSchema = z.object({
-  signerName: z.string().min(2),
-  signatureData: z.string().optional(),
+  signerName: z.string().trim().min(2),
+  /** PNG/JPEG data URL captured by SignaturePad; sent to the server as multipart. */
+  signatureDataUrl: z.string().regex(/^data:image\/(png|jpeg);/),
+});
+
+export const signDocumentMetadataSchema = z.object({
+  signerName: z.string().trim().min(2).max(160),
 });
 
 export const paymentMethodSchema = z.enum(["CASH", "CARD", "TRANSFER", "FINANCING", "OTHER"]);

@@ -376,13 +376,13 @@ declare v_items jsonb;
 begin
   if not private.has_finance_permission(p_clinic_id,'finance.read') then raise exception 'FORBIDDEN' using errcode='42501'; end if;
   with prod as (
-    select date_trunc('month',pe.recognized_at at time zone 'Europe/Madrid') month,sum(pe.produced_cents)::bigint produced_cents from public.analytics_production_events pe
+    select date_trunc('month',pe.recognized_at at time zone 'Europe/Madrid') as month,sum(pe.produced_cents)::bigint produced_cents from public.analytics_production_events pe
     where pe.clinic_id=p_clinic_id and (p_start is null or pe.recognized_at>=p_start) and (p_end is null or pe.recognized_at<p_end) and (p_site_id is null or pe.site_id=p_site_id) and (p_staff_id is null or pe.staff_id=p_staff_id) group by 1
   ), inv as (
-    select date_trunc('month',ie.recognized_at at time zone 'Europe/Madrid') month,sum(ie.invoiced_cents)::bigint invoiced_cents from public.analytics_invoice_events ie
+    select date_trunc('month',ie.recognized_at at time zone 'Europe/Madrid') as month,sum(ie.invoiced_cents)::bigint invoiced_cents from public.analytics_invoice_events ie
     where ie.clinic_id=p_clinic_id and (p_start is null or ie.recognized_at>=p_start) and (p_end is null or ie.recognized_at<p_end) and (p_site_id is null or ie.site_id=p_site_id) and (p_staff_id is null or ie.staff_id=p_staff_id) group by 1
   ), coll as (
-    select date_trunc('month',x.recognized_at at time zone 'Europe/Madrid') month,sum(x.collected_cents)::bigint collected_cents from (
+    select date_trunc('month',x.recognized_at at time zone 'Europe/Madrid') as month,sum(x.collected_cents)::bigint collected_cents from (
       select p.paid_at recognized_at,p.amount_cents::bigint collected_cents from public.payments p
       where p.clinic_id=p_clinic_id and p.status='COMPLETED' and p_site_id is null and p_staff_id is null
       union all

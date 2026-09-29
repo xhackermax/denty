@@ -57,7 +57,7 @@ export function PatientClinicalSummary({ patientId }: PatientClinicalSummaryProp
   if (workflowQuery.isError) {
     return (
       <Alert color="red" title="Error al cargar historia">
-        No se pudo cargar la historia clínica remota.
+        Revisa la conexión e inténtalo de nuevo.
       </Alert>
     );
   }

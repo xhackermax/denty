@@ -61,3 +61,9 @@ do $$ begin
   end if;
 exception when duplicate_object then null;
 end $$;
+
+-- Stage 13: columns linking attempts to sellable payment methods/terminals
+-- (moved here from 20260927113000 so a fresh database applies in order).
+alter table public.payment_attempts add column if not exists payment_method_option_id uuid references public.clinic_payment_methods(id) on delete set null;
+alter table public.payment_attempts add column if not exists integration_mode text check (integration_mode is null or integration_mode in ('connected','semi_connected','manual'));
+alter table public.payment_attempts add column if not exists terminal_id uuid references public.payment_terminals(id) on delete set null;
