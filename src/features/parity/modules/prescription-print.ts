@@ -87,7 +87,7 @@ export function buildPrescriptionPrintHtml(data: PrescriptionPrintData): string 
         .join(" · ");
       return `<li>
         <div class="drug">${escapeHtml(title)}${presentation ? ` <span>${escapeHtml(presentation)}</span>` : ""}</div>
-        <div class="regimen">${escapeHtml(regimenSentence(item))}</div>
+        <div class="regimen">${escapeHtml(regimenSentence(item))}${clean(item.packageCount) ? ` <span class="packages">· Dispensar: ${escapeHtml(clean(item.packageCount))}</span>` : ""}</div>
         ${clean(item.instructions) ? `<div class="notes">${escapeHtml(clean(item.instructions))}</div>` : ""}
       </li>`;
     })
@@ -116,8 +116,10 @@ export function buildPrescriptionPrintHtml(data: PrescriptionPrintData): string 
   .drug { font-weight: 700; font-size: 12pt; }
   .drug span { font-weight: 400; font-size: 10pt; color: #333; }
   .regimen { margin-top: 2px; }
+  .packages { color: #333; }
   .notes { margin-top: 2px; font-style: italic; color: #333; }
-  footer { margin-top: 36px; display: flex; justify-content: flex-end; }
+  footer { margin-top: 36px; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
+  .validity { font-size: 9pt; color: #333; max-width: 90mm; }
   .signature { width: 70mm; text-align: center; font-size: 10pt; }
   .signature .box { height: 26mm; border-bottom: 1px solid #111; }
   .signature b { display: block; margin-top: 6px; font-size: 10.5pt; }
@@ -139,9 +141,11 @@ export function buildPrescriptionPrintHtml(data: PrescriptionPrintData): string 
   <div class="rp">Rp./</div>
   <ol>${items}</ol>
   <footer>
+    <div class="validity">Validez: 10 días naturales desde la fecha de prescripción. Receta de dispensación en oficina de farmacia (RD 1718/2010).</div>
     <div class="signature">
       <div class="box"></div>
       <b>${escapeHtml(data.prescriber.name)}</b>
+      Odontólogo/a<br>
       ${data.prescriber.collegiateNumber ? `Nº de colegiado ${escapeHtml(clean(data.prescriber.collegiateNumber))}` : "Nº de colegiado ____________"}
     </div>
   </footer>
@@ -150,28 +154,4 @@ export function buildPrescriptionPrintHtml(data: PrescriptionPrintData): string 
 </html>`;
 }
 
-/** Prints a standalone HTML page through a hidden frame (no pop-up, no navigation). */
-export function printHtml(html: string): void {
-  const frame = document.createElement("iframe");
-  frame.setAttribute("aria-hidden", "true");
-  frame.title = "Impresión de receta";
-  frame.className = "denty-print-frame";
-  frame.width = "0";
-  frame.height = "0";
-  frame.style.position = "fixed";
-  frame.style.border = "0";
-  frame.style.inset = "auto auto 0 0";
-  frame.tabIndex = -1;
-  frame.srcdoc = html;
-  frame.onload = () => {
-    const view = frame.contentWindow;
-    if (!view) return;
-    const cleanup = () => window.setTimeout(() => frame.remove(), 500);
-    view.addEventListener("afterprint", cleanup, { once: true });
-    view.focus();
-    view.print();
-    // Some browsers do not fire afterprint for the frame: remove it anyway later.
-    window.setTimeout(() => frame.isConnected && frame.remove(), 60_000);
-  };
-  document.body.appendChild(frame);
-}
+export { printHtml } from "@/shared/print/print-html";

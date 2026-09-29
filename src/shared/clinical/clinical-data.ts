@@ -191,6 +191,8 @@ export function useSignConsentMutation(patientId: string) {
       title: string;
       signerName: string;
       signatureDataUrl: string;
+      /** Doctor and treatment shown in the consent, kept to reprint it later. */
+      data?: Record<string, string | null>;
     }) => {
       const api = getBrowserApi();
       const document = await api.documents.create({
@@ -198,7 +200,7 @@ export function useSignConsentMutation(patientId: string) {
         type: "CONSENT",
         title: input.title,
         templateId: input.templateId,
-        data: {},
+        data: input.data ?? {},
       });
       return api.documents.sign(document.id, {
         signerName: input.signerName,

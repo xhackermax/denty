@@ -216,6 +216,8 @@ export const INSTRUCTIONS = [
   "Enjuagar 30 segundos y no enjuagar con agua después",
 ] as const;
 
+export const PACKAGE_COUNTS = ["1 envase", "2 envases", "3 envases"] as const;
+
 /** Usual combinations: one click adds every line. */
 export const PRESCRIPTION_PROTOCOLS: readonly {
   label: string;
@@ -239,6 +241,8 @@ export interface PrescriptionLine {
   unitsPerDose: string;
   frequency: string;
   duration: string;
+  /** Number of packages to dispense (RD 1718/2010). */
+  packageCount: string;
   instructions: string;
 }
 
@@ -251,6 +255,7 @@ export function emptyPrescriptionLine(): PrescriptionLine {
     unitsPerDose: "",
     frequency: "",
     duration: "",
+    packageCount: PACKAGE_COUNTS[0],
     instructions: "",
   };
 }
@@ -272,6 +277,7 @@ export function lineFromPreset(preset: MedicationPreset): PrescriptionLine {
     unitsPerDose: preset.unitsPerDose,
     frequency: preset.frequency,
     duration: preset.duration,
+    packageCount: PACKAGE_COUNTS[0],
     instructions: preset.instructions ?? "",
   };
 }
@@ -285,5 +291,6 @@ export function isCompleteLine(line: PrescriptionLine): boolean {
     line.unitsPerDose,
     line.frequency,
     line.duration,
+    line.packageCount,
   ].every((value) => value.trim().length > 0);
 }

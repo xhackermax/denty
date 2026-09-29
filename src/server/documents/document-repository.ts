@@ -44,6 +44,7 @@ export interface DocumentView {
   templateId: string | null;
   signerName: string | null;
   signedAt: string | null;
+  data: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -210,6 +211,7 @@ function toView(row: DocumentRow): DocumentView {
     templateId: row.template_id,
     signerName: row.signer_name ?? null,
     signedAt: row.signed_at ?? null,
+    data: row.data_json ?? {},
     createdAt: row.created_at,
   };
 }

@@ -63,6 +63,7 @@ function toItems(lines: readonly PrescriptionLine[]) {
     unitsPerDose: line.unitsPerDose.trim(),
     frequency: line.frequency.trim(),
     duration: line.duration.trim(),
+    packageCount: line.packageCount.trim(),
     ...(line.instructions.trim() ? { instructions: line.instructions.trim() } : {}),
   }));
 }
@@ -76,6 +77,7 @@ function toLines(prescription: Prescription): PrescriptionLine[] {
     unitsPerDose: item.unitsPerDose,
     frequency: item.frequency,
     duration: item.duration,
+    packageCount: item.packageCount ?? "1 envase",
     instructions: item.instructions ?? "",
   }));
   return lines.length ? lines : [emptyPrescriptionLine()];

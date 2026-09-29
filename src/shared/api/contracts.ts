@@ -307,6 +307,7 @@ export const documentSchema = z.object({
   templateId: idSchema.nullable().optional(),
   signerName: z.string().nullable().optional(),
   signedAt: z.string().nullable().optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
   createdAt: isoDateTimeSchema,
 });
 

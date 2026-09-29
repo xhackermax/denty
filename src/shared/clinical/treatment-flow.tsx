@@ -14,10 +14,17 @@ import {
   TextInput,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconArrowLeft, IconArrowRight, IconCalendarPlus, IconCheck } from "@tabler/icons-react";
+import {
+  IconArrowLeft,
+  IconArrowRight,
+  IconCalendarPlus,
+  IconCheck,
+  IconPrinter,
+} from "@tabler/icons-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { todayMadrid } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
 import { DentyApiError } from "@/shared/api/errors";
 import {
@@ -31,6 +38,9 @@ import {
   useSyncBudgetFromPlanMutation,
   useSyncPlanFromOdontogramMutation,
 } from "@/shared/clinical/clinical-data";
+import { documentValues, useDocumentContext } from "@/shared/documents/document-context";
+import { printClinicalDocument } from "@/shared/documents/print-document";
+import { TemplateText } from "@/shared/documents/template-text";
 import { usePatientQuery } from "@/shared/patients/patient-data";
 import styles from "@/shared/ui/parity.module.css";
 import { SignaturePad } from "@/shared/ui/signature-pad";
@@ -203,6 +213,8 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
         <ConsentsStep
           patientId={patientId}
           patientName={patientName}
+          patient={patientQuery.data}
+          items={openItems}
           requirements={consentsQuery.data?.items ?? []}
         />
       ) : null}
@@ -353,18 +365,40 @@ interface ConsentRequirementView {
   consentCode: string;
   status: string;
   templateId?: string | null | undefined;
+  clinicalPlanItemId?: string | null | undefined;
+}
+
+interface ConsentPatient {
+  firstName: string;
+  lastName: string;
+  dni?: string | null | undefined;
+  recordNumber?: string | null | undefined;
 }
 
 function ConsentsStep({
   patientId,
   patientName,
+  patient,
+  items,
   requirements,
 }: {
   patientId: string;
   patientName: string;
+  patient: ConsentPatient | undefined;
+  items: PlanItemView[];
   requirements: ConsentRequirementView[];
 }) {
   const templates = useDocumentTemplatesQuery();
+  const context = useDocumentContext();
+  const templateFor = (requirement: ConsentRequirementView) =>
+    (templates.data?.items ?? []).find((item) => item.id === requirement.templateId) as
+      { title?: string; body?: string; code?: string } | undefined;
+  // "Obturación · diente 16" for the consent of a plan item.
+  const treatmentFor = (requirement: ConsentRequirementView) => {
+    const item = items.find((entry) => entry.id === requirement.clinicalPlanItemId);
+    return item ? `${item.label}${item.tooth ? ` · diente ${item.tooth}` : ""}` : null;
+  };
+  const doctor = context.doctorById(context.defaultDoctorId);
   const sign = useSignConsentMutation(patientId);
   const [signingId, setSigningId] = useState<string | null>(null);
   const [signerName, setSignerName] = useState(patientName);
@@ -421,6 +455,21 @@ function ConsentsStep({
                 ) : null}
                 {open && !done ? (
                   <Stack gap="xs">
+                    {templateFor(requirement)?.body ? (
+                      <div className={styles.consentText}>
+                        <TemplateText
+                          body={templateFor(requirement)?.body ?? ""}
+                          values={documentValues({
+                            patient: patient ?? null,
+                            doctor,
+                            clinicName: context.clinicName,
+                            city: context.site?.city,
+                            date: todayMadrid(),
+                            treatment: treatmentFor(requirement),
+                          })}
+                        />
+                      </div>
+                    ) : null}
                     <TextInput
                       label="Nombre de quien firma"
                       value={signerName}
@@ -436,6 +485,28 @@ function ConsentsStep({
                       <Button variant="default" size="xs" onClick={() => setSigningId(null)}>
                         Cancelar
                       </Button>
+                      {patient && templateFor(requirement)?.body ? (
+                        <Button
+                          variant="light"
+                          size="xs"
+                          leftSection={<IconPrinter size={14} />}
+                          onClick={() =>
+                            printClinicalDocument({
+                              title: titleFor(requirement),
+                              templateCode: templateFor(requirement)?.code,
+                              templateBody: templateFor(requirement)?.body ?? "",
+                              patient,
+                              context,
+                              data: {
+                                doctorId: context.defaultDoctorId,
+                                tratamiento: treatmentFor(requirement),
+                              },
+                            })
+                          }
+                        >
+                          Imprimir para leer
+                        </Button>
+                      ) : null}
                       <Button
                         size="xs"
                         loading={sign.isPending}
@@ -448,6 +519,10 @@ function ConsentsStep({
                               title: titleFor(requirement),
                               signerName: signerName.trim(),
                               signatureDataUrl: signature,
+                              data: {
+                                doctorId: context.defaultDoctorId,
+                                tratamiento: treatmentFor(requirement),
+                              },
                             },
                             { onSuccess: () => setSigningId(null) },
                           );

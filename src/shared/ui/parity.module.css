@@ -1996,3 +1996,11 @@ html[data-mantine-color-scheme="dark"] .disclosure {
 .spanTwo {
   grid-column: span 2;
 }
+
+/* Consent text the patient reads before signing. */
+.consentText {
+  padding: 10px 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--denty-card-solid) 94%, var(--denty-blue) 6%);
+}

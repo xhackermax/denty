@@ -8,6 +8,7 @@ import {
   DURATIONS,
   FREQUENCIES,
   INSTRUCTIONS,
+  PACKAGE_COUNTS,
   PHARMACEUTICAL_FORMS,
   PRESCRIPTION_PROTOCOLS,
   ROUTES,
@@ -139,6 +140,12 @@ export function PrescriptionLinesEditor({
                   data={[...DURATIONS]}
                   value={line.duration}
                   onChange={(value) => update(index, { duration: value })}
+                />
+                <Autocomplete
+                  label="Nº de envases"
+                  data={[...PACKAGE_COUNTS]}
+                  value={line.packageCount}
+                  onChange={(value) => update(index, { packageCount: value })}
                 />
                 <Autocomplete
                   className={styles.spanTwo}

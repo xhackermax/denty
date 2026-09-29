@@ -2255,10 +2255,12 @@ export async function handleSupabaseDentyRoute(
       parts[1] === "document-templates" &&
       method === "GET"
     ) {
+      // Older versions stay readable so signed documents print the exact text signed.
+      const includeInactive = new URL(request.url).searchParams.get("includeInactive") === "true";
       const rows = await identity.restClient.select<Record<string, unknown>>("document_templates", {
         select: "*",
         clinic_id: `eq.${identity.actor.clinicId}`,
-        active: "eq.true",
+        ...(includeInactive ? {} : { active: "eq.true" }),
         order: "created_at.desc",
       });
       return json(200, { items: rows }, headers);
