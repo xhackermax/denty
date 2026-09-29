@@ -1378,6 +1378,12 @@
     },
     {
       "method": "POST",
+      "path": "/api/voice/interpret",
+      "source": "src/app/api/voice/interpret/route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
       "path": "/api/voice/preview",
       "source": "apps/api/src/modules/voice/routes.ts",
       "kind": "browser"

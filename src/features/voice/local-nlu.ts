@@ -99,7 +99,7 @@ export interface LocalVoicePlan {
   readback: string;
   confidence: number;
   contextPatientId?: string;
-  source: "rules";
+  source: "rules" | "claude";
 }
 
 const TREATMENTS: readonly [RegExp, string, string][] = [
@@ -545,7 +545,10 @@ function navigationAction(text: string): LocalVoiceAction | undefined {
   return match ? { type: "navigation.open", destination: match[1] } : undefined;
 }
 
-function readback(actions: readonly LocalVoiceAction[], ambiguities: readonly string[]): string {
+export function voiceReadback(
+  actions: readonly LocalVoiceAction[],
+  ambiguities: readonly string[],
+): string {
   if (ambiguities.length) return `Necesito ${ambiguities.join(" y ")}.`;
   const parts: string[] = [];
   for (const action of actions) {
@@ -566,6 +569,17 @@ function readback(actions: readonly LocalVoiceAction[], ambiguities: readonly st
     }
     if (action.type === "odontogram.removable") parts.push("registrar prótesis removible");
     if (action.type === "periodontal.update") parts.push(`actualizar periodoncia ${action.tooth}`);
+    if (action.type === "odontogram.set_state") {
+      const surfaces = action.surfaces?.length ? ` (${action.surfaces.join("")})` : "";
+      parts.push(
+        action.status === "CARIES"
+          ? `apuntar caries en el ${action.tooth}${surfaces}`
+          : action.status === "MISSING"
+            ? `marcar el ${action.tooth} como ausente`
+            : `marcar el ${action.tooth} como sano`,
+      );
+    }
+    if (action.type === "clinical.note") parts.push(`anotar «${action.text}»`);
     if (action.type === "budget.sync") parts.push("preparar presupuesto");
     if (action.type === "payment.record") {
       const amount = action.amountCents ? ` de ${action.amountCents / 100} €` : "";
@@ -766,7 +780,7 @@ export function planLocalVoiceCommand(
     actions,
     ambiguities: uniqueAmbiguities,
     requiresConfirmation: uniqueAmbiguities.length > 0 || consequential,
-    readback: readback(actions, uniqueAmbiguities),
+    readback: voiceReadback(actions, uniqueAmbiguities),
     confidence: uniqueAmbiguities.length ? 0.72 : actions.length ? 0.94 : 0.25,
     ...(!explicitPatient && context.patientId !== undefined
       ? { contextPatientId: context.patientId }

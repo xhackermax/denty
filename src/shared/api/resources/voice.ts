@@ -7,6 +7,8 @@ import {
   voiceCapabilitiesSchema,
   voiceExecuteResultSchema,
   voiceExecuteSchema,
+  voiceInterpretResultSchema,
+  voiceInterpretSchema,
   voicePreviewResultSchema,
   voicePreviewSchema,
 } from "../schemas/voice";
@@ -19,6 +21,12 @@ export function createVoiceResource(client: ApiClient) {
         "/api/voice/transcribe",
         transcriptionSchema,
         transcribeVoiceSchema.parse(payload),
+      ),
+    interpret: (payload: z.input<typeof voiceInterpretSchema>) =>
+      client.mutation(
+        "/api/voice/interpret",
+        voiceInterpretResultSchema,
+        voiceInterpretSchema.parse(payload),
       ),
     preview: (payload: z.input<typeof voicePreviewSchema>) =>
       client.mutation(

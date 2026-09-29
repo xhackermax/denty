@@ -18,6 +18,22 @@ export const transcriptionSchema = z
   })
   .passthrough();
 
+export const voiceInterpretSchema = z.object({
+  text: z.string().trim().min(1).max(1000),
+  pathname: z.string().max(300).optional(),
+  selectedTooth: z
+    .string()
+    .regex(/^[1-8][1-8]$/)
+    .optional(),
+});
+
+/** Actions are validated server-side against Denty's tools; the client re-checks executability. */
+export const voiceInterpretResultSchema = z.object({
+  source: z.literal("claude"),
+  actions: z.array(z.object({ type: z.string().min(1) }).passthrough()),
+  ambiguities: z.array(z.string()),
+});
+
 export const voicePreviewSchema = z.object({
   text: z.string().min(1),
   context: z.record(z.string(), z.unknown()).default({}),

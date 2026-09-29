@@ -1,5 +1,6 @@
 import {
   planLocalVoiceCommand,
+  voiceReadback,
   type LocalVoiceAction,
   type LocalVoiceContext,
   type LocalVoicePlan,
@@ -42,6 +43,41 @@ export function previewVoiceCommand(input: string, context: LocalVoiceContext = 
     planToken: crypto.randomUUID(),
     plan,
     unsupportedActions,
+  };
+}
+
+/**
+ * Preview built from Claude's interpretation (see /api/voice/interpret). The
+ * actions go through the same confirmation and executor as the local ones.
+ */
+export function previewFromClaude(
+  input: string,
+  interpretation: { actions: readonly LocalVoiceAction[]; ambiguities: readonly string[] },
+  context: LocalVoiceContext = {},
+): VoicePreview {
+  const patientId = context.patientId ?? patientIdFromPathname(context.pathname);
+  const actions = [...interpretation.actions];
+  const ambiguities = [...interpretation.ambiguities];
+  const needsPatient = actions.some(
+    (action) => !action.type.startsWith("navigation.") && action.type !== "patient.create",
+  );
+  if (needsPatient && !patientId) ambiguities.push("abrir antes la ficha del paciente");
+  const plan: LocalVoicePlan = {
+    raw: input,
+    actions,
+    ambiguities,
+    requiresConfirmation: true,
+    readback: voiceReadback(actions, ambiguities),
+    confidence: ambiguities.length ? 0.7 : 0.95,
+    ...(patientId ? { contextPatientId: patientId } : {}),
+    source: "claude",
+  };
+  return {
+    planToken: crypto.randomUUID(),
+    plan,
+    unsupportedActions: actions
+      .filter((action) => !isExecutableVoiceAction(action))
+      .map((action) => action.type),
   };
 }
 

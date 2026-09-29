@@ -1,8 +1,16 @@
 import { archForTooth, createBridgeEntities, createRemovable, type DentalEntity } from "@/domain";
 import { getBrowserApi } from "@/shared/api/browser";
-import { createStateEntity, domainEntityToApiInput } from "@/shared/odontogram/odontogram-wire";
+import {
+  domainEntityToApiInput,
+  persistedEntityToDomain,
+} from "@/shared/odontogram/odontogram-wire";
 
 import type { LocalVoiceAction, LocalVoicePlan } from "./local-nlu";
+import {
+  entityForVoiceAction,
+  isOdontogramTreatmentCode,
+  mergeVoiceEntities,
+} from "./voice-odontogram";
 
 export interface VoiceExecutionResult {
   executed: string[];
@@ -18,6 +26,9 @@ export const EXECUTABLE_VOICE_ACTION_TYPES = new Set<LocalVoiceAction["type"]>([
   "odontogram.set_state",
   "odontogram.bridge",
   "odontogram.removable",
+  "clinical.add_item",
+  "clinical.complete_item",
+  "clinical.mark_unsatisfactory",
 ]);
 
 export function isExecutableVoiceAction(action: LocalVoiceAction): boolean {
@@ -28,6 +39,13 @@ export function isExecutableVoiceAction(action: LocalVoiceAction): boolean {
   }
   if (action.type === "odontogram.bridge") return action.teeth.length >= 2;
   if (action.type === "odontogram.removable") return action.teeth.length >= 1;
+  if (
+    action.type === "clinical.add_item" ||
+    action.type === "clinical.complete_item" ||
+    action.type === "clinical.mark_unsatisfactory"
+  ) {
+    return Boolean(action.tooth) && isOdontogramTreatmentCode(action.treatmentCode);
+  }
   return true;
 }
 
@@ -38,12 +56,18 @@ function requirePatientId(plan: LocalVoicePlan): string {
   return plan.contextPatientId;
 }
 
-async function saveOdontogramEntities(patientId: string, entities: readonly DentalEntity[]) {
+/**
+ * Saving replaces the whole odontogram, so spoken findings are merged into the
+ * current one instead of being sent alone (which would wipe every other tooth).
+ */
+async function saveOdontogramEntities(patientId: string, additions: readonly DentalEntity[]) {
+  if (!additions.length) return;
   const api = getBrowserApi();
   const current = await api.clinical.odontogram.get(patientId);
+  const merged = mergeVoiceEntities(current.entities.map(persistedEntityToDomain), additions);
   await api.clinical.odontogram.batch(patientId, {
     expectedVersion: current.version,
-    entities: entities.map(domainEntityToApiInput),
+    entities: merged.map(domainEntityToApiInput),
   });
 }
 
@@ -98,36 +122,6 @@ async function executeAction(action: LocalVoiceAction, plan: LocalVoicePlan): Pr
     return true;
   }
 
-  if (action.type === "odontogram.set_state") {
-    const state =
-      action.status === "CARIES" ? "caries" : action.status === "HEALTHY" ? "healthy" : "missing";
-    await saveOdontogramEntities(requirePatientId(plan), [
-      createStateEntity(action.tooth, state, action.surfaces ?? []),
-    ]);
-    return true;
-  }
-
-  if (action.type === "odontogram.bridge") {
-    const first = action.teeth[0];
-    const last = action.teeth.at(-1);
-    if (!first || !last) return false;
-    await saveOdontogramEntities(requirePatientId(plan), createBridgeEntities(first, last));
-    return true;
-  }
-
-  if (action.type === "odontogram.removable") {
-    const firstTooth = action.teeth[0];
-    if (!firstTooth) return false;
-    const arch =
-      action.arch === "UPPER"
-        ? "upper"
-        : action.arch === "LOWER"
-          ? "lower"
-          : archForTooth(firstTooth);
-    await saveOdontogramEntities(requirePatientId(plan), [createRemovable(arch, action.teeth)]);
-    return true;
-  }
-
   return false;
 }
 
@@ -142,8 +136,53 @@ export async function executeVoicePlan(plan: LocalVoicePlan): Promise<VoiceExecu
   const executed: string[] = [];
   const skipped: string[] = [];
 
+  // Everything that draws on the odontogram goes in one merged save.
+  const odontogramAdditions: DentalEntity[] = [];
+  let plansTreatment = false;
+  for (const action of plan.actions) {
+    if (action.type === "odontogram.bridge") {
+      const first = action.teeth[0];
+      const last = action.teeth.at(-1);
+      if (first && last) odontogramAdditions.push(...createBridgeEntities(first, last));
+      executed.push(action.type);
+      continue;
+    }
+    if (action.type === "odontogram.removable") {
+      const firstTooth = action.teeth[0];
+      if (!firstTooth) continue;
+      const arch =
+        action.arch === "UPPER"
+          ? "upper"
+          : action.arch === "LOWER"
+            ? "lower"
+            : archForTooth(firstTooth);
+      odontogramAdditions.push(createRemovable(arch, action.teeth));
+      executed.push(action.type);
+      continue;
+    }
+    const entity = entityForVoiceAction(action);
+    if (entity) {
+      odontogramAdditions.push(entity);
+      if (action.type === "clinical.add_item") plansTreatment = true;
+      executed.push(action.type);
+    }
+  }
+  if (odontogramAdditions.length) {
+    const patientId = requirePatientId(plan);
+    await saveOdontogramEntities(patientId, odontogramAdditions);
+    // A treatment to do goes straight to the plan (and from there to the budget).
+    if (plansTreatment) await getBrowserApi().clinical.sync.plan(patientId);
+  }
+
   for (const action of plan.actions) {
     if (action.type === "patient.resolve" || action.type.startsWith("navigation.")) continue;
+    if (
+      action.type.startsWith("odontogram.") ||
+      action.type === "clinical.add_item" ||
+      action.type === "clinical.complete_item" ||
+      action.type === "clinical.mark_unsatisfactory"
+    )
+      continue;
     const didExecute = await executeAction(action, plan);
     (didExecute ? executed : skipped).push(action.type);
   }
