@@ -90,6 +90,12 @@ export const updatePatientSchema = createPatientSchema
   .omit({ recordNumber: true, declaredCampaignId: true })
   .partial()
   .extend({
+    // null clears an optional field when the record is edited.
+    phone: z.string().trim().min(1).nullable().optional(),
+    email: z.string().email().nullable().optional(),
+    birthDate: isoDateSchema.nullable().optional(),
+    declaredSource: patientAcquisitionSourceSchema.nullable().optional(),
+    declaredSourceDetail: z.string().max(200).nullable().optional(),
     expectedVersion: versionSchema,
   });
 

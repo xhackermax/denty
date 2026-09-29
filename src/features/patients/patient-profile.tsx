@@ -9,6 +9,7 @@ import {
   IconFileText,
   IconHeartbeat,
   IconDeviceGamepad2,
+  IconPencil,
   IconPill,
   IconReceipt,
   IconRestore,
@@ -32,6 +33,7 @@ import {
 } from "@/shared/patients/patient-data";
 import { HorizontalSnapNav, PageHeader, PatientAvatar } from "@/shared/ui";
 import { PatientMedicalHistory } from "./patient-medical-history";
+import { PatientEditModal } from "./patient-edit-modal";
 import { PatientPhotoCapture } from "./patient-photo-capture";
 import {
   optionLabels,
@@ -100,6 +102,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const [now] = useState(() => Date.now());
   const [activeTab, setActiveTab] = useState<string | null>("summary");
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [medicalProfileOverride, setMedicalProfileOverride] =
     useState<PatientMedicalProfile | null>(null);
@@ -204,6 +207,14 @@ export function PatientProfile({ patientId }: { patientId: string }) {
                 </Button>
               </Menu.Target>
               <Menu.Dropdown>
+                {!patient.archivedAt ? (
+                  <Menu.Item
+                    leftSection={<IconPencil size={16} />}
+                    onClick={() => setEditOpen(true)}
+                  >
+                    Editar datos
+                  </Menu.Item>
+                ) : null}
                 <Menu.Item
                   component={Link}
                   href={`/app/agenda?patientId=${patientId}`}
@@ -280,16 +291,28 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           ) : null}
           <Badge variant="light">Servidor</Badge>
           {!patient.archivedAt ? (
-            <Button
-              size="xs"
-              variant="subtle"
-              onClick={() => setPhotoEditorOpen((value) => !value)}
-            >
-              {photoEditorOpen ? "Cerrar foto" : "Cambiar foto"}
-            </Button>
+            <>
+              <Button
+                size="xs"
+                variant="light"
+                leftSection={<IconPencil size={14} />}
+                onClick={() => setEditOpen(true)}
+              >
+                Editar datos
+              </Button>
+              <Button
+                size="xs"
+                variant="subtle"
+                onClick={() => setPhotoEditorOpen((value) => !value)}
+              >
+                {photoEditorOpen ? "Cerrar foto" : "Cambiar foto"}
+              </Button>
+            </>
           ) : null}
         </div>
       </section>
+
+      <PatientEditModal patient={patient} opened={editOpen} onClose={() => setEditOpen(false)} />
 
       {photoEditorOpen ? (
         <section className={styles.section}>
@@ -304,15 +327,28 @@ export function PatientProfile({ patientId }: { patientId: string }) {
               loading={uploadPhotoMutation.isPending}
               onClick={() => {
                 if (!photoFile) return;
-                void uploadPhotoMutation.mutateAsync({ patientId, file: photoFile }).then(() => {
-                  setPhotoFile(null);
-                  setPhotoEditorOpen(false);
-                });
+                uploadPhotoMutation.mutate(
+                  { patientId, file: photoFile },
+                  {
+                    onSuccess: () => {
+                      setPhotoFile(null);
+                      setPhotoEditorOpen(false);
+                    },
+                  },
+                );
               }}
             >
               Guardar foto
             </Button>
           </Group>
+          {uploadPhotoMutation.isError ? (
+            <Alert mt="sm" color="red">
+              No se pudo guardar la foto:{" "}
+              {uploadPhotoMutation.error instanceof Error
+                ? uploadPhotoMutation.error.message
+                : "error desconocido"}
+            </Alert>
+          ) : null}
         </section>
       ) : null}
 

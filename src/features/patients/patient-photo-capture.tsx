@@ -5,11 +5,23 @@ import { IconCamera, IconPhoto, IconRefresh, IconX } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 
 import styles from "./patient-photo-capture.module.css";
+import { compressPhotoFile, compressVideoFrame } from "./photo-compression";
 
 interface PatientPhotoCaptureProps {
   value: File | null;
   onPhotoReady: (file: File | null) => void;
   disabled?: boolean;
+}
+
+function cameraErrorMessage(caught: unknown): string {
+  const name = caught instanceof DOMException ? caught.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError")
+    return "El navegador ha bloqueado la cámara. Permite el acceso desde el candado de la barra de direcciones y vuelve a intentarlo, o elige una foto.";
+  if (name === "NotFoundError" || name === "OverconstrainedError")
+    return "No se ha encontrado ninguna cámara en este dispositivo. Puedes elegir una foto.";
+  if (name === "NotReadableError")
+    return "La cámara está en uso por otra aplicación. Ciérrala y vuelve a intentarlo.";
+  return "No se pudo acceder a la cámara. Puedes seleccionar una foto manualmente.";
 }
 
 export function PatientPhotoCapture({
@@ -52,36 +64,46 @@ export function PatientPhotoCapture({
       stopCamera();
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      // The <video> element only mounts once cameraActive is true; the effect below
+      // attaches the stream to it after that render.
       setCameraActive(true);
-    } catch {
-      setError("No se pudo acceder a la cámara. Puedes seleccionar una foto manualmente.");
+    } catch (caught) {
+      setError(cameraErrorMessage(caught));
     }
   };
 
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!cameraActive || !video || !stream) return;
+    video.srcObject = stream;
+    video.play().catch(() => {
+      setError("La cámara está abierta pero el navegador no pudo mostrar la imagen.");
+    });
+  }, [cameraActive]);
+
   const capturePhoto = async () => {
     const video = videoRef.current;
-    if (!video || !video.videoWidth || !video.videoHeight) return;
-    const maxSide = 1280;
-    const scale = Math.min(1, maxSide / Math.max(video.videoWidth, video.videoHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(video.videoWidth * scale);
-    canvas.height = Math.round(video.videoHeight * scale);
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.86),
-    );
-    if (!blob) {
-      setError("No se pudo procesar la foto.");
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setError("Espera a que aparezca la imagen de la cámara y vuelve a pulsar.");
       return;
     }
-    onPhotoReady(new File([blob], `paciente-${Date.now()}.jpg`, { type: "image/jpeg" }));
-    stopCamera();
+    try {
+      onPhotoReady(await compressVideoFrame(video));
+      stopCamera();
+    } catch {
+      setError("No se pudo procesar la foto.");
+    }
+  };
+
+  const choosePhoto = async (file: File | null) => {
+    setError(null);
+    if (!file) return;
+    try {
+      onPhotoReady(await compressPhotoFile(file));
+    } catch {
+      setError("No se pudo leer esa imagen. Prueba con una foto JPG, PNG o WebP.");
+    }
   };
 
   return (
@@ -139,7 +161,7 @@ export function PatientPhotoCapture({
           >
             Abrir cámara
           </Button>
-          <FileButton onChange={onPhotoReady} accept="image/jpeg,image/png,image/webp">
+          <FileButton onChange={(file) => void choosePhoto(file)} accept="image/*">
             {(props) => (
               <Button
                 {...props}
