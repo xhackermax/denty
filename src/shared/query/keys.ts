@@ -88,6 +88,7 @@ export const dentyQueryKeys = {
     root: root("settings"),
     clinic: (clinicId: string) => ["denty", "settings", "clinic", clinicId] as const,
     site: (siteId: string) => ["denty", "settings", "site", siteId] as const,
+    sitesOverview: ["denty", "settings", "sites-overview"] as const,
   },
   treatmentCatalog: {
     root: root("treatment-catalog"),

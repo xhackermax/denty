@@ -1,4 +1,4 @@
-import { clinicalGlyphFor, type ClinicalGlyphModel } from "@/domain";
+import { clinicalGlyphFor, type ClinicalGlyphModel, type RotaShift } from "@/domain";
 import type { Appointment, Patient } from "@/shared/api";
 import type { AgendaContext } from "@/shared/api/schemas/agenda";
 
@@ -23,6 +23,7 @@ export interface AgendaAppointmentView {
 export interface AgendaStaffView {
   id: string;
   displayName: string;
+  schedules: readonly RotaShift[];
 }
 
 export interface AgendaSiteView {
@@ -77,6 +78,7 @@ export function projectApiStaff(context?: AgendaContext): readonly AgendaStaffVi
   return (context?.staff ?? []).map((member) => ({
     id: member.id,
     displayName: member.displayName,
+    schedules: member.schedules ?? [],
   }));
 }
 

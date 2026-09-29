@@ -4,20 +4,31 @@ import Link from "next/link";
 import styles from "@/shared/ui/parity.module.css";
 import { PageHeader } from "@/shared/ui";
 import { AdminUsersPanel } from "./admin-users-panel";
+import { AdminSitesPanel } from "./admin-sites-panel";
 import { AdminTreatmentCatalogPanel } from "./admin-treatment-catalog-panel";
 
-export function AdminPage({ section = "home" }: { section?: "home" | "users" | "catalog" }) {
+export function AdminPage({
+  section = "home",
+}: {
+  section?: "home" | "users" | "catalog" | "sites";
+}) {
   return (
     <div className={styles.grid}>
       <PageHeader
         eyebrow="Administración"
         title={
-          section === "home" ? "Centro operativo" : section === "users" ? "Usuarios" : "Catálogo"
+          section === "home"
+            ? "Centro operativo"
+            : section === "users"
+              ? "Usuarios"
+              : section === "sites"
+                ? "Sedes y doctores"
+                : "Catálogo"
         }
         description="Usuarios, sedes y configuración."
       />
       {section === "home" ? (
-        <SimpleGrid cols={{ base: 1, md: 4 }}>
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
           <Link className={styles.cardLink} href="/app/patients">
             <span className={styles.cardLinkTitle}>Pacientes</span>
             <span className={styles.cardLinkDescription}>
@@ -28,6 +39,12 @@ export function AdminPage({ section = "home" }: { section?: "home" | "users" | "
             <span className={styles.cardLinkTitle}>Usuarios y roles</span>
             <span className={styles.cardLinkDescription}>
               ADMIN · RECEPTION · DENTIST · ASSISTANT · PATIENT
+            </span>
+          </Link>
+          <Link className={styles.cardLink} href="/app/admin/sites">
+            <span className={styles.cardLinkTitle}>Sedes y doctores</span>
+            <span className={styles.cardLinkDescription}>
+              Sedes, gabinetes y qué días trabaja cada doctor en cada sede
             </span>
           </Link>
           <Link className={styles.cardLink} href="/app/admin/catalog">
@@ -42,6 +59,7 @@ export function AdminPage({ section = "home" }: { section?: "home" | "users" | "
       ) : null}
       {section === "users" ? <AdminUsersPanel /> : null}
       {section === "catalog" ? <AdminTreatmentCatalogPanel /> : null}
+      {section === "sites" ? <AdminSitesPanel /> : null}
     </div>
   );
 }

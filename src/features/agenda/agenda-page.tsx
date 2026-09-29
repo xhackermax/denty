@@ -34,6 +34,7 @@ import {
   IconFirstAidKit,
   IconLayoutColumns,
   IconLock,
+  IconMapPin,
   IconMinus,
   IconPlus,
   IconSearch,
@@ -72,6 +73,7 @@ import {
   planVisitDates,
   rangeStartFor,
   shiftRange,
+  staffForSiteDay,
   visibleDates,
   type AgendaBlock,
   type AgendaDayCount,
@@ -370,6 +372,16 @@ export function AgendaPage() {
   );
   const patientOptions = useMemo(() => projectApiPatients(patients), [patients]);
   const staffNames = useMemo(() => new Map(staff.map((m) => [m.id, m.displayName])), [staff]);
+  // Doctors of the selected site: those whose rota puts them there on the visible
+  // days (a doctor can rotate between sites), plus anyone already booked there.
+  const siteStaff = useMemo(() => {
+    if (!activeSiteId) return staff;
+    const booked = new Set(appointments.map((appointment) => appointment.staffId));
+    const working = staff.filter((member) =>
+      dates.some((date) => staffForSiteDay([member], activeSiteId, date, booked).length > 0),
+    );
+    return working.length ? working : staff;
+  }, [activeSiteId, appointments, dates, staff]);
   const cabinetNames = useMemo(() => new Map(cabinets.map((c) => [c.id, c.name])), [cabinets]);
   const actorStaffId = contextQuery.data?.actor.staffId ?? null;
   const effectivePatientId = patientId || patientOptions[0]?.id || "";
@@ -411,7 +423,7 @@ export function AgendaPage() {
   const resources = useMemo(() => {
     const all =
       resourceMode === "staff"
-        ? staff.map((member) => ({
+        ? siteStaff.map((member) => ({
             id: `staff:${member.id}`,
             staffId: member.id,
             cabinetId: null as string | null,
@@ -454,7 +466,7 @@ export function AgendaPage() {
     resourceFilter,
     resourceMode,
     sites.length,
-    staff,
+    siteStaff,
     effectiveDayCount,
     actorStaffId,
   ]);
@@ -1032,7 +1044,7 @@ export function AgendaPage() {
 
   const resourceOptions =
     resourceMode === "staff"
-      ? staff.map((member) => ({ value: `staff:${member.id}`, label: member.displayName }))
+      ? siteStaff.map((member) => ({ value: `staff:${member.id}`, label: member.displayName }))
       : cabinets.map((cabinet) => ({ value: `cabinet:${cabinet.id}`, label: cabinet.name }));
   const minColumn = columns.length > 6 ? 120 : dates.length > 1 ? 150 : 200;
   const nowOffset = currentTimeOffset(nowTick, START_HOUR, END_HOUR);
@@ -1082,6 +1094,36 @@ export function AgendaPage() {
           <IconChevronRight size={16} />
         </ActionIcon>
       </div>
+
+      {sites.length > 1 ? (
+        <div className={styles.toolbarGroup}>
+          <Menu position="bottom-start" withinPortal>
+            <Menu.Target>
+              <Button
+                size="xs"
+                variant="light"
+                aria-label="Sede"
+                leftSection={<IconMapPin size={14} />}
+                rightSection={<IconChevronDown size={14} />}
+              >
+                {sites.find((site) => site.id === activeSiteId)?.name ?? "Sede"}
+              </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Label>Sede</Menu.Label>
+              {sites.map((site) => (
+                <Menu.Item
+                  key={site.id}
+                  fw={site.id === activeSiteId ? 700 : undefined}
+                  onClick={() => setActiveSiteId(site.id)}
+                >
+                  {site.name}
+                </Menu.Item>
+              ))}
+            </Menu.Dropdown>
+          </Menu>
+        </div>
+      ) : null}
 
       <div className={styles.toolbarGroup}>
         <Menu position="bottom-start" withinPortal>
@@ -1204,23 +1246,6 @@ export function AgendaPage() {
                 onChange={(event) => setShowBlocks(event.currentTarget.checked)}
               />
             </Stack>
-            {sites.length > 1 ? (
-              <>
-                <Menu.Divider />
-                <Menu.Label>Sede</Menu.Label>
-                <div className={styles.menuPadding}>
-                  <Select
-                    size="xs"
-                    comboboxProps={{ withinPortal: false }}
-                    value={activeSiteId}
-                    onChange={(value) => setActiveSiteId(value ?? null)}
-                    data={sites.map((site) => ({ value: site.id, label: site.name }))}
-                    placeholder="Todas"
-                    clearable
-                  />
-                </div>
-              </>
-            ) : null}
           </Menu.Dropdown>
         </Menu>
       </div>
