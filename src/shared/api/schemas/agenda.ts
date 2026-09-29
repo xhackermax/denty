@@ -14,6 +14,18 @@ export const agendaStaffSchema = z
     id: idSchema,
     displayName: z.string().min(1),
     active: z.boolean().optional(),
+    role: z.string().optional(),
+    // Weekly rota: which site the professional works at on each weekday (0 = Sunday).
+    schedules: z
+      .array(
+        z.object({
+          siteId: idSchema,
+          weekday: z.number().int().min(0).max(6),
+          startsAt: z.string(),
+          endsAt: z.string(),
+        }),
+      )
+      .default([]),
   })
   .passthrough();
 
@@ -28,6 +40,8 @@ export const agendaSiteSchema = z
   .object({
     id: idSchema,
     name: z.string().min(1),
+    city: z.string().nullable().optional(),
+    active: z.boolean().optional(),
     cabinets: z.array(agendaCabinetSchema).default([]),
   })
   .passthrough();

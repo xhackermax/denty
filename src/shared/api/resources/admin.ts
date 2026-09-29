@@ -4,6 +4,10 @@ import type { ApiClient } from "../client";
 import { patientSchema } from "../contracts";
 import {
   acquisitionSourceInputSchema,
+  adminSitesOverviewSchema,
+  saveSiteSchema,
+  saveStaffMemberSchema,
+  setStaffScheduleSchema,
   attributionSummarySchema,
   attributionTouchRecordSchema,
   attributionTouchSchema,
@@ -26,6 +30,42 @@ import { withQuery } from "./shared";
 
 export function createAdminResource(client: ApiClient) {
   return {
+    sites: {
+      overview: () => client.request("/api/admin/sites", adminSitesOverviewSchema),
+      create: (payload: z.input<typeof saveSiteSchema>) =>
+        client.mutation(
+          "/api/admin/sites",
+          adminSitesOverviewSchema,
+          saveSiteSchema.parse(payload),
+        ),
+      update: (id: string, payload: z.input<typeof saveSiteSchema>) =>
+        client.mutation(
+          `/api/admin/sites/${encodeId(id)}`,
+          adminSitesOverviewSchema,
+          saveSiteSchema.parse(payload),
+          { method: "PATCH" },
+        ),
+      createStaff: (payload: z.input<typeof saveStaffMemberSchema>) =>
+        client.mutation(
+          "/api/admin/staff",
+          adminSitesOverviewSchema,
+          saveStaffMemberSchema.parse(payload),
+        ),
+      updateStaff: (id: string, payload: z.input<typeof saveStaffMemberSchema>) =>
+        client.mutation(
+          `/api/admin/staff/${encodeId(id)}`,
+          adminSitesOverviewSchema,
+          saveStaffMemberSchema.parse(payload),
+          { method: "PATCH" },
+        ),
+      setSchedule: (staffId: string, payload: z.input<typeof setStaffScheduleSchema>) =>
+        client.mutation(
+          `/api/admin/staff/${encodeId(staffId)}/schedule`,
+          adminSitesOverviewSchema,
+          setStaffScheduleSchema.parse(payload),
+          { method: "PUT" },
+        ),
+    },
     treatmentCatalog: {
       list: () => client.request("/api/admin/treatment-catalog", treatmentCatalogSchema),
       create: (payload: z.input<typeof treatmentCatalogCreateSchema>) =>

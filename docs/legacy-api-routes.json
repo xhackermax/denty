@@ -125,6 +125,36 @@
     },
     {
       "method": "GET",
+      "path": "/api/admin/sites",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/sites",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/sites/:id",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/staff",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/staff/:id",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/staff/:id/schedule",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/treatment-catalog",
       "kind": "browser"
     },

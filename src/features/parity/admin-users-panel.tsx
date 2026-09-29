@@ -146,13 +146,32 @@ function StaffUserForm({ onCreated }: { onCreated: () => unknown }) {
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<StaffRole>("RECEPTION");
   const [password, setPassword] = useState("");
+  const [staffId, setStaffId] = useState<string | null>(null);
+  // Doctors created in «Sedes y doctores» have no login yet: link the new user to them
+  // so the agenda, rota and appointments stay on the same professional.
+  const overview = useQuery({
+    queryKey: dentyQueryKeys.settings.sitesOverview,
+    queryFn: () => getBrowserApi().admin.sites.overview(),
+  });
+  const unlinkedStaff = (overview.data?.staff ?? []).filter(
+    (member) => !member.hasLogin && member.active,
+  );
   const create = useMutation({
-    mutationFn: () => getBrowserApi().admin.users.create({ email, displayName, role, password }),
+    mutationFn: () =>
+      getBrowserApi().admin.users.create({
+        email,
+        displayName,
+        role,
+        password,
+        ...(staffId ? { staffId } : {}),
+      }),
     onSuccess: () => {
       setEmail("");
       setDisplayName("");
       setPassword("");
       setRole("RECEPTION");
+      setStaffId(null);
+      void overview.refetch();
       void onCreated();
     },
   });
@@ -165,6 +184,24 @@ function StaffUserForm({ onCreated }: { onCreated: () => unknown }) {
   return (
     <form onSubmit={submit}>
       <Stack>
+        {unlinkedStaff.length ? (
+          <Select
+            label="Profesional de la agenda (opcional)"
+            description="Da acceso a un doctor ya creado en Sedes y doctores."
+            placeholder="Usuario nuevo, sin vincular"
+            data={unlinkedStaff.map((member) => ({ value: member.id, label: member.displayName }))}
+            value={staffId}
+            onChange={(value) => {
+              setStaffId(value);
+              const member = unlinkedStaff.find((candidate) => candidate.id === value);
+              if (member) {
+                setDisplayName(member.displayName);
+                setRole(member.role);
+              }
+            }}
+            clearable
+          />
+        ) : null}
         <Group grow align="end">
           <TextInput
             label="Email"

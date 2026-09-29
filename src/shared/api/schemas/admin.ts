@@ -155,3 +155,67 @@ export const treatmentCatalogCreateSchema = z.object({
 export const treatmentCatalogUpdateSchema = treatmentCatalogCreateSchema.partial().extend({
   expectedVersion: z.number().int().positive(),
 });
+
+// Sites (sedes), their doctors and the weekly rota per site.
+const clockTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora HH:MM");
+
+export const staffScheduleEntrySchema = z
+  .object({
+    siteId: idSchema,
+    weekday: z.number().int().min(0).max(6),
+    startsAt: clockTimeSchema,
+    endsAt: clockTimeSchema,
+  })
+  .refine((entry) => entry.endsAt > entry.startsAt, {
+    message: "La hora de salida debe ser posterior a la de entrada.",
+  });
+
+export const adminSiteSchema = z.object({
+  id: idSchema,
+  name: z.string().min(1),
+  city: z.string().nullable(),
+  address: z.string().nullable(),
+  phone: z.string().nullable(),
+  active: z.boolean(),
+  cabinetCount: z.number().int().min(0),
+});
+
+export const adminStaffMemberSchema = z.object({
+  id: idSchema,
+  displayName: z.string().min(1),
+  role: z.enum(["ADMIN", "RECEPTION", "DENTIST", "ASSISTANT"]),
+  active: z.boolean(),
+  collegiateNumber: z.string().nullable(),
+  hasLogin: z.boolean(),
+  schedules: z.array(staffScheduleEntrySchema),
+});
+
+export const adminSitesOverviewSchema = z.object({
+  sites: z.array(adminSiteSchema),
+  staff: z.array(adminStaffMemberSchema),
+});
+
+export const saveSiteSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  city: z.string().trim().max(120).nullable().optional(),
+  address: z.string().trim().max(240).nullable().optional(),
+  phone: z.string().trim().max(60).nullable().optional(),
+  active: z.boolean().default(true),
+  cabinetCount: z.number().int().min(0).max(30).default(1),
+});
+
+export const saveStaffMemberSchema = z.object({
+  displayName: z.string().trim().min(1).max(120),
+  role: z.enum(["ADMIN", "RECEPTION", "DENTIST", "ASSISTANT"]).default("DENTIST"),
+  active: z.boolean().default(true),
+  collegiateNumber: z.string().trim().max(30).nullable().optional(),
+});
+
+export const setStaffScheduleSchema = z.object({
+  entries: z.array(staffScheduleEntrySchema).max(60),
+});
+
+export type AdminSite = z.infer<typeof adminSiteSchema>;
+export type AdminStaffMember = z.infer<typeof adminStaffMemberSchema>;
+export type AdminSitesOverview = z.infer<typeof adminSitesOverviewSchema>;
+export type StaffScheduleEntry = z.infer<typeof staffScheduleEntrySchema>;

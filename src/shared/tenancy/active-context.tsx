@@ -1,7 +1,15 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query/keys";
@@ -19,6 +27,15 @@ interface ActiveTenantContextValue {
 }
 
 const ActiveTenantContext = createContext<ActiveTenantContextValue | null>(null);
+const ACTIVE_SITE_STORAGE_KEY = "denty.activeSiteId";
+
+function readStoredSiteId(): string | null {
+  try {
+    return window.localStorage.getItem(ACTIVE_SITE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
 
 export function ActiveTenantProvider({ children }: { children: ReactNode }) {
   const sessionQuery = useQuery({
@@ -36,11 +53,22 @@ export function ActiveTenantProvider({ children }: { children: ReactNode }) {
     () => (agendaContextQuery.data?.sites ?? []).map((site) => ({ id: site.id, name: site.name })),
     [agendaContextQuery.data?.sites],
   );
-  const [activeSiteId, setActiveSiteId] = useState<string | null>(null);
+  const [activeSiteId, setActiveSiteIdState] = useState<string | null>(null);
+  // The chosen site is remembered per browser (reception desks stay on their site).
+  const setActiveSiteId = useCallback((siteId: string | null) => {
+    setActiveSiteIdState(siteId);
+    try {
+      if (siteId) window.localStorage.setItem(ACTIVE_SITE_STORAGE_KEY, siteId);
+    } catch {
+      // Storage unavailable (private mode): the choice lasts for this visit only.
+    }
+  }, []);
 
   useEffect(() => {
     if (activeSiteId && sites.some((site) => site.id === activeSiteId)) return;
-    setActiveSiteId(sites[0]?.id ?? null);
+    const stored = readStoredSiteId();
+    const next = sites.find((site) => site.id === stored)?.id ?? sites[0]?.id ?? null;
+    if (next !== activeSiteId) setActiveSiteIdState(next);
   }, [activeSiteId, sites]);
 
   const value = useMemo<ActiveTenantContextValue>(
@@ -60,6 +88,7 @@ export function ActiveTenantProvider({ children }: { children: ReactNode }) {
       sessionQuery.data?.actor.permissions,
       sessionQuery.data?.actor.role,
       sessionQuery.isPending,
+      setActiveSiteId,
       sites,
     ],
   );

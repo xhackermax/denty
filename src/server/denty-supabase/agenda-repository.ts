@@ -63,10 +63,24 @@ interface StaffRow {
   id: string;
   display_name: string;
   active: boolean;
+  role?: string;
+  profile_id?: string | null;
+  collegiate_number?: string | null;
 }
 interface SiteRow {
   id: string;
   name: string;
+  city?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  active?: boolean;
+}
+interface StaffScheduleRow {
+  staff_member_id: string;
+  site_id: string | null;
+  weekday: number;
+  starts_at: string;
+  ends_at: string;
 }
 interface CabinetRow {
   id: string;
@@ -279,16 +293,17 @@ export class AgendaRepository {
   }
 
   async getContext(actor: { role: string; staffId?: string | null }) {
-    const [staff, sites, cabinets, settings] = await Promise.all([
+    const [staff, sites, cabinets, schedules, settings] = await Promise.all([
       this.client.select<StaffRow>("staff_members", {
-        select: "id,display_name,active",
+        select: "id,display_name,active,role",
         clinic_id: `eq.${this.clinicId}`,
         active: "eq.true",
         order: "display_name.asc",
       }),
       this.client.select<SiteRow>("sites", {
-        select: "id,name",
+        select: "id,name,city,active",
         clinic_id: `eq.${this.clinicId}`,
+        active: "eq.true",
         order: "name.asc",
       }),
       this.client.select<CabinetRow>("cabinets", {
@@ -296,6 +311,7 @@ export class AgendaRepository {
         clinic_id: `eq.${this.clinicId}`,
         order: "name.asc",
       }),
+      this.listWeeklySchedules(),
       this.getSettings(actor.staffId ?? undefined),
     ]);
     return {
@@ -303,10 +319,14 @@ export class AgendaRepository {
         id: row.id,
         displayName: row.display_name,
         active: row.active,
+        ...(row.role ? { role: row.role } : {}),
+        schedules: schedulesFor(schedules, row.id),
       })),
       sites: sites.map((site) => ({
         id: site.id,
         name: site.name,
+        city: site.city ?? null,
+        active: site.active ?? true,
         cabinets: cabinets
           .filter((cabinet) => cabinet.site_id === site.id)
           .map((cabinet) => ({ id: cabinet.id, name: cabinet.name })),
@@ -314,6 +334,114 @@ export class AgendaRepository {
       actor: { role: actor.role, staffId: actor.staffId ?? null },
       settings,
     };
+  }
+
+  private listWeeklySchedules() {
+    return this.client.select<StaffScheduleRow>("staff_schedules", {
+      select: "staff_member_id,site_id,weekday,starts_at,ends_at",
+      clinic_id: `eq.${this.clinicId}`,
+      active: "eq.true",
+      effective_from: "is.null",
+      effective_until: "is.null",
+      order: "weekday.asc,starts_at.asc",
+    });
+  }
+
+  /** Administration: every site (active or not) and every professional with their rota. */
+  async getSitesOverview() {
+    const [sites, cabinets, staff, schedules] = await Promise.all([
+      this.client.select<SiteRow>("sites", {
+        select: "id,name,city,address,phone,active",
+        clinic_id: `eq.${this.clinicId}`,
+        order: "name.asc",
+      }),
+      this.client.select<CabinetRow>("cabinets", {
+        select: "id,site_id,name",
+        clinic_id: `eq.${this.clinicId}`,
+      }),
+      this.client.select<StaffRow>("staff_members", {
+        select: "id,display_name,active,role,profile_id,collegiate_number",
+        clinic_id: `eq.${this.clinicId}`,
+        order: "display_name.asc",
+      }),
+      this.listWeeklySchedules(),
+    ]);
+    return {
+      sites: sites.map((site) => ({
+        id: site.id,
+        name: site.name,
+        city: site.city ?? null,
+        address: site.address ?? null,
+        phone: site.phone ?? null,
+        active: site.active ?? true,
+        cabinetCount: cabinets.filter((cabinet) => cabinet.site_id === site.id).length,
+      })),
+      staff: staff.map((row) => ({
+        id: row.id,
+        displayName: row.display_name,
+        role: (row.role ?? "DENTIST") as "ADMIN" | "RECEPTION" | "DENTIST" | "ASSISTANT",
+        active: row.active,
+        collegiateNumber: row.collegiate_number ?? null,
+        hasLogin: Boolean(row.profile_id),
+        schedules: schedulesFor(schedules, row.id),
+      })),
+    };
+  }
+
+  async saveSite(
+    siteId: string | null,
+    input: {
+      name: string;
+      city?: string | null | undefined;
+      address?: string | null | undefined;
+      phone?: string | null | undefined;
+      active: boolean;
+      cabinetCount: number;
+    },
+  ) {
+    await this.client.rpc("admin_save_site", {
+      p_clinic_id: this.clinicId,
+      p_site_id: siteId,
+      p_name: input.name,
+      p_city: input.city ?? null,
+      p_address: input.address ?? null,
+      p_phone: input.phone ?? null,
+      p_active: input.active,
+      p_cabinet_count: input.cabinetCount,
+    });
+    return this.getSitesOverview();
+  }
+
+  async saveStaffMember(
+    staffId: string | null,
+    input: {
+      displayName: string;
+      role: string;
+      active: boolean;
+      collegiateNumber?: string | null | undefined;
+    },
+  ) {
+    await this.client.rpc("admin_save_staff_member", {
+      p_clinic_id: this.clinicId,
+      p_staff_id: staffId,
+      p_display_name: input.displayName,
+      p_role: input.role,
+      p_active: input.active,
+      p_collegiate_number: input.collegiateNumber ?? null,
+    });
+    return this.getSitesOverview();
+  }
+
+  async setStaffSchedule(
+    staffId: string,
+    entries: ReadonlyArray<{ siteId: string; weekday: number; startsAt: string; endsAt: string }>,
+  ) {
+    await this.client.rpc("admin_set_staff_schedule", {
+      p_clinic_id: this.clinicId,
+      p_staff_id: staffId,
+      p_entries: entries,
+    });
+    return this.getSitesOverview();
   }
 
   async availability(input: {
@@ -612,4 +740,15 @@ function mapAbsence(row: AbsenceRow) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function schedulesFor(rows: readonly StaffScheduleRow[], staffId: string) {
+  return rows
+    .filter((row) => row.staff_member_id === staffId && row.site_id)
+    .map((row) => ({
+      siteId: row.site_id as string,
+      weekday: row.weekday,
+      startsAt: row.starts_at.slice(0, 5),
+      endsAt: row.ends_at.slice(0, 5),
+    }));
 }

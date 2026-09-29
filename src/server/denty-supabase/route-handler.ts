@@ -16,6 +16,9 @@ import {
 import {
   createUserSchema,
   resetUserPasswordSchema,
+  saveSiteSchema,
+  saveStaffMemberSchema,
+  setStaffScheduleSchema,
   treatmentCatalogCreateSchema,
   treatmentCatalogUpdateSchema,
   updateUserSchema,
@@ -2001,6 +2004,44 @@ export async function handleSupabaseDentyRoute(
       if (parts[4] === "assign") {
         const payload = await parseJson(request, assignAlertSchema);
         return json(200, await alerts.assignAlert(alertId, payload.userId), headers);
+      }
+    }
+    // Sites, their doctors and the weekly rota (which site each doctor works at each day).
+    if (
+      parts[0] === "api" &&
+      parts[1] === "admin" &&
+      (parts[2] === "sites" || parts[2] === "staff")
+    ) {
+      const denied = requireActorPermission(identity, "settings.manage");
+      if (denied) return denied;
+      const id = parts[3] ? decodeURIComponent(parts[3]) : null;
+      if (parts[2] === "sites" && parts.length === 3 && method === "GET")
+        return json(200, await agenda.getSitesOverview(), headers);
+      if (parts[2] === "sites" && parts.length === 3 && method === "POST") {
+        const payload = await parseJson(request, saveSiteSchema);
+        return json(201, await agenda.saveSite(null, payload), headers);
+      }
+      if (parts[2] === "sites" && parts.length === 4 && method === "PATCH" && id) {
+        const payload = await parseJson(request, saveSiteSchema);
+        return json(200, await agenda.saveSite(id, payload), headers);
+      }
+      if (parts[2] === "staff" && parts.length === 3 && method === "POST") {
+        const payload = await parseJson(request, saveStaffMemberSchema);
+        return json(201, await agenda.saveStaffMember(null, payload), headers);
+      }
+      if (parts[2] === "staff" && parts.length === 4 && method === "PATCH" && id) {
+        const payload = await parseJson(request, saveStaffMemberSchema);
+        return json(200, await agenda.saveStaffMember(id, payload), headers);
+      }
+      if (
+        parts[2] === "staff" &&
+        parts.length === 5 &&
+        parts[4] === "schedule" &&
+        method === "PUT" &&
+        id
+      ) {
+        const payload = await parseJson(request, setStaffScheduleSchema);
+        return json(200, await agenda.setStaffSchedule(id, payload.entries), headers);
       }
     }
     // Stage 6 canonical treatment catalog. Only actors with catalog.manage may mutate it.

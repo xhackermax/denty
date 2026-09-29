@@ -38,6 +38,11 @@ export function dateYMDMadrid(value: DateInput): string {
   return format(madridDate(value), "yyyy-MM-dd");
 }
 
+/** Weekday (0 = Sunday … 6 = Saturday) of a Madrid calendar date "YYYY-MM-DD". */
+export function weekdayMadrid(date: string): number {
+  return madridLocalDateTime(date, "12:00").getDay();
+}
+
 export function dateDMY(value: DateInput): string {
   return format(madridDate(value), "dd/MM/yyyy");
 }
