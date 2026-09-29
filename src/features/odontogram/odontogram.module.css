@@ -43,25 +43,6 @@
   pointer-events: none;
 }
 
-.surfaceKey {
-  display: flex;
-  max-width: 620px;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  justify-content: flex-end;
-  color: var(--denty-muted);
-  font-size: 0.68rem;
-}
-
-.surfaceKey span {
-  display: inline-flex;
-  gap: 4px;
-}
-
-.surfaceKey b {
-  color: var(--denty-text);
-}
-
 .archBlock {
   position: relative;
   display: grid;
@@ -286,15 +267,6 @@
 
 .surfaceMap[data-state="missing"] {
   opacity: 0.38;
-}
-
-.surfaceMapLetter {
-  fill: var(--denty-text);
-  font-size: 8px;
-  font-weight: 800;
-  text-anchor: middle;
-  dominant-baseline: central;
-  pointer-events: none;
 }
 
 .toothButton[data-arch="upper"] .surfaceMap {
@@ -663,10 +635,6 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
     flex-direction: column;
   }
 
-  .surfaceKey {
-    justify-content: flex-start;
-  }
-
   .chartPanel {
     padding-inline: 12px;
   }
@@ -916,22 +884,6 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
 .legendEntry[data-selected="true"] .legendChipRow em:first-child {
   border-color: color-mix(in srgb, var(--denty-teal) 38%, var(--denty-line));
   color: var(--denty-teal);
-}
-
-.surfaceLegend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  align-items: center;
-  padding-top: 10px;
-  border-top: 1px solid var(--denty-line);
-  color: var(--denty-muted);
-  font-size: 0.68rem;
-}
-
-.surfaceLegend strong,
-.surfaceLegend b {
-  color: var(--denty-text);
 }
 
 .bridgePicker {
@@ -1585,11 +1537,6 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
   border: 0;
   border-radius: 0;
   box-shadow: none;
-}
-
-.surfaceKey {
-  gap: 5px 10px;
-  font-size: 0.64rem;
 }
 
 .toothButton {

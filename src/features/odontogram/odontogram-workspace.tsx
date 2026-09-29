@@ -136,14 +136,6 @@ interface ToothProps {
   onSurfaceAction: (surface: ToothSurface) => void;
   onSurfaceCycle: (surface: ToothSurface) => void;
 }
-// Letters shown on the selected tooth's map, so M/D/V/P… are read at a glance.
-const SURFACE_MAP_LETTER_POSITIONS = {
-  top: [22, 8.5],
-  left: [7.5, 22],
-  center: [22, 22],
-  right: [36.5, 22],
-  bottom: [22, 36],
-} as const;
 const SURFACE_NAMES: Readonly<Record<ToothSurface, string>> = {
   V: "vestibular",
   M: "mesial",
@@ -285,25 +277,10 @@ function Tooth({
               role="button"
               aria-label={`Diente ${tooth} superficie ${SURFACE_NAMES[surface]}`}
               {...surfaceProps(surface)}
-            >
-              <title>{`${tooth} · ${SURFACE_NAMES[surface]}`}</title>
-            </path>
+            />
           );
         })}
         <path className={styles.surfaceMapFrame} d={SURFACE_MAP_PATHS.frame} />
-        {selected
-          ? (Object.keys(SURFACE_MAP_LETTER_POSITIONS) as Array<keyof typeof map>).map((area) => (
-              <text
-                key={area}
-                className={styles.surfaceMapLetter}
-                x={SURFACE_MAP_LETTER_POSITIONS[area][0]}
-                y={SURFACE_MAP_LETTER_POSITIONS[area][1]}
-                aria-hidden="true"
-              >
-                {map[area]}
-              </text>
-            ))
-          : null}
       </svg>
     </button>
   );
@@ -779,26 +756,6 @@ function OdontogramEditor({
             <div className={styles.chartHeader}>
               <div>
                 <Text fw={850}>Odontograma</Text>
-                <Text size="xs" c="dimmed">
-                  FDI permanente · M / D / V / P-L / O-I
-                </Text>
-              </div>
-              <div className={styles.surfaceKey} aria-label="Superficies dentales">
-                <span>
-                  <b>M</b> Mesial
-                </span>
-                <span>
-                  <b>D</b> Distal
-                </span>
-                <span>
-                  <b>V</b> Vestibular
-                </span>
-                <span>
-                  <b>P/L</b> Palatina / lingual
-                </span>
-                <span>
-                  <b>O/I</b> Oclusal / incisal
-                </span>
               </div>
             </div>
             <OdontogramLegend

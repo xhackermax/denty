@@ -248,25 +248,6 @@ export function OdontogramLegend({
         <summary>Más tratamientos</summary>
         <div className={styles.legendGrid}>{advancedItems.map(renderItem)}</div>
       </details>
-
-      <div className={styles.surfaceLegend}>
-        <strong>Caras:</strong>
-        <span>
-          <b>M</b> Mesial
-        </span>
-        <span>
-          <b>D</b> Distal
-        </span>
-        <span>
-          <b>V</b> Vestibular
-        </span>
-        <span>
-          <b>P/L</b> Palatina / lingual
-        </span>
-        <span>
-          <b>O/I</b> Oclusal / incisal
-        </span>
-      </div>
     </aside>
   );
 }
