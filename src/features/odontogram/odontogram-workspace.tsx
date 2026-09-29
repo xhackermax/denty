@@ -10,7 +10,6 @@ import {
   TOOTH_STATES,
   archForTooth,
   bridgeTeethFromEndpoints,
-  occlusalSurfaceForTooth,
   toothType,
   createBridgeEntities,
   createBoundedHistory,
@@ -58,8 +57,9 @@ import styles from "./odontogram.module.css";
 import {
   CROWN_PATHS,
   ROOT_PATHS,
-  SURFACE_PATHS,
+  SURFACE_MAP_PATHS,
   TOOTH_MARK_PATHS,
+  surfaceMapLayout,
 } from "@/shared/odontogram/tooth-geometry";
 import { TOOTH_STATE_LABELS as STATE_LABELS } from "@/shared/odontogram/tooth-state-labels";
 import { OrthodonticPanel } from "./orthodontic-panel";
@@ -135,15 +135,13 @@ interface ToothProps {
   onSurfaceAction: (surface: ToothSurface) => void;
   onSurfaceCycle: (surface: ToothSurface) => void;
 }
-const SURFACE_HITBOX_PATHS = {
-  regular: {
-    left: "M4 5 L23 27 V46 L4 61 Z",
-    right: "M60 5 L41 27 V46 L60 61 Z",
-  },
-  expanded: {
-    left: "M2 4 L26 27 V47 L2 63 Z",
-    right: "M62 4 L38 27 V47 L62 63 Z",
-  },
+// Letters shown on the selected tooth's map, so M/D/V/P… are read at a glance.
+const SURFACE_MAP_LETTER_POSITIONS = {
+  top: [22, 8.5],
+  left: [7.5, 22],
+  center: [22, 22],
+  right: [36.5, 22],
+  bottom: [22, 36],
 } as const;
 const SURFACE_NAMES: Readonly<Record<ToothSurface, string>> = {
   V: "vestibular",
@@ -169,16 +167,8 @@ function Tooth({
   const status = wholeState(state, tooth);
   const type = toothType(tooth);
   const arch = archForTooth(tooth);
-  const occlusal = occlusalSurfaceForTooth(tooth);
-  const inner: ToothSurface = arch === "upper" ? "P" : "L";
-  const quadrant = Number(tooth[0]);
-  const position = Number(tooth[1]);
-  const mesialOnRight = quadrant === 1 || quadrant === 4;
-  const left: ToothSurface = mesialOnRight ? "D" : "M";
-  const right: ToothSurface = mesialOnRight ? "M" : "D";
-  const clipId = `denty-crown-${tooth}`;
+  const map = surfaceMapLayout(tooth);
   const statusFor = (surface: ToothSurface) => surfaceState(state, tooth, surface) ?? status ?? "";
-  const sideHitboxes = position <= 5 ? SURFACE_HITBOX_PATHS.expanded : SURFACE_HITBOX_PATHS.regular;
   const surfaceProps = (surface: ToothSurface) => ({
     onClick: (event: React.MouseEvent<SVGElement>) => {
       event.stopPropagation();
@@ -233,62 +223,14 @@ function Tooth({
         role="img"
         aria-label={`Odontograma anatómico del diente ${tooth}`}
       >
-        <defs>
-          <clipPath id={clipId}>
-            <path d={CROWN_PATHS[type]} />
-          </clipPath>
-        </defs>
         <path className={styles.rootShape} d={ROOT_PATHS[type]} />
         <path className={styles.crownBase} d={CROWN_PATHS[type]} />
-        <g clipPath={`url(#${clipId})`}>
-          <path
-            className={styles.surface}
-            data-state={statusFor("V")}
-            d={SURFACE_PATHS.V}
-            {...surfaceProps("V")}
-          />
-          <path
-            className={styles.surface}
-            data-state={statusFor(left)}
-            d={SURFACE_PATHS.left}
-            {...surfaceProps(left)}
-          />
-          <path
-            className={styles.surface}
-            data-state={statusFor(occlusal)}
-            d={SURFACE_PATHS.occlusal}
-            {...surfaceProps(occlusal)}
-          />
-          <path
-            className={styles.surface}
-            data-state={statusFor(right)}
-            d={SURFACE_PATHS.right}
-            {...surfaceProps(right)}
-          />
-          <path
-            className={styles.surface}
-            data-state={statusFor(inner)}
-            d={SURFACE_PATHS.inner}
-            {...surfaceProps(inner)}
-          />
-        </g>
+        <path
+          className={`${styles.surface} ${styles.crownFill}`}
+          data-state={status ?? ""}
+          d={CROWN_PATHS[type]}
+        />
         <path className={styles.crownOutline} d={CROWN_PATHS[type]} />
-        <path
-          className={styles.surfaceHitbox}
-          data-surface={left}
-          data-proximal-hitbox={position <= 5 ? "expanded" : "regular"}
-          d={sideHitboxes.left}
-          aria-label={`Diente ${tooth} superficie ${SURFACE_NAMES[left]}`}
-          {...surfaceProps(left)}
-        />
-        <path
-          className={styles.surfaceHitbox}
-          data-surface={right}
-          data-proximal-hitbox={position <= 5 ? "expanded" : "regular"}
-          d={sideHitboxes.right}
-          aria-label={`Diente ${tooth} superficie ${SURFACE_NAMES[right]}`}
-          {...surfaceProps(right)}
-        />
         {endo ? <path className={styles.endoMark} d={TOOTH_MARK_PATHS.endo} /> : null}
         {post ? <path className={styles.postMark} d={TOOTH_MARK_PATHS.post} /> : null}
         {implant ? (
@@ -321,6 +263,46 @@ function Tooth({
             <path d={mark.path} />
           </g>
         ))}
+      </svg>
+      <svg
+        className={styles.surfaceMap}
+        data-state={status ?? "healthy"}
+        viewBox="0 0 44 44"
+        role="group"
+        aria-label={`Caras del diente ${tooth}`}
+      >
+        {(["top", "left", "center", "right", "bottom"] as const).map((area) => {
+          const surface = map[area];
+          return (
+            <path
+              key={area}
+              className={`${styles.surface} ${styles.surfaceMapArea}`}
+              data-area={area}
+              data-surface={surface}
+              data-state={statusFor(surface)}
+              d={SURFACE_MAP_PATHS[area]}
+              role="button"
+              aria-label={`Diente ${tooth} superficie ${SURFACE_NAMES[surface]}`}
+              {...surfaceProps(surface)}
+            >
+              <title>{`${tooth} · ${SURFACE_NAMES[surface]}`}</title>
+            </path>
+          );
+        })}
+        <path className={styles.surfaceMapFrame} d={SURFACE_MAP_PATHS.frame} />
+        {selected
+          ? (Object.keys(SURFACE_MAP_LETTER_POSITIONS) as Array<keyof typeof map>).map((area) => (
+              <text
+                key={area}
+                className={styles.surfaceMapLetter}
+                x={SURFACE_MAP_LETTER_POSITIONS[area][0]}
+                y={SURFACE_MAP_LETTER_POSITIONS[area][1]}
+                aria-hidden="true"
+              >
+                {map[area]}
+              </text>
+            ))
+          : null}
       </svg>
     </button>
   );

@@ -48,7 +48,8 @@ export interface ToothSurfaceLayout {
 /** Anatomical orientation shared by the odontogram and its compact renderings. */
 export function toothSurfaceLayout(tooth: string): ToothSurfaceLayout {
   const quadrant = Number(tooth[0]);
-  const mesialOnRight = quadrant === 1 || quadrant === 4;
+  // Right side of the patient (1, 4 and primary 5, 8) is drawn on the left of the chart.
+  const mesialOnRight = [1, 4, 5, 8].includes(quadrant);
   return {
     left: mesialOnRight ? "D" : "M",
     right: mesialOnRight ? "M" : "D",
@@ -58,3 +59,46 @@ export function toothSurfaceLayout(tooth: string): ToothSurfaceLayout {
 }
 
 export { archForTooth, toothType };
+
+/**
+ * Classic five-area surface map (outer square, inner square and diagonals), drawn
+ * next to each tooth so every surface has a clearly delimited, clickable area.
+ * viewBox 0 0 44 44.
+ */
+export const SURFACE_MAP_PATHS = {
+  frame: "M1 1 H43 V43 H1 Z",
+  top: "M1 1 H43 L30 14 H14 Z",
+  left: "M1 1 L14 14 V30 L1 43 Z",
+  center: "M14 14 H30 V30 H14 Z",
+  right: "M43 1 L30 14 V30 L43 43 Z",
+  bottom: "M1 43 H43 L30 30 H14 Z",
+} as const;
+
+export interface SurfaceMapLayout {
+  top: ToothSurface;
+  bottom: ToothSurface;
+  left: ToothSurface;
+  right: ToothSurface;
+  center: ToothSurface;
+}
+
+/**
+ * Orientation of the surface map as the chart is read (patient facing us: the
+ * patient's right, quadrants 1 and 4, on the left of the screen):
+ * - mesial always faces the midline: on the right for quadrants 1/4 (and 5/8),
+ *   on the left for quadrants 2/3 (and 6/7);
+ * - vestibular faces outwards (top for the maxilla, bottom for the mandible) and
+ *   palatal/lingual faces the occlusal plane in the middle of the chart;
+ * - the centre is occlusal on posterior teeth and incisal on anterior teeth.
+ */
+export function surfaceMapLayout(tooth: string): SurfaceMapLayout {
+  const { left, right, occlusal, inner } = toothSurfaceLayout(tooth);
+  const upper = archForTooth(tooth) === "upper";
+  return {
+    top: upper ? "V" : inner,
+    bottom: upper ? inner : "V",
+    left,
+    right,
+    center: occlusal,
+  };
+}
