@@ -90,7 +90,7 @@
 .toothButton {
   display: flex;
   min-width: 56px;
-  min-height: 114px;
+  min-height: 132px;
   flex-direction: column;
   gap: 3px;
   align-items: center;
@@ -186,8 +186,8 @@
 }
 
 .toothSvg {
-  width: 54px;
-  height: 82px;
+  width: 46px;
+  height: 70px;
   overflow: visible;
   filter: drop-shadow(0 4px 5px rgb(24 47 70 / 8%));
 }
@@ -206,7 +206,7 @@
 }
 
 .toothButton[data-arch="upper"] .toothLabel {
-  order: 2;
+  order: 3;
 }
 
 .toothButton[data-arch="lower"] .toothLabel {
@@ -214,7 +214,7 @@
 }
 
 .toothButton[data-arch="lower"] .toothSvg {
-  order: 2;
+  order: 3;
 }
 
 .rootShape {
@@ -256,22 +256,53 @@
   filter: brightness(1.03);
 }
 
-.surfaceHitbox {
-  fill: transparent;
-  stroke: transparent;
-  stroke-width: 0;
-  cursor: crosshair;
+/* Whole-tooth state on the anatomical crown; surfaces are edited on the map. */
+.crownFill {
+  pointer-events: none;
+}
+
+/* Classic five-area surface map: outer square, inner square and diagonals. */
+.surfaceMap {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  overflow: visible;
+}
+
+.surfaceMapArea {
+  stroke: color-mix(in srgb, var(--denty-muted) 70%, var(--denty-line-strong));
+  stroke-width: 1.4;
+  stroke-linejoin: round;
   pointer-events: all;
   touch-action: manipulation;
 }
 
-.surfaceHitbox:hover {
-  fill: color-mix(in srgb, var(--denty-teal) 7%, transparent);
-  stroke: transparent;
+.surfaceMapFrame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--denty-text) 55%, var(--denty-muted));
+  stroke-width: 2;
+  pointer-events: none;
 }
 
-.surfaceHitbox[data-proximal-hitbox="expanded"] {
-  pointer-events: all;
+.surfaceMap[data-state="missing"] {
+  opacity: 0.38;
+}
+
+.surfaceMapLetter {
+  fill: var(--denty-text);
+  font-size: 8px;
+  font-weight: 800;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.toothButton[data-arch="upper"] .surfaceMap {
+  order: 2;
+}
+
+.toothButton[data-arch="lower"] .surfaceMap {
+  order: 2;
 }
 
 .surface[data-state="caries"],

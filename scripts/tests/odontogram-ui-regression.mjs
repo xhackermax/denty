@@ -4,42 +4,39 @@ import { readFileSync } from "node:fs";
 const workspace = readFileSync("src/features/odontogram/odontogram-workspace.tsx", "utf8");
 const tabs = readFileSync("src/features/odontogram/clinical-tabs.tsx", "utf8");
 const css = readFileSync("src/features/odontogram/odontogram.module.css", "utf8");
+const geometry = readFileSync("src/shared/odontogram/tooth-geometry.ts", "utf8");
 
-const clippedGroupStart = workspace.indexOf("<g clipPath={`url(#${clipId})`}>");
-assert.notEqual(
-  clippedGroupStart,
-  -1,
-  "Debe existir el grupo SVG recortado de superficies visibles.",
-);
-const clippedGroupEnd = workspace.indexOf("</g>", clippedGroupStart);
-assert.notEqual(clippedGroupEnd, -1, "El grupo SVG recortado debe cerrarse.");
-const clippedGroup = workspace.slice(clippedGroupStart, clippedGroupEnd);
+// Surfaces are edited on the classic five-area map (outer square, inner square
+// and diagonals), outside any crown clip, so every area keeps its full size.
 assert.equal(
-  clippedGroup.includes("surfaceHitbox"),
+  workspace.includes("clipPath"),
   false,
-  "Las zonas táctiles M/D no deben estar dentro del clip de corona, porque el clip recorta su área útil.",
-);
-
-const afterClip = workspace.slice(clippedGroupEnd, clippedGroupEnd + 2200);
-assert.match(
-  afterClip,
-  /className=\{styles\.surfaceHitbox\}/,
-  "Deben existir hitboxes M/D fuera del clip.",
+  "Las superficies no deben recortarse con la silueta de la corona.",
 );
 assert.match(
-  afterClip,
+  workspace,
+  /className=\{styles\.surfaceMap\}/,
+  "Cada diente debe tener su mapa de cinco caras.",
+);
+assert.match(
+  workspace,
+  /\["top", "left", "center", "right", "bottom"\]/,
+  "El mapa debe tener cinco áreas delimitadas.",
+);
+assert.match(
+  workspace,
   /aria-label=\{`Diente \$\{tooth\} superficie/,
-  "Los hitboxes M/D deben tener nombre accesible.",
+  "Cada cara debe tener nombre accesible.",
 );
 assert.match(
-  workspace,
-  /position\s*<=\s*5/,
-  "Las piezas 1–5 deben recibir hitboxes proximales ampliados.",
+  geometry,
+  /mesialOnRight = \[1, 4, 5, 8\]\.includes\(quadrant\)/,
+  "Mesial debe mirar a la línea media en cada cuadrante (también en temporales).",
 );
 assert.match(
-  workspace,
-  /SURFACE_HITBOX_PATHS\.expanded/,
-  "Debe existir una geometría táctil ampliada para piezas 1–5.",
+  css,
+  /\.surfaceMapArea\s*\{[^}]*pointer-events:\s*all/s,
+  "Las áreas del mapa deben capturar el toque de forma explícita.",
 );
 
 assert.match(
@@ -61,11 +58,6 @@ assert.match(
   tabs,
   /onScroll=\{handleInfiniteScroll\}/,
   "La rueda debe recentrarse al desplazarse.",
-);
-assert.match(
-  css,
-  /\.surfaceHitbox\s*\{[^}]*pointer-events:\s*all/s,
-  "Los hitboxes M/D deben capturar el toque de forma explícita.",
 );
 assert.match(css, /\.clinicalWheel\s*\{/, "Debe existir el contenedor visual de rueda horizontal.");
 assert.match(
