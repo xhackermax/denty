@@ -1399,7 +1399,8 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
   border: 1px solid var(--denty-line);
   border-radius: 999px;
   background: color-mix(in srgb, var(--denty-card-solid) 72%, var(--denty-bg) 28%);
-  scroll-behavior: smooth;
+
+  /* No scroll-behavior: smooth - it would animate the invisible loop jump. */
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   touch-action: pan-x;

@@ -24,15 +24,21 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useQueryClient } from "@tanstack/react-query";
+
+import { getBrowserApi } from "@/shared/api/browser";
+import { DentyApiError } from "@/shared/api/errors";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { requestMediaPermission } from "@/shared/ui/device-permissions";
 
 import motionStyles from "./voice-command-bar.module.css";
 
+import { voiceReadback, type LocalVoiceAction } from "./local-nlu";
 import { executeVoicePlan } from "./voice-executor";
 import { resolveVoicePatient, type VoicePatientCandidate } from "./voice-patient-resolver";
 import {
   canExecuteVoicePreview,
+  previewFromClaude,
   previewVoiceCommand,
   primaryHrefForVoicePlan,
   type VoicePreview,
@@ -123,9 +129,17 @@ function bestRecorderMimeType(): string | undefined {
   return options.find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
 }
 
+function describeAction(action: LocalVoiceAction): string {
+  const sentence = voiceReadback([action], [])
+    .replace(/^Voy a /, "")
+    .replace(/\.$/, "");
+  return sentence === "No he detectado una acción concreta" ? action.type : sentence;
+}
+
 export function VoiceCommandBar() {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const reducedMotion = useReducedMotion();
   const patientsQuery = usePatientsQuery();
 
@@ -137,6 +151,9 @@ export function VoiceCommandBar() {
   const [executing, setExecuting] = useState(false);
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [heard, setHeard] = useState<string | null>(null);
+  const [interpreting, setInterpreting] = useState(false);
+  // Turned off for the session once the server says Claude isn't configured.
+  const claudeAvailableRef = useRef(true);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const keepListeningRef = useRef(false);
@@ -214,7 +231,7 @@ export function VoiceCommandBar() {
   );
 
   const processCommand = useCallback(
-    (command: string) => {
+    async (command: string) => {
       const clean = command.trim();
       if (!clean) return;
       setText(clean);
@@ -230,14 +247,40 @@ export function VoiceCommandBar() {
           return;
         }
       }
+
+      // The local rules are free: when they fully understood the order, Claude
+      // isn't called. Claude (paid per call) handles only what they can't, and
+      // the rules stay as the fallback when it isn't configured or doesn't answer.
+      if (claudeAvailableRef.current && !canExecuteVoicePreview(next)) {
+        setInterpreting(true);
+        try {
+          const result = await getBrowserApi().voice.interpret({ text: clean, pathname });
+          setPreview(
+            resolvePreview(
+              previewFromClaude(
+                clean,
+                { actions: result.actions as LocalVoiceAction[], ambiguities: result.ambiguities },
+                { pathname },
+              ),
+            ),
+          );
+          return;
+        } catch (error) {
+          if (error instanceof DentyApiError && error.code === "VOICE_CLAUDE_NOT_CONFIGURED") {
+            claudeAvailableRef.current = false;
+          }
+        } finally {
+          setInterpreting(false);
+        }
+      }
       setPreview(next);
     },
-    [preparePreview, router],
+    [pathname, preparePreview, resolvePreview, router],
   );
 
   const interpret = useCallback(() => {
     if (!text.trim()) return;
-    processCommand(text);
+    void processCommand(text);
   }, [processCommand, text]);
 
   const execute = async () => {
@@ -246,6 +289,8 @@ export function VoiceCommandBar() {
     setExecutionError(null);
     try {
       await executeVoicePlan(preview.plan);
+      // Whatever screen is open (odontogram, plan, notes) shows the change now.
+      await queryClient.invalidateQueries();
       const href = primaryHrefForVoicePlan(preview.plan);
       if (href) router.push(href);
       setPreview(null);
@@ -307,7 +352,7 @@ export function VoiceCommandBar() {
         }
         const transcript = typeof payload?.text === "string" ? payload.text.trim() : "";
         if (!transcript) throw new Error("No se ha detectado una orden de voz.");
-        processCommand(transcript);
+        void processCommand(transcript);
       } catch (error) {
         setExecutionError(
           error instanceof Error ? error.message : "No se pudo transcribir la grabación.",
@@ -449,7 +494,7 @@ export function VoiceCommandBar() {
         const result = event.results[index];
         const transcript = result?.[0]?.transcript?.trim();
         if (!transcript || result?.isFinal === false) continue;
-        processCommand(transcript);
+        void processCommand(transcript);
       }
     };
     recognition.onerror = (event) => {
@@ -603,7 +648,7 @@ export function VoiceCommandBar() {
                 variant={listening ? "filled" : "subtle"}
                 aria-label={listening ? "Detener escucha" : "Escuchar comando"}
                 onClick={() => void listen()}
-                loading={executing && voiceEngine === null && !preview}
+                loading={interpreting || (executing && voiceEngine === null && !preview)}
               >
                 {listening ? <IconMicrophoneOff size={18} /> : <IconMicrophone size={18} />}
               </ActionIcon>
@@ -709,6 +754,11 @@ export function VoiceCommandBar() {
                 {preview.plan.contextPatientId ? (
                   <Badge color="teal">Paciente resuelto</Badge>
                 ) : null}
+                {preview.plan.source === "claude" ? (
+                  <Badge color="violet" variant="light">
+                    Claude
+                  </Badge>
+                ) : null}
               </Group>
             </div>
 
@@ -732,7 +782,7 @@ export function VoiceCommandBar() {
 
             <List size="sm" spacing="xs">
               {preview.plan.actions.map((action, index) => (
-                <List.Item key={`${action.type}-${index}`}>{action.type}</List.Item>
+                <List.Item key={`${action.type}-${index}`}>{describeAction(action)}</List.Item>
               ))}
             </List>
 
