@@ -11,13 +11,16 @@ export const dentyQueryKeys = {
   },
   appointments: {
     root: root("appointments"),
-    day: (date: string, siteId?: string | null) => ["denty", "appointments", "day", { date, siteId: siteId ?? null }] as const,
+    day: (date: string, siteId?: string | null) =>
+      ["denty", "appointments", "day", { date, siteId: siteId ?? null }] as const,
     context: ["denty", "appointments", "context"] as const,
+    settings: ["denty", "appointments", "settings"] as const,
   },
   clinical: {
     root: root("clinical"),
     odontogram: (patientId: string) => ["denty", "clinical", patientId, "odontogram"] as const,
-    snapshots: (patientId: string) => ["denty", "clinical", patientId, "odontogram", "snapshots"] as const,
+    snapshots: (patientId: string) =>
+      ["denty", "clinical", patientId, "odontogram", "snapshots"] as const,
     plan: (patientId: string) => ["denty", "clinical", patientId, "plan"] as const,
     workflow: (patientId: string) => ["denty", "clinical", patientId, "workflow"] as const,
     sync: (patientId: string) => ["denty", "clinical", patientId, "sync"] as const,
@@ -33,10 +36,15 @@ export const dentyQueryKeys = {
     root: root("prescriptions"),
     all: ["denty", "prescriptions", "list"] as const,
     settings: ["denty", "prescriptions", "settings"] as const,
+    history: (id: string) => ["denty", "prescriptions", "history", id] as const,
   },
   laboratory: {
     root: root("laboratory"),
     all: ["denty", "laboratory", "works"] as const,
+    laboratories: ["denty", "laboratory", "master"] as const,
+    balances: ["denty", "laboratory", "balances"] as const,
+    supplierInvoices: ["denty", "laboratory", "supplier-invoices"] as const,
+    supplierPayments: ["denty", "laboratory", "supplier-payments"] as const,
     suppliers: ["denty", "laboratory", "suppliers"] as const,
   },
   finance: {
@@ -53,11 +61,19 @@ export const dentyQueryKeys = {
   },
   analytics: {
     root: root("analytics"),
-    summary: (scope: Record<string, unknown> = {}) => ["denty", "analytics", "summary", scope] as const,
-    treatments: (scope: Record<string, unknown> = {}) => ["denty", "analytics", "treatments", scope] as const,
-    doctors: (scope: Record<string, unknown> = {}) => ["denty", "analytics", "doctors", scope] as const,
-    monthly: (scope: Record<string, unknown> = {}) => ["denty", "analytics", "monthly", scope] as const,
-    profitability: (scope: Record<string, unknown> = {}) => ["denty", "analytics", "profitability", scope] as const,
+    kpiDefinitions: ["denty", "analytics", "kpi-definitions"] as const,
+    summary: (scope: Record<string, unknown> = {}) =>
+      ["denty", "analytics", "summary", scope] as const,
+    treatments: (scope: Record<string, unknown> = {}) =>
+      ["denty", "analytics", "treatments", scope] as const,
+    doctors: (scope: Record<string, unknown> = {}) =>
+      ["denty", "analytics", "doctors", scope] as const,
+    monthly: (scope: Record<string, unknown> = {}) =>
+      ["denty", "analytics", "monthly", scope] as const,
+    profitability: (scope: Record<string, unknown> = {}) =>
+      ["denty", "analytics", "profitability", scope] as const,
+    waitTimes: (scope: Record<string, unknown> = {}) =>
+      ["denty", "analytics", "wait-times", scope] as const,
   },
   dashboard: { root: root("dashboard"), today: ["denty", "dashboard", "today"] as const },
   settings: {
@@ -77,8 +93,22 @@ export const dentyQueryKeys = {
     backups: ["denty", "security", "backups"] as const,
     privacy: ["denty", "security", "privacy"] as const,
   },
-  staff: { root: root("staff"), all: ["denty", "staff", "list"] as const, attendance: (date: string) => ["denty", "staff", "attendance", date] as const },
-  portal: { root: root("portal"), patient: (patientId: string) => ["denty", "portal", patientId] as const },
-  communications: { root: root("communications"), all: ["denty", "communications", "list"] as const },
+  staff: {
+    root: root("staff"),
+    all: ["denty", "staff", "list"] as const,
+    attendance: (date: string) => ["denty", "staff", "attendance", date] as const,
+    absences: ["denty", "staff", "absences"] as const,
+  },
+  portal: {
+    root: root("portal"),
+    patient: (patientId: string) => ["denty", "portal", patientId] as const,
+    waitlist: (patientId: string) => ["denty", "portal", patientId, "waitlist"] as const,
+  },
+  communications: {
+    root: root("communications"),
+    all: ["denty", "communications", "list"] as const,
+    consents: (patientId: string) => ["denty", "communications", "consents", patientId] as const,
+  },
   campaigns: { root: root("campaigns"), all: ["denty", "campaigns", "list"] as const },
+  tasks: { root: root("tasks"), all: ["denty", "tasks", "list"] as const },
 } as const;

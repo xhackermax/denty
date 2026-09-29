@@ -48,7 +48,8 @@ function extractClientRoutes(source) {
     const routeMatch = call.match(/([`"'])((?:\/api\/|\/health)[^`"']*)\1/s);
     if (!routeMatch) continue;
     const methodOverride = call.match(/method:\s*["'](GET|POST|PATCH|PUT|DELETE)["']/);
-    const method = methodOverride?.[1] ?? (["mutation", "upload"].includes(match[1]) ? "POST" : "GET");
+    const method =
+      methodOverride?.[1] ?? (["mutation", "upload"].includes(match[1]) ? "POST" : "GET");
     routes.push(genericRoute(method, normalizeTemplate(routeMatch[2])));
   }
   return routes;

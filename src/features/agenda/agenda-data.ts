@@ -73,6 +73,11 @@ export function useAppointmentTransitionMutation(date: string) {
         getBrowserApi().appointments.arrive(input.id, input.expectedVersion),
       onSuccess: () => void invalidate(),
     }),
+    waiting: useMutation({
+      mutationFn: (input: { id: string; expectedVersion: number }) =>
+        getBrowserApi().appointments.waiting(input.id, input.expectedVersion),
+      onSuccess: () => void invalidate(),
+    }),
     chair: useMutation({
       mutationFn: (input: { id: string; expectedVersion: number }) =>
         getBrowserApi().appointments.chair(input.id, input.expectedVersion),

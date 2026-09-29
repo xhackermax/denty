@@ -6,8 +6,10 @@ import {
   cancelPrescriptionSchema,
   createPrescriptionSchema,
   prescriptionClinicSettingsInputSchema,
+  prescriptionHistorySchema,
   prescriptionPrescriberInputSchema,
   prescriptionsSchema,
+  signPrescriptionSchema,
   prescriptionSettingsSchema,
   updatePrescriptionSchema,
 } from "../schemas/prescriptions";
@@ -54,6 +56,8 @@ export function createPrescriptionsResource(client: ApiClient) {
         updatePrescriptionSchema.parse(payload),
         { method: "PATCH" },
       ),
+    history: (id: string) =>
+      client.request(`/api/prescriptions/${encodeId(id)}/history`, prescriptionHistorySchema),
     pdf: (id: string) =>
       client.requestBlob(`/api/prescriptions/${encodeId(id)}/pdf`, {
         headers: { accept: "application/pdf" },
@@ -64,6 +68,29 @@ export function createPrescriptionsResource(client: ApiClient) {
         prescriptionSchema.passthrough(),
         {},
       ),
+    sign: (id: string, payload: z.input<typeof signPrescriptionSchema>) => {
+      const parsed = signPrescriptionSchema.parse(payload);
+      const [header = "", encoded = ""] = parsed.signatureDataUrl.split(",", 2);
+      const mimeType = header.includes("image/jpeg") ? "image/jpeg" : "image/png";
+      const binary = atob(encoded);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1)
+        bytes[index] = binary.charCodeAt(index);
+      const form = new FormData();
+      form.set(
+        "file",
+        new File([bytes], mimeType === "image/jpeg" ? "firma.jpg" : "firma.png", {
+          type: mimeType,
+        }),
+      );
+      form.set("signerName", parsed.signerName);
+      if (parsed.evidence) form.set("evidence", JSON.stringify(parsed.evidence));
+      return client.upload(
+        `/api/prescriptions/${encodeId(id)}/sign`,
+        prescriptionSchema.passthrough(),
+        form,
+      );
+    },
     issue: (id: string) =>
       client.mutation(
         `/api/prescriptions/${encodeId(id)}/issue`,

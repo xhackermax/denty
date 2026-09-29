@@ -18,8 +18,7 @@ const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
-const publicEnvSchema = z.object({
-});
+const publicEnvSchema = z.object({});
 
 export function getServerEnv() {
   return serverEnvSchema.parse({

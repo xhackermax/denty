@@ -4,9 +4,22 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export const PATIENT_PHOTOS_BUCKET = "patient-photos";
 export const CLINICAL_DOCUMENTS_BUCKET = "clinical-documents";
+export const LAB_ATTACHMENTS_BUCKET = "lab-attachments";
+export const PRESCRIPTION_EVIDENCE_BUCKET = "prescription-evidence";
 
 const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const DOCUMENT_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+const PRESCRIPTION_SIGNATURE_TYPES = new Set(["image/jpeg", "image/png"]);
+const LAB_ATTACHMENT_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/zip",
+  "application/vnd.ms-pki.stl",
+  "model/stl",
+  "application/octet-stream",
+]);
 
 export interface StoredObject {
   path: string;
@@ -17,11 +30,21 @@ export interface StoredObject {
 
 function extensionFor(mimeType: string): string {
   switch (mimeType) {
-    case "image/jpeg": return "jpg";
-    case "image/png": return "png";
-    case "image/webp": return "webp";
-    case "application/pdf": return "pdf";
-    default: return "bin";
+    case "image/jpeg":
+      return "jpg";
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    case "application/pdf":
+      return "pdf";
+    case "application/zip":
+      return "zip";
+    case "application/vnd.ms-pki.stl":
+    case "model/stl":
+      return "stl";
+    default:
+      return "bin";
   }
 }
 
@@ -41,14 +64,49 @@ export class StorageRepository {
 
   async uploadPatientPhoto(clinicId: string, patientId: string, file: File): Promise<StoredObject> {
     if (!PHOTO_TYPES.has(file.type)) throw new Error("Formato de foto no permitido.");
-    if (file.size <= 0 || file.size > 5 * 1024 * 1024) throw new Error("La foto debe ocupar entre 1 byte y 5 MB.");
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024)
+      throw new Error("La foto debe ocupar entre 1 byte y 5 MB.");
     return this.upload(PATIENT_PHOTOS_BUCKET, clinicId, patientId, file);
   }
 
-  async uploadClinicalDocument(clinicId: string, patientId: string, file: File): Promise<StoredObject> {
+  async uploadClinicalDocument(
+    clinicId: string,
+    patientId: string,
+    file: File,
+  ): Promise<StoredObject> {
     if (!DOCUMENT_TYPES.has(file.type)) throw new Error("Formato de documento no permitido.");
-    if (file.size <= 0 || file.size > 25 * 1024 * 1024) throw new Error("El documento debe ocupar entre 1 byte y 25 MB.");
+    if (file.size <= 0 || file.size > 25 * 1024 * 1024)
+      throw new Error("El documento debe ocupar entre 1 byte y 25 MB.");
     return this.upload(CLINICAL_DOCUMENTS_BUCKET, clinicId, patientId, file);
+  }
+
+  async uploadPrescriptionSignature(
+    clinicId: string,
+    prescriptionId: string,
+    file: File,
+  ): Promise<StoredObject> {
+    if (!PRESCRIPTION_SIGNATURE_TYPES.has(file.type))
+      throw new Error("Formato de firma no permitido.");
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024)
+      throw new Error("La firma debe ocupar entre 1 byte y 5 MB.");
+    return this.upload(PRESCRIPTION_EVIDENCE_BUCKET, clinicId, prescriptionId, file);
+  }
+
+  async uploadLabAttachment(
+    clinicId: string,
+    labWorkId: string,
+    file: File,
+  ): Promise<StoredObject> {
+    const mimeType = file.type || "application/octet-stream";
+    const lowerName = file.name.toLowerCase();
+    if (!LAB_ATTACHMENT_TYPES.has(mimeType))
+      throw new Error("Formato de archivo de laboratorio no permitido.");
+    if (mimeType === "application/octet-stream" && !lowerName.endsWith(".stl")) {
+      throw new Error("Los archivos binarios genéricos solo se admiten para STL.");
+    }
+    if (file.size <= 0 || file.size > 50 * 1024 * 1024)
+      throw new Error("El archivo debe ocupar entre 1 byte y 50 MB.");
+    return this.upload(LAB_ATTACHMENTS_BUCKET, clinicId, labWorkId, file, mimeType);
   }
 
   async download(bucket: string, path: string): Promise<Blob> {
@@ -62,15 +120,22 @@ export class StorageRepository {
     if (error) throw new Error(error.message);
   }
 
-  private async upload(bucket: string, clinicId: string, patientId: string, file: File): Promise<StoredObject> {
+  private async upload(
+    bucket: string,
+    clinicId: string,
+    entityId: string,
+    file: File,
+    overrideMimeType?: string,
+  ): Promise<StoredObject> {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const path = `${clinicId}/${patientId}/${crypto.randomUUID()}.${extensionFor(file.type)}`;
+    const mimeType = overrideMimeType ?? file.type;
+    const path = `${clinicId}/${entityId}/${crypto.randomUUID()}.${extensionFor(mimeType)}`;
     const { error } = await this.client.storage.from(bucket).upload(path, bytes, {
-      contentType: file.type,
+      contentType: mimeType,
       cacheControl: "3600",
       upsert: false,
     });
     if (error) throw new Error(error.message);
-    return { path, checksum: digest(bytes), mimeType: file.type, sizeBytes: bytes.byteLength };
+    return { path, checksum: digest(bytes), mimeType, sizeBytes: bytes.byteLength };
   }
 }

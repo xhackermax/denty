@@ -152,7 +152,8 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const nextVisitTitle = upcoming
     ? `${dateDMY(upcoming.startsAt)} · ${hhmm(upcoming.startsAt)}`
     : "Sin próxima cita";
-  const nextVisitDescription = upcoming?.reason ?? upcoming?.title ?? "La agenda no tiene una cita futura activa.";
+  const nextVisitDescription =
+    upcoming?.reason ?? upcoming?.title ?? "La agenda no tiene una cita futura activa.";
   const economyValue = formatEUR(openBudgetTotal);
   const economyDescription = `${projection?.budgets.length ?? 0} presupuestos abiertos`;
 
@@ -272,10 +273,18 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           </span>
         </div>
         <div className={styles.patientHeroStatus}>
-          {patient.archivedAt ? <Badge color="gray" variant="light">Archivado</Badge> : null}
+          {patient.archivedAt ? (
+            <Badge color="gray" variant="light">
+              Archivado
+            </Badge>
+          ) : null}
           <Badge variant="light">Servidor</Badge>
           {!patient.archivedAt ? (
-            <Button size="xs" variant="subtle" onClick={() => setPhotoEditorOpen((value) => !value)}>
+            <Button
+              size="xs"
+              variant="subtle"
+              onClick={() => setPhotoEditorOpen((value) => !value)}
+            >
               {photoEditorOpen ? "Cerrar foto" : "Cambiar foto"}
             </Button>
           ) : null}
@@ -284,7 +293,11 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
       {photoEditorOpen ? (
         <section className={styles.section}>
-          <PatientPhotoCapture value={photoFile} onPhotoReady={setPhotoFile} disabled={uploadPhotoMutation.isPending} />
+          <PatientPhotoCapture
+            value={photoFile}
+            onPhotoReady={setPhotoFile}
+            disabled={uploadPhotoMutation.isPending}
+          />
           <Group mt="sm">
             <Button
               disabled={!photoFile}

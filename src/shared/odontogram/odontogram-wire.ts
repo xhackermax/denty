@@ -27,6 +27,7 @@ const DOMAIN_ENTITY_TYPES = new Set<DentalEntityType>([
   "ORTHODONTIC",
   "PEDIATRIC",
   "PROSTHESIS",
+  "SUPERNUMERARY_TOOTH",
 ]);
 
 const SURFACES = new Set<ToothSurface>(["V", "M", "O", "I", "D", "P", "L"]);

@@ -207,11 +207,19 @@ describe("createDentyApi", () => {
 
   it("exposes archive and restore as explicit patient lifecycle commands", async () => {
     const patient = {
-      id: "p1", clinicId: "c1", recordNumber: "000042", firstName: "Ana", lastName: "Ruiz",
-      dni: null, birthDate: "1994-09-23", archivedAt: "2026-09-28T08:00:00+02:00",
-      version: 3, createdAt: "2026-01-01T10:00:00+01:00", updatedAt: "2026-09-28T08:00:00+02:00",
+      id: "p1",
+      clinicId: "c1",
+      recordNumber: "000042",
+      firstName: "Ana",
+      lastName: "Ruiz",
+      dni: null,
+      birthDate: "1994-09-23",
+      archivedAt: "2026-09-28T08:00:00+02:00",
+      version: 3,
+      createdAt: "2026-01-01T10:00:00+01:00",
+      updatedAt: "2026-09-28T08:00:00+02:00",
     };
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(patient));
+    const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse(patient));
     const api = createDentyApi(new ApiClient({ baseUrl: "https://api.example.test", fetchImpl }));
 
     await api.patients.archive("p1", { expectedVersion: 2, reason: "Duplicada" });

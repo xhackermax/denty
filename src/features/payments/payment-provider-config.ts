@@ -10,7 +10,9 @@ export function availablePaymentMethods(config: ClinicPaymentConfig): PaymentMet
   return sortPaymentOptions(config.methods);
 }
 
-export function preferredPaymentMethod(config: ClinicPaymentConfig): PaymentMethodOption | undefined {
+export function preferredPaymentMethod(
+  config: ClinicPaymentConfig,
+): PaymentMethodOption | undefined {
   return availablePaymentMethods(config)[0];
 }
 

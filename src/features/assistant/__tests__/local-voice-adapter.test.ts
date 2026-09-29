@@ -4,7 +4,15 @@ import { localVoicePlanToToolCalls } from "../tools/local-voice-adapter";
 it("maps odontogram actions without losing surfaces", () => {
   const result = localVoicePlanToToolCalls({
     raw: "caries OD 16",
-    actions: [{ type: "odontogram.set_state", patientRef: "actual", tooth: "16", status: "CARIES", surfaces: ["O", "D"] }],
+    actions: [
+      {
+        type: "odontogram.set_state",
+        patientRef: "actual",
+        tooth: "16",
+        status: "CARIES",
+        surfaces: ["O", "D"],
+      },
+    ],
     ambiguities: [],
     requiresConfirmation: false,
     readback: "",

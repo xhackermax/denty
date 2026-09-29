@@ -102,7 +102,9 @@ export function ImplantSurgeryPanel({
 
   const implantTeeth = useMemo(() => {
     const planned = entities
-      .filter((candidate) => candidate.active && candidate.entityType === "IMPLANT" && candidate.tooth)
+      .filter(
+        (candidate) => candidate.active && candidate.entityType === "IMPLANT" && candidate.tooth,
+      )
       .map((candidate) => candidate.tooth!)
       .filter((tooth, index, values) => values.indexOf(tooth) === index);
     return planned.length ? planned : [...PERMANENT_UPPER, ...PERMANENT_LOWER];
@@ -180,9 +182,7 @@ export function ImplantSurgeryPanel({
           min={2}
           max={8}
           value={data.diameterMm ?? ""}
-          onChange={(value) =>
-            update("diameterMm", typeof value === "number" ? value : undefined)
-          }
+          onChange={(value) => update("diameterMm", typeof value === "number" ? value : undefined)}
           disabled={readOnly}
           required
         />

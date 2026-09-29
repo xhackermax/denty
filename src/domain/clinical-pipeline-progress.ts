@@ -5,13 +5,7 @@ import {
 } from "./clinical-pipeline";
 
 export type ClinicalPipelineStepKey =
-  | "odontogram"
-  | "diagnosis"
-  | "plan"
-  | "consents"
-  | "budget"
-  | "signature"
-  | "appointments";
+  "odontogram" | "diagnosis" | "plan" | "consents" | "budget" | "signature" | "appointments";
 
 export interface ClinicalPipelineProgressInput {
   patientId?: string;
@@ -55,8 +49,7 @@ export function clinicalPipelineProgress(
   if (input.activePlanItemCount > 0 && !state.planOutdated) completed.add("plan");
 
   const consentsComplete =
-    completed.has("plan") &&
-    input.signedRequiredConsentCount >= input.requiredConsentCount;
+    completed.has("plan") && input.signedRequiredConsentCount >= input.requiredConsentCount;
   if (consentsComplete) completed.add("consents");
 
   if (input.budget && !state.budgetOutdated && consentsComplete) completed.add("budget");

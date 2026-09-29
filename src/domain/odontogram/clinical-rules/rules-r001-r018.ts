@@ -15,7 +15,12 @@ const decision = (
   severity: ClinicalRuleDecision["severity"],
   message: string,
   missingContext?: readonly string[],
-): ClinicalRuleDecision => ({ ruleId, severity, message, ...(missingContext ? { missingContext } : {}) });
+): ClinicalRuleDecision => ({
+  ruleId,
+  severity,
+  message,
+  ...(missingContext ? { missingContext } : {}),
+});
 
 const has = (entities: readonly DentalEntity[], predicate: (entity: DentalEntity) => boolean) =>
   entities.some((entity) => entity.active && predicate(entity));
@@ -48,7 +53,8 @@ export function evaluateRulesR001R018(
         (entity) =>
           entity.entityType === "HEALTHY" ||
           (entity.entityType === "TOOTH_STATE" && entity.status !== "missing") ||
-          (naturalTreatmentTypes.has(entity.entityType) && entity.attributes?.implantSupported !== true),
+          (naturalTreatmentTypes.has(entity.entityType) &&
+            entity.attributes?.implantSupported !== true),
       ) &&
       decision("R002", "BLOCK", "Implante y diente natural no pueden coexistir."),
   );
@@ -62,20 +68,31 @@ export function evaluateRulesR001R018(
   push(
     proposed.entityType === "POST" &&
       !has(sameTooth, (entity) => entity.entityType === "ENDO" && entity.active) &&
-      decision("R004", "REQUIRE_CONTEXT", "El perno requiere endodoncia previa.", ["endodonticTreatment"]),
+      decision("R004", "REQUIRE_CONTEXT", "El perno requiere endodoncia previa.", [
+        "endodonticTreatment",
+      ]),
   );
   push(
     proposed.status === "access_chimney" &&
       !has(sameTooth, (entity) =>
         ["screwed", "direct_screwed", "multiunit_fixed"].some((value) =>
-          `${entity.status} ${String(entity.attributes?.design ?? "")}`.toLowerCase().includes(value),
+          `${entity.status} ${String(entity.attributes?.design ?? "")}`
+            .toLowerCase()
+            .includes(value),
         ),
       ) &&
-      decision("R005", "BLOCK", "La chimenea solo corresponde a una restauración implantosoportada atornillada."),
+      decision(
+        "R005",
+        "BLOCK",
+        "La chimenea solo corresponde a una restauración implantosoportada atornillada.",
+      ),
   );
   push(
     proposed.attributes?.role === "abutment" &&
-      has(sameTooth, (entity) => entity.status === "mobility" && Number(entity.attributes?.grade) >= 3) &&
+      has(
+        sameTooth,
+        (entity) => entity.status === "mobility" && Number(entity.attributes?.grade) >= 3,
+      ) &&
       decision("R006", "WARN", "Movilidad grado III: confirma el uso como pilar."),
   );
   push(
@@ -89,8 +106,15 @@ export function evaluateRulesR001R018(
   );
   push(
     proposed.entityType === "EXTRACTION" &&
-      has(sameTooth, (entity) => entity.status === "bridge_abutment" || entity.attributes?.role === "abutment") &&
-      decision("R008", "WARN", "La pieza marcada para extracción también figura como pilar de puente."),
+      has(
+        sameTooth,
+        (entity) => entity.status === "bridge_abutment" || entity.attributes?.role === "abutment",
+      ) &&
+      decision(
+        "R008",
+        "WARN",
+        "La pieza marcada para extracción también figura como pilar de puente.",
+      ),
   );
   push(
     proposed.status === "clasp" &&
@@ -108,7 +132,11 @@ export function evaluateRulesR001R018(
     ["pulpotomy", "pulpectomy"].includes(proposed.status) &&
       !isPrimaryTooth(proposed.tooth) &&
       proposed.attributes?.immatureApex !== true &&
-      decision("R011", "BLOCK", "Pulpotomía/pulpectomía requiere dentición temporal o indicación inmadura."),
+      decision(
+        "R011",
+        "BLOCK",
+        "Pulpotomía/pulpectomía requiere dentición temporal o indicación inmadura.",
+      ),
   );
   push(
     proposed.status === "stainless_steel_crown" &&
@@ -128,12 +156,18 @@ export function evaluateRulesR001R018(
   push(
     proposed.entityType === "IMPLANT" &&
       (proposed.status === "orthodontic_tad" || proposed.attributes?.orthodonticTad === true) &&
-      decision("R014", "BLOCK", "Un microtornillo ortodóncico no se registra como implante protésico."),
+      decision(
+        "R014",
+        "BLOCK",
+        "Un microtornillo ortodóncico no se registra como implante protésico.",
+      ),
   );
   push(
     ["apexification", "apexogenesis"].includes(proposed.status) &&
       proposed.attributes?.immatureApex !== true &&
-      decision("R015", "REQUIRE_CONTEXT", "El procedimiento requiere ápice inmaduro.", ["immatureApex"]),
+      decision("R015", "REQUIRE_CONTEXT", "El procedimiento requiere ápice inmaduro.", [
+        "immatureApex",
+      ]),
   );
   push(
     ["traction", "bridge_abutment"].includes(proposed.status) &&
@@ -143,13 +177,22 @@ export function evaluateRulesR001R018(
   push(
     proposed.status === "bridge_abutment" &&
       has(sameTooth, (entity) => entity.status === "external_root_resorption_severe") &&
-      decision("R017", "WARN", "La reabsorción radicular externa severa restringe el uso como pilar."),
+      decision(
+        "R017",
+        "WARN",
+        "La reabsorción radicular externa severa restringe el uso como pilar.",
+      ),
   );
   push(
     proposed.status === "extraction_surgical" &&
       proposed.attributes?.impacted !== true &&
       !has(sameTooth, (entity) => ["impacted", "included"].includes(entity.status)) &&
-      decision("R018", "REQUIRE_CONTEXT", "La exodoncia quirúrgica requiere contexto de inclusión/impactación.", ["impacted"]),
+      decision(
+        "R018",
+        "REQUIRE_CONTEXT",
+        "La exodoncia quirúrgica requiere contexto de inclusión/impactación.",
+        ["impacted"],
+      ),
   );
 
   return decisions;

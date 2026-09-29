@@ -56,6 +56,7 @@ import { EndodonticPanel } from "./endodontic-panel";
 import styles from "./odontogram.module.css";
 import { OrthodonticPanel } from "./orthodontic-panel";
 import { PediatricPanel } from "./pediatric-panel";
+import { SupernumeraryPanel } from "./supernumerary-panel";
 import { PeriodontogramPanel } from "./periodontogram-panel";
 import { SurgeryPanel } from "./surgery-panel";
 import { surgicalVisualsForTooth } from "./surgery-visuals";
@@ -219,8 +220,7 @@ function Tooth({
   const right: ToothSurface = mesialOnRight ? "M" : "D";
   const clipId = `denty-crown-${tooth}`;
   const statusFor = (surface: ToothSurface) => surfaceState(state, tooth, surface) ?? status ?? "";
-  const sideHitboxes =
-    position <= 5 ? SURFACE_HITBOX_PATHS.expanded : SURFACE_HITBOX_PATHS.regular;
+  const sideHitboxes = position <= 5 ? SURFACE_HITBOX_PATHS.expanded : SURFACE_HITBOX_PATHS.regular;
   const surfaceProps = (surface: ToothSurface) => ({
     onClick: (event: React.MouseEvent<SVGElement>) => {
       event.stopPropagation();
@@ -418,7 +418,11 @@ function OdontogramEditor({
   const [bridgePick, setBridgePick] = useState<"from" | "to">("from");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ClinicalTab>(
-    initialAction === "implant-surgery" ? "surgery" : initialSection === "diagnosis" ? "endodontic" : "general",
+    initialAction === "implant-surgery"
+      ? "surgery"
+      : initialSection === "diagnosis"
+        ? "endodontic"
+        : "general",
   );
   const [clinicalRuleMessage, setClinicalRuleMessage] = useState<string | null>(null);
   const entities = useMemo(
@@ -587,9 +591,7 @@ function OdontogramEditor({
         description={historical ? "Solo lectura." : "Marca hallazgos y tratamientos."}
         actions={
           <Group>
-            <Badge variant="light">
-              {historical ? "Histórico" : `v${expectedVersion ?? "?"}`}
-            </Badge>
+            <Badge variant="light">{historical ? "Histórico" : `v${expectedVersion ?? "?"}`}</Badge>
             {!historical ? (
               <Button
                 size="xs"
@@ -633,7 +635,12 @@ function OdontogramEditor({
         </Alert>
       ) : null}
       {clinicalRuleMessage ? (
-        <Alert color="yellow" title="Regla clínica" withCloseButton onClose={() => setClinicalRuleMessage(null)}>
+        <Alert
+          color="yellow"
+          title="Regla clínica"
+          withCloseButton
+          onClose={() => setClinicalRuleMessage(null)}
+        >
           {clinicalRuleMessage}
         </Alert>
       ) : null}
@@ -876,11 +883,16 @@ function OdontogramEditor({
               </Text>
             </div>
           </section>
+          <SupernumeraryPanel entities={entities} readOnly={historical} onCommit={commit} />
         </>
       ) : null}
 
       {activeTab === "periodontal" ? (
-        <PeriodontogramPanel patientId={patientId} readOnly={historical} readings={initialPeriodontal} />
+        <PeriodontogramPanel
+          patientId={patientId}
+          readOnly={historical}
+          readings={initialPeriodontal}
+        />
       ) : null}
       {activeTab === "orthodontic" ? (
         <OrthodonticPanel patientId={patientId} readOnly={historical} onCommit={commit} />
@@ -890,6 +902,7 @@ function OdontogramEditor({
           patientId={patientId}
           {...(birthDate === undefined ? {} : { birthDate })}
           readOnly={historical}
+          initialEntities={entities}
           onCommit={commit}
         />
       ) : null}
@@ -912,8 +925,8 @@ function OdontogramEditor({
       {activeTab === "history" ? (
         <OdontogramHistory
           patientId={patientId}
+          selectedSnapshotId={selectedSnapshotId}
           onSelectSnapshot={onSelectSnapshot}
-          {...(selectedSnapshotId === undefined ? {} : { selectedSnapshotId })}
         />
       ) : null}
 
@@ -1001,17 +1014,19 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   const initialEntities = selectedSnapshot
     ? selectedSnapshot.entities.map(persistedEntityToDomain)
     : currentEntities;
-  const initialPeriodontal = (selectedSnapshot?.periodontal ?? query.data.periodontal).map((reading) => ({
-    tooth: reading.tooth,
-    site: reading.site as PeriodontalReading["site"],
-    probingDepth: reading.probingDepth ?? 0,
-    recession: reading.recession ?? 0,
-    bleeding: Boolean(reading.bleeding),
-    plaque: Boolean(reading.plaque),
-    suppuration: Boolean(reading.suppuration),
-    ...(reading.mobility === undefined ? {} : { mobility: reading.mobility }),
-    ...(reading.furcation === undefined ? {} : { furcation: reading.furcation }),
-  }));
+  const initialPeriodontal = (selectedSnapshot?.periodontal ?? query.data.periodontal).map(
+    (reading) => ({
+      tooth: reading.tooth,
+      site: reading.site as PeriodontalReading["site"],
+      probingDepth: reading.probingDepth ?? 0,
+      recession: reading.recession ?? 0,
+      bleeding: Boolean(reading.bleeding),
+      plaque: Boolean(reading.plaque),
+      suppuration: Boolean(reading.suppuration),
+      ...(reading.mobility === undefined ? {} : { mobility: reading.mobility }),
+      ...(reading.furcation === undefined ? {} : { furcation: reading.furcation }),
+    }),
+  );
   const expectedVersion = historical ? undefined : query.data.version;
   const birthDate = patientQuery.data?.birthDate ?? undefined;
   const editorKey = selectedSnapshot

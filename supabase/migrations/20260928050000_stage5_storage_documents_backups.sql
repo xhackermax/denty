@@ -24,10 +24,6 @@ set public = false,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
 
-alter table public.patients add column if not exists photo_storage_path text;
-alter table public.patients add column if not exists photo_mime_type text;
-alter table public.patients add column if not exists photo_checksum text;
-
 -- Object paths are always <clinic_uuid>/<patient_uuid>/<immutable_filename>.
 drop policy if exists patient_photos_read on storage.objects;
 create policy patient_photos_read on storage.objects

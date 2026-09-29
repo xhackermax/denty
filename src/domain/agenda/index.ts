@@ -5,7 +5,15 @@ export const ALLOWED_EXTENSIONS = [10, 20, 30, 60] as const;
 export const MIN_APPOINTMENT_MINUTES = 10;
 
 export type AppointmentStatus =
-  "PLANNED" | "CONFIRMED" | "ARRIVED" | "IN_CHAIR" | "COMPLETED" | "NO_SHOW" | "CANCELLED";
+  | "PLANNED"
+  | "CONFIRMED"
+  | "ARRIVED"
+  | "WAITING"
+  | "IN_CHAIR"
+  | "COMPLETED"
+  | "NO_SHOW"
+  | "CANCELLED"
+  | "RUNNING_LATE";
 
 export interface AgendaAppointment extends TimeRange {
   id: string;
@@ -181,7 +189,11 @@ export function waitingVisualState(input: {
 }): "neutral" | "yellow" | "red" | "green" | "blue" {
   if (input.status === "IN_CHAIR") return "green";
   if (input.status === "NO_SHOW") return "blue";
-  if (input.status !== "ARRIVED" || !input.arrivedAt) return "neutral";
+  if (
+    (input.status !== "ARRIVED" && input.status !== "WAITING" && input.status !== "RUNNING_LATE") ||
+    !input.arrivedAt
+  )
+    return "neutral";
 
   const now = epochMillis(input.now ?? Date.now());
   const waitedMinutes = (now - epochMillis(input.arrivedAt)) / 60_000;

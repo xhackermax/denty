@@ -89,6 +89,19 @@ export const portalBudgetSchema = z
   })
   .passthrough();
 
+export const portalPrescriptionSchema = z
+  .object({
+    id: idSchema,
+    status: z.string().min(1),
+    prescriptionDate: z.string().optional(),
+    issuedAt: z.string().nullable().optional(),
+    cancelledAt: z.string().nullable().optional(),
+    version: z.number().int().positive().optional(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
+  })
+  .passthrough();
+
 export const patientProjectionSchema = z
   .object({
     patient: portalPatientSchema,
@@ -97,7 +110,7 @@ export const patientProjectionSchema = z
     plan: z.unknown().nullable().optional(),
     budgets: z.array(portalBudgetSchema).default([]),
     documents: z.array(z.object({ id: idSchema }).passthrough()).default([]),
-    prescriptions: z.array(z.object({ id: idSchema }).passthrough()).default([]),
+    prescriptions: z.array(portalPrescriptionSchema).default([]),
   })
   .passthrough();
 

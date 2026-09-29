@@ -15,6 +15,7 @@
 ## Fresh verification executed in the assembly environment
 
 PASS:
+
 - `node scripts/verify-node24-release.mjs`
 - `node scripts/verify-p0-schema.mjs`
 - `node scripts/verify-deployable-package.mjs`
@@ -23,6 +24,7 @@ PASS:
 - `node scripts/pipeline/self-check.mjs`
 
 NOT EXECUTABLE IN THIS ASSEMBLY ENVIRONMENT:
+
 - `npm ci`, Vitest, typecheck, lint, Next production build and domain smoke requiring npm dependencies.
 - Reason: the sandbox runtime is Node 22.16.0 and has no installed `node_modules`; external Node/npm downloads are unavailable here.
 

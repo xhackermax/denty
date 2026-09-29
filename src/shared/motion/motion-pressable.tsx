@@ -29,7 +29,9 @@ export function MotionPressable({
           : { y: hoverY, scale: hoverScale, rotateX: intensity === "expressive" ? 1.2 : 0 }
       }
       whileTap={{ scale: reducedMotion ? 1 : pressedScale }}
-      transition={intensity === "expressive" ? motionTokens.spring.expressive : motionTokens.spring.spatial}
+      transition={
+        intensity === "expressive" ? motionTokens.spring.expressive : motionTokens.spring.spatial
+      }
     >
       {children}
     </motion.div>

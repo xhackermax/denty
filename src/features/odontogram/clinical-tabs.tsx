@@ -7,13 +7,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import styles from "./odontogram.module.css";
 
 export type ClinicalTab =
-  | "general"
-  | "periodontal"
-  | "orthodontic"
-  | "pediatric"
-  | "endodontic"
-  | "surgery"
-  | "history";
+  "general" | "periodontal" | "orthodontic" | "pediatric" | "endodontic" | "surgery" | "history";
 
 const TABS: readonly { value: ClinicalTab; label: string }[] = [
   { value: "general", label: "General" },
@@ -105,11 +99,7 @@ export function ClinicalTabs({ active, onChange }: ClinicalTabsProps) {
         <IconChevronLeft size={18} />
       </ActionIcon>
 
-      <div
-        ref={scrollerRef}
-        className={styles.clinicalTabs}
-        onScroll={handleInfiniteScroll}
-      >
+      <div ref={scrollerRef} className={styles.clinicalTabs} onScroll={handleInfiniteScroll}>
         {INFINITE_TAB_COPIES.flatMap((cycle) =>
           TABS.map((tab) => {
             const centralCopy = cycle === 0;

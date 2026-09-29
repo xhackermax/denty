@@ -64,6 +64,9 @@ describe("local voice NLU parity", () => {
   it("understands open the patient with Spanish article", () => {
     const plan = planLocalVoiceCommand("Oye Denty abre el paciente Paciente Test");
     expect(plan.actions).toContainEqual({ type: "patient.resolve", query: "Paciente Test" });
-    expect(plan.actions).toContainEqual({ type: "navigation.patient", patientRef: "Paciente Test" });
+    expect(plan.actions).toContainEqual({
+      type: "navigation.patient",
+      patientRef: "Paciente Test",
+    });
   });
 });

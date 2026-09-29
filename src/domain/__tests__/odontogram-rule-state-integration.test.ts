@@ -22,7 +22,9 @@ const entity = (overrides: Partial<DentalEntity>): DentalEntity => ({
 describe("validated odontogram commands", () => {
   it("does not mutate state or history when a rule blocks", () => {
     const history = createBoundedHistory(
-      createOdontogramEntityState([entity({ id: "natural", entityType: "HEALTHY", status: "healthy" })]),
+      createOdontogramEntityState([
+        entity({ id: "natural", entityType: "HEALTHY", status: "healthy" }),
+      ]),
     );
     const result = executeValidatedOdontogramCommand(history, {
       type: "UPSERT_ENTITY",
@@ -48,7 +50,13 @@ describe("validated odontogram commands", () => {
     const result = executeValidatedOdontogramBatch(history, [
       entity({ id: "implant", entityType: "IMPLANT", status: "implant_pending" }),
       entity({ id: "tibase", entityType: "IMPLANT_COMPONENT", status: "tibase" }),
-      entity({ id: "crown", entityType: "CROWN", status: "crown_pending", parentId: "tibase", attributes: { implantSupported: true } }),
+      entity({
+        id: "crown",
+        entityType: "CROWN",
+        status: "crown_pending",
+        parentId: "tibase",
+        attributes: { implantSupported: true },
+      }),
     ]);
     expect(result.evaluation.outcome).toBe("ALLOW");
     expect(result.history.past).toHaveLength(1);

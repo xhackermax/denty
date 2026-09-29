@@ -29,6 +29,9 @@ import {
   startGamePlaySchema,
   updateNotificationPreferenceSchema,
   updateRevenueGoalSchema,
+  updateMarketingCampaignSchema,
+  createPatientAttributionTouchSchema,
+  patientAttributionTouchSchema,
 } from "../schemas/engagement";
 import { encodeId, withQuery } from "./shared";
 
@@ -79,11 +82,15 @@ export function createEngagementResource(client: ApiClient) {
           marketingCampaignSchema,
           createMarketingCampaignSchema.parse(payload),
         ),
-      updateCampaign: (provider: string, id: string, payload: Record<string, unknown>) =>
+      updateCampaign: (
+        provider: string,
+        id: string,
+        payload: z.input<typeof updateMarketingCampaignSchema>,
+      ) =>
         client.mutation(
           `/api/admin/marketing/campaigns/${encodeId(provider)}/${encodeId(id)}`,
           marketingCampaignSchema,
-          payload,
+          updateMarketingCampaignSchema.parse(payload),
           { method: "PATCH" },
         ),
       setStatus: (provider: string, id: string, payload: z.input<typeof campaignStatusSchema>) =>
@@ -97,6 +104,15 @@ export function createEngagementResource(client: ApiClient) {
           `/api/admin/marketing/campaigns/${encodeId(provider)}/${encodeId(id)}/budget`,
           marketingCampaignSchema,
           campaignBudgetSchema.parse(payload),
+        ),
+      attributePatient: (
+        patientId: string,
+        payload: z.input<typeof createPatientAttributionTouchSchema>,
+      ) =>
+        client.mutation(
+          `/api/patients/${encodeId(patientId)}/attribution-touchpoints`,
+          patientAttributionTouchSchema,
+          createPatientAttributionTouchSchema.parse(payload),
         ),
     },
     alerts: {

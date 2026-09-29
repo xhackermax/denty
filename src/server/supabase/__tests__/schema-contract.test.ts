@@ -34,7 +34,9 @@ describe("Supabase schema contract", () => {
     const sql = readMigrationSql();
     const tables = createdTables(sql);
 
-    expect(tables).toEqual(expect.arrayContaining(["patients", "dental_entities", "clinical_history_events"]));
+    expect(tables).toEqual(
+      expect.arrayContaining(["patients", "dental_entities", "clinical_history_events"]),
+    );
     expect(tables).not.toEqual(expect.arrayContaining(["surgery_odontograms", "surgery_patients"]));
   });
 
@@ -42,7 +44,9 @@ describe("Supabase schema contract", () => {
     const sql = readMigrationSql();
     const tables = createdTables(sql);
 
-    expect(tables).toEqual(expect.arrayContaining(["periodontal_measurements", "odontogram_snapshots"]));
+    expect(tables).toEqual(
+      expect.arrayContaining(["periodontal_measurements", "odontogram_snapshots"]),
+    );
     expect(tableBody(sql, "periodontal_measurements")).toMatch(/probing_depth\s+integer/i);
     expect(tableBody(sql, "odontogram_snapshots")).toMatch(/payload_json\s+jsonb\s+not\s+null/i);
   });
@@ -63,7 +67,9 @@ describe("Supabase schema contract", () => {
     );
     expect(tableBody(sql, "clinical_plan_items")).toMatch(/component_type\s+text/i);
     expect(tableBody(sql, "budget_items")).toMatch(/billing_mode\s+text\s+not\s+null/i);
-    expect(tableBody(sql, "budget_signed_snapshots")).toMatch(/snapshot_json\s+jsonb\s+not\s+null/i);
+    expect(tableBody(sql, "budget_signed_snapshots")).toMatch(
+      /snapshot_json\s+jsonb\s+not\s+null/i,
+    );
     expect(sql).toMatch(/create\s+trigger\s+budget_signed_snapshots_immutable/i);
   });
 
@@ -72,22 +78,40 @@ describe("Supabase schema contract", () => {
     const tables = createdTables(sql);
 
     expect(tables).toEqual(
-      expect.arrayContaining(["staff_members", "sites", "cabinets", "document_templates", "documents", "consent_requirements", "appointments"]),
+      expect.arrayContaining([
+        "staff_members",
+        "sites",
+        "cabinets",
+        "document_templates",
+        "documents",
+        "consent_requirements",
+        "appointments",
+      ]),
     );
     expect(tableBody(sql, "documents")).toMatch(/signed_at\s+timestamptz/i);
-    expect(tableBody(sql, "consent_requirements")).toMatch(/clinical_plan_item_id\s+uuid\s+references\s+public\.clinical_plan_items/i);
-    expect(tableBody(sql, "appointments")).toMatch(/budget_signed_snapshot_id\s+uuid\s+references\s+public\.budget_signed_snapshots/i);
+    expect(tableBody(sql, "consent_requirements")).toMatch(
+      /clinical_plan_item_id\s+uuid\s+references\s+public\.clinical_plan_items/i,
+    );
+    expect(tableBody(sql, "appointments")).toMatch(
+      /budget_signed_snapshot_id\s+uuid\s+references\s+public\.budget_signed_snapshots/i,
+    );
   });
 
   test("cuts identity over to Supabase Auth memberships and app sessions", () => {
     const sql = readMigrationSql();
     const tables = createdTables(sql);
 
-    expect(tables).toEqual(expect.arrayContaining(["profiles", "clinic_members", "patient_accounts", "app_sessions"]));
+    expect(tables).toEqual(
+      expect.arrayContaining(["profiles", "clinic_members", "patient_accounts", "app_sessions"]),
+    );
     expect(sql).toMatch(/drop\s+table\s+if\s+exists\s+public\.denty_users/i);
-    expect(sql).toMatch(/clinic_member_role_check[\s\S]*RECEPTION[\s\S]*DENTIST[\s\S]*ASSISTANT[\s\S]*PATIENT/i);
+    expect(sql).toMatch(
+      /clinic_members_role_check[\s\S]*RECEPTION[\s\S]*DENTIST[\s\S]*ASSISTANT[\s\S]*PATIENT/i,
+    );
     expect(sql).toMatch(/create\s+unique\s+index[\s\S]*staff_members[\s\S]*profile_id/i);
-    expect(tableBody(sql, "app_sessions")).toMatch(/profile_id\s+uuid\s+not\s+null\s+references\s+public\.profiles/i);
+    expect(tableBody(sql, "app_sessions")).toMatch(
+      /profile_id\s+uuid\s+not\s+null\s+references\s+public\.profiles/i,
+    );
   });
 
   test("enables row level security for clinical and financial tables", () => {
@@ -109,7 +133,12 @@ describe("Supabase schema contract", () => {
     ];
 
     for (const tableName of protectedTables) {
-      expect(sql).toMatch(new RegExp(`alter\\s+table\\s+public\\.${tableName}\\s+enable\\s+row\\s+level\\s+security`, "i"));
+      expect(sql).toMatch(
+        new RegExp(
+          `alter\\s+table\\s+public\\.${tableName}\\s+enable\\s+row\\s+level\\s+security`,
+          "i",
+        ),
+      );
     }
   });
 });

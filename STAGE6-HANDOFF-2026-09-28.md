@@ -54,3 +54,43 @@ Tras este checkpoint quedan **33 / 91 hallazgos originales pendientes de impleme
 ## Regla para el siguiente agente
 
 No reimplementar Etapas 1–6. Empezar Etapa 7 desde `transition_appointment` ya existente en Etapa 2. Si una prueba LIVE de Etapa 6 falla, aislar el caso reproducible y corregir esa frontera concreta, sin crear un segundo sistema paralelo.
+
+---
+
+## Extensión 6.1 — Dentición temporal/mixta real + supernumerarios
+
+**Estado:** `FINALIZADA_EN_CODIGO / DO_NOT_REIMPLEMENT`
+
+### Cambios incorporados
+
+1. Se elimina la dentición mixta fija como fuente clínica. `MIXED_DENTITION_SITES` modela cada sitio de recambio temporal → sucesor permanente.
+2. La edad solo sugiere el modo temporal/mixto; la presencia real se confirma por pieza.
+3. Se añaden estados `unerupted`, `retained`, `impacted` y `congenitally_missing`, además de exfoliación/erupción ya existentes.
+4. El panel pediátrico diferencia morfología de incisivo central/lateral, canino, premolares, molares y molares temporales; temporales y permanentes pueden coexistir visualmente en el mismo sitio.
+5. Las entidades pediátricas persistidas se rehidratan en el panel mediante `initialEntities`; se elimina la dependencia funcional del antiguo mapa local de drafts.
+6. Se añade `SUPERNUMERARY_TOOTH` sin inventar números FDI. La pieza usa identidad propia, ancla FDI posicional y atributos clínicos.
+7. Se admite código ISO 10394 opcional de dos caracteres, pero Denty no autogenera semántica normativa sin validación del estándar completo.
+8. Cada supernumerario puede tener caries/restauración/endo/corona/extracción enlazadas por `parentId` y `toothIdentityKey`.
+9. No se necesita nueva tabla SQL: se reutilizan `odontogram_entities.attributes_json`, `parent_id`, `arch` y el batch transaccional Stage 2/6.
+
+### Pendiente exclusivamente de validación
+
+- `S6-LIVE-001…006`: continúan vigentes del cierre original.
+- `S6-LIVE-007`: E2E navegador de temporal, mixta dinámica, coexistencia, reload/snapshot y múltiples supernumerarios.
+- `S6-LIVE-008`: validar semántica exacta de designación ISO 10394 con acceso normativo antes de cualquier autogeneración de códigos.
+
+### Gates observados después de 6.1
+
+- `stage6-dentition-engine-runtime`: PASS.
+- `stage6-dentition-ui-contract`: PASS.
+- `pediatric-numbering-regression`: PASS.
+- Stage 1–6 contracts: PASS.
+- Architecture gate: PASS.
+- API parity: 201/201 PASS.
+- Pipeline self-check: PASS.
+- 6/6 archivos TS/TSX principales tocados: transpilación sintáctica PASS.
+- Full Node 24 install/typecheck/unit/build: sigue pendiente en `S6-LIVE-006`.
+
+### Regla de continuidad
+
+No volver a crear plantillas pediátricas rígidas ni codificar supernumerarios como FDI ficticios. Cualquier vista futura debe consumir el catálogo anatómico/identidad dental de esta extensión.

@@ -52,7 +52,6 @@ export function useUpdatePatientMutation(patientId: string) {
   });
 }
 
-
 export function useUploadPatientPhotoMutation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -68,8 +67,19 @@ export function useUploadPatientPhotoMutation() {
 export function useArchivePatientMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ patientId, expectedVersion, reason }: { patientId: string; expectedVersion: number; reason?: string }) =>
-      getBrowserApi().patients.archive(patientId, { expectedVersion, ...(reason ? { reason } : {}) }),
+    mutationFn: ({
+      patientId,
+      expectedVersion,
+      reason,
+    }: {
+      patientId: string;
+      expectedVersion: number;
+      reason?: string;
+    }) =>
+      getBrowserApi().patients.archive(patientId, {
+        expectedVersion,
+        ...(reason ? { reason } : {}),
+      }),
     onSuccess: (patient) => {
       queryClient.setQueryData(dentyQueryKeys.patients.detail(patient.id), patient);
       void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.root });

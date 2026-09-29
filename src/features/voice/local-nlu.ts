@@ -733,6 +733,9 @@ export function planLocalVoiceCommand(
   if (payment?.type === "payment.record" && payment.amountCents === undefined) {
     ambiguities.push("importe");
   }
+  if (payment?.type === "payment.record" && payment.method === undefined) {
+    ambiguities.push("método de pago");
+  }
   const clinicalActions = actions.filter((action) =>
     [
       "clinical.add_item",
@@ -754,13 +757,8 @@ export function planLocalVoiceCommand(
   }
 
   const uniqueAmbiguities = uniq(ambiguities);
-  const consequential = actions.some((action) =>
-    [
-      "payment.record",
-      "appointment.no_show",
-      "clinical.complete_item",
-      "clinical.mark_unsatisfactory",
-    ].includes(action.type),
+  const consequential = actions.some(
+    (action) => action.type !== "patient.resolve" && !action.type.startsWith("navigation."),
   );
 
   return {

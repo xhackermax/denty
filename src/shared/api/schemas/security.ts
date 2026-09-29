@@ -53,6 +53,12 @@ export const privacyRequestSchema = z
     status: privacyRequestStatusSchema,
     requestNote: z.string().nullable().optional(),
     resolutionNote: z.string().nullable().optional(),
+    requestedAt: z.coerce.string().optional(),
+    dueAt: z.coerce.string().optional(),
+    assignedTo: idSchema.nullable().optional(),
+    resolutionDocumentId: idSchema.nullable().optional(),
+    closedAt: z.coerce.string().nullable().optional(),
+    version: z.number().int().positive().optional(),
   })
   .passthrough();
 
@@ -69,6 +75,9 @@ export const createPrivacyRequestSchema = z.object({
 export const updatePrivacyRequestSchema = z.object({
   status: z.enum(["IN_REVIEW", "COMPLETED", "REJECTED"]),
   resolutionNote: z.string().optional(),
+  assignedTo: idSchema.nullable().optional(),
+  resolutionDocumentId: idSchema.nullable().optional(),
+  expectedVersion: z.number().int().positive().optional(),
 });
 
 export const patientExportSchema = z

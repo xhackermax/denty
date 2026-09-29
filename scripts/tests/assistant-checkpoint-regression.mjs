@@ -17,8 +17,11 @@ for (const file of required) {
   if (!fs.existsSync(path.join(root, file))) throw new Error(`Falta ${file}`);
 }
 const assistantSource = required.map(read).join("\n");
-if (/localStorage|sessionStorage/.test(assistantSource)) throw new Error("El checkpoint no puede persistir memoria del asistente en Web Storage.");
+if (/localStorage|sessionStorage/.test(assistantSource))
+  throw new Error("El checkpoint no puede persistir memoria del asistente en Web Storage.");
 if (!assistantSource.includes('"RED"')) throw new Error("Falta clasificación RED.");
-if (!read("src/features/assistant/assistant-provider.tsx").includes("visibilitychange")) throw new Error("Falta pausa por visibilidad.");
-if (!read("src/features/assistant/tools/local-voice-adapter.ts").includes("unsupported")) throw new Error("Las acciones no soportadas no pueden desaparecer en silencio.");
+if (!read("src/features/assistant/assistant-provider.tsx").includes("visibilitychange"))
+  throw new Error("Falta pausa por visibilidad.");
+if (!read("src/features/assistant/tools/local-voice-adapter.ts").includes("unsupported"))
+  throw new Error("Las acciones no soportadas no pueden desaparecer en silencio.");
 console.log("Oye Denty checkpoint regression OK");

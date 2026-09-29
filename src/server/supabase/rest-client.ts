@@ -43,7 +43,11 @@ export class SupabaseRestClient {
     return row;
   }
 
-  async patch<T>(table: string, query: Record<string, string | number>, body: Record<string, unknown>) {
+  async patch<T>(
+    table: string,
+    query: Record<string, string | number>,
+    body: Record<string, unknown>,
+  ) {
     const response = await this.fetchImpl(this.url(table, query), {
       method: "PATCH",
       headers: this.headers({ prefer: "return=representation" }),
@@ -121,7 +125,6 @@ export function buildSupabaseRestHeaders(
   headers.authorization = `Bearer ${accessToken ?? key}`;
   return headers;
 }
-
 
 function safeJson(value: string): unknown {
   try {

@@ -39,7 +39,6 @@ export const patientAcquisitionSourceSchema = z.enum([
   "OTHER",
 ]);
 
-
 export const medicalProfileSchema = z.object({
   allergies: z.array(z.string()).default([]),
   medications: z.array(z.string()).default([]),
@@ -83,12 +82,16 @@ export const createPatientSchema = z.object({
   birthDate: isoDateSchema.optional(),
   declaredSource: patientAcquisitionSourceSchema.optional(),
   declaredSourceDetail: z.string().max(200).optional(),
+  declaredCampaignId: idSchema.optional(),
   medicalProfile: medicalProfileSchema.optional(),
 });
 
-export const updatePatientSchema = createPatientSchema.omit({ recordNumber: true }).partial().extend({
-  expectedVersion: versionSchema,
-});
+export const updatePatientSchema = createPatientSchema
+  .omit({ recordNumber: true, declaredCampaignId: true })
+  .partial()
+  .extend({
+    expectedVersion: versionSchema,
+  });
 
 export const archivePatientSchema = z.object({
   expectedVersion: versionSchema,
@@ -111,10 +114,12 @@ export const appointmentStatusSchema = z.enum([
   "PLANNED",
   "CONFIRMED",
   "ARRIVED",
+  "WAITING",
   "IN_CHAIR",
   "COMPLETED",
   "NO_SHOW",
   "CANCELLED",
+  "RUNNING_LATE",
 ]);
 
 export const appointmentSchema = z.object({
@@ -125,6 +130,7 @@ export const appointmentSchema = z.object({
   siteId: idSchema,
   cabinetId: idSchema.nullable().optional(),
   clinicalPlanItemId: idSchema.optional(),
+  rescheduledFromId: idSchema.optional(),
   startsAt: isoDateTimeSchema,
   endsAt: isoDateTimeSchema,
   status: appointmentStatusSchema,
@@ -141,16 +147,20 @@ export const createAppointmentSchema = z.object({
   siteId: idSchema,
   cabinetId: idSchema.nullable().optional(),
   clinicalPlanItemId: idSchema.optional(),
+  rescheduledFromId: idSchema.optional(),
   startsAt: isoDateTimeSchema,
   endsAt: isoDateTimeSchema,
   title: z.string().min(1),
   reason: z.string().min(1).optional(),
 });
 
-export const updateAppointmentSchema = createAppointmentSchema.partial().extend({
-  expectedVersion: versionSchema,
-  status: appointmentStatusSchema.optional(),
-});
+export const updateAppointmentSchema = createAppointmentSchema
+  .omit({ rescheduledFromId: true })
+  .partial()
+  .extend({
+    expectedVersion: versionSchema,
+    status: appointmentStatusSchema.optional(),
+  });
 
 export const labStatusSchema = z.enum([
   "PLANNED",
@@ -169,19 +179,26 @@ export const labWorkSchema = z
   .object({
     id: idSchema,
     patientId: idSchema,
+    laboratoryId: idSchema.nullable().optional(),
+    clinicalPlanItemId: idSchema.nullable().optional(),
+    appointmentId: idSchema.nullable().optional(),
+    dentalEntityId: idSchema.nullable().optional(),
+    siteId: idSchema.nullable().optional(),
     title: z.string().min(1),
     status: labStatusSchema,
     category: z.string().nullable().optional(),
     toothOrZone: z.string().nullable().optional(),
     etaAt: isoDateTimeSchema.nullable().optional(),
+    sentAt: isoDateTimeSchema.nullable().optional(),
+    receivedAt: isoDateTimeSchema.nullable().optional(),
+    placedAt: isoDateTimeSchema.nullable().optional(),
+    notes: z.string().nullable().optional(),
     costCents: z.number().int().nonnegative().default(0),
     version: versionSchema,
+    createdAt: isoDateTimeSchema.optional(),
+    updatedAt: isoDateTimeSchema.optional(),
     patient: z
-      .object({
-        id: idSchema,
-        firstName: z.string().min(1),
-        lastName: z.string().min(1),
-      })
+      .object({ id: idSchema, firstName: z.string().min(1), lastName: z.string().min(1) })
       .optional(),
     lab: z
       .object({ id: idSchema, name: z.string().min(1) })
@@ -189,19 +206,56 @@ export const labWorkSchema = z
       .optional(),
     attachments: z
       .array(
-        z.object({
-          id: idSchema,
-          fileName: z.string().min(1),
-          mimeType: z.string().min(1).optional(),
-        }),
+        z
+          .object({
+            id: idSchema,
+            fileName: z.string().min(1),
+            mimeType: z.string().min(1),
+            sizeBytes: z.number().int().positive().optional(),
+            sha256: z
+              .string()
+              .regex(/^[a-f0-9]{64}$/)
+              .optional(),
+            createdAt: isoDateTimeSchema.optional(),
+          })
+          .strict(),
       )
-      .optional(),
+      .default([]),
+    statusEvents: z
+      .array(
+        z
+          .object({
+            id: idSchema,
+            fromStatus: z.string().nullable().optional(),
+            toStatus: z.string().min(1),
+            note: z.string().nullable().optional(),
+            changedAt: isoDateTimeSchema,
+          })
+          .strict(),
+      )
+      .default([]),
+    reworks: z
+      .array(
+        z
+          .object({
+            id: idSchema,
+            reason: z.string().min(1),
+            costCents: z.number().int().nonnegative(),
+            etaAt: isoDateTimeSchema.nullable().optional(),
+            createdAt: isoDateTimeSchema,
+          })
+          .strict(),
+      )
+      .default([]),
   })
-  .passthrough();
+  .strict();
 
 export const createLabWorkSchema = z.object({
   patientId: idSchema,
+  laboratoryId: idSchema.optional(),
   clinicalPlanItemId: idSchema.optional(),
+  appointmentId: idSchema.optional(),
+  dentalEntityId: idSchema.optional(),
   staffId: idSchema.optional(),
   siteId: idSchema.optional(),
   labId: idSchema.optional(),
@@ -227,7 +281,11 @@ export const documentSchema = z.object({
   status: z.string().min(1),
   fileName: z.string().nullable().optional(),
   mimeType: z.string().nullable().optional(),
-  checksum: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
+  checksum: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable()
+    .optional(),
   version: z.number().int().positive(),
   previousVersionId: idSchema.nullable().optional(),
   fileSizeBytes: z.number().int().nonnegative().nullable().optional(),
@@ -250,10 +308,15 @@ export const signDocumentSchema = z.object({
 export const paymentMethodSchema = z.enum(["CASH", "CARD", "TRANSFER", "FINANCING", "OTHER"]);
 
 export const recordPaymentSchema = z.object({
-  patientId: idSchema.optional(),
+  patientId: idSchema,
+  invoiceId: idSchema.optional(),
+  budgetId: idSchema.optional(),
   amountCents: z.number().int().positive(),
   method: paymentMethodSchema,
   reference: z.string().optional(),
+  provider: z.enum(["manual", "sumup", "stripe", "bank_terminal"]).optional(),
+  providerTransactionId: z.string().optional(),
+  idempotencyKey: z.string().min(8).max(160).optional(),
 });
 
 export const paymentSchema = recordPaymentSchema.extend({

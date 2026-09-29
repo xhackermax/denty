@@ -1,4 +1,9 @@
-import { normalizeRole, permissionsForRole, type Permission, type Role } from "@/domain/permissions";
+import {
+  normalizeRole,
+  permissionsForRole,
+  type Permission,
+  type Role,
+} from "@/domain/permissions";
 
 import type { SupabaseAuthClient } from "../supabase/auth-client";
 import type { SupabaseRestClient } from "../supabase/rest-client";
@@ -182,9 +187,13 @@ export class AuthRepository {
     );
   }
 
-  async listSessions(userId: string, currentSessionId: string): Promise<{ items: AuthSessionView[] }> {
+  async listSessions(
+    userId: string,
+    currentSessionId: string,
+  ): Promise<{ items: AuthSessionView[] }> {
     const rows = await this.client.select<AppSessionRow>("app_sessions", {
-      select: "id,profile_id,clinic_id,auth_session_id,device_label,user_agent,last_seen_at,expires_at,revoked_at,created_at",
+      select:
+        "id,profile_id,clinic_id,auth_session_id,device_label,user_agent,last_seen_at,expires_at,revoked_at,created_at",
       profile_id: `eq.${userId}`,
       order: "last_seen_at.desc",
     });
@@ -312,7 +321,11 @@ export class AuthRepository {
   async updateUser(
     clinicId: string,
     userId: string,
-    input: { displayName?: string | undefined; role?: Role | undefined; active?: boolean | undefined },
+    input: {
+      displayName?: string | undefined;
+      role?: Role | undefined;
+      active?: boolean | undefined;
+    },
   ) {
     const admin = this.requireAdminDependencies();
     const memberships = await admin.adminClient.select<ClinicMemberRow>("clinic_members", {
@@ -322,23 +335,32 @@ export class AuthRepository {
       limit: 1,
     });
     const membership = memberships[0];
-    if (!membership) throw new IdentityConfigurationError("El usuario no pertenece a esta clínica.");
+    if (!membership)
+      throw new IdentityConfigurationError("El usuario no pertenece a esta clínica.");
 
     if (input.displayName) {
       const { firstName, lastName } = splitDisplayName(input.displayName);
-      await admin.adminClient.patchMany("profiles", { id: `eq.${userId}` }, {
-        first_name: firstName,
-        last_name: lastName,
-      });
+      await admin.adminClient.patchMany(
+        "profiles",
+        { id: `eq.${userId}` },
+        {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      );
       await admin.authClient.adminUpdateUser(userId, {
         user_metadata: { display_name: input.displayName },
       });
     }
     if (input.role || input.active !== undefined) {
-      await admin.adminClient.patchMany("clinic_members", { id: `eq.${membership.id}` }, {
-        ...(input.role ? { role: input.role, staff_type: staffTypeForRole(input.role) } : {}),
-        ...(input.active !== undefined ? { active: input.active } : {}),
-      });
+      await admin.adminClient.patchMany(
+        "clinic_members",
+        { id: `eq.${membership.id}` },
+        {
+          ...(input.role ? { role: input.role, staff_type: staffTypeForRole(input.role) } : {}),
+          ...(input.active !== undefined ? { active: input.active } : {}),
+        },
+      );
       await admin.adminClient.patchMany(
         "staff_members",
         { clinic_id: `eq.${clinicId}`, profile_id: `eq.${userId}` },
@@ -351,7 +373,7 @@ export class AuthRepository {
     const profile = await this.getProfileWith(admin.adminClient, userId);
     return {
       id: userId,
-      displayName: profile ? displayName(profile) : input.displayName ?? "Usuario",
+      displayName: profile ? displayName(profile) : (input.displayName ?? "Usuario"),
       email: profile?.email ?? undefined,
       role: input.role ?? normalizeRole(membership.role),
       active: input.active ?? membership.active,
@@ -367,7 +389,10 @@ export class AuthRepository {
     return this.getProfileWith(this.client, userId);
   }
 
-  private async getProfileWith(client: SupabaseRestClient, userId: string): Promise<ProfileRow | null> {
+  private async getProfileWith(
+    client: SupabaseRestClient,
+    userId: string,
+  ): Promise<ProfileRow | null> {
     const rows = await client.select<ProfileRow>("profiles", {
       select: "id,first_name,last_name,email,active",
       id: `eq.${userId}`,
@@ -378,7 +403,8 @@ export class AuthRepository {
 
   private async getActiveSessionClinic(userId: string, sessionId: string): Promise<string | null> {
     const rows = await this.client.select<AppSessionRow>("app_sessions", {
-      select: "id,profile_id,clinic_id,auth_session_id,device_label,user_agent,last_seen_at,expires_at,revoked_at,created_at",
+      select:
+        "id,profile_id,clinic_id,auth_session_id,device_label,user_agent,last_seen_at,expires_at,revoked_at,created_at",
       id: `eq.${sessionId}`,
       profile_id: `eq.${userId}`,
       revoked_at: "is.null",
@@ -402,7 +428,11 @@ export class AuthRepository {
     return [...permissions];
   }
 
-  private async resolveStaffId(userId: string, clinicId: string, role: Role): Promise<string | undefined> {
+  private async resolveStaffId(
+    userId: string,
+    clinicId: string,
+    role: Role,
+  ): Promise<string | undefined> {
     const rows = await this.client.select<StaffMemberRow>("staff_members", {
       select: "id,clinic_id,profile_id,display_name,role,active",
       clinic_id: `eq.${clinicId}`,
@@ -417,7 +447,10 @@ export class AuthRepository {
     return rows[0]?.id;
   }
 
-  private requireAdminDependencies(): { adminClient: SupabaseRestClient; authClient: SupabaseAuthClient } {
+  private requireAdminDependencies(): {
+    adminClient: SupabaseRestClient;
+    authClient: SupabaseAuthClient;
+  } {
     if (!this.options.adminClient || !this.options.authClient) {
       throw new IdentityConfigurationError("Faltan dependencias administrativas de Supabase Auth.");
     }
@@ -442,15 +475,23 @@ async function ensureProfile(
   email: string,
   name: string,
 ): Promise<void> {
-  const rows = await client.select<ProfileRow>("profiles", { select: "id", id: `eq.${userId}`, limit: 1 });
+  const rows = await client.select<ProfileRow>("profiles", {
+    select: "id",
+    id: `eq.${userId}`,
+    limit: 1,
+  });
   const { firstName, lastName } = splitDisplayName(name);
   if (rows[0]) {
-    await client.patchMany("profiles", { id: `eq.${userId}` }, {
-      first_name: firstName,
-      last_name: lastName,
-      email: email.trim().toLowerCase(),
-      active: true,
-    });
+    await client.patchMany(
+      "profiles",
+      { id: `eq.${userId}` },
+      {
+        first_name: firstName,
+        last_name: lastName,
+        email: email.trim().toLowerCase(),
+        active: true,
+      },
+    );
     return;
   }
   await client.insert<ProfileRow>("profiles", {

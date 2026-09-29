@@ -62,18 +62,12 @@ export function resolveSupabaseAuthCredentials(
  * Legacy privileged resolver kept for server-only jobs/providers that have not yet
  * moved to user-scoped RLS. Browser/ordinary CRUD routes must not use this helper.
  */
-export function resolveSupabaseCredentials(
-  env: SupabaseEnvironment,
-): SupabaseCredentials | null {
+export function resolveSupabaseCredentials(env: SupabaseEnvironment): SupabaseCredentials | null {
   return resolveSupabaseAdminCredentials(env) ?? resolveSupabasePublicCredentials(env);
 }
 
 function resolveUrl(env: SupabaseEnvironment): string | undefined {
-  return firstCleanEnvValue(
-    "SUPABASE_URL",
-    env.SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_URL,
-  );
+  return firstCleanEnvValue("SUPABASE_URL", env.SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_URL);
 }
 
 function readAssignment(name: string, value: string | undefined): string | undefined {

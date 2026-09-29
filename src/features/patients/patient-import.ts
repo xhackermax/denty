@@ -23,11 +23,21 @@ const HEADER_ALIASES = {
   phone: ["telefono", "teléfono", "phone", "movil", "móvil"],
   email: ["email", "correo", "e-mail"],
   birthDate: ["fecha nacimiento", "fecha de nacimiento", "birthdate", "birth_date", "nacimiento"],
-  recordNumber: ["ficha", "numero de ficha", "número de ficha", "recordnumber", "record_number", "record number"],
+  recordNumber: [
+    "ficha",
+    "numero de ficha",
+    "número de ficha",
+    "recordnumber",
+    "record_number",
+    "record number",
+  ],
 } as const;
 
 export function parsePatientCsv(text: string): readonly ParsedPatientRow[] {
-  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
+  const lines = text
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .filter((line) => line.trim());
   if (lines.length < 2) return [];
 
   const sample = lines.slice(0, 4).join("\n");
@@ -69,7 +79,10 @@ export async function parsePatientXlsx(input: ArrayBuffer): Promise<readonly Par
   if (workbook && relationships) {
     const relationId = /<sheet\b[^>]*\br:id="([^"]+)"/i.exec(workbook)?.[1];
     if (relationId) {
-      const relPattern = new RegExp(`<Relationship\\b[^>]*\\bId="${escapeRegExp(relationId)}"[^>]*\\bTarget="([^"]+)"`, "i");
+      const relPattern = new RegExp(
+        `<Relationship\\b[^>]*\\bId="${escapeRegExp(relationId)}"[^>]*\\bTarget="([^"]+)"`,
+        "i",
+      );
       const target = relPattern.exec(relationships)?.[1];
       if (target) sheetPath = normalizeWorkbookTarget(target);
     }
@@ -90,35 +103,56 @@ export async function parsePatientImportFile(file: File): Promise<readonly Parse
   if (name.endsWith(".json") || file.type === "application/json") {
     return parsePatientJson(await file.text());
   }
-  if (name.endsWith(".xlsx") || file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+  if (
+    name.endsWith(".xlsx") ||
+    file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  ) {
     return parsePatientXlsx(await file.arrayBuffer());
   }
-  if (name.endsWith(".csv") || name.endsWith(".txt") || name.endsWith(".tsv") || file.type.includes("csv") || file.type.startsWith("text/")) {
+  if (
+    name.endsWith(".csv") ||
+    name.endsWith(".txt") ||
+    name.endsWith(".tsv") ||
+    file.type.includes("csv") ||
+    file.type.startsWith("text/")
+  ) {
     return parsePatientCsv(await file.text());
   }
   throw new Error("Formato no compatible. Usa CSV, JSON o XLSX.");
 }
 
-export function validatePatientImportRows(rows: readonly ParsedPatientRow[]): readonly PatientImportIssue[] {
+export function validatePatientImportRows(
+  rows: readonly ParsedPatientRow[],
+): readonly PatientImportIssue[] {
   const issues: PatientImportIssue[] = [];
   const seenRecords = new Map<string, number>();
 
   rows.forEach((row, index) => {
     const rowNumber = index + 2;
-    if (!row.firstName.trim()) issues.push({ row: rowNumber, field: "firstName", message: "Falta el nombre." });
-    if (!row.lastName.trim()) issues.push({ row: rowNumber, field: "lastName", message: "Faltan los apellidos." });
+    if (!row.firstName.trim())
+      issues.push({ row: rowNumber, field: "firstName", message: "Falta el nombre." });
+    if (!row.lastName.trim())
+      issues.push({ row: rowNumber, field: "lastName", message: "Faltan los apellidos." });
     if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
       issues.push({ row: rowNumber, field: "email", message: "Correo no válido." });
     }
     if (row.birthDate && !/^\d{4}-\d{2}-\d{2}$/.test(row.birthDate)) {
-      issues.push({ row: rowNumber, field: "birthDate", message: "La fecha debe usar YYYY-MM-DD." });
+      issues.push({
+        row: rowNumber,
+        field: "birthDate",
+        message: "La fecha debe usar YYYY-MM-DD.",
+      });
     }
     const record = row.legacyRecordNumber?.trim();
     if (record) {
       const key = record.toLocaleLowerCase("es");
       const firstSeen = seenRecords.get(key);
       if (firstSeen !== undefined) {
-        issues.push({ row: rowNumber, field: "recordNumber", message: `Ficha duplicada en el archivo (también fila ${firstSeen}).` });
+        issues.push({
+          row: rowNumber,
+          field: "recordNumber",
+          message: `Ficha duplicada en el archivo (también fila ${firstSeen}).`,
+        });
       } else {
         seenRecords.set(key, rowNumber);
       }
@@ -166,15 +200,17 @@ function rowFromReader(read: (...names: string[]) => string): readonly ParsedPat
   const birthDate = normalizeImportedDate(read(...HEADER_ALIASES.birthDate));
   const legacyRecordNumber = read(...HEADER_ALIASES.recordNumber);
 
-  return [{
-    firstName,
-    lastName,
-    ...(dni ? { dni } : {}),
-    ...(phone ? { phone } : {}),
-    ...(email ? { email } : {}),
-    ...(birthDate ? { birthDate } : {}),
-    ...(legacyRecordNumber ? { legacyRecordNumber } : {}),
-  }];
+  return [
+    {
+      firstName,
+      lastName,
+      ...(dni ? { dni } : {}),
+      ...(phone ? { phone } : {}),
+      ...(email ? { email } : {}),
+      ...(birthDate ? { birthDate } : {}),
+      ...(legacyRecordNumber ? { legacyRecordNumber } : {}),
+    },
+  ];
 }
 
 function normalizeImportedDate(value: string): string {
@@ -183,15 +219,16 @@ function normalizeImportedDate(value: string): string {
   const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const es = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(trimmed);
-  if (es) {
-    const [, day = "", month = "", year = ""] = es;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  }
+  if (es) return `${es[3]}-${(es[2] ?? "").padStart(2, "0")}-${(es[1] ?? "").padStart(2, "0")}`;
   return trimmed;
 }
 
 function normalizeHeader(value: string): string {
-  return value.trim().toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return value
+    .trim()
+    .toLocaleLowerCase("es")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function readNormalized(map: ReadonlyMap<string, string>, names: readonly string[]): string {
@@ -274,8 +311,9 @@ async function readZipEntries(input: ArrayBuffer): Promise<Map<string, string>> 
 async function inflateZipEntry(bytes: Uint8Array, method: number): Promise<Uint8Array> {
   if (method === 0) return bytes;
   if (method !== 8) throw new Error(`XLSX usa un método ZIP no compatible (${method}).`);
-  const body = new Uint8Array(bytes).buffer;
-  const stream = new Blob([body]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  const stream = new Blob([new Uint8Array(bytes)])
+    .stream()
+    .pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
@@ -286,7 +324,8 @@ function findSignature(bytes: Uint8Array, signature: number, start: number): num
       bytes[index + 1] === ((signature >>> 8) & 0xff) &&
       bytes[index + 2] === ((signature >>> 16) & 0xff) &&
       bytes[index + 3] === ((signature >>> 24) & 0xff)
-    ) return index;
+    )
+      return index;
   }
   return -1;
 }
@@ -331,18 +370,26 @@ function parseWorksheetMatrix(
 
 function parseDateStyleIndexes(xml: string): Set<number> {
   const customDateFormatIds = new Set<number>();
-  for (const match of xml.matchAll(/<numFmt\b[^>]*\bnumFmtId="(\d+)"[^>]*\bformatCode="([^"]+)"/gi)) {
+  for (const match of xml.matchAll(
+    /<numFmt\b[^>]*\bnumFmtId="(\d+)"[^>]*\bformatCode="([^"]+)"/gi,
+  )) {
     const id = Number(match[1]);
-    const format = decodeXml(match[2] ?? "").replace(/"[^"]*"/g, "").toLowerCase();
+    const format = decodeXml(match[2] ?? "")
+      .replace(/"[^"]*"/g, "")
+      .toLowerCase();
     if (/[dmy]/.test(format)) customDateFormatIds.add(id);
   }
-  const builtInDateFormats = new Set([14,15,16,17,18,19,20,21,22,27,28,29,30,31,32,33,34,35,36,45,46,47,50,51,52,53,54,55,56,57,58]);
+  const builtInDateFormats = new Set([
+    14, 15, 16, 17, 18, 19, 20, 21, 22, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 45, 46, 47, 50, 51,
+    52, 53, 54, 55, 56, 57, 58,
+  ]);
   const dateStyles = new Set<number>();
   const cellXfs = /<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/i.exec(xml)?.[1] ?? "";
   let index = 0;
   for (const match of cellXfs.matchAll(/<xf\b([^>]*)\/?>(?:<\/xf>)?/gi)) {
     const numFmtId = Number(/\bnumFmtId="(\d+)"/i.exec(match[1] ?? "")?.[1] ?? "0");
-    if (builtInDateFormats.has(numFmtId) || customDateFormatIds.has(numFmtId)) dateStyles.add(index);
+    if (builtInDateFormats.has(numFmtId) || customDateFormatIds.has(numFmtId))
+      dateStyles.add(index);
     index += 1;
   }
   return dateStyles;
@@ -357,7 +404,12 @@ function excelSerialToIsoDate(serial: number, date1904: boolean): string {
 }
 
 function columnIndex(label: string): number {
-  return label.toUpperCase().split("").reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0) - 1;
+  return (
+    label
+      .toUpperCase()
+      .split("")
+      .reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0) - 1
+  );
 }
 
 function normalizeWorkbookTarget(target: string): string {

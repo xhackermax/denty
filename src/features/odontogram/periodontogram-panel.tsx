@@ -47,19 +47,24 @@ function buildCompleteReadings(seed: readonly PeriodontalReading[]): Periodontal
     }),
   );
 }
+const NO_READINGS: readonly PeriodontalReading[] = [];
+
 export function PeriodontogramPanel({
   patientId,
   readOnly,
-  readings = [],
+  readings = NO_READINGS,
 }: PeriodontogramPanelProps) {
   const examMutation = useCreatePeriodontalExamMutation(patientId);
   const [fieldMode, setFieldMode] = useState<FieldMode>("probing");
   const [values, setValues] = useState<PeriodontalReading[]>(() => buildCompleteReadings(readings));
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  // Parents may rebuild `readings` on every render; key the reset on content,
+  // not identity, so the panel never enters a setState → render loop.
+  const readingsSignature = JSON.stringify(readings);
   useEffect(() => {
     setValues(buildCompleteReadings(readings));
     setSavedAt(null);
-  }, [patientId, readings]);
+  }, [patientId, readingsSignature]);
   const chart = useMemo(() => buildPeriodontalChart(values), [values]);
   const risk = periodontalRiskForSummary(chart.summary);
   const updateSite = (tooth: string, site: PeriodontalSite, patch: Partial<PeriodontalReading>) => {
@@ -319,7 +324,8 @@ export function PeriodontogramPanel({
 
       {examMutation.isError ? (
         <Alert mt="md" color="red" title="No se pudo sincronizar">
-          No se ha persistido ningún sustituto local. Reintenta cuando el servidor vuelva a estar disponible.
+          No se ha persistido ningún sustituto local. Reintenta cuando el servidor vuelva a estar
+          disponible.
         </Alert>
       ) : null}
 

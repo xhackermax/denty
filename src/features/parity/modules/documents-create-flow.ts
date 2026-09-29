@@ -44,8 +44,7 @@ export interface CreateDocumentInput {
 }
 
 export type DocumentPostCreateAction =
-  | { kind: "sign"; documentId: string }
-  | { kind: "preview"; documentId: string };
+  { kind: "sign"; documentId: string } | { kind: "preview"; documentId: string };
 
 export function createDocumentRow(input: CreateDocumentInput): DocumentRow {
   return {

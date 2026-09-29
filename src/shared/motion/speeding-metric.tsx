@@ -141,7 +141,11 @@ export function SpeedingMetric({
                 x: [travel, -travel * 0.16, 0],
                 skewX: [-14, 5, 0],
                 scaleX: [1.28, 0.94, 1],
-                filter: [`blur(${maxBlur}px)`, `blur(${Math.max(3, maxBlur * 0.42)}px)`, "blur(0px)"],
+                filter: [
+                  `blur(${maxBlur}px)`,
+                  `blur(${Math.max(3, maxBlur * 0.42)}px)`,
+                  "blur(0px)",
+                ],
                 opacity: [0.2, 1, 1],
               }
         }
@@ -161,7 +165,11 @@ export function SpeedingMetric({
             : {
                 x: [travel * 1.35, travel * 0.18, 0],
                 opacity: [0, 0.32, 0],
-                filter: [`blur(${maxBlur}px)`, `blur(${Math.max(5, maxBlur * 0.62)}px)`, "blur(0px)"],
+                filter: [
+                  `blur(${maxBlur}px)`,
+                  `blur(${Math.max(5, maxBlur * 0.62)}px)`,
+                  "blur(0px)",
+                ],
                 skewX: [-18, -5, 0],
               }
         }
@@ -181,7 +189,11 @@ export function SpeedingMetric({
             : {
                 x: [travel * 1.9, travel * 0.42, 0],
                 opacity: [0, 0.16, 0],
-                filter: [`blur(${maxBlur}px)`, `blur(${Math.max(7, maxBlur * 0.78)}px)`, "blur(0px)"],
+                filter: [
+                  `blur(${maxBlur}px)`,
+                  `blur(${Math.max(7, maxBlur * 0.78)}px)`,
+                  "blur(0px)",
+                ],
                 skewX: [-22, -8, 0],
               }
         }

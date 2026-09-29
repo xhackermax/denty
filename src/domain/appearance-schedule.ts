@@ -32,7 +32,8 @@ function zonedParts(input: DateInput, timeZone: string): ZonedParts {
     second: "2-digit",
     hourCycle: "h23",
   }).formatToParts(asDate(input));
-  const part = (type: Intl.DateTimeFormatPartTypes) => Number(values.find((item) => item.type === type)?.value);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(values.find((item) => item.type === type)?.value);
   return {
     year: part("year"),
     month: part("month"),
@@ -44,12 +45,26 @@ function zonedParts(input: DateInput, timeZone: string): ZonedParts {
 }
 
 function zonedDateTimeToUtc(parts: ZonedParts, timeZone: string): Date {
-  const desired = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  const desired = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
   let timestamp = desired;
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const actual = zonedParts(timestamp, timeZone);
-    const actualAsUtc = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, actual.second);
+    const actualAsUtc = Date.UTC(
+      actual.year,
+      actual.month - 1,
+      actual.day,
+      actual.hour,
+      actual.minute,
+      actual.second,
+    );
     const correction = desired - actualAsUtc;
     if (correction === 0) break;
     timestamp += correction;
@@ -73,20 +88,27 @@ export function resolveAppearanceScheme(
 
 export function nextSchemeBoundary(input: DateInput, timeZone = DENTY_TIME_ZONE): Date {
   const current = zonedParts(input, timeZone);
-  if (current.hour < 7) return zonedDateTimeToUtc({ ...current, hour: 7, minute: 0, second: 0 }, timeZone);
-  if (current.hour < 21) return zonedDateTimeToUtc({ ...current, hour: 21, minute: 0, second: 0 }, timeZone);
+  if (current.hour < 7)
+    return zonedDateTimeToUtc({ ...current, hour: 7, minute: 0, second: 0 }, timeZone);
+  if (current.hour < 21)
+    return zonedDateTimeToUtc({ ...current, hour: 21, minute: 0, second: 0 }, timeZone);
 
   const tomorrow = new Date(Date.UTC(current.year, current.month - 1, current.day + 1));
-  return zonedDateTimeToUtc({
-    year: tomorrow.getUTCFullYear(),
-    month: tomorrow.getUTCMonth() + 1,
-    day: tomorrow.getUTCDate(),
-    hour: 7,
-    minute: 0,
-    second: 0,
-  }, timeZone);
+  return zonedDateTimeToUtc(
+    {
+      year: tomorrow.getUTCFullYear(),
+      month: tomorrow.getUTCMonth() + 1,
+      day: tomorrow.getUTCDate(),
+      hour: 7,
+      minute: 0,
+      second: 0,
+    },
+    timeZone,
+  );
 }
 
-export function isDentyAppearancePreference(value: string | null): value is DentyAppearancePreference {
+export function isDentyAppearancePreference(
+  value: string | null,
+): value is DentyAppearancePreference {
   return value === "time" || value === "light" || value === "dark";
 }

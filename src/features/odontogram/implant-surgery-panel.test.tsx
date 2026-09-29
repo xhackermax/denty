@@ -27,7 +27,11 @@ describe("implant surgery completion", () => {
     expect(completed.id).toBe(planned.id);
     expect(completed).toMatchObject({
       status: "implant",
-      attributes: { lifecycle: "REALIZADO", prostheticDesign: "UNIT_TIBASE", system: "Ticare INHEX" },
+      attributes: {
+        lifecycle: "REALIZADO",
+        prostheticDesign: "UNIT_TIBASE",
+        system: "Ticare INHEX",
+      },
     });
     expect(completed.attributes).not.toHaveProperty("lotNumber");
     expect(completed.attributes).not.toHaveProperty("connection");
@@ -35,6 +39,8 @@ describe("implant surgery completion", () => {
   });
 
   it("refuses completion while required actual data is missing", () => {
-    expect(() => buildCompletedImplantEntity(planned, "16", { system: "Ticare" })).toThrow(/obligatorios/);
+    expect(() => buildCompletedImplantEntity(planned, "16", { system: "Ticare" })).toThrow(
+      /obligatorios/,
+    );
   });
 });

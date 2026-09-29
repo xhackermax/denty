@@ -1,6 +1,15 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  type ReactNode,
+} from "react";
 
 import { initialAssistantState, reduceAssistantState } from "./assistant-state-machine";
 import type { AssistantState } from "./assistant-types";
@@ -26,7 +35,8 @@ export function AssistantProvider({
   const engineRef = useRef<WakeWordEngine>(wakeWordEngine ?? new NullWakeWordEngine());
 
   useEffect(() => {
-    const onVisibility = () => dispatch({ type: "VISIBILITY", visible: document.visibilityState === "visible" });
+    const onVisibility = () =>
+      dispatch({ type: "VISIBILITY", visible: document.visibilityState === "visible" });
     onVisibility();
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
@@ -39,7 +49,10 @@ export function AssistantProvider({
       return;
     }
     void engine.start().catch((error: unknown) => {
-      dispatch({ type: "FAIL", message: error instanceof Error ? error.message : "No se pudo activar el micrófono." });
+      dispatch({
+        type: "FAIL",
+        message: error instanceof Error ? error.message : "No se pudo activar el micrófono.",
+      });
     });
     return () => void engine.stop();
   }, [state.enabled, state.visible]);

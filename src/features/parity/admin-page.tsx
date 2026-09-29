@@ -40,9 +40,7 @@ export function AdminPage({ section = "home" }: { section?: "home" | "users" | "
           </Link>
         </SimpleGrid>
       ) : null}
-      {section === "users" ? (
-        <AdminUsersPanel />
-      ) : null}
+      {section === "users" ? <AdminUsersPanel /> : null}
       {section === "catalog" ? <AdminTreatmentCatalogPanel /> : null}
     </div>
   );

@@ -22,6 +22,8 @@ export interface PatientAdmissionDraft {
   dni?: string;
   phone?: string;
   email?: string;
+  declaredSource?: NonNullable<CreatePatient["declaredSource"]> | undefined;
+  declaredSourceDetail?: string;
   allergies: string[];
   medications: string[];
   conditions: string[];
@@ -131,10 +133,7 @@ function normalizeLocalDate(value: string): string | undefined {
   return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : undefined;
 }
 
-export function suggestedDentitionForBirthDate(
-  birthDate: string,
-  today?: string,
-): DentitionStage {
+export function suggestedDentitionForBirthDate(birthDate: string, today?: string): DentitionStage {
   return dentitionStageForBirthDate(birthDate || undefined, today);
 }
 
@@ -159,6 +158,9 @@ export function buildAdmissionPayload(draft: PatientAdmissionDraft): PatientAdmi
   if (phone) payload.phone = phone;
   if (email) payload.email = email;
   if (birthDate) payload.birthDate = birthDate;
+  if (draft.declaredSource) payload.declaredSource = draft.declaredSource;
+  const declaredSourceDetail = compactOptional(draft.declaredSourceDetail ?? "");
+  if (declaredSourceDetail) payload.declaredSourceDetail = declaredSourceDetail;
   return payload;
 }
 

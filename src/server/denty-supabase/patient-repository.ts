@@ -1,4 +1,9 @@
-import { medicalProfileSchema, type CreatePatient, type Patient, type UpdatePatient } from "@/shared/api";
+import {
+  medicalProfileSchema,
+  type CreatePatient,
+  type Patient,
+  type UpdatePatient,
+} from "@/shared/api";
 import { odontogramSnapshotSchema } from "@/shared/api/schemas/clinical";
 import type {
   OdontogramRecord,
@@ -132,6 +137,18 @@ interface DocumentProjectionRow {
   updated_at: string;
 }
 
+interface PrescriptionProjectionRow {
+  id: string;
+  patient_id: string;
+  status: string;
+  prescription_date: string;
+  issued_at: string | null;
+  cancelled_at: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
 interface PatientLifecycleRpcResult {
   conflict?: boolean;
   id?: string;
@@ -147,7 +164,10 @@ export class PatientRepository {
   constructor(
     private readonly client: SupabaseRestClient,
     defaultClinicId?: string,
-    options: { clinicId?: string | undefined; allowedPatientIds?: readonly string[] | undefined } = {},
+    options: {
+      clinicId?: string | undefined;
+      allowedPatientIds?: readonly string[] | undefined;
+    } = {},
   ) {
     this.clinicId = options.clinicId ?? defaultClinicId;
     this.allowedPatientIds = options.allowedPatientIds;
@@ -161,9 +181,7 @@ export class PatientRepository {
     };
     if (this.clinicId) query.clinic_id = `eq.${this.clinicId}`;
     const rows = await this.client.select<PatientRow>("patients", query);
-    const items = rows
-      .filter((row) => this.canReadPatient(row.id))
-      .map(rowToPatient);
+    const items = rows.filter((row) => this.canReadPatient(row.id)).map(rowToPatient);
     return { items, total: items.length, page: 1, pageSize: items.length || 50 };
   }
 
@@ -193,13 +211,18 @@ export class PatientRepository {
       birth_date: payload.birthDate ?? null,
       declared_source: payload.declaredSource ?? null,
       declared_source_detail: payload.declaredSourceDetail ?? null,
+      declared_campaign_id: payload.declaredCampaignId ?? null,
       medical_profile: payload.medicalProfile ?? {},
     });
     const confirmed = await this.getPatient(row.id);
     if (!confirmed) {
-      throw new SupabaseRestError("Supabase no confirmo la ficha creada en lectura posterior.", 502, {
-        insertedPatientId: row.id,
-      });
+      throw new SupabaseRestError(
+        "Supabase no confirmo la ficha creada en lectura posterior.",
+        502,
+        {
+          insertedPatientId: row.id,
+        },
+      );
     }
     return confirmed;
   }
@@ -250,7 +273,11 @@ export class PatientRepository {
 
   async getPatientPhotoStorage(id: string): Promise<{ path: string; mimeType: string } | null> {
     if (!this.canReadPatient(id)) return null;
-    const query: Record<string, string | number | undefined> = { select: "*", id: `eq.${id}`, limit: 1 };
+    const query: Record<string, string | number | undefined> = {
+      select: "*",
+      id: `eq.${id}`,
+      limit: 1,
+    };
     if (this.clinicId) query.clinic_id = `eq.${this.clinicId}`;
     const rows = await this.client.select<PatientRow>("patients", query);
     const row = rows[0];
@@ -307,10 +334,17 @@ export class PatientRepository {
     });
 
     if (result.conflict) {
-      return { conflict: true as const, currentVersion: result.currentVersion ?? input.expectedVersion };
+      return {
+        conflict: true as const,
+        currentVersion: result.currentVersion ?? input.expectedVersion,
+      };
     }
     if (!result.version || !Array.isArray(result.entities)) {
-      throw new SupabaseRestError("La RPC save_odontogram_batch devolvió una respuesta inválida.", 502, result);
+      throw new SupabaseRestError(
+        "La RPC save_odontogram_batch devolvió una respuesta inválida.",
+        502,
+        result,
+      );
     }
 
     return {
@@ -323,9 +357,10 @@ export class PatientRepository {
     const patient = await this.getPatient(patientId);
     if (!patient) return null;
 
-    const [appointments, plans, budgets, documents] = await Promise.all([
+    const [appointments, plans, budgets, documents, prescriptions] = await Promise.all([
       this.client.select<AppointmentProjectionRow>("appointments", {
-        select: "id,clinic_id,patient_id,staff_id,site_id,cabinet_id,clinical_plan_item_id,starts_at,ends_at,status,title,reason,version,created_at,updated_at",
+        select:
+          "id,clinic_id,patient_id,staff_id,site_id,cabinet_id,clinical_plan_item_id,starts_at,ends_at,status,title,reason,version,created_at,updated_at",
         patient_id: `eq.${patientId}`,
         order: "starts_at.desc",
       }),
@@ -342,6 +377,12 @@ export class PatientRepository {
       }),
       this.client.select<DocumentProjectionRow>("documents", {
         select: "id,type,title,status,signed_at,created_at,updated_at",
+        patient_id: `eq.${patientId}`,
+        order: "created_at.desc",
+      }),
+      this.client.select<PrescriptionProjectionRow>("prescriptions", {
+        select:
+          "id,patient_id,status,prescription_date,issued_at,cancelled_at,version,created_at,updated_at",
         patient_id: `eq.${patientId}`,
         order: "created_at.desc",
       }),
@@ -386,13 +427,20 @@ export class PatientRepository {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       })),
-      // Prescriptions become persistent in Stage 12. Until that table exists, the projection
-      // explicitly exposes an empty collection instead of fabricating prescription records.
-      prescriptions: [],
+      prescriptions: prescriptions.map((row) => ({
+        id: row.id,
+        status: row.status,
+        prescriptionDate: row.prescription_date,
+        issuedAt: row.issued_at,
+        cancelledAt: row.cancelled_at,
+        version: row.version,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
     };
   }
 
-  async archivePatient(patientId: string, input: { expectedVersion: number; reason?: string | undefined }) {
+  async archivePatient(patientId: string, input: { expectedVersion: number; reason?: string }) {
     const result = await this.client.rpc<PatientLifecycleRpcResult>("archive_patient", {
       p_patient_id: patientId,
       p_expected_version: input.expectedVersion,
@@ -432,7 +480,6 @@ export class PatientRepository {
     return !this.allowedPatientIds || this.allowedPatientIds.includes(patientId);
   }
 }
-
 
 function rowToProjectionAppointment(row: AppointmentProjectionRow) {
   return {
@@ -508,7 +555,8 @@ function rowToPeriodontalMeasurement(
   if (row.recession !== null) measurement.recession = row.recession;
   if (row.bleeding !== null) measurement.bleeding = row.bleeding;
   if (row.plaque !== null) measurement.plaque = row.plaque;
-  if (row.suppuration !== null && row.suppuration !== undefined) measurement.suppuration = row.suppuration;
+  if (row.suppuration !== null && row.suppuration !== undefined)
+    measurement.suppuration = row.suppuration;
   if (row.mobility !== null) measurement.mobility = row.mobility;
   if (row.furcation !== null) measurement.furcation = row.furcation;
   return measurement;
@@ -536,7 +584,9 @@ function rowToSnapshot(row: OdontogramSnapshotRow): OdontogramSnapshot {
   return parseOdontogramSnapshotPayload(row);
 }
 
-function currentPeriodontalMeasurements(rows: readonly PeriodontalMeasurementRow[]): PeriodontalMeasurementRow[] {
+function currentPeriodontalMeasurements(
+  rows: readonly PeriodontalMeasurementRow[],
+): PeriodontalMeasurementRow[] {
   const latest = new Map<string, PeriodontalMeasurementRow>();
   for (const row of [...rows].sort((a, b) => {
     const versionDelta = (b.exam_version ?? -1) - (a.exam_version ?? -1);

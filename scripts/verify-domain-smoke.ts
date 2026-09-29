@@ -206,7 +206,6 @@ assert.equal(
   false,
 );
 
-
 assert.equal(rewardCents(2), 0);
 assert.equal(rewardCents(3), 100);
 assert.equal(rewardCents(15), 500);

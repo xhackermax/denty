@@ -14,7 +14,10 @@ function jwt(payload) {
   return `${head}.${body}.signature`;
 }
 
-const authSource = await readFile(new URL("../src/server/supabase/auth-client.ts", import.meta.url), "utf8");
+const authSource = await readFile(
+  new URL("../src/server/supabase/auth-client.ts", import.meta.url),
+  "utf8",
+);
 assert.match(authSource, /from\s+["']@supabase\/supabase-js["']/);
 assert.match(authSource, /auth\.signInWithPassword\(/);
 assert.match(authSource, /auth\.refreshSession\(/);
@@ -33,7 +36,9 @@ const session = {
 };
 
 const headers = new Headers();
-appendAuthSessionCookies(headers, session, "00000000-0000-0000-0000-000000000003", { secure: true });
+appendAuthSessionCookies(headers, session, "00000000-0000-0000-0000-000000000003", {
+  secure: true,
+});
 const cookies = headers.getSetCookie?.() ?? [headers.get("set-cookie")].filter(Boolean);
 assert.equal(cookies.length, 3);
 assert.ok(cookies.every((cookie) => cookie.includes("HttpOnly")));
@@ -41,13 +46,17 @@ assert.ok(cookies.every((cookie) => cookie.includes("SameSite=Lax")));
 assert.ok(cookies.every((cookie) => cookie.includes("Secure")));
 
 const refreshHeaders = new Headers();
-appendRefreshedTokenCookies(refreshHeaders, session, "00000000-0000-0000-0000-000000000003", { secure: false });
-const refreshedCookies = refreshHeaders.getSetCookie?.() ?? [refreshHeaders.get("set-cookie")].filter(Boolean);
+appendRefreshedTokenCookies(refreshHeaders, session, "00000000-0000-0000-0000-000000000003", {
+  secure: false,
+});
+const refreshedCookies =
+  refreshHeaders.getSetCookie?.() ?? [refreshHeaders.get("set-cookie")].filter(Boolean);
 assert.equal(refreshedCookies.length, 3);
 
 const request = new Request("https://denty.test/app", {
   headers: {
-    cookie: "denty_sb_access=abc; denty_sb_refresh=def; denty_app_session=00000000-0000-0000-0000-000000000003",
+    cookie:
+      "denty_sb_access=abc; denty_sb_refresh=def; denty_app_session=00000000-0000-0000-0000-000000000003",
   },
 });
 assert.deepEqual(readAuthCookies(request), {

@@ -62,6 +62,7 @@
 
 .navLink {
   --nav-accent: var(--denty-blue);
+
   position: relative;
   isolation: isolate;
   display: flex;
@@ -107,18 +108,22 @@
 .moreLink[data-tone="teal"] {
   --nav-accent: var(--denty-teal);
 }
+
 .navLink[data-tone="green"],
 .moreLink[data-tone="green"] {
   --nav-accent: var(--denty-green);
 }
+
 .navLink[data-tone="amber"],
 .moreLink[data-tone="amber"] {
   --nav-accent: var(--denty-amber);
 }
+
 .navLink[data-tone="violet"],
 .moreLink[data-tone="violet"] {
   --nav-accent: var(--denty-violet);
 }
+
 .navLink[data-tone="cyan"],
 .moreLink[data-tone="cyan"] {
   --nav-accent: var(--denty-cyan);
@@ -234,6 +239,7 @@
 .bottomLink,
 .bottomButton {
   --nav-accent: var(--denty-blue);
+
   position: relative;
   isolation: isolate;
   display: grid;
@@ -248,7 +254,6 @@
   font-size: 0.64rem;
   text-decoration: none;
 }
-
 
 .bottomLinkContent {
   position: relative;
@@ -304,6 +309,7 @@
 
 .moreLink {
   --nav-accent: var(--denty-blue);
+
   display: flex;
   min-height: 44px;
   gap: 9px;
@@ -406,8 +412,7 @@
 @media (width < 48em) {
   .bottomNav {
     display: flex;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: auto hidden;
     grid-template-columns: none;
     scroll-snap-type: x mandatory;
     scroll-padding-inline: 12px;
@@ -416,9 +421,11 @@
     overscroll-behavior-inline: contain;
     padding-inline: 6px;
   }
+
   .bottomNav::-webkit-scrollbar {
     display: none;
   }
+
   .bottomLink,
   .bottomButton {
     flex: 0 0 88px;

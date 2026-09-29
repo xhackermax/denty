@@ -89,7 +89,11 @@ export function DoctorBars({ metrics }: { metrics: readonly DoctorMetric[] }) {
                 initial={reducedMotion ? false : { scaleX: 0 }}
                 whileInView={{ scaleX: 1 }}
                 viewport={{ once: true, amount: 0.6 }}
-                transition={{ duration: reducedMotion ? 0 : 0.6, delay: reducedMotion ? 0 : index * 0.05, ease: "easeOut" }}
+                transition={{
+                  duration: reducedMotion ? 0 : 0.6,
+                  delay: reducedMotion ? 0 : index * 0.05,
+                  ease: "easeOut",
+                }}
               />
             </div>
           </div>

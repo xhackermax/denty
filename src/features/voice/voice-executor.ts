@@ -9,6 +9,28 @@ export interface VoiceExecutionResult {
   skipped: string[];
 }
 
+export const EXECUTABLE_VOICE_ACTION_TYPES = new Set<LocalVoiceAction["type"]>([
+  "patient.create",
+  "clinical.note",
+  "periodontal.update",
+  "budget.sync",
+  "payment.record",
+  "odontogram.set_state",
+  "odontogram.bridge",
+  "odontogram.removable",
+]);
+
+export function isExecutableVoiceAction(action: LocalVoiceAction): boolean {
+  if (action.type === "patient.resolve" || action.type.startsWith("navigation.")) return true;
+  if (!EXECUTABLE_VOICE_ACTION_TYPES.has(action.type)) return false;
+  if (action.type === "payment.record") {
+    return action.amountCents !== undefined && Boolean(action.method);
+  }
+  if (action.type === "odontogram.bridge") return action.teeth.length >= 2;
+  if (action.type === "odontogram.removable") return action.teeth.length >= 1;
+  return true;
+}
+
 function requirePatientId(plan: LocalVoicePlan): string {
   if (!plan.contextPatientId) {
     throw new Error("La acción necesita resolver primero el paciente activo.");
@@ -29,12 +51,11 @@ async function executeAction(action: LocalVoiceAction, plan: LocalVoicePlan): Pr
   const api = getBrowserApi();
 
   if (action.type === "patient.create") {
-    if (!action.dni) return false;
     await api.patients.create({
       firstName: action.firstName,
       lastName: action.lastName,
       ...(action.phone ? { phone: action.phone } : {}),
-      dni: action.dni,
+      ...(action.dni ? { dni: action.dni } : {}),
     });
     return true;
   }
@@ -111,6 +132,13 @@ async function executeAction(action: LocalVoiceAction, plan: LocalVoicePlan): Pr
 }
 
 export async function executeVoicePlan(plan: LocalVoicePlan): Promise<VoiceExecutionResult> {
+  const unsupported = plan.actions.filter((action) => !isExecutableVoiceAction(action));
+  if (unsupported.length) {
+    throw new Error(
+      `Denty todavía no puede ejecutar por voz: ${unsupported.map((action) => action.type).join(", ")}.`,
+    );
+  }
+
   const executed: string[] = [];
   const skipped: string[] = [];
 
@@ -121,10 +149,7 @@ export async function executeVoicePlan(plan: LocalVoicePlan): Promise<VoiceExecu
   }
 
   if (skipped.length) {
-    throw new Error(
-      `Denty todavía no puede ejecutar por voz: ${skipped.join(", ")}. ` +
-        "No se ha aplicado ninguna confirmación ficticia.",
-    );
+    throw new Error(`No se pudo completar por voz: ${skipped.join(", ")}.`);
   }
 
   return { executed, skipped };

@@ -6,7 +6,11 @@ import { createPlannedImplant } from "../odontogram/implant-planning";
 describe("implant prosthetic planning", () => {
   it("creates a planned implant without fabricated surgery-day fixture data", () => {
     const plan = createPlannedImplant("16", "UNIT_TIBASE");
-    expect(plan.implant).toMatchObject({ tooth: "16", entityType: "IMPLANT", attributes: { lifecycle: "PLANIFICADO" } });
+    expect(plan.implant).toMatchObject({
+      tooth: "16",
+      entityType: "IMPLANT",
+      attributes: { lifecycle: "PLANIFICADO" },
+    });
     expect(plan.implant.attributes).not.toHaveProperty("system");
     expect(plan.implant.attributes).not.toHaveProperty("diameterMm");
     expect(plan.implant.attributes).not.toHaveProperty("lengthMm");

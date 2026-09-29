@@ -8,6 +8,9 @@ import {
   agendaBlockSchema,
   agendaContextSchema,
   agendaGameStatusSchema,
+  agendaSettingsSchema,
+  updateAgendaSettingsSchema,
+  waitTimeMetricsSchema,
   cancelCascadeResultSchema,
   cancelCascadeSchema,
   createAgendaBlockSchema,
@@ -42,6 +45,20 @@ export function createAgendaResource(client: ApiClient) {
     },
     context: () => client.request("/api/agenda/context", agendaContextSchema),
     gameStatus: () => client.request("/api/agenda/game-status", agendaGameStatusSchema),
+    settings: {
+      get: (staffId?: string) =>
+        client.request(withQuery("/api/agenda/settings", { staffId }), agendaSettingsSchema),
+      update: (payload: z.input<typeof updateAgendaSettingsSchema>) =>
+        client.mutation(
+          "/api/agenda/settings",
+          agendaSettingsSchema,
+          updateAgendaSettingsSchema.parse(payload),
+          { method: "PUT" },
+        ),
+    },
+    waitTimeMetrics: (query: { from: string; to: string; siteId?: string; staffId?: string }) =>
+      client.request(withQuery("/api/analytics/wait-times", query), waitTimeMetricsSchema),
+
     availability: (query: {
       date?: string;
       staffId?: string;
@@ -64,6 +81,17 @@ export function createAgendaResource(client: ApiClient) {
           waitlistEntrySchema,
           createWaitlistEntrySchema.parse(payload),
         ),
+      withdraw: (id: string) =>
+        client.mutation(
+          `/api/agenda/waitlist/${encodeId(id)}`,
+          waitlistEntrySchema,
+          {},
+          { method: "DELETE" },
+        ),
+      fulfill: (id: string, appointmentId?: string) =>
+        client.mutation(`/api/agenda/waitlist/${encodeId(id)}/fulfill`, waitlistEntrySchema, {
+          appointmentId,
+        }),
     },
     cancelCascade: (appointmentId: string, reason: string) =>
       client.mutation(

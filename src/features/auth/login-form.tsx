@@ -1,6 +1,14 @@
 "use client";
 
-import { Alert, Button, PasswordInput, SegmentedControl, Stack, Text, TextInput } from "@mantine/core";
+import {
+  Alert,
+  Button,
+  PasswordInput,
+  SegmentedControl,
+  Stack,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -103,7 +111,8 @@ export function LoginForm({ nextPath }: LoginFormProps) {
         </Button>
 
         <Text size="xs" c="dimmed">
-          El acceso real usa Supabase Auth. El número de ficha y el DNI no funcionan como credenciales.
+          El acceso real usa Supabase Auth. El número de ficha y el DNI no funcionan como
+          credenciales.
         </Text>
       </Stack>
     </form>
