@@ -48,7 +48,8 @@ export function LoginForm({ nextPath }: LoginFormProps) {
         await api.auth.login({
           identifier,
           password,
-          deviceLabel: navigator.userAgent || "Navegador",
+          // The login contract caps deviceLabel at 120 chars; modern user agents exceed it.
+          deviceLabel: (navigator.userAgent || "Navegador").slice(0, 120),
         });
         router.replace(nextPath);
         router.refresh();

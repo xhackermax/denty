@@ -21,7 +21,14 @@ function normalizeBaseUrl(value: string): string {
 }
 
 function makeIdempotencyKey(): string {
-  return `denty-${crypto.randomUUID()}`;
+  // crypto.randomUUID only exists in secure contexts (HTTPS or localhost).
+  const id =
+    typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
+          b.toString(16).padStart(2, "0"),
+        ).join("");
+  return `denty-${id}`;
 }
 
 export class ApiClient {
