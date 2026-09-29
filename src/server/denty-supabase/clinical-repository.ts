@@ -272,18 +272,36 @@ export class ClinicalRepository {
 
   async syncPlanFromOdontogram(patientId: string) {
     const before = await this.getClinicalSync(patientId);
-    await this.client.rpc<PlanRow>("sync_clinical_plan", { p_patient_id: patientId });
+    const result = await this.client.rpc<
+      PlanRow & {
+        summary?: { added?: number; linked?: number; superseded?: number; completed?: number };
+      }
+    >("sync_clinical_plan", { p_patient_id: patientId });
+    const counts = result.summary ?? {};
     const plan = await this.getClinicalPlan(patientId);
+    const activeItems =
+      plan?.items.filter((item) => !["CANCELLED", "SUPERSEDED", "COMPLETED"].includes(item.status))
+        .length ?? 0;
     return {
       plan,
       summary: {
         updated: before.plan.outdated ? 1 : 0,
-        added: 0,
-        superseded: 0,
-        coveredByExisting: plan?.items.length ?? 0,
+        added: counts.added ?? 0,
+        linked: counts.linked ?? 0,
+        superseded: counts.superseded ?? 0,
+        completed: counts.completed ?? 0,
+        coveredByExisting: Math.max(0, activeItems - (counts.added ?? 0)),
       },
       sync: await this.getClinicalSync(patientId),
     };
+  }
+
+  async setPlanItemPrice(itemId: string, priceCents: number) {
+    const row = await this.client.rpc<PlanItemRow>("set_clinical_plan_item_price", {
+      p_item_id: itemId,
+      p_price_cents: priceCents,
+    });
+    return mapPlanItem(row);
   }
 
   async syncBudgetFromPlan(patientId: string) {

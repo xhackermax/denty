@@ -1,8 +1,9 @@
 "use client";
 
-import { Badge, Text } from "@mantine/core";
+import { Badge, Button, Text } from "@mantine/core";
+import { IconArrowRight } from "@tabler/icons-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import {
   canNavigateToClinicalPipelineStep,
@@ -18,6 +19,7 @@ import {
 } from "@/shared/clinical/clinical-data";
 import { usePatientProjectionQuery } from "@/shared/patients/patient-data";
 import styles from "@/shared/ui/parity.module.css";
+import { TreatmentFlowModal } from "./treatment-flow";
 
 const STEPS: readonly { key: ClinicalPipelineStepKey; label: string }[] = [
   { key: "odontogram", label: "Odontograma" },
@@ -36,6 +38,7 @@ function lifecycleStatus(value: string | undefined): BudgetLifecycleStatus {
 }
 
 export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
+  const [flowOpen, setFlowOpen] = useState(false);
   const syncQuery = useClinicalSyncQuery(patientId ?? "", Boolean(patientId));
   const workflowQuery = useClinicalWorkflowQuery(patientId ?? "", Boolean(patientId));
   const consentRequirementsQuery = useConsentRequirementsQuery(patientId ?? "", Boolean(patientId));
@@ -93,6 +96,17 @@ export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
           </p>
         </div>
         <div>
+          {patientId ? (
+            <Button
+              size="xs"
+              color="teal"
+              mr="xs"
+              rightSection={<IconArrowRight size={14} />}
+              onClick={() => setFlowOpen(true)}
+            >
+              Continuar paso a paso
+            </Button>
+          ) : null}
           <Badge variant="light">Plan → consentimientos → presupuesto → firma → citas</Badge>
           {syncQuery.data?.budget?.outdated ? (
             <Badge color="yellow" variant="light" ml="xs">
@@ -159,6 +173,13 @@ export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
           );
         })}
       </div>
+      {patientId ? (
+        <TreatmentFlowModal
+          patientId={patientId}
+          opened={flowOpen}
+          onClose={() => setFlowOpen(false)}
+        />
+      ) : null}
     </section>
   );
 }

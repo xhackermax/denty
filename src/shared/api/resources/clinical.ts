@@ -33,6 +33,7 @@ import {
   periodontalMeasurementSchema,
   persistedPeriodontalMeasurementSchema,
   planDependencySchema,
+  planItemPriceSchema,
   planItemStatusSchema,
   planSyncResultSchema,
   priorityOverrideSchema,
@@ -56,6 +57,12 @@ export function createClinicalResource(client: ApiClient) {
           `/api/patients/${encodeId(patientId)}/clinical-plan/items`,
           clinicalPlanItemSchema,
           createPlanItemSchema.parse(payload),
+        ),
+      setItemPrice: (itemId: string, priceCents: number) =>
+        client.mutation(
+          `/api/clinical-plan/items/${encodeId(itemId)}/price`,
+          clinicalPlanItemSchema,
+          planItemPriceSchema.parse({ priceCents }),
         ),
       setItemStatus: (itemId: string, payload: z.input<typeof planItemStatusSchema>) =>
         client.mutation(

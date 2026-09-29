@@ -1,6 +1,6 @@
 "use client";
 import { Alert, Badge, Button, Group, Select, SimpleGrid, Text } from "@mantine/core";
-import { IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-react";
+import { IconArrowBackUp, IconArrowForwardUp, IconArrowRight } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -31,6 +31,7 @@ import {
   type TriStateFamily,
 } from "@/domain";
 import { ClinicalPipelineCard } from "@/shared/clinical/clinical-pipeline-card";
+import { TreatmentFlowModal } from "@/shared/clinical/treatment-flow";
 import { ClinicalWorkspace } from "@/shared/clinical/clinical-workspace";
 import {
   odontogramEntities,
@@ -339,6 +340,7 @@ interface OdontogramEditorProps {
   selectedSnapshotId: string | undefined;
   onSelectSnapshot: (snapshotId: string | null) => void;
   onSave: (entities: readonly DentalEntity[]) => Promise<void>;
+  onOpenTreatmentFlow: () => void;
 }
 function OdontogramEditor({
   patientId,
@@ -355,6 +357,7 @@ function OdontogramEditor({
   selectedSnapshotId,
   onSelectSnapshot,
   onSave,
+  onOpenTreatmentFlow,
 }: OdontogramEditorProps) {
   const [history, setHistory] = useState<BoundedHistory<OdontogramEntityState>>(() =>
     createBoundedHistory(createOdontogramEntityState(initialEntities), 30),
@@ -557,6 +560,21 @@ function OdontogramEditor({
                 onClick={() => void onSave(Object.values(history.present.entitiesById))}
               >
                 Guardar
+              </Button>
+            ) : null}
+            {!historical ? (
+              <Button
+                size="xs"
+                color="teal"
+                rightSection={<IconArrowRight size={15} />}
+                loading={saving}
+                onClick={() => {
+                  const open = () => onOpenTreatmentFlow();
+                  if (!dirty) return open();
+                  void onSave(Object.values(history.present.entitiesById)).then(open, () => {});
+                }}
+              >
+                Plan y presupuesto
               </Button>
             ) : null}
             <Button
@@ -948,6 +966,8 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   const patientQuery = usePatientQuery(patientId);
   const snapshotsQuery = useOdontogramSnapshotsQuery(patientId);
   const saveMutation = useSaveOdontogramBatchMutation(patientId);
+  // Lives here, not in the editor: saving remounts the editor with the new version.
+  const [treatmentFlowOpen, setTreatmentFlowOpen] = useState(false);
   if (query.isError) {
     return (
       <Alert color="red" title="No se pudo cargar el odontograma">
@@ -990,25 +1010,33 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
     ? `snapshot-${selectedSnapshot.id}`
     : `${query.data.id ?? patientId}-${expectedVersion ?? 0}`;
   return (
-    <OdontogramEditor
-      key={`${editorKey}-${initialSection}-${initialAction ?? "default"}`}
-      patientId={patientId}
-      initialSection={initialSection}
-      {...(initialAction ? { initialAction } : {})}
-      {...(birthDate === undefined ? {} : { birthDate })}
-      initialEntities={initialEntities}
-      initialPeriodontal={initialPeriodontal}
-      expectedVersion={expectedVersion}
-      saving={saveMutation.isPending}
-      saveError={saveMutation.error}
-      historical={historical}
-      historicalLabel={selectedSnapshot?.label ?? undefined}
-      selectedSnapshotId={selectedSnapshotId}
-      onSelectSnapshot={(snapshotId) => setSelectedSnapshotId(snapshotId ?? undefined)}
-      onSave={async (entities) => {
-        if (expectedVersion === undefined) return;
-        await saveMutation.mutateAsync({ expectedVersion, entities });
-      }}
-    />
+    <>
+      <TreatmentFlowModal
+        patientId={patientId}
+        opened={treatmentFlowOpen}
+        onClose={() => setTreatmentFlowOpen(false)}
+      />
+      <OdontogramEditor
+        key={`${editorKey}-${initialSection}-${initialAction ?? "default"}`}
+        patientId={patientId}
+        initialSection={initialSection}
+        {...(initialAction ? { initialAction } : {})}
+        {...(birthDate === undefined ? {} : { birthDate })}
+        initialEntities={initialEntities}
+        initialPeriodontal={initialPeriodontal}
+        expectedVersion={expectedVersion}
+        saving={saveMutation.isPending}
+        saveError={saveMutation.error}
+        historical={historical}
+        historicalLabel={selectedSnapshot?.label ?? undefined}
+        selectedSnapshotId={selectedSnapshotId}
+        onSelectSnapshot={(snapshotId) => setSelectedSnapshotId(snapshotId ?? undefined)}
+        onSave={async (entities) => {
+          if (expectedVersion === undefined) return;
+          await saveMutation.mutateAsync({ expectedVersion, entities });
+        }}
+        onOpenTreatmentFlow={() => setTreatmentFlowOpen(true)}
+      />
+    </>
   );
 }
