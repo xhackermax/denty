@@ -40,6 +40,7 @@ interface PatientAccountRow {
 interface PatientIdentityRow {
   id: string;
   clinic_id: string;
+  record_number: string;
   first_name: string;
   last_name: string;
   dni: string | null;
@@ -280,6 +281,38 @@ export class AuthRepository {
     };
   }
 
+  /**
+   * Patients sign in with their record number ("número de ficha"). Supabase Auth
+   * only knows emails and phones, so the record number is resolved server-side
+   * to the email of every active portal account attached to it (record numbers
+   * are unique per clinic, not globally). Returns [] when nothing matches.
+   */
+  async patientLoginEmails(recordNumber: string): Promise<string[]> {
+    const { adminClient } = this.requireAdminDependencies();
+    const value = recordNumber.trim();
+    if (!value || value.length > 64 || /["(),]/.test(value)) return [];
+    const variants = [...new Set([value, value.toUpperCase()])].map((item) => `"${item}"`);
+    const patients = await adminClient.select<{ id: string }>("patients", {
+      select: "id",
+      record_number: `in.(${variants.join(",")})`,
+      archived_at: "is.null",
+      limit: 10,
+    });
+    if (patients.length === 0) return [];
+    const accounts = await adminClient.select<PatientAccountRow>("patient_accounts", {
+      select: "id,clinic_id,patient_id,profile_id,active,is_default",
+      patient_id: `in.(${patients.map((row) => row.id).join(",")})`,
+      active: "eq.true",
+    });
+    if (accounts.length === 0) return [];
+    const profiles = await adminClient.select<ProfileRow>("profiles", {
+      select: "id,first_name,last_name,email,active",
+      id: `in.(${[...new Set(accounts.map((row) => row.profile_id))].join(",")})`,
+      active: "eq.true",
+    });
+    return profiles.flatMap((profile) => (profile.email ? [profile.email] : []));
+  }
+
   async createUser(input: {
     clinicId: string;
     email?: string | undefined;
@@ -294,6 +327,7 @@ export class AuthRepository {
     let name = input.displayName;
     let password = input.password;
     let passwordFromDni = false;
+    let patientRecordNumber: string | null = null;
 
     if (input.role === "PATIENT") {
       if (!input.patientId) {
@@ -306,6 +340,7 @@ export class AuthRepository {
         input.clinicId,
         input.patientId,
       );
+      patientRecordNumber = patient.record_number;
       const existing = await admin.adminClient.select<PatientAccountRow>("patient_accounts", {
         select: "id,clinic_id,patient_id,profile_id,active,is_default",
         clinic_id: `eq.${input.clinicId}`,
@@ -317,16 +352,13 @@ export class AuthRepository {
           "Este paciente ya tiene cuenta. Usa «Restablecer contraseña» para darle acceso de nuevo.",
         );
       }
-      email ??= patient.email ?? undefined;
+      // The record number is the patient's username; an email is only needed by
+      // Supabase Auth, so patients without one get an internal, non-deliverable address.
+      email ??= patient.email ?? internalPatientEmail(patient);
       name ??= `${patient.first_name} ${patient.last_name}`.trim();
       if (!password) {
         password = initialPatientPassword(patient.dni) ?? undefined;
         passwordFromDni = Boolean(password);
-      }
-      if (!email) {
-        throw new IdentityConfigurationError(
-          "El paciente no tiene email. Añádelo en su ficha o escríbelo al crear la cuenta.",
-        );
       }
       if (!password) {
         throw new IdentityConfigurationError(
@@ -393,7 +425,9 @@ export class AuthRepository {
       email: email.trim().toLowerCase(),
       role: input.role,
       active: true,
-      ...(input.role === "PATIENT" ? { patientId: input.patientId, passwordFromDni } : {}),
+      ...(patientRecordNumber
+        ? { patientId: input.patientId, recordNumber: patientRecordNumber, passwordFromDni }
+        : {}),
     };
   }
 
@@ -513,7 +547,7 @@ export class AuthRepository {
     patientId: string,
   ): Promise<PatientIdentityRow> {
     const [patient] = await client.select<PatientIdentityRow>("patients", {
-      select: "id,clinic_id,first_name,last_name,dni,email,archived_at",
+      select: "id,clinic_id,record_number,first_name,last_name,dni,email,archived_at",
       id: `eq.${patientId}`,
       clinic_id: `eq.${clinicId}`,
       limit: 1,
@@ -638,6 +672,14 @@ async function ensureProfile(
     email: email.trim().toLowerCase(),
     active: true,
   });
+}
+
+function internalPatientEmail(patient: PatientIdentityRow): string {
+  const slug = patient.record_number
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `paciente-${slug || "ficha"}-${patient.id.replace(/-/g, "").slice(0, 8)}@denty.local`;
 }
 
 function splitDisplayName(value: string): { firstName: string; lastName: string } {

@@ -166,6 +166,34 @@ function makeAdminRestClient(): SupabaseRestClient | null {
   const credentials = resolveSupabaseAdminCredentials(getServerEnv());
   return credentials ? new SupabaseRestClient(credentials) : null;
 }
+/**
+ * Staff sign in with email or phone; patients may also use their record number
+ * ("número de ficha"), which is resolved to their portal account email(s).
+ */
+async function signInWithIdentifier(
+  authClient: SupabaseAuthClient,
+  identifier: string,
+  password: string,
+) {
+  const adminClient = identifier.includes("@") ? null : makeAdminRestClient();
+  const emails = adminClient
+    ? await new AuthRepository(adminClient, { adminClient, authClient }).patientLoginEmails(
+        identifier,
+      )
+    : [];
+  if (emails.length === 0) return authClient.signInWithPassword(identifier, password);
+  let failure: unknown;
+  for (const email of emails) {
+    try {
+      return await authClient.signInWithPassword(email, password);
+    } catch (caught) {
+      if (!(caught instanceof SupabaseAuthError)) throw caught;
+      failure = caught;
+    }
+  }
+  throw failure;
+}
+
 export async function resolveRequestIdentity(request: Request): Promise<RequestIdentity | null> {
   const env = getServerEnv();
   const publicCredentials = resolveSupabasePublicCredentials(env);
@@ -309,7 +337,11 @@ export async function handleSupabaseDentyRoute(
             clinicId: z.string().uuid().optional(),
           }),
         );
-        const session = await authClient.signInWithPassword(payload.identifier, payload.password);
+        const session = await signInWithIdentifier(
+          authClient,
+          payload.identifier,
+          payload.password,
+        );
         const publicCredentials = resolveSupabasePublicCredentials(env);
         if (!publicCredentials)
           return error(503, "SUPABASE_PUBLIC_KEY_REQUIRED", "Falta la clave pública de Supabase.");

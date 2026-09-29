@@ -75,6 +75,7 @@ export const claimedPatientAccountSchema = z.object({
 
 export const portalPatientSchema = z.object({
   id: idSchema,
+  recordNumber: z.string().min(1).optional(),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   phone: z.string().nullable().optional(),
