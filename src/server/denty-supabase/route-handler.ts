@@ -16,8 +16,11 @@ import {
 import {
   createUserSchema,
   resetUserPasswordSchema,
+  addPaymentTerminalSchema,
   saveSiteSchema,
   saveStaffMemberSchema,
+  testTerminalProviderSchema,
+  updatePaymentTerminalSchema,
   setStaffScheduleSchema,
   treatmentCatalogCreateSchema,
   treatmentCatalogUpdateSchema,
@@ -128,6 +131,8 @@ import {
   resolveSupabasePublicCredentials,
 } from "../supabase/credentials";
 import { SupabaseRestClient, SupabaseRestError } from "../supabase/rest-client";
+import { TerminalProviderError, testProviderConnection } from "../payments/terminal-providers";
+import { PaymentTerminalRepository } from "./payment-terminal-repository";
 function json(status: number, body: unknown, headers?: Headers): Response {
   const responseHeaders = headers ?? new Headers();
   responseHeaders.set("cache-control", "private, no-store");
@@ -518,6 +523,7 @@ export async function handleSupabaseDentyRoute(
         "tasks",
         "prescriptions",
         "prescription-settings",
+        "payment-terminals",
       ].includes(parts[1] ?? "");
     if (!locallyHandled) return null;
     const identity = await resolveRequestIdentity(request);
@@ -2006,6 +2012,37 @@ export async function handleSupabaseDentyRoute(
         return json(200, await alerts.assignAlert(alertId, payload.userId), headers);
       }
     }
+    // Connected card terminals. Reception lists them to charge; admins set them up.
+    if (parts[0] === "api" && parts[1] === "payment-terminals" && parts.length === 2) {
+      if (method !== "GET") return error(405, "METHOD_NOT_ALLOWED", "Método no permitido.");
+      const denied = requireActorPermission(identity, "finance.write");
+      if (denied) return denied;
+      const terminals = new PaymentTerminalRepository(identity.restClient, identity.actor.clinicId);
+      return json(200, { items: await terminals.listForCharging() }, headers);
+    }
+    if (parts[0] === "api" && parts[1] === "admin" && parts[2] === "payment-terminals") {
+      const denied = requireActorPermission(identity, "settings.manage");
+      if (denied) return denied;
+      const terminals = new PaymentTerminalRepository(identity.restClient, identity.actor.clinicId);
+      if (parts.length === 3 && method === "GET")
+        return json(200, await terminals.overview(), headers);
+      if (parts.length === 3 && method === "POST") {
+        const payload = await parseJson(request, addPaymentTerminalSchema);
+        await terminals.add(payload);
+        return json(201, await terminals.overview(), headers);
+      }
+      if (parts.length === 4 && parts[3] === "test" && method === "POST") {
+        const payload = await parseJson(request, testTerminalProviderSchema);
+        return json(200, await testProviderConnection(payload.provider), headers);
+      }
+      const id = decodeURIComponent(parts[3] ?? "");
+      if (parts.length === 4 && method === "PATCH") {
+        const payload = await parseJson(request, updatePaymentTerminalSchema);
+        return json(200, await terminals.update(id, payload), headers);
+      }
+      if (parts.length === 4 && method === "DELETE")
+        return json(200, await terminals.remove(id), headers);
+    }
     // Sites, their doctors and the weekly rota (which site each doctor works at each day).
     if (
       parts[0] === "api" &&
@@ -2608,6 +2645,9 @@ export async function handleSupabaseDentyRoute(
     if (caught instanceof SupabaseAuthError) {
       const status = caught.status === 400 || caught.status === 401 ? 401 : caught.status;
       return error(status, "SUPABASE_AUTH_ERROR", caught.message, caught.details);
+    }
+    if (caught instanceof TerminalProviderError) {
+      return error(caught.status, "TERMINAL_PROVIDER_ERROR", caught.message);
     }
     if (caught instanceof SupabaseRestError) {
       return error(

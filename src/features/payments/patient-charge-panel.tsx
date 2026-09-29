@@ -1,15 +1,15 @@
 "use client";
 
-import { Alert, Button, Group, NumberInput, Select, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Button, Group, NumberInput, Select, Stack, Text } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
+import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import styles from "@/shared/ui/parity.module.css";
 
 import {
-  listTerminalReaders,
   startProviderPayment,
   waitForProviderPayment,
   type ProviderPaymentStatus,
@@ -18,18 +18,19 @@ import {
 /**
  * Stage 13: patient charge panel. Every option goes through the canonical
  * payment-attempt routes (idempotent ledger), so a manual bank terminal,
- * SumUp or Stripe charge ends as exactly one payment row.
+ * SumUp or Stripe charge ends as exactly one payment row. Connected terminals
+ * are set up in Administración › Cobros y datáfonos and the one of the current
+ * site is proposed first.
  */
-type ChargeOption = "CASH" | "BANK_CARD" | "TRANSFER" | "FINANCING" | "SUMUP" | "STRIPE";
+type ChargeOption = "CASH" | "BANK_CARD" | "TRANSFER" | "FINANCING" | "TERMINAL";
 
-const OPTIONS: Array<{ value: ChargeOption; label: string }> = [
+const BASE_OPTIONS: Array<{ value: ChargeOption; label: string }> = [
   { value: "CASH", label: "Efectivo" },
   { value: "BANK_CARD", label: "Tarjeta · datáfono del banco (manual)" },
   { value: "TRANSFER", label: "Transferencia / Bizum" },
   { value: "FINANCING", label: "Financiación" },
-  { value: "SUMUP", label: "Tarjeta · SumUp (conectado)" },
-  { value: "STRIPE", label: "Tarjeta · Stripe Terminal (conectado)" },
 ];
+const PROVIDER_NAMES = { sumup: "SumUp", stripe: "Stripe" } as const;
 
 const STATUS_LABEL: Record<ProviderPaymentStatus, string> = {
   processing: "Esperando al datáfono…",
@@ -42,28 +43,39 @@ const STATUS_LABEL: Record<ProviderPaymentStatus, string> = {
 
 export function PatientChargePanel({ patientId }: { patientId: string }) {
   const queryClient = useQueryClient();
-  const { activeClinicId } = useActiveTenant();
+  const { activeClinicId, activeSiteId, sites } = useActiveTenant();
   const [amount, setAmount] = useState<number | string>("");
   const [option, setOption] = useState<ChargeOption>("CASH");
-  const [readerId, setReaderId] = useState<string | null>(null);
-  const [stripeReaderId, setStripeReaderId] = useState("");
+  const [terminalId, setTerminalId] = useState<string | null>(null);
   const [status, setStatus] = useState<ProviderPaymentStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const readers = useQuery({
-    queryKey: dentyQueryKeys.finance.sumupReaders,
-    queryFn: listTerminalReaders,
-    enabled: option === "SUMUP",
+  const terminals = useQuery({
+    queryKey: dentyQueryKeys.finance.terminals,
+    queryFn: () => getBrowserApi().admin.paymentTerminals.forCharging(),
     retry: false,
+    staleTime: 60_000,
   });
+  const terminalList = useMemo(() => terminals.data?.items ?? [], [terminals.data]);
+  const siteNames = useMemo(() => new Map(sites.map((site) => [site.id, site.name])), [sites]);
+  // The terminal of the site the reception desk is working at comes first.
+  const sortedTerminals = useMemo(
+    () =>
+      [...terminalList].sort(
+        (a, b) => Number(b.siteId === activeSiteId) - Number(a.siteId === activeSiteId),
+      ),
+    [activeSiteId, terminalList],
+  );
+  const terminal =
+    sortedTerminals.find((candidate) => candidate.id === terminalId) ?? sortedTerminals[0];
+  const options = terminalList.length
+    ? [...BASE_OPTIONS, { value: "TERMINAL" as const, label: "Tarjeta · datáfono conectado" }]
+    : BASE_OPTIONS;
 
   const amountCents = Math.round(Number(amount || 0) * 100);
   const canSubmit =
-    Boolean(activeClinicId) &&
-    amountCents > 0 &&
-    !busy &&
-    (option !== "STRIPE" || stripeReaderId.trim().startsWith("tmr_"));
+    Boolean(activeClinicId) && amountCents > 0 && !busy && (option !== "TERMINAL" || !!terminal);
 
   const charge = async () => {
     if (!activeClinicId) return;
@@ -71,13 +83,8 @@ export function PatientChargePanel({ patientId }: { patientId: string }) {
     setError(null);
     setStatus(null);
     try {
-      const provider = option === "SUMUP" ? "sumup" : option === "STRIPE" ? "stripe" : "manual";
-      const method =
-        option === "BANK_CARD"
-          ? "CARD"
-          : option === "SUMUP" || option === "STRIPE"
-            ? "CARD"
-            : option;
+      const provider = option === "TERMINAL" && terminal ? terminal.provider : "manual";
+      const method = option === "BANK_CARD" || option === "TERMINAL" ? "CARD" : option;
       const started = await startProviderPayment({
         provider,
         clinicId: activeClinicId,
@@ -85,8 +92,7 @@ export function PatientChargePanel({ patientId }: { patientId: string }) {
         amountCents,
         method,
         idempotencyKey: crypto.randomUUID(),
-        ...(provider === "sumup" && readerId ? { readerId } : {}),
-        ...(provider === "stripe" ? { readerId: stripeReaderId.trim() } : {}),
+        ...(provider !== "manual" && terminal ? { readerId: terminal.providerTerminalId } : {}),
       });
       let final = started.status;
       if (final === "processing" && provider !== "manual" && started.attemptId) {
@@ -120,34 +126,26 @@ export function PatientChargePanel({ patientId }: { patientId: string }) {
             label="Forma de cobro"
             value={option}
             onChange={(value) => setOption((value as ChargeOption) ?? "CASH")}
-            data={OPTIONS}
+            data={options}
             allowDeselect={false}
           />
         </Group>
-        {option === "SUMUP" ? (
+        {option === "TERMINAL" ? (
           <Select
-            label="Lector SumUp"
-            placeholder={readers.isLoading ? "Cargando lectores…" : "Lector por defecto"}
-            clearable
-            value={readerId}
-            onChange={setReaderId}
-            data={(readers.data ?? []).map((reader) => ({
-              value: reader.id,
-              label: `${reader.name} · ${reader.status}`,
+            label="Datáfono"
+            value={terminal?.id ?? null}
+            onChange={setTerminalId}
+            allowDeselect={false}
+            data={sortedTerminals.map((candidate) => ({
+              value: candidate.id,
+              label: [
+                candidate.label,
+                PROVIDER_NAMES[candidate.provider],
+                candidate.siteId ? siteNames.get(candidate.siteId) : null,
+              ]
+                .filter(Boolean)
+                .join(" · "),
             }))}
-          />
-        ) : null}
-        {option === "SUMUP" && readers.isError ? (
-          <Text size="xs" c="dimmed">
-            No hay lectores SumUp configurados (revisa SUMUP_API_KEY y SUMUP_MERCHANT_CODE).
-          </Text>
-        ) : null}
-        {option === "STRIPE" ? (
-          <TextInput
-            label="ID del lector Stripe"
-            placeholder="tmr_…"
-            value={stripeReaderId}
-            onChange={(event) => setStripeReaderId(event.currentTarget.value)}
           />
         ) : null}
         {option === "BANK_CARD" ? (
@@ -164,7 +162,7 @@ export function PatientChargePanel({ patientId }: { patientId: string }) {
         ) : null}
         {error ? <Alert color="red">{error}</Alert> : null}
         <Button disabled={!canSubmit} loading={busy} onClick={() => void charge()}>
-          {option === "SUMUP" || option === "STRIPE" ? "Enviar al datáfono" : "Registrar cobro"}
+          {option === "TERMINAL" ? "Enviar al datáfono" : "Registrar cobro"}
         </Button>
       </Stack>
     </section>

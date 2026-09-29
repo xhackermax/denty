@@ -61,7 +61,8 @@ export const dentyQueryKeys = {
     series: ["denty", "finance", "series"] as const,
     verifactu: ["denty", "finance", "verifactu"] as const,
     billingSettings: ["denty", "finance", "billing-settings"] as const,
-    sumupReaders: ["denty", "finance", "sumup-readers"] as const,
+    terminals: ["denty", "finance", "terminals"] as const,
+    terminalsOverview: ["denty", "finance", "terminals", "overview"] as const,
   },
   alerts: {
     root: root("alerts"),

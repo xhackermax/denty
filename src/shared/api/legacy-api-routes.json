@@ -125,6 +125,36 @@
     },
     {
       "method": "GET",
+      "path": "/api/payment-terminals",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/payment-terminals",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/payment-terminals",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/payment-terminals/test",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/payment-terminals/:id",
+      "kind": "browser"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/payment-terminals/:id",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/sites",
       "kind": "browser"
     },
