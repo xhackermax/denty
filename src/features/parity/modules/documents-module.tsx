@@ -4,35 +4,89 @@ import {
   Alert,
   Badge,
   Button,
+  Checkbox,
   FileButton,
   Group,
   Modal,
   Select,
+  SimpleGrid,
   Stack,
   Text,
   TextInput,
 } from "@mantine/core";
+import { IconPrinter } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
+import { todayMadrid } from "@/domain/dates";
 import { getBrowserApi } from "@/shared/api/browser";
-import { useConsentRequirementsQuery } from "@/shared/clinical/clinical-data";
+import { useClinicalPlanQuery, useConsentRequirementsQuery } from "@/shared/clinical/clinical-data";
+import { documentValues, useDocumentContext } from "@/shared/documents/document-context";
+import { printClinicalDocument } from "@/shared/documents/print-document";
+import { TemplateText } from "@/shared/documents/template-text";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
 import { SignaturePad } from "@/shared/ui/signature-pad";
 
 interface SignableDocument {
-  id: string;
+  /** Missing when the document is created only once it is signed. */
+  id?: string;
   patientId: string;
   title: string;
+  templateId?: string | null | undefined;
+  data?: Record<string, unknown> | undefined;
 }
 
 interface TemplateRow {
   id: string;
   code?: string;
   title?: string;
+  body?: string;
+  active?: boolean;
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  CONSENT: "Consentimiento",
+  CERTIFICATE: "Justificante",
+  CLINICAL_DOCUMENT: "Documento clínico",
+};
+const STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Borrador",
+  FINAL: "Final",
+  FINALIZED: "Final",
+  SIGNED: "Firmado",
+  DELIVERED: "Entregado",
+  ARCHIVED: "Archivado",
+};
+
+/** Sentences of the attendance certificate, saved with the document to reprint it. */
+export function certificateData(input: {
+  date: string;
+  from: string;
+  to: string;
+  reason: string | null;
+  companionName: string;
+  companionDni: string;
+  doctorId: string | null;
+}): Record<string, string | null> {
+  const horario =
+    input.from && input.to
+      ? `, desde las ${input.from} hasta las ${input.to} horas`
+      : input.from
+        ? `, a las ${input.from} horas`
+        : "";
+  const companion = input.companionName.trim();
+  return {
+    fecha: input.date,
+    horario,
+    motivo: input.reason?.trim() ? `, para ${input.reason.trim()}` : "",
+    acompanante: companion
+      ? ` Asimismo, D./Dña. ${companion}${input.companionDni.trim() ? `, con DNI/NIE ${input.companionDni.trim()},` : ""} ha acudido en calidad de acompañante.`
+      : "",
+    doctorId: input.doctorId,
+  };
 }
 
 const SIGNABLE_STATES = new Set(["DRAFT", "FINAL"]);
@@ -54,8 +108,8 @@ export function DocumentsModule() {
     queryFn: () => getBrowserApi().documents.list(),
   });
   const templates = useQuery({
-    queryKey: dentyQueryKeys.documents.templates,
-    queryFn: () => getBrowserApi().documents.templates.list(),
+    queryKey: [...dentyQueryKeys.documents.templates, "all-versions"],
+    queryFn: () => getBrowserApi().documents.templates.list({ includeInactive: true }),
   });
 
   const [patientId, setPatientId] = useState<string | null>(initialPatientId);
@@ -64,8 +118,20 @@ export function DocumentsModule() {
   const [signing, setSigning] = useState<SignableDocument | null>(null);
   const [signerName, setSignerName] = useState("");
   const [signature, setSignature] = useState<string | null>(null);
+  const [doctorChoice, setDoctorChoice] = useState<string | null>(null);
+  // Attendance certificate.
+  const [certDate, setCertDate] = useState(todayMadrid());
+  const [certFrom, setCertFrom] = useState("");
+  const [certTo, setCertTo] = useState("");
+  const [certWithReason, setCertWithReason] = useState(false);
+  const [certReason, setCertReason] = useState("recibir tratamiento odontológico");
+  const [companionName, setCompanionName] = useState("");
+  const [companionDni, setCompanionDni] = useState("");
 
+  const context = useDocumentContext();
+  const doctorId = doctorChoice ?? context.defaultDoctorId;
   const consents = useConsentRequirementsQuery(patientId ?? "", Boolean(patientId));
+  const plan = useClinicalPlanQuery(patientId ?? "", Boolean(patientId));
 
   const invalidateClinical = (targetPatientId: string) => {
     void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.documents.root });
@@ -75,8 +141,12 @@ export function DocumentsModule() {
     void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.sync(targetPatientId) });
   };
 
+  const patientById = useMemo(
+    () => new Map((patients.data?.items ?? []).map((patient) => [patient.id, patient])),
+    [patients.data],
+  );
   const patientName = (id: string) => {
-    const patient = (patients.data?.items ?? []).find((item) => item.id === id);
+    const patient = patientById.get(id);
     return patient ? `${patient.firstName} ${patient.lastName}` : "";
   };
 
@@ -110,11 +180,69 @@ export function DocumentsModule() {
       void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.documents.root }),
   });
   const sign = useMutation({
-    mutationFn: ({ id, name, dataUrl }: { id: string; name: string; dataUrl: string }) =>
-      getBrowserApi().documents.sign(id, { signerName: name, signatureDataUrl: dataUrl }),
+    mutationFn: async ({
+      target,
+      name,
+      dataUrl,
+    }: {
+      target: SignableDocument;
+      name: string;
+      dataUrl: string;
+    }) => {
+      const api = getBrowserApi();
+      // Consents are created when signed, so an unsigned copy never lingers.
+      const id =
+        target.id ??
+        (
+          await api.documents.create({
+            patientId: target.patientId,
+            type: "CONSENT",
+            title: target.title,
+            ...(target.templateId ? { templateId: target.templateId } : {}),
+            data: Object.fromEntries(
+              Object.entries(target.data ?? {}).map(([key, value]) => [
+                key,
+                typeof value === "string" || typeof value === "number" ? value : null,
+              ]),
+            ),
+          })
+        ).id;
+      return api.documents.sign(id, { signerName: name, signatureDataUrl: dataUrl });
+    },
     onSuccess: (document) => {
       invalidateClinical(document.patientId);
       setSigning(null);
+    },
+  });
+  const certificate = useMutation({
+    mutationFn: async () => {
+      const template = templateRows.find(
+        (row) => row.code === "ATTENDANCE_CERTIFICATE" && row.active !== false,
+      );
+      if (!patientId || !template) throw new Error("Falta el paciente o la plantilla.");
+      const data = certificateData({
+        date: certDate,
+        from: certFrom,
+        to: certTo,
+        reason: certWithReason ? certReason : null,
+        companionName,
+        companionDni,
+        doctorId,
+      });
+      const document = await getBrowserApi().documents.create({
+        patientId,
+        type: "CERTIFICATE",
+        title: `Justificante de asistencia · ${certDate.split("-").reverse().join("/")}`,
+        templateId: template.id,
+        data,
+      });
+      return { document, template, data };
+    },
+    onSuccess: ({ document, template, data }) => {
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.documents.root });
+      printDocument({ ...document, data }, template);
+      setCompanionName("");
+      setCompanionDni("");
     },
   });
 
@@ -130,6 +258,47 @@ export function DocumentsModule() {
 
   const templateRows = (templates.data?.items ?? []) as TemplateRow[];
   const templateById = new Map(templateRows.map((template) => [template.id, template]));
+  const activeTemplates = templateRows.filter(
+    (template) => template.active !== false && template.code !== "ATTENDANCE_CERTIFICATE",
+  );
+  const planItems = plan.data?.items ?? [];
+  const treatmentFor = (planItemId: string | null | undefined) => {
+    const item = planItems.find((entry) => entry.id === planItemId);
+    return item ? `${item.label}${item.tooth ? ` · diente ${item.tooth}` : ""}` : null;
+  };
+  const printDocument = (
+    document: {
+      id?: string | undefined;
+      patientId: string;
+      title: string;
+      createdAt?: string | undefined;
+      signerName?: string | null | undefined;
+      signedAt?: string | null | undefined;
+      data?: Record<string, unknown> | undefined;
+    },
+    template: TemplateRow | undefined,
+  ) => {
+    const patient = patientById.get(document.patientId);
+    if (!patient || !template?.body) return;
+    printClinicalDocument({
+      title: document.title,
+      templateCode: template.code,
+      templateBody: template.body,
+      patient,
+      context,
+      data: document.data,
+      signed:
+        document.signedAt && document.signerName
+          ? { signerName: document.signerName, signedAt: document.signedAt }
+          : null,
+      createdAt: document.createdAt,
+      reference: document.id?.slice(0, 8),
+    });
+  };
+  const signingTemplate = signing?.templateId ? templateById.get(signing.templateId) : undefined;
+  const signingPatient = signing ? patientById.get(signing.patientId) : undefined;
+  const signingDoctorId =
+    typeof signing?.data?.doctorId === "string" ? signing.data.doctorId : doctorId;
   const hasError = patients.isError || documents.isError || templates.isError;
   const visibleDocuments = (documents.data?.items ?? []).filter(
     (document) => !patientId || document.patientId === patientId,
@@ -138,14 +307,18 @@ export function DocumentsModule() {
     (item) => item.status !== "SATISFIED",
   );
 
-  const createConsent = (requirementTemplateId: string | null | undefined, code: string) => {
+  const createConsent = (
+    requirementTemplateId: string | null | undefined,
+    code: string,
+    planItemId?: string | null,
+  ) => {
     if (!patientId) return;
     const template = requirementTemplateId ? templateById.get(requirementTemplateId) : undefined;
-    create.mutate({
+    openSigning({
       patientId,
-      type: "CONSENT",
       title: template?.title ?? code,
-      ...(requirementTemplateId ? { templateId: requirementTemplateId } : {}),
+      templateId: requirementTemplateId,
+      data: { doctorId, tratamiento: treatmentFor(planItemId) },
     });
   };
 
@@ -179,7 +352,9 @@ export function DocumentsModule() {
                     {(requirement.templateId && templateById.get(requirement.templateId)?.title) ||
                       requirement.consentCode}
                   </span>
-                  <span className={styles.rowMeta}>{requirement.consentCode}</span>
+                  <span className={styles.rowMeta}>
+                    {treatmentFor(requirement.clinicalPlanItemId) ?? "Plan de tratamiento"}
+                  </span>
                 </div>
                 <div className={styles.rowActions}>
                   <Badge color={requirement.status === "SATISFIED" ? "green" : "orange"}>
@@ -190,15 +365,108 @@ export function DocumentsModule() {
                       size="xs"
                       loading={create.isPending}
                       disabled={!requirement.templateId}
-                      onClick={() => createConsent(requirement.templateId, requirement.consentCode)}
+                      onClick={() =>
+                        createConsent(
+                          requirement.templateId,
+                          requirement.consentCode,
+                          requirement.clinicalPlanItemId,
+                        )
+                      }
                     >
-                      Crear y firmar
+                      Leer y firmar
                     </Button>
                   ) : null}
                 </div>
               </div>
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {patientId ? (
+        <section className={styles.section} aria-label="Justificante de asistencia">
+          <Group justify="space-between">
+            <div>
+              <h3 className={styles.sectionTitle}>Justificante de asistencia</h3>
+              <p className={styles.sectionDescription}>
+                Para el trabajo o el centro de estudios del paciente o de su acompañante.
+              </p>
+            </div>
+            <Badge variant="light">{patientName(patientId)}</Badge>
+          </Group>
+          <Stack mt="md" gap="sm">
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+              <TextInput
+                type="date"
+                label="Fecha"
+                value={certDate}
+                onChange={(event) => setCertDate(event.currentTarget.value)}
+              />
+              <TextInput
+                type="time"
+                label="Desde"
+                value={certFrom}
+                onChange={(event) => setCertFrom(event.currentTarget.value)}
+              />
+              <TextInput
+                type="time"
+                label="Hasta"
+                value={certTo}
+                onChange={(event) => setCertTo(event.currentTarget.value)}
+              />
+            </SimpleGrid>
+            <Checkbox
+              label="Indicar el motivo de la visita"
+              checked={certWithReason}
+              onChange={(event) => setCertWithReason(event.currentTarget.checked)}
+            />
+            {certWithReason ? (
+              <TextInput
+                label="Motivo"
+                value={certReason}
+                onChange={(event) => setCertReason(event.currentTarget.value)}
+              />
+            ) : null}
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              <TextInput
+                label="Acompañante (opcional)"
+                placeholder="Nombre y apellidos"
+                value={companionName}
+                onChange={(event) => setCompanionName(event.currentTarget.value)}
+              />
+              <TextInput
+                label="DNI/NIE del acompañante"
+                value={companionDni}
+                onChange={(event) => setCompanionDni(event.currentTarget.value)}
+              />
+            </SimpleGrid>
+            <Select
+              label="Profesional que lo firma"
+              value={doctorId}
+              onChange={setDoctorChoice}
+              data={context.doctors.map((doctor) => ({
+                value: doctor.id,
+                label: doctor.displayName,
+              }))}
+            />
+            {certificate.isError ? (
+              <Alert color="red">
+                {certificate.error instanceof Error
+                  ? certificate.error.message
+                  : "No se pudo crear el justificante."}
+              </Alert>
+            ) : null}
+            <Group justify="flex-end">
+              <Button
+                leftSection={<IconPrinter size={16} />}
+                loading={certificate.isPending}
+                disabled={!certDate}
+                onClick={() => certificate.mutate()}
+              >
+                Crear e imprimir
+              </Button>
+            </Group>
+          </Stack>
         </section>
       ) : null}
 
@@ -231,7 +499,7 @@ export function DocumentsModule() {
               const template = value ? templateById.get(value) : undefined;
               if (template?.title && !title.trim()) setTitle(template.title);
             }}
-            data={templateRows.map((template, index) => ({
+            data={activeTemplates.map((template, index) => ({
               value: template.id,
               label: template.title ?? `Plantilla ${index + 1}`,
             }))}
@@ -271,7 +539,8 @@ export function DocumentsModule() {
               <div className={styles.rowMain}>
                 <span className={styles.rowTitle}>{document.title}</span>
                 <span className={styles.rowMeta}>
-                  {document.type} · {new Date(document.createdAt).toLocaleDateString("es-ES")} ·{" "}
+                  {TYPE_LABELS[document.type] ?? document.type} ·{" "}
+                  {new Date(document.createdAt).toLocaleDateString("es-ES")} ·{" "}
                   {document.fileSizeBytes
                     ? `${Math.ceil(document.fileSizeBytes / 1024)} KB`
                     : "sin archivo"}
@@ -284,10 +553,25 @@ export function DocumentsModule() {
               </div>
               <div className={styles.rowActions}>
                 <Badge {...(document.status === "SIGNED" ? { color: "green" } : {})}>
-                  {document.status}
+                  {STATUS_LABELS[document.status] ?? document.status}
                 </Badge>
                 <Badge variant="light">v{document.version}</Badge>
                 {document.checksum ? <Badge variant="outline">SHA-256</Badge> : null}
+                {document.templateId && templateById.get(document.templateId)?.body ? (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    leftSection={<IconPrinter size={14} />}
+                    onClick={() =>
+                      printDocument(
+                        document,
+                        document.templateId ? templateById.get(document.templateId) : undefined,
+                      )
+                    }
+                  >
+                    Imprimir
+                  </Button>
+                ) : null}
                 {SIGNABLE_STATES.has(document.status) ? (
                   <Button size="xs" onClick={() => openSigning(document)}>
                     Firmar
@@ -331,8 +615,50 @@ export function DocumentsModule() {
         onClose={() => setSigning(null)}
         title={signing ? `Firmar: ${signing.title}` : "Firmar documento"}
         centered
+        size="lg"
       >
         <Stack>
+          {signing && signingTemplate?.body ? (
+            <>
+              <Select
+                label="Profesional responsable"
+                value={signingDoctorId}
+                onChange={(value) =>
+                  setSigning({ ...signing, data: { ...signing.data, doctorId: value } })
+                }
+                data={context.doctors.map((doctor) => ({
+                  value: doctor.id,
+                  label: doctor.displayName,
+                }))}
+              />
+              <div className={styles.consentText}>
+                <TemplateText
+                  body={signingTemplate.body}
+                  values={documentValues({
+                    patient: signingPatient ?? null,
+                    doctor: context.doctorById(signingDoctorId),
+                    clinicName: context.clinicName,
+                    city: context.site?.city,
+                    date: todayMadrid(),
+                    treatment:
+                      typeof signing.data?.tratamiento === "string"
+                        ? signing.data.tratamiento
+                        : null,
+                  })}
+                />
+              </div>
+              <Group justify="flex-end">
+                <Button
+                  size="xs"
+                  variant="light"
+                  leftSection={<IconPrinter size={14} />}
+                  onClick={() => printDocument(signing, signingTemplate)}
+                >
+                  Imprimir para leer
+                </Button>
+              </Group>
+            </>
+          ) : null}
           <TextInput
             label="Nombre de quien firma"
             value={signerName}
@@ -350,7 +676,7 @@ export function DocumentsModule() {
             onClick={() =>
               signing &&
               signature &&
-              sign.mutate({ id: signing.id, name: signerName.trim(), dataUrl: signature })
+              sign.mutate({ target: signing, name: signerName.trim(), dataUrl: signature })
             }
           >
             Guardar firma

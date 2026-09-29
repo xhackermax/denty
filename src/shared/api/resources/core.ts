@@ -258,7 +258,13 @@ export function createCoreResource(client: ApiClient) {
     },
     documents: {
       templates: {
-        list: () => client.request("/api/document-templates", documentTemplatesSchema),
+        list: (options: { includeInactive?: boolean } = {}) =>
+          client.request(
+            withQuery("/api/document-templates", {
+              includeInactive: options.includeInactive ? "true" : undefined,
+            }),
+            documentTemplatesSchema,
+          ),
         create: (payload: z.input<typeof createDocumentTemplateSchema>) =>
           client.mutation(
             "/api/document-templates",
