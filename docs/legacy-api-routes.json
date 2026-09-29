@@ -169,6 +169,12 @@
       "kind": "browser"
     },
     {
+      "method": "GET",
+      "path": "/api/agenda/blocks",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
       "method": "POST",
       "path": "/api/agenda/blocks",
       "source": "apps/api/src/modules/appointments/operations-routes.ts",
@@ -362,6 +368,12 @@
       "source": "apps/api/src/modules/appointments/routes.ts",
       "kind": "browser",
       "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
+    },
+    {
+      "method": "POST",
+      "path": "/api/appointments/:id/cancel",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
     },
     {
       "method": "POST",

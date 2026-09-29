@@ -1767,6 +1767,21 @@ export async function handleSupabaseDentyRoute(
       parts[0] === "api" &&
       parts[1] === "agenda" &&
       parts[2] === "blocks" &&
+      method === "GET"
+    ) {
+      if (identity.actor.role === "PATIENT")
+        return error(403, "FORBIDDEN", "El portal no puede ver los bloqueos de la agenda.");
+      const params = new URL(request.url).searchParams;
+      const date = params.get("date");
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
+        return error(400, "DATE_REQUIRED", "Indica la fecha de la agenda.");
+      return json(200, await agenda.listBlocks(date, params.get("siteId") ?? undefined), headers);
+    }
+    if (
+      parts.length === 3 &&
+      parts[0] === "api" &&
+      parts[1] === "agenda" &&
+      parts[2] === "blocks" &&
       method === "POST"
     ) {
       if (identity.actor.role === "PATIENT")

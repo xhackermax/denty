@@ -1,0 +1,44 @@
+.glyph {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  align-items: center;
+  line-height: 1;
+}
+
+.tooth {
+  width: 19px;
+  height: 26px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.glyph[data-mode="micro"] .tooth {
+  width: 14px;
+  height: 19px;
+}
+
+.tooth[data-arch="upper"] {
+  transform: scaleY(-1);
+}
+
+.tooth[data-state="missing"] {
+  opacity: 0.38;
+}
+
+.toothNumber {
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.glyph[data-mode="micro"] .toothNumber {
+  font-size: 0.62rem;
+}
+
+.alert {
+  width: 13px;
+  height: 13px;
+  color: var(--denty-danger);
+}

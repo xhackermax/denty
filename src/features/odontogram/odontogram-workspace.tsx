@@ -54,39 +54,19 @@ import { PageHeader } from "@/shared/ui";
 import { ClinicalTabs, type ClinicalTab } from "./clinical-tabs";
 import { EndodonticPanel } from "./endodontic-panel";
 import styles from "./odontogram.module.css";
+import {
+  CROWN_PATHS,
+  ROOT_PATHS,
+  SURFACE_PATHS,
+  TOOTH_MARK_PATHS,
+} from "@/shared/odontogram/tooth-geometry";
+import { TOOTH_STATE_LABELS as STATE_LABELS } from "@/shared/odontogram/tooth-state-labels";
 import { OrthodonticPanel } from "./orthodontic-panel";
 import { PediatricPanel } from "./pediatric-panel";
 import { SupernumeraryPanel } from "./supernumerary-panel";
 import { PeriodontogramPanel } from "./periodontogram-panel";
 import { SurgeryPanel } from "./surgery-panel";
 import { surgicalVisualsForTooth } from "./surgery-visuals";
-const STATE_LABELS: Readonly<Record<ToothState, string>> = {
-  healthy: "Sano",
-  filling: "Obturación realizada",
-  filling_bad: "Obturación insatisfactoria",
-  filling_pending: "Obturación pendiente",
-  crown: "Corona realizada",
-  crown_bad: "Corona insatisfactoria",
-  crown_pending: "Corona pendiente",
-  endo: "Endodoncia realizada",
-  endo_bad: "Endodoncia insatisfactoria",
-  endo_indicated: "Endodoncia indicada",
-  post: "Perno realizado",
-  post_bad: "Perno insatisfactorio",
-  post_pending: "Perno pendiente",
-  implant: "Implante realizado",
-  implant_review: "Implante a revisar",
-  implant_indicated: "Implante indicado",
-  prosthesis: "Prótesis fija realizada",
-  prosthesis_bad: "Prótesis fija insatisfactoria",
-  prosthesis_pending: "Prótesis fija pendiente",
-  removable: "Removible realizada",
-  removable_bad: "Removible insatisfactoria",
-  removable_pending: "Removible pendiente",
-  caries: "Caries",
-  extraction: "Exodoncia indicada",
-  missing: "Ausente",
-};
 const TOOL_OPTIONS = TOOTH_STATES.map((state) => ({
   value: state,
   label: STATE_LABELS[state],
@@ -154,29 +134,6 @@ interface ToothProps {
   onSurfaceAction: (surface: ToothSurface) => void;
   onSurfaceCycle: (surface: ToothSurface) => void;
 }
-const CROWN_PATHS = {
-  incisor: "M16 15 C19 8 45 8 48 15 L46 44 C44 52 20 52 18 44 Z",
-  canine: "M17 21 Q23 10 32 7 Q41 10 47 21 L44 45 Q32 55 20 45 Z",
-  premolar: "M14 20 Q17 10 27 13 Q32 6 37 13 Q47 10 50 20 L47 46 Q32 56 17 46 Z",
-  molar: "M10 21 Q13 9 24 13 Q32 6 40 13 Q51 9 54 21 L51 47 Q44 55 32 52 Q20 55 13 47 Z",
-} as const;
-const ROOT_PATHS = {
-  incisor: "M23 45 C24 61 26 78 31 86 C35 79 40 61 41 45",
-  canine: "M24 45 C25 64 28 82 32 88 C36 81 39 63 40 45",
-  premolar:
-    "M22 45 C22 60 19 76 23 85 C29 78 30 61 31 47 " +
-    "M34 47 C35 62 36 78 41 84 C45 73 42 58 42 45",
-  molar:
-    "M18 45 C18 60 14 74 18 84 C24 79 27 61 28 47 " +
-    "M36 47 C37 62 39 79 46 84 C50 73 46 58 46 45",
-} as const;
-const SURFACE_PATHS = {
-  V: "M7 6 H57 L45 27 H19 Z",
-  left: "M7 6 L19 27 V45 L7 59 Z",
-  occlusal: "M19 27 H45 V45 H19 Z",
-  right: "M57 6 L45 27 V45 L57 59 Z",
-  inner: "M7 59 H57 L45 45 H19 Z",
-} as const;
 const SURFACE_HITBOX_PATHS = {
   regular: {
     left: "M4 5 L23 27 V46 L4 61 Z",
@@ -331,21 +288,21 @@ function Tooth({
           aria-label={`Diente ${tooth} superficie ${SURFACE_NAMES[right]}`}
           {...surfaceProps(right)}
         />
-        {endo ? <path className={styles.endoMark} d="M31 46 C31 58 30 70 31 82" /> : null}
-        {post ? <path className={styles.postMark} d="M32 35 L32 73" /> : null}
+        {endo ? <path className={styles.endoMark} d={TOOTH_MARK_PATHS.endo} /> : null}
+        {post ? <path className={styles.postMark} d={TOOTH_MARK_PATHS.post} /> : null}
         {implant ? (
           <g className={styles.implantMark}>
-            <path d="M27 48 L37 48 L39 75 L32 84 L25 75 Z" />
-            <path d="M26 55 H38 M26 61 H38 M27 67 H37 M28 73 H36" />
+            <path d={TOOTH_MARK_PATHS.implantBody} />
+            <path d={TOOTH_MARK_PATHS.implantThreads} />
           </g>
         ) : null}
         {prosthesis ? (
-          <path className={styles.prosthesisMark} d="M15 18 Q32 8 49 18 L45 38 Q32 31 19 38 Z" />
+          <path className={styles.prosthesisMark} d={TOOTH_MARK_PATHS.prosthesis} />
         ) : null}
         {extraction ? (
-          <path className={styles.extractionMark} d="M14 18 L50 70 M50 18 L14 70" />
+          <path className={styles.extractionMark} d={TOOTH_MARK_PATHS.extraction} />
         ) : null}
-        {missing ? <path className={styles.missingMark} d="M13 45 H51" /> : null}
+        {missing ? <path className={styles.missingMark} d={TOOTH_MARK_PATHS.missing} /> : null}
         {visualMark ? (
           <g className={styles.endoVisualMark} data-severity={visualMark.severity}>
             <path d={visualMark.svgPath} />

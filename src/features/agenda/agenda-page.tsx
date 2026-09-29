@@ -2,34 +2,57 @@
 import {
   ActionIcon,
   Alert,
+  Autocomplete,
   Badge,
   Button,
+  Checkbox,
+  Collapse,
   Group,
   Menu,
   Modal,
   NumberInput,
+  Popover,
+  SegmentedControl,
   Select,
   SimpleGrid,
   Stack,
   Text,
   TextInput,
-  Title,
+  UnstyledButton,
 } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import {
+  IconAdjustmentsHorizontal,
+  IconCalendarEvent,
   IconCalendarPlus,
   IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
   IconClipboard,
   IconCopy,
   IconDotsVertical,
-  IconGripVertical,
+  IconFirstAidKit,
+  IconLayoutColumns,
+  IconLock,
   IconMinus,
   IconPlus,
+  IconSearch,
+  IconUserPlus,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+} from "react";
 import {
   addMinutes,
+  dateYMDMadrid,
   epochMillis,
   hhmm,
   madridLocalDateTime,
@@ -37,31 +60,57 @@ import {
   toMadridISO,
 } from "@/domain/dates";
 import {
+  AGENDA_ZOOM,
   DEFAULT_PLAN_VISIT_GAP_DAYS,
+  OCCUPYING_STATUSES,
+  clinicalGlyphFor,
+  currentTimeOffset,
+  findConflicts,
+  implantSurgeryReminderForAppointment,
+  layoutDay,
   normalizePlanVisitGapDays,
   planVisitDates,
-  implantSurgeryReminderForAppointment,
+  rangeStartFor,
+  shiftRange,
+  visibleDates,
+  type AgendaBlock,
+  type AgendaDayCount,
+  type AgendaZoom,
 } from "@/domain";
 import {
+  useAgendaAvailabilityQuery,
+  useAgendaBlocksRangeQuery,
   useAgendaContextQuery,
-  useAppointmentsQuery,
+  useAppointmentsRangeQuery,
   useAppointmentTransitionMutation,
+  useCreateAgendaBlockMutation,
   useCreateAppointmentMutation,
-  useUpdateAppointmentForDayMutation,
+  useMoveAppointmentMutation,
+  usePrefetchAppointmentDays,
 } from "./agenda-data";
 import {
   projectApiAppointments,
+  projectApiCabinets,
   projectApiPatients,
   projectApiSites,
   projectApiStaff,
   type AgendaAppointmentView,
   type AgendaStatus,
 } from "./agenda-projection";
-import styles from "@/shared/ui/parity.module.css";
+import { AgendaAppointmentCard } from "./agenda-appointment-card";
+import { AgendaMiniCalendar } from "./agenda-mini-calendar";
+import { AgendaQuickView, type QuickViewEdit } from "./agenda-quick-view";
+import { AGENDA_STATUS_META } from "./agenda-status";
+import styles from "./agenda.module.css";
+import parityStyles from "@/shared/ui/parity.module.css";
+import { DentyApiError, type UpdateAppointment } from "@/shared/api";
+import { useClinicalPlanQuery, useTreatmentCatalogQuery } from "@/shared/clinical/clinical-data";
+import { ClinicalGlyph } from "@/shared/odontogram/clinical-glyph";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { PageHeader } from "@/shared/ui";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import { slotMinuteFromOffset } from "@/domain/agenda/slot-selection";
+
 const PIPELINE = [
   { key: "planned", title: "Llegarán", statuses: ["PLANNED", "CONFIRMED"] },
   { key: "waiting", title: "En sala", statuses: ["ARRIVED", "WAITING"] },
@@ -71,32 +120,58 @@ const PIPELINE = [
 const START_HOUR = 8;
 const END_HOUR = 21;
 const SLOT_MINUTES = 15;
-const PX_PER_MINUTE = 1.55;
 const DAY_MINUTES = (END_HOUR - START_HOUR) * 60;
-const DAY_HEIGHT = DAY_MINUTES * PX_PER_MINUTE;
+const DURATION_STEPS = [5, 10, 15, 20, 30, 45, 60, 75, 90, 120];
+const BLOCK_KINDS = [
+  { value: "MEETING", label: "Reunión" },
+  { value: "BREAK", label: "Descanso" },
+  { value: "SURGERY", label: "Cirugía" },
+  { value: "MAINTENANCE", label: "Mantenimiento" },
+  { value: "TRAINING", label: "Formación" },
+  { value: "UNAVAILABLE", label: "No disponible" },
+];
+const BLOCK_LABELS = new Map(BLOCK_KINDS.map((kind) => [kind.value, kind.label]));
+const VIEW_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "1", label: "Día" },
+  { value: "2", label: "2 días" },
+  { value: "3", label: "3 días" },
+  { value: "5", label: "5 días" },
+  { value: "7", label: "Semana" },
+  { value: "pipeline", label: "Recepción" },
+  { value: "list", label: "Lista" },
+];
+
+type ResourceMode = "staff" | "cabinet";
+
+interface AgendaColumn {
+  id: string;
+  date: string;
+  staffId: string | null;
+  cabinetId: string | null;
+  label: string;
+  sublabel?: string | undefined;
+}
+
+interface PendingChange {
+  kind: "move" | "create";
+  appointment?: AgendaAppointmentView;
+  patch?: UpdateAppointment;
+  date: string;
+  staffId: string;
+  durationMinutes: number;
+  conflicts: string[];
+}
+
 function nextStatus(status: AgendaStatus): AgendaStatus | null {
-  if (status === "PLANNED" || status === "CONFIRMED") return "ARRIVED";
+  if (status === "PLANNED" || status === "CONFIRMED" || status === "RUNNING_LATE") return "ARRIVED";
   if (status === "ARRIVED") return "WAITING";
   if (status === "WAITING") return "IN_CHAIR";
   if (status === "IN_CHAIR") return "COMPLETED";
   return null;
 }
-function nextLabel(status: AgendaStatus): string | null {
-  if (status === "PLANNED" || status === "CONFIRMED") return "Ha llegado";
-  if (status === "ARRIVED") return "A sala";
-  if (status === "WAITING") return "A gabinete";
-  if (status === "IN_CHAIR") return "Finalizar";
-  return null;
-}
-function statusColor(status: AgendaStatus): string {
-  if (status === "IN_CHAIR" || status === "COMPLETED") return "green";
-  if (status === "ARRIVED" || status === "WAITING" || status === "RUNNING_LATE") return "yellow";
-  if (status === "NO_SHOW" || status === "CANCELLED") return "gray";
-  return "blue";
-}
 function durationMinutes(appointment: AgendaAppointmentView): number {
   return Math.max(
-    15,
+    SLOT_MINUTES,
     Math.round((epochMillis(appointment.endsAt) - epochMillis(appointment.startsAt)) / 60000),
   );
 }
@@ -119,150 +194,540 @@ function timeForMinute(minute: number): string {
 function dayHours() {
   return Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, index) => START_HOUR + index);
 }
-function agendaGridStyle(staffCount: number, height?: number): CSSProperties {
+const DAY_FORMAT = new Intl.DateTimeFormat("es-ES", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "Europe/Madrid",
+});
+function dayLabel(date: string): string {
+  return DAY_FORMAT.format(madridLocalDateTime(date, "12:00"));
+}
+function gridStyle(columnCount: number, minColumn: number, height?: number): CSSProperties {
   return {
-    gridTemplateColumns: `74px repeat(${Math.max(1, staffCount)}, minmax(210px, 1fr))`,
+    gridTemplateColumns: `56px repeat(${Math.max(1, columnCount)}, minmax(${minColumn}px, 1fr))`,
     ...(height === undefined ? {} : { height }),
   };
 }
-const DAY_HEIGHT_STYLE: CSSProperties = { height: DAY_HEIGHT };
+function positionStyle(top: number, height: number, column = 0, columnCount = 1): CSSProperties {
+  const width = 100 / columnCount;
+  return {
+    top,
+    height,
+    left: `calc(${column * width}% + 3px)`,
+    width: `calc(${width}% - 6px)`,
+  };
+}
+function heightStyle(height: number): CSSProperties {
+  return { height };
+}
 function topStyle(top: number): CSSProperties {
   return { top };
 }
-function appointmentStyle(top: number, height: number): CSSProperties {
-  return { top, height };
+function errorMessage(error: unknown): string {
+  if (error instanceof DentyApiError) {
+    if (error.code === "APPOINTMENT_CONFLICT" || error.status === 409)
+      return "Ese hueco ya está ocupado o la cita cambió. Vuelve a intentarlo.";
+    return error.message;
+  }
+  return "No se pudo guardar el cambio.";
 }
+function nextQuarterMinute(): number {
+  const offset = currentTimeOffset(Date.now(), START_HOUR, END_HOUR);
+  return offset === null ? 60 : snapMinutes(offset + SLOT_MINUTES);
+}
+
 interface DragPayload {
   id: string;
 }
+
 export function AgendaPage() {
   const searchParams = useSearchParams();
   const requestedPatientId = searchParams.get("patientId") ?? "";
-  const [date] = useState(todayMadrid());
+  const isMobile = useMediaQuery("(max-width: 48em)") ?? false;
   const { activeSiteId, setActiveSiteId } = useActiveTenant();
-  const [view, setView] = useState("day");
+
+  // Navigation & presentation.
+  const [anchor, setAnchor] = useState(todayMadrid());
+  const [dayCount, setDayCount] = useState<AgendaDayCount>(1);
+  const [view, setView] = useState<"grid" | "pipeline" | "list">("grid");
+  const [resourceMode, setResourceMode] = useState<ResourceMode>("staff");
+  const [resourceFilter, setResourceFilter] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<AgendaZoom>("normal");
+  const [showCompleted, setShowCompleted] = useState(true);
+  const [showCancelled, setShowCancelled] = useState(false);
+  const [showBlocks, setShowBlocks] = useState(true);
+  const [search, setSearch] = useState("");
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Creation form. `date` is the day of the appointment being created.
   const [opened, setOpened] = useState(false);
+  const [date, setDate] = useState(todayMadrid());
   const [patientId, setPatientId] = useState(requestedPatientId);
   const [staffId, setStaffId] = useState("");
+  const [cabinetId, setCabinetId] = useState<string | null>(null);
   const [appointmentTime, setAppointmentTime] = useState("15:00");
   const [appointmentDuration, setAppointmentDuration] = useState(30);
-  const [selectedSlot, setSelectedSlot] = useState<{ staffId: string; minute: number } | null>(
-    null,
-  );
   const [reason, setReason] = useState("Revisión");
+  const [planItemId, setPlanItemId] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [visitCount, setVisitCount] = useState(1);
   const [planVisitGapDays, setPlanVisitGapDays] = useState(DEFAULT_PLAN_VISIT_GAP_DAYS);
+  const [selectedSlot, setSelectedSlot] = useState<{ columnId: string; minute: number } | null>(
+    null,
+  );
+
+  // Blocks.
+  const [blockOpened, setBlockOpened] = useState(false);
+  const [blockKind, setBlockKind] = useState("MEETING");
+  const [blockReason, setBlockReason] = useState("");
+  const [blockFrom, setBlockFrom] = useState("14:00");
+  const [blockTo, setBlockTo] = useState("15:00");
+
+  // Interaction.
   const [copied, setCopied] = useState<AgendaAppointmentView | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [quickViewId, setQuickViewId] = useState<string | null>(null);
   const [agendaNotice, setAgendaNotice] = useState<string | null>(null);
-  const resizingRef = useRef<{
-    id: string;
-    startY: number;
-    initialDuration: number;
+  const [pending, setPending] = useState<PendingChange | null>(null);
+  const [slotSearch, setSlotSearch] = useState<{
+    date: string;
+    staffId: string;
+    durationMin: number;
   } | null>(null);
-  const appointmentsQuery = useAppointmentsQuery(date, true, activeSiteId);
+  const [resizePreview, setResizePreview] = useState<{ id: string; duration: number } | null>(null);
+  const resizingRef = useRef<{ id: string; startY: number; initialDuration: number } | null>(null);
+  const touchRef = useRef<{ x: number; y: number } | null>(null);
+
+  const effectiveDayCount: AgendaDayCount = isMobile ? 1 : dayCount;
+  const rangeStart = rangeStartFor(anchor, effectiveDayCount);
+  const dates = useMemo(
+    () => visibleDates(rangeStart, effectiveDayCount),
+    [rangeStart, effectiveDayCount],
+  );
+  const pxPerMinute = AGENDA_ZOOM[zoom];
+  const dayHeight = DAY_MINUTES * pxPerMinute;
+  const today = todayMadrid(nowTick);
+
+  const appointmentsQuery = useAppointmentsRangeQuery(dates, activeSiteId);
+  const blocks = useAgendaBlocksRangeQuery(dates, activeSiteId);
   const patientsQuery = usePatientsQuery();
   const contextQuery = useAgendaContextQuery();
+  const catalogQuery = useTreatmentCatalogQuery();
+  const planQuery = useClinicalPlanQuery(patientId || requestedPatientId, opened);
   const createMutation = useCreateAppointmentMutation(date);
-  const updateMutation = useUpdateAppointmentForDayMutation(date);
+  const moveMutation = useMoveAppointmentMutation();
+  const blockMutation = useCreateAgendaBlockMutation();
   const transitions = useAppointmentTransitionMutation(date);
+  const availabilityQuery = useAgendaAvailabilityQuery(
+    slotSearch ? { ...slotSearch, siteId: activeSiteId } : null,
+  );
+  const prefetchDays = usePrefetchAppointmentDays();
+
   useEffect(() => {
     const persistedGap = contextQuery.data?.settings?.defaultPlanVisitGapDays;
     if (persistedGap !== undefined) setPlanVisitGapDays(normalizePlanVisitGapDays(persistedGap));
   }, [contextQuery.data?.settings?.defaultPlanVisitGapDays]);
-  const appointments = useMemo(
-    () => projectApiAppointments(appointmentsQuery.data ?? [], patientsQuery.data?.items ?? []),
-    [appointmentsQuery.data, patientsQuery.data],
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    prefetchDays(
+      visibleDates(shiftRange(rangeStart, effectiveDayCount, 1), effectiveDayCount),
+      activeSiteId,
+    );
+    prefetchDays(
+      visibleDates(shiftRange(rangeStart, effectiveDayCount, -1), effectiveDayCount),
+      activeSiteId,
+    );
+  }, [rangeStart, effectiveDayCount, activeSiteId]);
+
+  const patients = useMemo(() => patientsQuery.data?.items ?? [], [patientsQuery.data]);
+  const patientsById = useMemo(
+    () => new Map(patients.map((patient) => [patient.id, patient])),
+    [patients],
   );
+  const appointments = useMemo(
+    () => projectApiAppointments(appointmentsQuery.data, patients),
+    [appointmentsQuery.data, patients],
+  );
+  const staff = useMemo(() => projectApiStaff(contextQuery.data), [contextQuery.data]);
+  const sites = useMemo(() => projectApiSites(contextQuery.data), [contextQuery.data]);
+  const cabinets = useMemo(
+    () =>
+      projectApiCabinets(contextQuery.data).filter(
+        (cabinet) => !activeSiteId || cabinet.siteId === activeSiteId,
+      ),
+    [contextQuery.data, activeSiteId],
+  );
+  const patientOptions = useMemo(() => projectApiPatients(patients), [patients]);
+  const staffNames = useMemo(() => new Map(staff.map((m) => [m.id, m.displayName])), [staff]);
+  const cabinetNames = useMemo(() => new Map(cabinets.map((c) => [c.id, c.name])), [cabinets]);
+  const actorStaffId = contextQuery.data?.actor.staffId ?? null;
+  const effectivePatientId = patientId || patientOptions[0]?.id || "";
+  const effectiveStaffId = staffId || actorStaffId || staff[0]?.id || "";
+  const effectiveSiteId = activeSiteId || sites[0]?.id || "";
+
   const implantSurgeryReminders = useMemo(
     () =>
       appointments.flatMap((appointment) => {
-        const reminder = implantSurgeryReminderForAppointment(appointment, date);
+        const reminder = implantSurgeryReminderForAppointment(appointment, today);
         return reminder
           ? [{ ...reminder, appointmentId: appointment.id, patientName: appointment.patientName }]
           : [];
       }),
-    [appointments, date],
+    [appointments, today],
   );
-  const staff = useMemo(() => projectApiStaff(contextQuery.data), [contextQuery.data]);
-  const patientOptions = useMemo(
-    () => projectApiPatients(patientsQuery.data?.items ?? []),
-    [patientsQuery.data],
-  );
-  const sites = useMemo(() => projectApiSites(contextQuery.data), [contextQuery.data]);
-  const effectivePatientId = patientId || patientOptions[0]?.id || "";
-  const effectiveStaffId = staffId || staff[0]?.id || "";
-  const effectiveSiteId = activeSiteId || sites[0]?.id || "";
-  const byStaff = useMemo(
+
+  // Visibility filters and search (search dims instead of hiding, to keep context).
+  const visibleAppointments = useMemo(
     () =>
-      staff.map((member) => ({
-        staff: member,
-        appointments: appointments.filter((appointment) => appointment.staffId === member.id),
-      })),
-    [appointments, staff],
+      appointments.filter((appointment) => {
+        if (!showCompleted && appointment.status === "COMPLETED") return false;
+        if (
+          !showCancelled &&
+          (appointment.status === "CANCELLED" || appointment.status === "NO_SHOW")
+        )
+          return false;
+        return true;
+      }),
+    [appointments, showCancelled, showCompleted],
   );
-  const siteNames = useMemo(() => new Map(sites.map((site) => [site.id, site.name])), [sites]);
+  const searchTerm = search.trim().toLowerCase();
+  const matchesSearch = (appointment: AgendaAppointmentView) =>
+    !searchTerm ||
+    appointment.patientName.toLowerCase().includes(searchTerm) ||
+    appointment.reason.toLowerCase().includes(searchTerm);
+
+  // Resources → columns.
+  const resources = useMemo(() => {
+    const all =
+      resourceMode === "staff"
+        ? staff.map((member) => ({
+            id: `staff:${member.id}`,
+            staffId: member.id,
+            cabinetId: null as string | null,
+            label: member.displayName,
+            sublabel: undefined as string | undefined,
+          }))
+        : [
+            ...cabinets.map((cabinet) => ({
+              id: `cabinet:${cabinet.id}`,
+              staffId: null as string | null,
+              cabinetId: cabinet.id as string | null,
+              label: cabinet.name,
+              sublabel: sites.length > 1 && !activeSiteId ? cabinet.siteName : undefined,
+            })),
+            ...(appointments.some((appointment) => !appointment.cabinetId)
+              ? [
+                  {
+                    id: "cabinet:none",
+                    staffId: null as string | null,
+                    cabinetId: null as string | null,
+                    label: "Sin gabinete",
+                    sublabel: undefined as string | undefined,
+                  },
+                ]
+              : []),
+          ];
+    if (resourceFilter) return all.filter((resource) => resource.id === resourceFilter);
+    // Mobile and multi-day views show one resource at a time: the actor's own column
+    // when available, otherwise the first one. The resource selector switches it.
+    if (isMobile || effectiveDayCount > 1) {
+      const own = all.find((resource) => resource.staffId && resource.staffId === actorStaffId);
+      return own ? [own] : all.slice(0, 1);
+    }
+    return all;
+  }, [
+    activeSiteId,
+    appointments,
+    cabinets,
+    isMobile,
+    resourceFilter,
+    resourceMode,
+    sites.length,
+    staff,
+    effectiveDayCount,
+    actorStaffId,
+  ]);
+
+  const columns = useMemo<AgendaColumn[]>(
+    () =>
+      dates.flatMap((columnDate) =>
+        resources.map((resource) => ({
+          id: `${columnDate}|${resource.id}`,
+          date: columnDate,
+          staffId: resource.staffId,
+          cabinetId: resource.cabinetId,
+          label: dates.length > 1 ? dayLabel(columnDate) : resource.label,
+          sublabel:
+            dates.length > 1
+              ? resources.length > 1
+                ? resource.label
+                : undefined
+              : resource.sublabel,
+        })),
+      ),
+    [dates, resources],
+  );
+  const columnById = useMemo(
+    () => new Map(columns.map((column) => [column.id, column])),
+    [columns],
+  );
+
+  const appointmentsForColumn = useCallback(
+    (column: AgendaColumn) =>
+      visibleAppointments.filter((appointment) => {
+        if (dateYMDMadrid(appointment.startsAt) !== column.date) return false;
+        if (resourceMode === "staff") return appointment.staffId === column.staffId;
+        return (appointment.cabinetId ?? null) === column.cabinetId;
+      }),
+    [resourceMode, visibleAppointments],
+  );
+  const blocksForColumn = (column: AgendaColumn) =>
+    blocks.filter((block) => {
+      if (dateYMDMadrid(block.startsAt) !== column.date) return false;
+      if (resourceMode === "staff") return !block.staffId || block.staffId === column.staffId;
+      return !block.cabinetId || block.cabinetId === column.cabinetId;
+    });
+
+  // Conflict engine: occupied professional/cabinet, blocks. Never a silent double booking.
+  const occupying = useMemo(
+    () =>
+      appointments
+        .filter((appointment) => OCCUPYING_STATUSES.has(appointment.status))
+        .map((appointment) => ({
+          id: appointment.id,
+          staffId: appointment.staffId,
+          ...(appointment.cabinetId ? { cabinetId: appointment.cabinetId } : {}),
+          startsAt: appointment.startsAt,
+          endsAt: appointment.endsAt,
+        })),
+    [appointments],
+  );
+  const blockRanges = useMemo<AgendaBlock[]>(
+    () =>
+      blocks.map((block) => ({
+        id: block.id,
+        startsAt: block.startsAt,
+        endsAt: block.endsAt,
+        ...(block.staffId ? { staffId: block.staffId } : {}),
+        ...(block.cabinetId ? { cabinetId: block.cabinetId } : {}),
+      })),
+    [blocks],
+  );
+  const conflictsFor = (candidate: {
+    id: string;
+    staffId: string;
+    cabinetId?: string | null | undefined;
+    startsAt: string;
+    endsAt: string;
+  }) =>
+    findConflicts(
+      {
+        id: candidate.id,
+        staffId: candidate.staffId,
+        ...(candidate.cabinetId ? { cabinetId: candidate.cabinetId } : {}),
+        startsAt: candidate.startsAt,
+        endsAt: candidate.endsAt,
+      },
+      { startsAt: candidate.startsAt, endsAt: candidate.endsAt },
+      occupying,
+      blockRanges,
+    );
+  const describeConflict = (conflict: string) => {
+    const [kind, id] = conflict.split(":");
+    if (kind === "appointment") {
+      const other = appointments.find((appointment) => appointment.id === id);
+      return other
+        ? `${hhmm(other.startsAt)}–${hhmm(other.endsAt)} · ${other.patientName}`
+        : "Otra cita";
+    }
+    const block = blocks.find((item) => item.id === id);
+    return block
+      ? `Bloqueo ${BLOCK_LABELS.get(block.kind) ?? ""} ${hhmm(block.startsAt)}–${hhmm(block.endsAt)}`
+      : "Bloqueo";
+  };
+
   const transitionPending =
     transitions.arrive.isPending ||
     transitions.waiting.isPending ||
     transitions.chair.isPending ||
     transitions.noShow.isPending ||
-    transitions.complete.isPending;
-  const updateAppointment = useCallback(
-    async (
-      appointment: AgendaAppointmentView,
-      patch: Partial<
-        Pick<AgendaAppointmentView, "staffId" | "startsAt" | "endsAt" | "reason" | "status">
-      >,
-    ) => {
-      setAgendaNotice(null);
-      await updateMutation.mutateAsync({
-        id: appointment.id,
-        payload: {
-          expectedVersion: appointment.version,
-          ...(patch.staffId ? { staffId: patch.staffId } : {}),
-          ...(patch.startsAt ? { startsAt: patch.startsAt } : {}),
-          ...(patch.endsAt ? { endsAt: patch.endsAt } : {}),
-          ...(patch.reason ? { reason: patch.reason, title: patch.reason } : {}),
-          ...(patch.status ? { status: patch.status } : {}),
-        },
+    transitions.complete.isPending ||
+    transitions.cancel.isPending;
+
+  const commitMove = async (
+    appointment: AgendaAppointmentView,
+    patch: UpdateAppointment,
+    targetDate: string,
+    options: { skipConflictCheck?: boolean } = {},
+  ) => {
+    setAgendaNotice(null);
+    const candidate = {
+      id: appointment.id,
+      staffId: patch.staffId ?? appointment.staffId,
+      cabinetId: patch.cabinetId ?? appointment.cabinetId,
+      startsAt: patch.startsAt ?? appointment.startsAt,
+      endsAt: patch.endsAt ?? appointment.endsAt,
+    };
+    const conflicts = options.skipConflictCheck ? [] : conflictsFor(candidate);
+    if (conflicts.length) {
+      setPending({
+        kind: "move",
+        appointment,
+        patch,
+        date: targetDate,
+        staffId: candidate.staffId,
+        durationMinutes: Math.round(
+          (epochMillis(candidate.endsAt) - epochMillis(candidate.startsAt)) / 60000,
+        ),
+        conflicts,
       });
-    },
-    [updateMutation],
-  );
+      return;
+    }
+    try {
+      await moveMutation.mutateAsync({ id: appointment.id, payload: patch, targetDate });
+    } catch (error) {
+      setAgendaNotice(errorMessage(error));
+    }
+  };
+
   const advance = async (appointment: AgendaAppointmentView) => {
     const status = nextStatus(appointment.status);
     if (!status) return;
     const input = { id: appointment.id, expectedVersion: appointment.version };
-    if (status === "ARRIVED") await transitions.arrive.mutateAsync(input);
-    if (status === "WAITING") await transitions.waiting.mutateAsync(input);
-    if (status === "IN_CHAIR") await transitions.chair.mutateAsync(input);
-    if (status === "COMPLETED") await transitions.complete.mutateAsync(input);
-  };
-  const create = async () => {
-    if (!effectivePatientId || !effectiveStaffId || !appointmentTime) return;
-    const dates = planVisitDates(date, Math.max(1, visitCount), planVisitGapDays);
-    if (!effectiveSiteId) return;
-    for (const visitDate of dates) {
-      const startsAt = madridLocalDateTime(visitDate, appointmentTime);
-      await createMutation.mutateAsync({
-        patientId: effectivePatientId,
-        staffId: effectiveStaffId,
-        siteId: effectiveSiteId,
-        startsAt: toMadridISO(startsAt),
-        endsAt: toMadridISO(addMinutes(startsAt, appointmentDuration)),
-        title: reason.trim() || "Cita",
-        ...(reason.trim() ? { reason: reason.trim() } : {}),
-      });
+    try {
+      if (status === "ARRIVED") await transitions.arrive.mutateAsync(input);
+      if (status === "WAITING") await transitions.waiting.mutateAsync(input);
+      if (status === "IN_CHAIR") await transitions.chair.mutateAsync(input);
+      if (status === "COMPLETED") await transitions.complete.mutateAsync(input);
+    } catch (error) {
+      setAgendaNotice(errorMessage(error));
     }
-    setAgendaNotice(
-      dates.length > 1
-        ? `${dates.length} citas creadas cada ${planVisitGapDays} días.`
-        : "Cita creada.",
-    );
-    setOpened(false);
-    setSelectedSlot(null);
   };
+
+  const openCreate = (input: {
+    date: string;
+    minute: number;
+    staffId?: string | null;
+    cabinetId?: string | null;
+    reason?: string;
+    columnId?: string;
+  }) => {
+    setDate(input.date);
+    if (input.staffId) setStaffId(input.staffId);
+    setCabinetId(input.cabinetId ?? null);
+    setAppointmentTime(timeForMinute(input.minute));
+    setAppointmentDuration(30);
+    setReason(input.reason ?? "Revisión");
+    setPlanItemId(null);
+    setAdvancedOpen(false);
+    setSelectedId(null);
+    setSelectedSlot(input.columnId ? { columnId: input.columnId, minute: input.minute } : null);
+    setOpened(true);
+  };
+
+  const openAppointmentAtSlot = (columnId: string, clientY: number, columnTop: number) => {
+    const column = columnById.get(columnId);
+    if (!column) return;
+    const minute = slotMinuteFromOffset(
+      clientY - columnTop,
+      pxPerMinute,
+      SLOT_MINUTES,
+      DAY_MINUTES,
+    );
+    openCreate({
+      date: column.date,
+      minute,
+      staffId: column.staffId,
+      cabinetId: column.cabinetId,
+      columnId,
+    });
+    setAppointmentTime(timeForMinute(minute));
+  };
+
+  const create = async (options: { skipConflictCheck?: boolean } = {}) => {
+    if (!effectivePatientId || !effectiveStaffId || !appointmentTime || !effectiveSiteId) return;
+    const visitDates = planVisitDates(date, Math.max(1, visitCount), planVisitGapDays);
+    if (!options.skipConflictCheck) {
+      for (const visitDate of visitDates) {
+        const startsAt = madridLocalDateTime(visitDate, appointmentTime);
+        const conflicts = conflictsFor({
+          id: "new",
+          staffId: effectiveStaffId,
+          cabinetId,
+          startsAt: toMadridISO(startsAt),
+          endsAt: toMadridISO(addMinutes(startsAt, appointmentDuration)),
+        });
+        if (conflicts.length) {
+          setPending({
+            kind: "create",
+            date: visitDate,
+            staffId: effectiveStaffId,
+            durationMinutes: appointmentDuration,
+            conflicts,
+          });
+          return;
+        }
+      }
+    }
+    try {
+      for (const visitDate of visitDates) {
+        const startsAt = madridLocalDateTime(visitDate, appointmentTime);
+        await createMutation.mutateAsync({
+          patientId: effectivePatientId,
+          staffId: effectiveStaffId,
+          siteId: effectiveSiteId,
+          ...(cabinetId ? { cabinetId } : {}),
+          ...(planItemId ? { clinicalPlanItemId: planItemId } : {}),
+          startsAt: toMadridISO(startsAt),
+          endsAt: toMadridISO(addMinutes(startsAt, appointmentDuration)),
+          title: reason.trim() || "Cita",
+          ...(reason.trim() ? { reason: reason.trim() } : {}),
+        });
+      }
+      setAgendaNotice(
+        visitDates.length > 1
+          ? `${visitDates.length} citas creadas cada ${planVisitGapDays} días.`
+          : "Cita creada.",
+      );
+      setOpened(false);
+      setSelectedSlot(null);
+    } catch (error) {
+      setAgendaNotice(errorMessage(error));
+    }
+  };
+
+  const createBlock = async () => {
+    const startsAt = madridLocalDateTime(date, blockFrom);
+    const endsAt = madridLocalDateTime(date, blockTo);
+    if (epochMillis(endsAt) <= epochMillis(startsAt)) {
+      setAgendaNotice("El bloqueo debe terminar después de empezar.");
+      return;
+    }
+    try {
+      await blockMutation.mutateAsync({
+        ...(resourceMode === "staff" && effectiveStaffId ? { staffId: effectiveStaffId } : {}),
+        ...(resourceMode === "cabinet" && cabinetId ? { cabinetId } : {}),
+        ...(effectiveSiteId ? { siteId: effectiveSiteId } : {}),
+        startsAt: toMadridISO(startsAt),
+        endsAt: toMadridISO(endsAt),
+        kind: blockKind,
+        ...(blockReason.trim() ? { reason: blockReason.trim() } : {}),
+      });
+      setBlockOpened(false);
+      setAgendaNotice("Bloqueo creado.");
+    } catch (error) {
+      setAgendaNotice(errorMessage(error));
+    }
+  };
+
   const duplicate = useCallback(
     async (source: AgendaAppointmentView, offsetMinutes = 30) => {
       const start = addMinutes(source.startsAt, offsetMinutes);
@@ -272,97 +737,179 @@ export function AgendaPage() {
         setAgendaNotice("Elige una sede antes de pegar.");
         return;
       }
-      await createMutation.mutateAsync({
-        patientId: source.patientId,
-        staffId: source.staffId,
-        siteId: resolvedSite,
-        startsAt: toMadridISO(start),
-        endsAt: toMadridISO(end),
-        title: source.reason,
-        reason: source.reason,
-        ...(source.status === "NO_SHOW" ? { rescheduledFromId: source.id } : {}),
-      });
-      setAgendaNotice(`Copia de ${source.patientName} creada ${offsetMinutes} min después.`);
+      try {
+        await createMutation.mutateAsync({
+          patientId: source.patientId,
+          staffId: source.staffId,
+          siteId: resolvedSite,
+          ...(source.cabinetId ? { cabinetId: source.cabinetId } : {}),
+          startsAt: toMadridISO(start),
+          endsAt: toMadridISO(end),
+          title: source.reason,
+          reason: source.reason,
+          ...(source.status === "NO_SHOW" ? { rescheduledFromId: source.id } : {}),
+        });
+        setAgendaNotice(`Copia de ${source.patientName} creada ${offsetMinutes} min después.`);
+      } catch (error) {
+        setAgendaNotice(errorMessage(error));
+      }
     },
     [createMutation, effectiveSiteId],
   );
-  const pasteCopied = async () => {
-    if (!copied) return;
-    await duplicate(copied, 30);
-  };
-  const moveByDrop = async (appointmentId: string, targetStaffId: string, targetMinute: number) => {
+
+  const moveByDrop = async (appointmentId: string, column: AgendaColumn, targetMinute: number) => {
     const appointment = appointments.find((item) => item.id === appointmentId);
     if (!appointment) return;
     const duration = durationMinutes(appointment);
-    const startsAt = madridLocalDateTime(date, timeForMinute(snapMinutes(targetMinute)));
-    const endsAt = addMinutes(startsAt, duration);
-    await updateAppointment(appointment, {
-      staffId: targetStaffId,
+    const startsAt = madridLocalDateTime(column.date, timeForMinute(snapMinutes(targetMinute)));
+    const patch: UpdateAppointment = {
+      expectedVersion: appointment.version,
       startsAt: toMadridISO(startsAt),
-      endsAt: toMadridISO(endsAt),
-    });
-  };
-
-  const openAppointmentAtSlot = (targetStaffId: string, clientY: number, columnTop: number) => {
-    const minute = slotMinuteFromOffset(
-      clientY - columnTop,
-      PX_PER_MINUTE,
-      SLOT_MINUTES,
-      DAY_MINUTES,
-    );
-    setStaffId(targetStaffId);
-    setAppointmentTime(timeForMinute(minute));
-    setAppointmentDuration(30);
-    setSelectedId(null);
-    setSelectedSlot({ staffId: targetStaffId, minute });
-    setOpened(true);
+      endsAt: toMadridISO(addMinutes(startsAt, duration)),
+      ...(column.staffId && column.staffId !== appointment.staffId
+        ? { staffId: column.staffId }
+        : {}),
+      ...(column.cabinetId && column.cabinetId !== appointment.cabinetId
+        ? { cabinetId: column.cabinetId }
+        : {}),
+    };
+    await commitMove(appointment, patch, column.date);
   };
 
   const resizeBy = async (appointment: AgendaAppointmentView, minutes: number) => {
-    const nextDuration = Math.max(15, durationMinutes(appointment) + minutes);
-    await updateAppointment(appointment, {
-      endsAt: toMadridISO(addMinutes(appointment.startsAt, nextDuration)),
-    });
+    const nextDuration = Math.max(SLOT_MINUTES, durationMinutes(appointment) + minutes);
+    await commitMove(
+      appointment,
+      {
+        expectedVersion: appointment.version,
+        endsAt: toMadridISO(addMinutes(appointment.startsAt, nextDuration)),
+      },
+      dateYMDMadrid(appointment.startsAt),
+    );
   };
+
+  const applySlot = async (slotStartsAt: string) => {
+    if (!pending) return;
+    const time = hhmm(slotStartsAt);
+    setPending(null);
+    setSlotSearch(null);
+    if (pending.kind === "create") {
+      setDate(pending.date);
+      setAppointmentTime(time);
+      setAgendaNotice(`Hueco ${time} seleccionado. Revisa y guarda la cita.`);
+      return;
+    }
+    if (pending.appointment) {
+      const startsAt = madridLocalDateTime(pending.date, time);
+      await commitMove(
+        pending.appointment,
+        {
+          ...pending.patch,
+          expectedVersion: pending.appointment.version,
+          startsAt: toMadridISO(startsAt),
+          endsAt: toMadridISO(addMinutes(startsAt, pending.durationMinutes)),
+        },
+        pending.date,
+      );
+    }
+  };
+
+  const navigate = useCallback(
+    (direction: -1 | 1) => setAnchor(shiftRange(rangeStart, effectiveDayCount, direction)),
+    [effectiveDayCount, rangeStart],
+  );
+
+  // Keyboard shortcuts (desktop): N, T, F, ←/→, Esc, Ctrl/Cmd+C/V.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target?.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "");
+      if (typing || opened || blockOpened || pending) return;
       const selected = appointments.find((item) => item.id === selectedId);
-      if (!selected) return;
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && selected) {
         event.preventDefault();
         setCopied(selected);
         setAgendaNotice(`Cita de ${selected.patientName} copiada.`);
+        return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v" && copied) {
         event.preventDefault();
         void duplicate(copied, 30);
+        return;
+      }
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === "ArrowLeft") navigate(-1);
+      else if (event.key === "ArrowRight") navigate(1);
+      else if (event.key.toLowerCase() === "t") setAnchor(todayMadrid());
+      else if (event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        searchRef.current?.focus();
+      } else if (event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        const column = columns[0];
+        openCreate({
+          date: column?.date ?? anchor,
+          minute: nextQuarterMinute(),
+          staffId: column?.staffId ?? null,
+          cabinetId: column?.cabinetId ?? null,
+        });
+      } else if (event.key === "Escape") {
+        setQuickViewId(null);
+        setSelectedId(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [appointments, copied, duplicate, selectedId]);
+  }, [
+    anchor,
+    appointments,
+    blockOpened,
+    columns,
+    copied,
+    duplicate,
+    navigate,
+    opened,
+    pending,
+    selectedId,
+  ]);
+
+  // Resize with live preview; committed (with conflict check) on release.
   useEffect(() => {
+    const deltaFor = (clientY: number, startY: number) =>
+      Math.round((clientY - startY) / pxPerMinute / SLOT_MINUTES) * SLOT_MINUTES;
     const onPointerMove = (event: PointerEvent) => {
       const resizing = resizingRef.current;
       if (!resizing) return;
-      const appointment = appointments.find((item) => item.id === resizing.id);
-      if (!appointment) return;
-      const deltaMinutes =
-        Math.round((event.clientY - resizing.startY) / PX_PER_MINUTE / SLOT_MINUTES) * SLOT_MINUTES;
-      const nextDuration = Math.max(15, resizing.initialDuration + deltaMinutes);
+      setResizePreview({
+        id: resizing.id,
+        duration: Math.max(
+          SLOT_MINUTES,
+          resizing.initialDuration + deltaFor(event.clientY, resizing.startY),
+        ),
+      });
     };
-    const onPointerUp = async (event: PointerEvent) => {
+    const onPointerUp = (event: PointerEvent) => {
       const resizing = resizingRef.current;
       resizingRef.current = null;
+      setResizePreview(null);
       if (!resizing) return;
       const appointment = appointments.find((item) => item.id === resizing.id);
       if (!appointment) return;
-      const deltaMinutes =
-        Math.round((event.clientY - resizing.startY) / PX_PER_MINUTE / SLOT_MINUTES) * SLOT_MINUTES;
-      const nextDuration = Math.max(15, resizing.initialDuration + deltaMinutes);
-      await updateAppointment(appointment, {
-        endsAt: toMadridISO(addMinutes(appointment.startsAt, nextDuration)),
-      });
+      const nextDuration = Math.max(
+        SLOT_MINUTES,
+        resizing.initialDuration + deltaFor(event.clientY, resizing.startY),
+      );
+      if (nextDuration === resizing.initialDuration) return;
+      void commitMove(
+        appointment,
+        {
+          expectedVersion: appointment.version,
+          endsAt: toMadridISO(addMinutes(appointment.startsAt, nextDuration)),
+        },
+        dateYMDMadrid(appointment.startsAt),
+      );
     };
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
@@ -370,23 +917,30 @@ export function AgendaPage() {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [appointments, updateAppointment]);
+  }, [appointments, pxPerMinute]);
+
   const hasBackendError =
     appointmentsQuery.isError || patientsQuery.isError || contextQuery.isError;
+  const quickView = appointments.find((appointment) => appointment.id === quickViewId) ?? null;
+  const catalog = catalogQuery.data?.items ?? [];
+  const pendingPlanItems = (planQuery.data?.items ?? []).filter(
+    (item) => !["COMPLETED", "CANCELLED", "SUPERSEDED", "DONE"].includes(item.status.toUpperCase()),
+  );
+
   const renderAppointmentMenu = (appointment: AgendaAppointmentView) => (
     <Menu withinPortal position="bottom-end" shadow="md" width={220}>
       <Menu.Target>
         <ActionIcon
-          size="sm"
+          size="xs"
           variant="subtle"
           aria-label={`Acciones de ${appointment.patientName}`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
         >
-          <IconDotsVertical size={16} />
+          <IconDotsVertical size={14} />
         </ActionIcon>
       </Menu.Target>
-      <Menu.Dropdown>
+      <Menu.Dropdown onClick={(event) => event.stopPropagation()}>
         <Menu.Item
           leftSection={<IconCopy size={15} />}
           onClick={() => {
@@ -418,7 +972,7 @@ export function AgendaPage() {
         </Menu.Item>
         {nextStatus(appointment.status) ? (
           <Menu.Item onClick={() => void advance(appointment)}>
-            {nextLabel(appointment.status)}
+            {AGENDA_STATUS_META[appointment.status].nextLabel}
           </Menu.Item>
         ) : null}
         {appointment.status !== "COMPLETED" &&
@@ -427,10 +981,9 @@ export function AgendaPage() {
           <Menu.Item
             color="gray"
             onClick={() =>
-              void transitions.noShow.mutateAsync({
-                id: appointment.id,
-                expectedVersion: appointment.version,
-              })
+              void transitions.noShow
+                .mutateAsync({ id: appointment.id, expectedVersion: appointment.version })
+                .catch((error: unknown) => setAgendaNotice(errorMessage(error)))
             }
           >
             No presentado
@@ -447,93 +1000,420 @@ export function AgendaPage() {
       </Menu.Dropdown>
     </Menu>
   );
-  const renderDayGrid = () => (
-    <section className={styles.agendaDayShell}>
-      <div className={styles.agendaToolbarHint}>
-        <Group justify="space-between" gap="xs">
-          <Text size="xs" c="dimmed">
-            Arrastra cualquier cita para moverla. Usa el tirador inferior para cambiar duración.
-            Ctrl/Cmd+C y Ctrl/Cmd+V también funcionan.
-          </Text>
-          <Group gap="xs">
-            {copied ? <Badge variant="light">Copiada: {copied.patientName}</Badge> : null}
-            <Button size="xs" variant="light" disabled={!copied} onClick={() => void pasteCopied()}>
-              Pegar copia +30 min
+
+  const resourceOptions =
+    resourceMode === "staff"
+      ? staff.map((member) => ({ value: `staff:${member.id}`, label: member.displayName }))
+      : cabinets.map((cabinet) => ({ value: `cabinet:${cabinet.id}`, label: cabinet.name }));
+  const minColumn = columns.length > 6 ? 120 : dates.length > 1 ? 150 : 200;
+  const nowOffset = currentTimeOffset(nowTick, START_HOUR, END_HOUR);
+  const dateTitle =
+    dates.length > 1
+      ? `${dayLabel(dates[0] ?? anchor)} – ${dayLabel(dates.at(-1) ?? anchor)}`
+      : dayLabel(anchor);
+
+  const renderToolbar = () => (
+    <div className={styles.toolbar}>
+      <div className={styles.toolbarGroup}>
+        <Button size="xs" variant="default" onClick={() => setAnchor(todayMadrid())}>
+          Hoy
+        </Button>
+        <ActionIcon variant="subtle" aria-label="Anterior" onClick={() => navigate(-1)}>
+          <IconChevronLeft size={16} />
+        </ActionIcon>
+        <Popover
+          opened={calendarOpen}
+          onChange={setCalendarOpen}
+          position="bottom-start"
+          shadow="md"
+        >
+          <Popover.Target>
+            <Button
+              size="xs"
+              variant="subtle"
+              className={styles.dateButton}
+              leftSection={<IconCalendarEvent size={14} />}
+              onClick={() => setCalendarOpen((open) => !open)}
+            >
+              {dateTitle}
             </Button>
-          </Group>
-        </Group>
+          </Popover.Target>
+          <Popover.Dropdown>
+            <AgendaMiniCalendar
+              selected={anchor}
+              visible={dates}
+              onSelect={(day) => {
+                setAnchor(day);
+                setCalendarOpen(false);
+              }}
+            />
+          </Popover.Dropdown>
+        </Popover>
+        <ActionIcon variant="subtle" aria-label="Siguiente" onClick={() => navigate(1)}>
+          <IconChevronRight size={16} />
+        </ActionIcon>
       </div>
-      <div className={styles.agendaDayScroller}>
-        <div className={styles.agendaDayHeader} style={agendaGridStyle(staff.length)}>
-          <div className={styles.agendaCorner}>Hora</div>
-          {staff.map((member) => (
-            <div key={member.id} className={styles.agendaDoctorHeader}>
-              {member.displayName}
+
+      <div className={styles.toolbarGroup}>
+        <Menu position="bottom-start" withinPortal>
+          <Menu.Target>
+            <Button size="xs" variant="light" rightSection={<IconChevronDown size={14} />}>
+              {view === "grid"
+                ? (VIEW_OPTIONS.find((option) => option.value === String(effectiveDayCount))
+                    ?.label ?? "Día")
+                : view === "pipeline"
+                  ? "Recepción"
+                  : "Lista"}
+            </Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            {VIEW_OPTIONS.map((option) => (
+              <Menu.Item
+                key={option.value}
+                disabled={isMobile && /^[2-7]$/.test(option.value)}
+                onClick={() => {
+                  if (option.value === "pipeline" || option.value === "list") setView(option.value);
+                  else {
+                    setView("grid");
+                    setDayCount(Number(option.value) as AgendaDayCount);
+                  }
+                }}
+              >
+                {option.label}
+              </Menu.Item>
+            ))}
+            <Menu.Divider />
+            <Menu.Label>Zoom</Menu.Label>
+            <div className={styles.menuPadding}>
+              <SegmentedControl
+                size="xs"
+                fullWidth
+                value={zoom}
+                onChange={(value) => setZoom(value as AgendaZoom)}
+                data={[
+                  { value: "compacto", label: "Compacto" },
+                  { value: "normal", label: "Normal" },
+                  { value: "amplio", label: "Amplio" },
+                ]}
+              />
+            </div>
+          </Menu.Dropdown>
+        </Menu>
+
+        <Menu position="bottom-start" withinPortal closeOnItemClick>
+          <Menu.Target>
+            <Button
+              size="xs"
+              variant="subtle"
+              leftSection={<IconLayoutColumns size={14} />}
+              rightSection={<IconChevronDown size={14} />}
+            >
+              {resources.length === 1
+                ? (resources[0]?.label ?? "Recurso")
+                : resourceMode === "staff"
+                  ? "Profesionales"
+                  : "Gabinetes"}
+            </Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Label>Columnas por</Menu.Label>
+            <Menu.Item
+              onClick={() => {
+                setResourceMode("staff");
+                setResourceFilter(null);
+              }}
+            >
+              Profesional
+            </Menu.Item>
+            <Menu.Item
+              disabled={cabinets.length === 0}
+              onClick={() => {
+                setResourceMode("cabinet");
+                setResourceFilter(null);
+              }}
+            >
+              Gabinete
+            </Menu.Item>
+            <Menu.Divider />
+            <Menu.Label>Mostrar</Menu.Label>
+            {isMobile || effectiveDayCount > 1 ? null : (
+              <Menu.Item onClick={() => setResourceFilter(null)}>Todos</Menu.Item>
+            )}
+            {resourceOptions.map((option) => (
+              <Menu.Item key={option.value} onClick={() => setResourceFilter(option.value)}>
+                {option.label}
+              </Menu.Item>
+            ))}
+          </Menu.Dropdown>
+        </Menu>
+
+        <Menu position="bottom-start" withinPortal closeOnItemClick={false}>
+          <Menu.Target>
+            <ActionIcon variant="subtle" aria-label="Filtros de agenda">
+              <IconAdjustmentsHorizontal size={16} />
+            </ActionIcon>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Label>Mostrar en la agenda</Menu.Label>
+            <Stack gap={8} className={styles.menuPadding}>
+              <Checkbox
+                size="xs"
+                label="Finalizadas"
+                checked={showCompleted}
+                onChange={(event) => setShowCompleted(event.currentTarget.checked)}
+              />
+              <Checkbox
+                size="xs"
+                label="Canceladas y no presentados"
+                checked={showCancelled}
+                onChange={(event) => setShowCancelled(event.currentTarget.checked)}
+              />
+              <Checkbox
+                size="xs"
+                label="Bloqueos"
+                checked={showBlocks}
+                onChange={(event) => setShowBlocks(event.currentTarget.checked)}
+              />
+            </Stack>
+            {sites.length > 1 ? (
+              <>
+                <Menu.Divider />
+                <Menu.Label>Sede</Menu.Label>
+                <div className={styles.menuPadding}>
+                  <Select
+                    size="xs"
+                    comboboxProps={{ withinPortal: false }}
+                    value={activeSiteId}
+                    onChange={(value) => setActiveSiteId(value ?? null)}
+                    data={sites.map((site) => ({ value: site.id, label: site.name }))}
+                    placeholder="Todas"
+                    clearable
+                  />
+                </div>
+              </>
+            ) : null}
+          </Menu.Dropdown>
+        </Menu>
+      </div>
+
+      <span className={styles.toolbarSpacer} />
+
+      <TextInput
+        ref={searchRef}
+        size="xs"
+        className={styles.search}
+        placeholder="Buscar paciente (F)"
+        leftSection={<IconSearch size={14} />}
+        value={search}
+        onChange={(event) => setSearch(event.currentTarget.value)}
+        aria-label="Buscar en la agenda"
+      />
+
+      <Group gap={0} wrap="nowrap" display={isMobile ? "none" : undefined}>
+        <Button
+          size="xs"
+          leftSection={<IconCalendarPlus size={15} />}
+          onClick={() => {
+            const column = columns[0];
+            openCreate({
+              date: column?.date ?? anchor,
+              minute: nextQuarterMinute(),
+              staffId: column?.staffId ?? null,
+              cabinetId: column?.cabinetId ?? null,
+            });
+          }}
+        >
+          Nueva cita
+        </Button>
+        <Menu position="bottom-end" withinPortal>
+          <Menu.Target>
+            <ActionIcon size={30} variant="filled" aria-label="Más opciones de creación">
+              <IconChevronDown size={14} />
+            </ActionIcon>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item
+              leftSection={<IconFirstAidKit size={15} />}
+              onClick={() =>
+                openCreate({
+                  date: anchor,
+                  minute: nextQuarterMinute(),
+                  staffId: columns[0]?.staffId ?? null,
+                  cabinetId: columns[0]?.cabinetId ?? null,
+                  reason: "Urgencia",
+                })
+              }
+            >
+              Urgencia
+            </Menu.Item>
+            <Menu.Item
+              leftSection={<IconLock size={15} />}
+              onClick={() => {
+                setDate(anchor);
+                setCabinetId(columns[0]?.cabinetId ?? null);
+                if (columns[0]?.staffId) setStaffId(columns[0].staffId);
+                setBlockOpened(true);
+              }}
+            >
+              Bloqueo
+            </Menu.Item>
+            <Menu.Item
+              leftSection={<IconUserPlus size={15} />}
+              component={Link}
+              href="/app/patients"
+            >
+              Nuevo paciente
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+      </Group>
+    </div>
+  );
+
+  const renderGrid = () => (
+    <section className={styles.shell}>
+      <div
+        className={styles.scroller}
+        onTouchStart={(event) => {
+          const touch = event.touches[0];
+          touchRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+        }}
+        onTouchEnd={(event) => {
+          const start = touchRef.current;
+          const touch = event.changedTouches[0];
+          touchRef.current = null;
+          if (!isMobile || !start || !touch) return;
+          const dx = touch.clientX - start.x;
+          const dy = touch.clientY - start.y;
+          if (Math.abs(dx) > 70 && Math.abs(dy) < 45) navigate(dx < 0 ? 1 : -1);
+        }}
+      >
+        <div className={styles.header} style={gridStyle(columns.length, minColumn)}>
+          <div className={styles.corner}>{copied ? <Badge size="xs">Copiada</Badge> : null}</div>
+          {columns.map((column) => (
+            <div key={column.id} className={styles.columnHeader} data-today={column.date === today}>
+              <span>{column.label}</span>
+              {column.sublabel ? (
+                <span className={styles.columnSublabel}>{column.sublabel}</span>
+              ) : null}
             </div>
           ))}
         </div>
-        <div className={styles.agendaDayBody} style={agendaGridStyle(staff.length, DAY_HEIGHT)}>
-          <div className={styles.agendaTimeRail} style={DAY_HEIGHT_STYLE}>
+        <div className={styles.body} style={gridStyle(columns.length, minColumn, dayHeight)}>
+          <div className={styles.timeRail} style={heightStyle(dayHeight)}>
             {dayHours().map((hour) => (
-              <span key={hour} style={topStyle((hour - START_HOUR) * 60 * PX_PER_MINUTE)}>
+              <span key={hour} style={topStyle((hour - START_HOUR) * 60 * pxPerMinute)}>
                 {String(hour).padStart(2, "0")}:00
               </span>
             ))}
           </div>
-          {staff.map((member) => (
-            <div
-              key={member.id}
-              className={styles.agendaDoctorColumn}
-              style={DAY_HEIGHT_STYLE}
-              onClick={(event) => {
-                if (event.target !== event.currentTarget) return;
-                const rect = event.currentTarget.getBoundingClientRect();
-                openAppointmentAtSlot(member.id, event.clientY, rect.top);
-              }}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                const payload = JSON.parse(
-                  event.dataTransfer.getData("application/json") || "{}",
-                ) as DragPayload;
-                const rect = event.currentTarget.getBoundingClientRect();
-                const minute = (event.clientY - rect.top) / PX_PER_MINUTE;
-                if (payload.id) void moveByDrop(payload.id, member.id, minute);
-              }}
-            >
-              {selectedSlot?.staffId === member.id ? (
-                <div
-                  aria-hidden="true"
-                  className={styles.agendaSelectedSlot}
-                  style={appointmentStyle(
-                    selectedSlot.minute * PX_PER_MINUTE,
-                    SLOT_MINUTES * PX_PER_MINUTE,
-                  )}
-                />
-              ) : null}
-              {Array.from({ length: DAY_MINUTES / SLOT_MINUTES }, (_, index) => (
-                <i
-                  aria-hidden="true"
-                  key={index}
-                  className={styles.agendaSlotLine}
-                  data-major={index % 4 === 0}
-                  style={topStyle(index * SLOT_MINUTES * PX_PER_MINUTE)}
-                />
-              ))}
-              {appointments
-                .filter((appointment) => appointment.staffId === member.id)
-                .map((appointment) => {
-                  const top = minutesFromStart(appointment.startsAt) * PX_PER_MINUTE;
-                  const height = Math.max(34, durationMinutes(appointment) * PX_PER_MINUTE);
+          {columns.map((member) => {
+            const columnAppointments = appointmentsForColumn(member);
+            const layout = new Map(
+              layoutDay(
+                columnAppointments.map((appointment) => ({
+                  id: appointment.id,
+                  staffId: appointment.staffId,
+                  startsAt: appointment.startsAt,
+                  endsAt: appointment.endsAt,
+                })),
+                { dayStartMinutes: START_HOUR * 60, dayEndMinutes: END_HOUR * 60 },
+              ).map((item) => [item.id, item]),
+            );
+            return (
+              <div
+                key={member.id}
+                className={styles.column}
+                style={heightStyle(dayHeight)}
+                onClick={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  openAppointmentAtSlot(member.id, event.clientY, rect.top);
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event: DragEvent<HTMLDivElement>) => {
+                  event.preventDefault();
+                  const payload = JSON.parse(
+                    event.dataTransfer.getData("application/json") || "{}",
+                  ) as DragPayload;
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  const minute = (event.clientY - rect.top) / pxPerMinute;
+                  if (payload.id) void moveByDrop(payload.id, member, minute);
+                }}
+              >
+                {Array.from({ length: DAY_MINUTES / SLOT_MINUTES }, (_, index) => (
+                  <i
+                    aria-hidden="true"
+                    key={index}
+                    className={styles.slotLine}
+                    data-major={index % 4 === 0}
+                    style={topStyle(index * SLOT_MINUTES * pxPerMinute)}
+                  />
+                ))}
+                {showBlocks
+                  ? blocksForColumn(member).map((block) => {
+                      const top = minutesFromStart(block.startsAt) * pxPerMinute;
+                      const height = Math.max(
+                        12,
+                        ((epochMillis(block.endsAt) - epochMillis(block.startsAt)) / 60000) *
+                          pxPerMinute,
+                      );
+                      return (
+                        <div
+                          key={block.id}
+                          className={styles.block}
+                          style={positionStyle(top, height)}
+                        >
+                          <IconLock size={11} aria-hidden="true" />
+                          <span>
+                            {BLOCK_LABELS.get(block.kind) ?? "Bloqueo"}
+                            {block.reason ? ` · ${block.reason}` : ""}
+                          </span>
+                        </div>
+                      );
+                    })
+                  : null}
+                {selectedSlot?.columnId === member.id ? (
+                  <div
+                    aria-hidden="true"
+                    className={styles.selectedSlot}
+                    style={positionStyle(
+                      selectedSlot.minute * pxPerMinute,
+                      SLOT_MINUTES * pxPerMinute,
+                    )}
+                  />
+                ) : null}
+                {member.date === today && nowOffset !== null ? (
+                  <div className={styles.nowLine} style={topStyle(nowOffset * pxPerMinute)} />
+                ) : null}
+                {columnAppointments.map((appointment) => {
+                  const placement = layout.get(appointment.id);
+                  const duration =
+                    resizePreview?.id === appointment.id
+                      ? resizePreview.duration
+                      : durationMinutes(appointment);
+                  const top = minutesFromStart(appointment.startsAt) * pxPerMinute;
+                  const height = Math.max(22, duration * pxPerMinute);
                   return (
-                    <article
+                    <AgendaAppointmentCard
                       key={appointment.id}
-                      className={styles.agendaAppointmentCard}
-                      data-status={appointment.status}
-                      data-selected={selectedId === appointment.id}
-                      draggable
-                      style={appointmentStyle(top, height)}
-                      onClick={() => setSelectedId(appointment.id)}
+                      appointment={appointment}
+                      heightPx={height}
+                      style={positionStyle(top, height, placement?.column, placement?.columnCount)}
+                      selected={selectedId === appointment.id}
+                      dimmed={!matchesSearch(appointment)}
+                      contextLabel={
+                        resourceMode === "staff"
+                          ? appointment.cabinetId
+                            ? cabinetNames.get(appointment.cabinetId)
+                            : undefined
+                          : staffNames.get(appointment.staffId)
+                      }
+                      menu={renderAppointmentMenu(appointment)}
+                      onOpen={() => {
+                        setSelectedId(appointment.id);
+                        setQuickViewId(appointment.id);
+                      }}
                       onDragStart={(event) => {
                         event.dataTransfer.effectAllowed = "move";
                         event.dataTransfer.setData(
@@ -542,67 +1422,74 @@ export function AgendaPage() {
                         );
                         setSelectedId(appointment.id);
                       }}
-                    >
-                      <div className={styles.agendaAppointmentTop}>
-                        <span className={styles.agendaAppointmentTime}>
-                          {hhmm(appointment.startsAt)}–{hhmm(appointment.endsAt)}
-                        </span>
-                        {renderAppointmentMenu(appointment)}
-                      </div>
-                      <Link
-                        href={`/app/patients/${appointment.patientId}`}
-                        className={styles.agendaAppointmentName}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        {appointment.patientName}
-                      </Link>
-                      <span className={styles.agendaAppointmentReason}>{appointment.reason}</span>
-                      <div
-                        className={styles.agendaResizeHandle}
-                        title="Arrastrar para cambiar duración"
-                        onPointerDown={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          resizingRef.current = {
-                            id: appointment.id,
-                            startY: event.clientY,
-                            initialDuration: durationMinutes(appointment),
-                          };
-                        }}
-                      >
-                        <IconGripVertical size={14} />
-                      </div>
-                    </article>
+                      onResizeStart={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        resizingRef.current = {
+                          id: appointment.id,
+                          startY: event.clientY,
+                          initialDuration: durationMinutes(appointment),
+                        };
+                      }}
+                    />
                   );
                 })}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
   );
+
+  const renderRow = (appointment: AgendaAppointmentView, withAdvance: boolean) => (
+    <div className={parityStyles.row} key={appointment.id}>
+      <UnstyledButton
+        className={parityStyles.rowMain}
+        onClick={() => setQuickViewId(appointment.id)}
+      >
+        <Group gap={6} wrap="nowrap">
+          <span className={parityStyles.rowTitle}>
+            {hhmm(appointment.startsAt)} · {appointment.patientName}
+          </span>
+          {appointment.glyph ? <ClinicalGlyph glyph={appointment.glyph} mode="micro" /> : null}
+        </Group>
+        <span className={parityStyles.rowMeta}>
+          {appointment.reason} · {AGENDA_STATUS_META[appointment.status].label}
+        </span>
+      </UnstyledButton>
+      <div className={parityStyles.rowActions}>
+        {withAdvance && nextStatus(appointment.status) ? (
+          <Button
+            size="xs"
+            variant="light"
+            loading={transitionPending}
+            onClick={() => void advance(appointment)}
+          >
+            {AGENDA_STATUS_META[appointment.status].nextLabel}
+          </Button>
+        ) : null}
+        {renderAppointmentMenu(appointment)}
+      </div>
+    </div>
+  );
+
+  const selectedPlanItem = pendingPlanItems.find((item) => item.id === planItemId);
+  const createGlyph = clinicalGlyphFor({
+    tooth: selectedPlanItem?.tooth,
+    treatmentCode: selectedPlanItem?.treatmentCode,
+    label: reason,
+  });
+
   return (
-    <div className={styles.grid}>
+    <div className={parityStyles.grid}>
       <PageHeader
         eyebrow="Agenda"
         title="Agenda"
         description="Arrastra para mover. ··· para más."
-        actions={
-          <Group>
-            <Badge variant="light">Servidor</Badge>
-            <Button
-              leftSection={<IconCalendarPlus size={16} />}
-              onClick={() => {
-                setSelectedSlot(null);
-                setAppointmentDuration(30);
-                setOpened(true);
-              }}
-            >
-              Nueva cita
-            </Button>
-          </Group>
-        }
       />
+
+      {renderToolbar()}
 
       {hasBackendError ? (
         <Alert color="red" title="Error al cargar agenda">
@@ -628,83 +1515,23 @@ export function AgendaPage() {
         </Alert>
       ))}
 
-      <div className={styles.agendaViewBar} aria-label="Vistas de agenda">
-        <Button
-          size="xs"
-          variant={view === "day" ? "filled" : "subtle"}
-          onClick={() => setView("day")}
-        >
-          Día
-        </Button>
-        <Button
-          size="xs"
-          variant={view === "pipeline" ? "filled" : "subtle"}
-          onClick={() => setView("pipeline")}
-        >
-          Pipeline
-        </Button>
-        <Menu position="bottom-start" withinPortal>
-          <Menu.Target>
-            <Button
-              size="xs"
-              variant={view === "doctors" || view === "list" ? "light" : "subtle"}
-              rightSection={<IconChevronDown size={14} />}
-            >
-              {view === "doctors" ? "Doctores" : view === "list" ? "Lista" : "Más vistas"}
-            </Button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Item onClick={() => setView("doctors")}>Por doctores</Menu.Item>
-            <Menu.Item onClick={() => setView("list")}>Lista del día</Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
-      </div>
-
-      {view === "day" ? renderDayGrid() : null}
+      {view === "grid" ? renderGrid() : null}
 
       {view === "pipeline" ? (
         <SimpleGrid cols={{ base: 1, xl: 4 }}>
           {PIPELINE.map((stage) => {
             const statuses = stage.statuses as readonly string[];
-            const items = appointments.filter((appointment) =>
+            const items = visibleAppointments.filter((appointment) =>
               statuses.includes(appointment.status),
             );
             return (
-              <section className={styles.section} key={stage.key}>
-                <div className={styles.sectionHeader}>
-                  <div>
-                    <h2 className={styles.sectionTitle}>{stage.title}</h2>
-                    <p className={styles.sectionDescription}>{items.length} pacientes</p>
-                  </div>
+              <section className={parityStyles.section} key={stage.key}>
+                <div className={parityStyles.sectionHeader}>
+                  <h2 className={parityStyles.sectionTitle}>{stage.title}</h2>
                   <Badge>{items.length}</Badge>
                 </div>
-                <div className={styles.rowList}>
-                  {items.map((appointment) => (
-                    <div className={styles.row} key={appointment.id}>
-                      <div className={styles.rowMain}>
-                        <Link
-                          className={styles.rowTitle}
-                          href={`/app/patients/${appointment.patientId}`}
-                        >
-                          {hhmm(appointment.startsAt)} · {appointment.patientName}
-                        </Link>
-                        <span className={styles.rowMeta}>{appointment.reason}</span>
-                      </div>
-                      <div className={styles.rowActions}>
-                        {nextStatus(appointment.status) ? (
-                          <Button
-                            size="xs"
-                            variant="light"
-                            loading={transitionPending}
-                            onClick={() => void advance(appointment)}
-                          >
-                            {nextLabel(appointment.status)}
-                          </Button>
-                        ) : null}
-                        {renderAppointmentMenu(appointment)}
-                      </div>
-                    </div>
-                  ))}
+                <div className={parityStyles.rowList}>
+                  {items.map((appointment) => renderRow(appointment, true))}
                 </div>
               </section>
             );
@@ -712,59 +1539,146 @@ export function AgendaPage() {
         </SimpleGrid>
       ) : null}
 
-      {view === "doctors" ? (
-        <SimpleGrid cols={{ base: 1, lg: 3 }}>
-          {byStaff.map(({ staff: member, appointments: memberAppointments }) => (
-            <section className={styles.section} key={member.id}>
-              <Title order={3}>{member.displayName}</Title>
-              <div className={styles.rowList}>
-                {memberAppointments.map((appointment) => (
-                  <div className={styles.row} key={appointment.id}>
-                    <div className={styles.rowMain}>
-                      <span className={styles.rowTitle}>
-                        {hhmm(appointment.startsAt)} · {appointment.patientName}
-                      </span>
-                      <span className={styles.rowMeta}>
-                        {appointment.siteId
-                          ? (siteNames.get(appointment.siteId) ?? appointment.reason)
-                          : appointment.reason}
-                      </span>
-                    </div>
-                    <div className={styles.rowActions}>
-                      <Badge color={statusColor(appointment.status)}>{appointment.status}</Badge>
-                      {renderAppointmentMenu(appointment)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-        </SimpleGrid>
-      ) : null}
-
       {view === "list" ? (
-        <section className={styles.section}>
-          <div className={styles.rowList}>
-            {[...appointments]
+        <section className={parityStyles.section}>
+          <div className={parityStyles.rowList}>
+            {[...visibleAppointments]
+              .filter(matchesSearch)
               .sort((left, right) => left.startsAt.localeCompare(right.startsAt))
-              .map((appointment) => (
-                <div className={styles.row} key={appointment.id}>
-                  <div className={styles.rowMain}>
-                    <span className={styles.rowTitle}>
-                      {hhmm(appointment.startsAt)}–{hhmm(appointment.endsAt)} ·
-                      {appointment.patientName}
-                    </span>
-                    <span className={styles.rowMeta}>{appointment.reason}</span>
-                  </div>
-                  <div className={styles.rowActions}>
-                    <Badge color={statusColor(appointment.status)}>{appointment.status}</Badge>
-                    {renderAppointmentMenu(appointment)}
-                  </div>
-                </div>
-              ))}
+              .map((appointment) => renderRow(appointment, false))}
           </div>
         </section>
       ) : null}
+
+      {isMobile ? (
+        <ActionIcon
+          size={52}
+          radius="xl"
+          className={styles.fab}
+          aria-label="Nueva cita"
+          onClick={() =>
+            openCreate({
+              date: anchor,
+              minute: nextQuarterMinute(),
+              staffId: columns[0]?.staffId ?? null,
+              cabinetId: columns[0]?.cabinetId ?? null,
+            })
+          }
+        >
+          <IconPlus size={24} />
+        </ActionIcon>
+      ) : null}
+
+      <AgendaQuickView
+        appointment={quickView}
+        patient={quickView ? patientsById.get(quickView.patientId) : undefined}
+        staffName={quickView ? staffNames.get(quickView.staffId) : undefined}
+        cabinetName={quickView?.cabinetId ? cabinetNames.get(quickView.cabinetId) : undefined}
+        staffOptions={staff.map((member) => ({ value: member.id, label: member.displayName }))}
+        busy={transitionPending || moveMutation.isPending}
+        onClose={() => setQuickViewId(null)}
+        onAdvance={(appointment) => void advance(appointment)}
+        onNoShow={(appointment) =>
+          void transitions.noShow
+            .mutateAsync({ id: appointment.id, expectedVersion: appointment.version })
+            .catch((error: unknown) => setAgendaNotice(errorMessage(error)))
+        }
+        onReschedule={(appointment) => void duplicate(appointment, 30)}
+        onCancel={(appointment, cancelReason) =>
+          void transitions.cancel
+            .mutateAsync({
+              id: appointment.id,
+              expectedVersion: appointment.version,
+              reason: cancelReason,
+            })
+            .then(() => {
+              setQuickViewId(null);
+              setAgendaNotice(`Cita de ${appointment.patientName} cancelada.`);
+            })
+            .catch((error: unknown) => setAgendaNotice(errorMessage(error)))
+        }
+        onEdit={(appointment, edit: QuickViewEdit) => {
+          const appointmentDate = dateYMDMadrid(appointment.startsAt);
+          const startsAt = madridLocalDateTime(appointmentDate, edit.time);
+          void commitMove(
+            appointment,
+            {
+              expectedVersion: appointment.version,
+              startsAt: toMadridISO(startsAt),
+              endsAt: toMadridISO(addMinutes(startsAt, edit.durationMinutes)),
+              ...(edit.staffId !== appointment.staffId ? { staffId: edit.staffId } : {}),
+            },
+            appointmentDate,
+          );
+        }}
+      />
+
+      <Modal
+        opened={pending !== null}
+        onClose={() => {
+          setPending(null);
+          setSlotSearch(null);
+        }}
+        title="Ese hueco no está libre"
+      >
+        {pending ? (
+          <Stack gap="sm">
+            <Text size="sm">Coincide con:</Text>
+            <Stack gap={2}>
+              {pending.conflicts.map((conflict) => (
+                <Text size="sm" fw={600} key={conflict}>
+                  {describeConflict(conflict)}
+                </Text>
+              ))}
+            </Stack>
+            <Text size="xs" c="dimmed">
+              Denty no permite dobles reservas del mismo profesional o gabinete.
+            </Text>
+            {slotSearch ? (
+              availabilityQuery.isLoading ? (
+                <Text size="sm">Buscando huecos…</Text>
+              ) : (availabilityQuery.data?.slots ?? []).length ? (
+                <div className={styles.slotChoices}>
+                  {(availabilityQuery.data?.slots ?? []).slice(0, 12).map((slot) => (
+                    <Button
+                      key={slot.startsAt}
+                      size="xs"
+                      variant="light"
+                      onClick={() => void applySlot(slot.startsAt)}
+                    >
+                      {hhmm(slot.startsAt)}
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <Text size="sm">No hay huecos libres ese día para esa duración.</Text>
+              )
+            ) : null}
+            <Group justify="flex-end">
+              <Button
+                variant="default"
+                onClick={() => {
+                  setPending(null);
+                  setSlotSearch(null);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() =>
+                  setSlotSearch({
+                    date: pending.date,
+                    staffId: pending.staffId,
+                    durationMin: pending.durationMinutes,
+                  })
+                }
+              >
+                Buscar otro hueco
+              </Button>
+            </Group>
+          </Stack>
+        ) : null}
+      </Modal>
 
       <Modal
         opened={opened}
@@ -772,73 +1686,205 @@ export function AgendaPage() {
           setOpened(false);
           setSelectedSlot(null);
         }}
-        title={selectedSlot ? `Nueva cita · ${appointmentTime}` : "Nueva cita"}
+        title={`Nueva cita · ${dayLabel(date)} · ${appointmentTime}`}
       >
         <Stack>
           <Select
             searchable
             label="Paciente"
             value={effectivePatientId || null}
-            onChange={(value) => setPatientId(value ?? "")}
+            onChange={(value) => {
+              setPatientId(value ?? "");
+              setPlanItemId(null);
+            }}
             data={patientOptions.map((patient) => ({ value: patient.id, label: patient.label }))}
           />
-          <Select
-            label="Profesional"
-            value={effectiveStaffId || null}
-            onChange={(value) => setStaffId(value ?? "")}
-            data={staff.map((member) => ({ value: member.id, label: member.displayName }))}
-          />
-          <Select
-            label="Sede"
-            value={effectiveSiteId || null}
-            onChange={(value) => setActiveSiteId(value ?? null)}
-            data={sites.map((site) => ({ value: site.id, label: site.name }))}
-          />
-          <TextInput label="Fecha" type="date" value={date} readOnly />
-          <TextInput
-            label="Hora"
-            type="time"
-            value={appointmentTime}
-            onChange={(event) => setAppointmentTime(event.currentTarget.value)}
-          />
-          <Select
-            label="Duración"
-            value={String(appointmentDuration)}
-            onChange={(value) => setAppointmentDuration(Number(value) || 30)}
-            data={[15, 30, 45, 60, 90, 120].map((minutes) => ({
-              value: String(minutes),
-              label: `${minutes} min`,
-            }))}
-          />
-          <TextInput
-            label="Motivo"
-            value={reason}
-            onChange={(event) => setReason(event.currentTarget.value)}
-          />
-          <Group grow align="flex-start">
-            <NumberInput
-              label="Visitas"
-              min={1}
-              max={12}
-              value={visitCount}
-              onChange={(value: string | number) => setVisitCount(Math.max(1, Number(value) || 1))}
-            />
+          {pendingPlanItems.length ? (
             <div>
-              <Text size="sm" fw={600}>
-                Intervalo
+              <Text size="xs" c="dimmed" mb={4}>
+                Del plan de tratamiento
               </Text>
-              <Text size="sm">{planVisitGapDays} días</Text>
-              <Text size="xs" c="dimmed">
-                Lo establece el administrador en Ajustes → Agenda.
-              </Text>
+              <div className={styles.planItems}>
+                {pendingPlanItems.slice(0, 8).map((item) => {
+                  const glyph = clinicalGlyphFor({
+                    tooth: item.tooth,
+                    treatmentCode: item.treatmentCode,
+                    label: item.label,
+                  });
+                  return (
+                    <UnstyledButton
+                      key={item.id}
+                      className={styles.planItem}
+                      data-selected={planItemId === item.id}
+                      onClick={() => {
+                        const selecting = planItemId !== item.id;
+                        setPlanItemId(selecting ? item.id : null);
+                        if (!selecting) return;
+                        setReason(item.label);
+                        const duration = catalog.find(
+                          (entry) =>
+                            entry.id === item.treatmentCatalogId ||
+                            entry.code === item.treatmentCode,
+                        )?.defaultDurationMin;
+                        if (duration) setAppointmentDuration(duration);
+                      }}
+                    >
+                      {glyph ? <ClinicalGlyph glyph={glyph} mode="micro" /> : null}
+                      {item.label}
+                    </UnstyledButton>
+                  );
+                })}
+              </div>
             </div>
+          ) : null}
+          <Autocomplete
+            label="Motivo o tratamiento"
+            value={reason}
+            onChange={(value) => {
+              setReason(value);
+              const entry = catalog.find((item) => item.name === value);
+              if (entry?.defaultDurationMin) setAppointmentDuration(entry.defaultDurationMin);
+            }}
+            data={[...new Set(catalog.filter((item) => item.active).map((item) => item.name))]}
+            rightSection={createGlyph ? <ClinicalGlyph glyph={createGlyph} mode="micro" /> : null}
+          />
+          <Group gap="xs">
+            <Badge variant="light">{appointmentTime}</Badge>
+            <Badge variant="light">{appointmentDuration} min</Badge>
+            <Badge variant="light">{staffNames.get(effectiveStaffId) ?? "Profesional"}</Badge>
+            {cabinetId ? <Badge variant="light">{cabinetNames.get(cabinetId)}</Badge> : null}
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              onClick={() => setAdvancedOpen((open) => !open)}
+            >
+              {advancedOpen ? "Menos opciones" : "Más opciones"}
+            </Button>
           </Group>
+          <Collapse expanded={advancedOpen}>
+            <Stack>
+              <TextInput label="Fecha" type="date" value={date} readOnly />
+              <Group grow>
+                <TextInput
+                  label="Hora"
+                  type="time"
+                  value={appointmentTime}
+                  onChange={(event) => setAppointmentTime(event.currentTarget.value)}
+                />
+                <Select
+                  label="Duración"
+                  value={String(appointmentDuration)}
+                  onChange={(value) => setAppointmentDuration(Number(value) || 30)}
+                  data={[...new Set([...DURATION_STEPS, appointmentDuration])]
+                    .sort((a, b) => a - b)
+                    .map((minutes) => ({ value: String(minutes), label: `${minutes} min` }))}
+                />
+              </Group>
+              <Select
+                label="Profesional"
+                value={effectiveStaffId || null}
+                onChange={(value) => setStaffId(value ?? "")}
+                data={staff.map((member) => ({ value: member.id, label: member.displayName }))}
+              />
+              <Group grow>
+                <Select
+                  label="Gabinete"
+                  clearable
+                  value={cabinetId}
+                  onChange={setCabinetId}
+                  data={cabinets.map((cabinet) => ({ value: cabinet.id, label: cabinet.name }))}
+                />
+                <Select
+                  label="Sede"
+                  value={effectiveSiteId || null}
+                  onChange={(value) => setActiveSiteId(value ?? null)}
+                  data={sites.map((site) => ({ value: site.id, label: site.name }))}
+                />
+              </Group>
+              <Group grow align="flex-start">
+                <NumberInput
+                  label="Visitas"
+                  min={1}
+                  max={12}
+                  value={visitCount}
+                  onChange={(value: string | number) =>
+                    setVisitCount(Math.max(1, Number(value) || 1))
+                  }
+                />
+                <div>
+                  <Text size="sm" fw={600}>
+                    Intervalo
+                  </Text>
+                  <Text size="sm">{planVisitGapDays} días</Text>
+                  <Text size="xs" c="dimmed">
+                    Se ajusta en Ajustes → Agenda.
+                  </Text>
+                </div>
+              </Group>
+            </Stack>
+          </Collapse>
           <Group justify="flex-end">
             <Button variant="default" onClick={() => setOpened(false)}>
               Cancelar
             </Button>
             <Button loading={createMutation.isPending} onClick={() => void create()}>
               Guardar cita
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal opened={blockOpened} onClose={() => setBlockOpened(false)} title="Bloquear agenda">
+        <Stack>
+          <Select
+            label="Tipo"
+            value={blockKind}
+            onChange={(value) => setBlockKind(value ?? "MEETING")}
+            data={BLOCK_KINDS}
+          />
+          <Group grow>
+            <TextInput
+              label="Desde"
+              type="time"
+              value={blockFrom}
+              onChange={(event) => setBlockFrom(event.currentTarget.value)}
+            />
+            <TextInput
+              label="Hasta"
+              type="time"
+              value={blockTo}
+              onChange={(event) => setBlockTo(event.currentTarget.value)}
+            />
+          </Group>
+          {resourceMode === "staff" ? (
+            <Select
+              label="Profesional"
+              value={effectiveStaffId || null}
+              onChange={(value) => setStaffId(value ?? "")}
+              data={staff.map((member) => ({ value: member.id, label: member.displayName }))}
+            />
+          ) : (
+            <Select
+              label="Gabinete"
+              value={cabinetId}
+              onChange={setCabinetId}
+              data={cabinets.map((cabinet) => ({ value: cabinet.id, label: cabinet.name }))}
+            />
+          )}
+          <TextInput
+            label="Nota"
+            value={blockReason}
+            onChange={(event) => setBlockReason(event.currentTarget.value)}
+          />
+          <Text size="xs" c="dimmed">
+            {dayLabel(date)}
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setBlockOpened(false)}>
+              Cancelar
+            </Button>
+            <Button loading={blockMutation.isPending} onClick={() => void createBlock()}>
+              Crear bloqueo
             </Button>
           </Group>
         </Stack>
