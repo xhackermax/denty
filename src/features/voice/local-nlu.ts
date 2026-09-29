@@ -1,5 +1,7 @@
 import type { ToothSurface } from "@/domain";
 
+import { canonicalizeDentalSpeech } from "./dental-normalizer";
+
 export type PaymentMethod = "CARD" | "CASH" | "TRANSFER" | "FINANCING";
 export type ClinicalTreatmentState = "PLANNED" | "COMPLETED" | "UNSATISFACTORY";
 
@@ -244,10 +246,50 @@ function extractPatient(raw: string): string {
     ),
   ];
   for (const pattern of patterns) {
-    const match = raw.match(pattern)?.[1];
-    if (match) return match.trim();
+    const match = raw.match(pattern)?.[1]?.trim();
+    if (match && looksLikePersonName(match)) return match;
   }
   return "";
+}
+
+// Words that show a captured "name" is really part of the sentence
+// ("el paciente no tiene el 18", "…abajo a la izquierda que es la seis").
+const NOT_NAME_WORDS = new Set([
+  "que",
+  "es",
+  "no",
+  "si",
+  "y",
+  "al",
+  "del",
+  "lo",
+  "le",
+  "se",
+  "ya",
+  "hay",
+  "tiene",
+  "esta",
+  "pasalo",
+  "ponle",
+  "seis",
+  "caries",
+  "resina",
+  "obturacion",
+  "empaste",
+  "corona",
+  "diente",
+  "muela",
+  "pieza",
+  "izquierda",
+  "derecha",
+  "arriba",
+  "abajo",
+]);
+
+function looksLikePersonName(candidate: string): boolean {
+  const words = normalize(candidate).split(" ");
+  if (!words.length || /^(?:el|la|los|las|un|una)$/.test(words[0] ?? "")) return false;
+  return !words.some((word) => NOT_NAME_WORDS.has(word) || /\d/.test(word));
 }
 
 function looksLikeNonToothNumber(text: string, start: number, end: number): boolean {
@@ -270,7 +312,13 @@ function extractTeeth(raw: string): string[] {
     if (!value) continue;
     const start = match.index ?? 0;
     if (looksLikeNonToothNumber(text, start, start + value.length)) continue;
-    if (TREATMENT_CUE.test(text) || /\b(?:diente|pieza|puente|caries|bolsa|sondaje)\b/.test(text)) {
+    if (
+      TREATMENT_CUE.test(text) ||
+      /\b(?:diente|pieza|muela|puente|caries|bolsa|sondaje|ausente|sano|realizado|defectuoso)\b/.test(
+        text,
+      ) ||
+      /\b(?:mesial|distal|oclusal|incisal|vestibular|lingual|palatino)\b/.test(text)
+    ) {
       found.push(value);
     }
   }
@@ -301,12 +349,14 @@ function extractSurfaces(raw: string): ToothSurface[] {
   if (/\bmod\b/.test(text)) surfaces.push("M", "O", "D");
   if (/\bmo\b/.test(text)) surfaces.push("M", "O");
   if (/\bod\b/.test(text)) surfaces.push("O", "D");
+  if (/\bdo\b/.test(text)) surfaces.push("D", "O");
   if (/\bmesial\b/.test(text)) surfaces.push("M");
   if (/\bdistal\b/.test(text)) surfaces.push("D");
   if (/\boclusal|ocluzal\b/.test(text)) surfaces.push("O");
   if (/\bincisal\b/.test(text)) surfaces.push("I");
   if (/\bvestibular|bucal\b/.test(text)) surfaces.push("V");
-  if (/\blingual|palatino|palatina\b/.test(text)) surfaces.push("P");
+  if (/\blingual\b/.test(text)) surfaces.push("L");
+  if (/\bpalatin[oa]\b/.test(text)) surfaces.push("P");
   return uniq(surfaces);
 }
 
@@ -380,7 +430,7 @@ function extractPaymentMethod(text: string): PaymentMethod | undefined {
 
 function treatmentState(text: string, code: string): ClinicalTreatmentState {
   if (code === "reendodontics") return "PLANNED";
-  if (/\b(?:repetir|rehacer|defectuos|insatisfactor|fallad|fracturad|filtrad)\b/.test(text)) {
+  if (/\b(?:repetir|rehacer|defectuos|insatisfactor|fallad|fracturad|filtrad)\w*/.test(text)) {
     return "UNSATISFACTORY";
   }
   if (/\b(?:realizad|hech|terminad|completad|finalizad|colocad)\w*\b/.test(text)) {
@@ -486,7 +536,8 @@ function odontogramActions(
   const tooth = extractTooth(raw, context);
   if (!tooth) return [];
   const surfaces = extractSurfaces(raw);
-  if (/caries/.test(text)) {
+  // "Quita la caries del 26" asks to remove it: never add one.
+  if (/caries/.test(text) && !/\b(?:quita|quitale|elimina|borra|retira|desmarca)\b/.test(text)) {
     return [{ type: "odontogram.set_state", patientRef, tooth, status: "CARIES", surfaces }];
   }
   if (/\b(?:sano|saludable)\b/.test(text)) {
@@ -665,9 +716,27 @@ export function planLocalVoiceCommand(
     });
   }
 
-  actions.push(...odontogramActions(patientRef, raw, context));
-  actions.push(...periodontalActions(patientRef, raw, context));
-  actions.push(...treatmentActions(patientRef, raw, context));
+  // Regional and colloquial speech ("calza en el dos seis por fuera") is
+  // canonicalized with the dental dictionary before clinical extraction.
+  const clinical = canonicalizeDentalSpeech(raw);
+  const extractedClinical = [
+    ...odontogramActions(patientRef, clinical, context),
+    ...periodontalActions(patientRef, clinical, context),
+    ...treatmentActions(patientRef, clinical, context),
+  ];
+  actions.push(...extractedClinical);
+  // "Anota que refiere dolor al frío en el 36": dictated note, original wording kept.
+  const dictated = raw.match(
+    /^\s*(?:anota|apunta|registra|escribe|pon\s+en\s+(?:la\s+)?(?:ficha|historia))\s+que\s+(.+)$/i,
+  )?.[1];
+  if (dictated && !extractedClinical.length && !actions.some((a) => a.type === "clinical.note")) {
+    const text = dictated.trim();
+    actions.push({
+      type: "clinical.note",
+      patientRef,
+      text: text[0]!.toUpperCase() + text.slice(1),
+    });
+  }
 
   const dateText = extractDate(text);
   const timeText = extractTime(text);

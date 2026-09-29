@@ -2,6 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 
 import type { ToothSurface } from "@/domain";
+import dentalLexicon from "@/features/voice/dental-lexicon.generated.json";
 import type { LocalVoiceAction } from "@/features/voice/local-nlu";
 
 /**
@@ -160,8 +161,28 @@ export const CLAUDE_VOICE_SYSTEM = [
   "Caries es un hallazgo (marcar_hallazgo). Empaste = obturación. «Hay que hacer / a realizar / programar» = pendiente.",
   "«Tiene / lleva / ya hecho» = realizado. «Filtrada, fracturada, mal ajustada, a repetir» = defectuoso.",
   "Si se menciona una caries y además qué hacer con ella, apunta ambas cosas.",
+  "Se habla español de España y de Latinoamérica. Glosario (del diccionario dental de Denty):",
+  dentalGlossary(),
+  "Te llega la orden original y una versión normalizada; si discrepan, manda la original.",
   "No inventes datos que no se han dicho.",
 ].join("\n");
+
+/** Regional synonyms grouped by the canonical term, e.g. "obturación: calza, tapadura, …". */
+function dentalGlossary(): string {
+  const groups = new Map<string, string[]>();
+  const add = (canonical: string, form: string) => {
+    if (form === canonical) return;
+    groups.set(canonical, [...(groups.get(canonical) ?? []), form]);
+  };
+  for (const [form, canonical] of Object.entries(dentalLexicon.treatments)) add(canonical, form);
+  for (const form of dentalLexicon.caries) add("caries", form);
+  for (const [form, code] of Object.entries(dentalLexicon.surfaces)) {
+    if (form.includes(" ") || form.length > 3) add(`cara ${code}`, form);
+  }
+  return [...groups.entries()]
+    .map(([canonical, forms]) => `- ${canonical}: ${[...new Set(forms)].join(", ")}`)
+    .join("\n");
+}
 
 const tooth = z.string().regex(/^[1-8][1-8]$/);
 const surfaces = z.array(z.enum(SURFACES));
