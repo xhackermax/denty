@@ -556,6 +556,12 @@
     },
     {
       "method": "POST",
+      "path": "/api/clinical-plan/items/:id/price",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
       "path": "/api/clinical-plan/items/:id/status",
       "source": "apps/api/src/modules/clinical/routes.ts",
       "kind": "browser"

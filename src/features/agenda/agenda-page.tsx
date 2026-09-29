@@ -244,6 +244,9 @@ interface DragPayload {
 export function AgendaPage() {
   const searchParams = useSearchParams();
   const requestedPatientId = searchParams.get("patientId") ?? "";
+  // Arriving from the treatment flow ("Dar cita"): open the form with the plan item chosen.
+  const requestedPlanItemId = searchParams.get("planItemId") ?? "";
+  const requestedPlanItemHandled = useRef(false);
   const isMobile = useMediaQuery("(max-width: 48em)") ?? false;
   const { activeSiteId, setActiveSiteId } = useActiveTenant();
 
@@ -926,6 +929,32 @@ export function AgendaPage() {
   const pendingPlanItems = (planQuery.data?.items ?? []).filter(
     (item) => !["COMPLETED", "CANCELLED", "SUPERSEDED", "DONE"].includes(item.status.toUpperCase()),
   );
+
+  useEffect(() => {
+    if (!requestedPlanItemId || !requestedPatientId || opened || requestedPlanItemHandled.current)
+      return;
+    const column = columns[0];
+    openCreate({
+      date: column?.date ?? anchor,
+      minute: nextQuarterMinute(),
+      staffId: column?.staffId ?? null,
+      cabinetId: column?.cabinetId ?? null,
+    });
+    // openCreate is recreated every render; only the request itself matters here.
+  }, [requestedPlanItemId, requestedPatientId, columns.length]);
+
+  useEffect(() => {
+    if (!requestedPlanItemId || requestedPlanItemHandled.current || !opened) return;
+    const item = pendingPlanItems.find((candidate) => candidate.id === requestedPlanItemId);
+    if (!item) return;
+    requestedPlanItemHandled.current = true;
+    setPlanItemId(item.id);
+    setReason(item.label);
+    const duration = catalog.find(
+      (entry) => entry.id === item.treatmentCatalogId || entry.code === item.treatmentCode,
+    )?.defaultDurationMin;
+    if (duration) setAppointmentDuration(duration);
+  }, [requestedPlanItemId, opened, pendingPlanItems, catalog]);
 
   const renderAppointmentMenu = (appointment: AgendaAppointmentView) => (
     <Menu withinPortal position="bottom-end" shadow="md" width={220}>

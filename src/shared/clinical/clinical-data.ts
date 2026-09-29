@@ -164,3 +164,50 @@ export function useSignBudgetMutation(patientId: string) {
     onSuccess: () => invalidateClinicalPatient(queryClient, patientId),
   });
 }
+
+export function useSetPlanItemPriceMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { itemId: string; priceCents: number }) =>
+      getBrowserApi().clinical.plan.setItemPrice(input.itemId, input.priceCents),
+    onSuccess: () => invalidateClinicalPatient(queryClient, patientId),
+  });
+}
+
+export function useDocumentTemplatesQuery(enabled = true) {
+  return useQuery({
+    queryKey: dentyQueryKeys.documents.templates,
+    queryFn: () => getBrowserApi().documents.templates.list(),
+    enabled,
+  });
+}
+
+/** Creates the consent document from its template and signs it in one go. */
+export function useSignConsentMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      templateId: string;
+      title: string;
+      signerName: string;
+      signatureDataUrl: string;
+    }) => {
+      const api = getBrowserApi();
+      const document = await api.documents.create({
+        patientId,
+        type: "CONSENT",
+        title: input.title,
+        templateId: input.templateId,
+        data: {},
+      });
+      return api.documents.sign(document.id, {
+        signerName: input.signerName,
+        signatureDataUrl: input.signatureDataUrl,
+      });
+    },
+    onSuccess: () => {
+      invalidateClinicalPatient(queryClient, patientId);
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.documents.root });
+    },
+  });
+}

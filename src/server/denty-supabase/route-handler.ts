@@ -23,6 +23,7 @@ import {
 import {
   createOdontogramSnapshotSchema,
   createPlanItemSchema,
+  planItemPriceSchema,
   odontogramBatchSchema,
   periodontalExamInputSchema,
   periodontalMeasurementSchema,
@@ -2485,6 +2486,23 @@ export async function handleSupabaseDentyRoute(
       return json(
         200,
         await clinical.syncPlanFromOdontogram(decodeURIComponent(parts[2] ?? "")),
+        headers,
+      );
+    }
+    if (
+      parts.length === 5 &&
+      parts[0] === "api" &&
+      parts[1] === "clinical-plan" &&
+      parts[2] === "items" &&
+      parts[4] === "price" &&
+      method === "POST"
+    ) {
+      if (identity.actor.role === "PATIENT")
+        return error(403, "FORBIDDEN", "El portal no puede cambiar precios del plan.");
+      const payload = await parseJson(request, planItemPriceSchema);
+      return json(
+        200,
+        await clinical.setPlanItemPrice(decodeURIComponent(parts[3] ?? ""), payload.priceCents),
         headers,
       );
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, FileButton, Group, Stack, Text } from "@mantine/core";
+import { Alert, Button, FileButton, Group, Select, Stack, Text } from "@mantine/core";
 import { IconCamera, IconPhoto, IconRefresh, IconX } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -21,7 +21,8 @@ function cameraErrorMessage(caught: unknown): string {
     return "No se ha encontrado ninguna cámara en este dispositivo. Puedes elegir una foto.";
   if (name === "NotReadableError")
     return "La cámara está en uso por otra aplicación. Ciérrala y vuelve a intentarlo.";
-  return "No se pudo acceder a la cámara. Puedes seleccionar una foto manualmente.";
+  const detail = name || (caught instanceof Error ? caught.message : "");
+  return `No se pudo acceder a la cámara${detail ? ` (${detail})` : ""}. Puedes seleccionar una foto manualmente.`;
 }
 
 export function PatientPhotoCapture({
@@ -34,6 +35,8 @@ export function PatientPhotoCapture({
   const [cameraActive, setCameraActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [cameras, setCameras] = useState<Array<{ value: string; label: string }>>([]);
+  const [cameraId, setCameraId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!value) {
@@ -54,7 +57,7 @@ export function PatientPhotoCapture({
     setCameraActive(false);
   };
 
-  const startCamera = async () => {
+  const startCamera = async (deviceId: string | null = cameraId) => {
     setError(null);
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       setError("La cámara requiere HTTPS y un navegador compatible.");
@@ -62,8 +65,24 @@ export function PatientPhotoCapture({
     }
     try {
       stopCamera();
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: deviceId ? { deviceId: { exact: deviceId } } : true,
+        audio: false,
+      });
       streamRef.current = stream;
+      // PCs often expose several cameras (infrared/Windows Hello, virtual cameras…)
+      // and the default one may not give a usable picture, so let the user pick.
+      // Device labels are only readable once permission has been granted.
+      const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+      setCameras(
+        devices
+          .filter((device) => device.kind === "videoinput")
+          .map((device, index) => ({
+            value: device.deviceId,
+            label: device.label || `Cámara ${index + 1}`,
+          })),
+      );
+      setCameraId(stream.getVideoTracks()[0]?.getSettings().deviceId ?? deviceId);
       // The <video> element only mounts once cameraActive is true; the effect below
       // attaches the stream to it after that render.
       setCameraActive(true);
@@ -80,6 +99,13 @@ export function PatientPhotoCapture({
     video.play().catch(() => {
       setError("La cámara está abierta pero el navegador no pudo mostrar la imagen.");
     });
+    const noPicture = window.setTimeout(() => {
+      if (!video.videoWidth)
+        setError(
+          "La cámara no envía imagen. Si el equipo tiene varias cámaras, elige otra en la lista; si no, ciérrala en otros programas (Teams, Zoom…).",
+        );
+    }, 4000);
+    return () => window.clearTimeout(noPicture);
   }, [cameraActive]);
 
   const capturePhoto = async () => {
@@ -115,7 +141,20 @@ export function PatientPhotoCapture({
       {error ? <Alert color="yellow">{error}</Alert> : null}
       {cameraActive ? (
         <Stack gap="xs">
-          <video ref={videoRef} playsInline muted className={styles.video} />
+          {cameras.length > 1 ? (
+            <Select
+              label="Cámara"
+              data={cameras}
+              value={cameraId}
+              allowDeselect={false}
+              onChange={(value) => {
+                if (!value || value === cameraId) return;
+                setCameraId(value);
+                void startCamera(value);
+              }}
+            />
+          ) : null}
+          <video ref={videoRef} autoPlay playsInline muted className={styles.video} />
           <Group>
             <Button
               leftSection={<IconCamera size={16} />}

@@ -317,6 +317,8 @@ export const clinicalSyncStateSchema = z.object({
   nextAction: z.enum(["SYNC_PLAN", "SYNC_BUDGET", "READY"]),
 });
 
+export const planItemPriceSchema = z.object({ priceCents: z.number().int().nonnegative() });
+
 export const planSyncResultSchema = z.object({
   plan: z
     .object({
@@ -330,6 +332,10 @@ export const planSyncResultSchema = z.object({
     added: z.number().int().nonnegative(),
     superseded: z.number().int().nonnegative(),
     coveredByExisting: z.number().int().nonnegative(),
+    /** Items added by hand that were matched to an odontogram finding. */
+    linked: z.number().int().nonnegative().default(0),
+    /** Items whose treatment is now marked as done on the odontogram. */
+    completed: z.number().int().nonnegative().default(0),
   }),
   sync: clinicalSyncStateSchema,
 });
