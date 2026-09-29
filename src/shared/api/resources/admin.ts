@@ -4,7 +4,13 @@ import type { ApiClient } from "../client";
 import { patientSchema } from "../contracts";
 import {
   acquisitionSourceInputSchema,
+  addPaymentTerminalSchema,
   adminSitesOverviewSchema,
+  paymentTerminalsOverviewSchema,
+  paymentTerminalsSchema,
+  terminalProviderTestResultSchema,
+  testTerminalProviderSchema,
+  updatePaymentTerminalSchema,
   saveSiteSchema,
   saveStaffMemberSchema,
   setStaffScheduleSchema,
@@ -30,6 +36,38 @@ import { withQuery } from "./shared";
 
 export function createAdminResource(client: ApiClient) {
   return {
+    paymentTerminals: {
+      /** Terminals reception can charge with (no secrets, no provider round trip). */
+      forCharging: () => client.request("/api/payment-terminals", paymentTerminalsSchema),
+      overview: () =>
+        client.request("/api/admin/payment-terminals", paymentTerminalsOverviewSchema),
+      add: (payload: z.input<typeof addPaymentTerminalSchema>) =>
+        client.mutation(
+          "/api/admin/payment-terminals",
+          paymentTerminalsOverviewSchema,
+          addPaymentTerminalSchema.parse(payload),
+        ),
+      update: (id: string, payload: z.input<typeof updatePaymentTerminalSchema>) =>
+        client.mutation(
+          `/api/admin/payment-terminals/${encodeId(id)}`,
+          paymentTerminalsOverviewSchema,
+          updatePaymentTerminalSchema.parse(payload),
+          { method: "PATCH" },
+        ),
+      remove: (id: string) =>
+        client.mutation(
+          `/api/admin/payment-terminals/${encodeId(id)}`,
+          paymentTerminalsOverviewSchema,
+          undefined,
+          { method: "DELETE" },
+        ),
+      test: (payload: z.input<typeof testTerminalProviderSchema>) =>
+        client.mutation(
+          "/api/admin/payment-terminals/test",
+          terminalProviderTestResultSchema,
+          testTerminalProviderSchema.parse(payload),
+        ),
+    },
     sites: {
       overview: () => client.request("/api/admin/sites", adminSitesOverviewSchema),
       create: (payload: z.input<typeof saveSiteSchema>) =>

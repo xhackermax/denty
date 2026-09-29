@@ -219,3 +219,53 @@ export type AdminSite = z.infer<typeof adminSiteSchema>;
 export type AdminStaffMember = z.infer<typeof adminStaffMemberSchema>;
 export type AdminSitesOverview = z.infer<typeof adminSitesOverviewSchema>;
 export type StaffScheduleEntry = z.infer<typeof staffScheduleEntrySchema>;
+
+// Connected card terminals (SumUp / Stripe Terminal) assigned to a site.
+export const terminalProviderSchema = z.enum(["sumup", "stripe"]);
+
+export const paymentTerminalSchema = z.object({
+  id: idSchema,
+  provider: terminalProviderSchema,
+  label: z.string().min(1),
+  providerTerminalId: z.string(),
+  siteId: idSchema.nullable(),
+  model: z.string().nullable(),
+  status: z.enum(["online", "offline", "unknown"]),
+});
+
+export const paymentTerminalsSchema = z.object({ items: z.array(paymentTerminalSchema) });
+
+export const paymentTerminalsOverviewSchema = z.object({
+  providers: z.array(
+    z.object({
+      provider: terminalProviderSchema,
+      configured: z.boolean(),
+      missing: z.array(z.string()),
+      error: z.string().optional(),
+    }),
+  ),
+  terminals: z.array(paymentTerminalSchema),
+});
+
+export const addPaymentTerminalSchema = z.object({
+  provider: terminalProviderSchema,
+  code: z.string().trim().min(4).max(64),
+  label: z.string().trim().min(1).max(60),
+  siteId: idSchema,
+});
+
+export const updatePaymentTerminalSchema = z.object({
+  label: z.string().trim().min(1).max(60).optional(),
+  siteId: idSchema.nullable().optional(),
+});
+
+export const testTerminalProviderSchema = z.object({ provider: terminalProviderSchema });
+
+export const terminalProviderTestResultSchema = z.object({
+  ok: z.boolean(),
+  message: z.string(),
+});
+
+export type PaymentTerminal = z.infer<typeof paymentTerminalSchema>;
+export type PaymentTerminalsOverview = z.infer<typeof paymentTerminalsOverviewSchema>;
+export type TerminalProvider = z.infer<typeof terminalProviderSchema>;

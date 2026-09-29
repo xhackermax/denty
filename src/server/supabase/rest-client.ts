@@ -76,6 +76,17 @@ export class SupabaseRestClient {
     }
   }
 
+  async delete(table: string, query: Record<string, string | number>) {
+    const response = await this.fetchImpl(this.url(table, query), {
+      method: "DELETE",
+      headers: this.headers({ prefer: "return=minimal" }),
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      await this.parseJson(response);
+    }
+  }
+
   async rpc<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
     const response = await this.fetchImpl(
       new URL(`/rest/v1/rpc/${encodeURIComponent(functionName)}`, this.credentials.url),

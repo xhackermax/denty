@@ -4,13 +4,14 @@ import Link from "next/link";
 import styles from "@/shared/ui/parity.module.css";
 import { PageHeader } from "@/shared/ui";
 import { AdminUsersPanel } from "./admin-users-panel";
+import { AdminPaymentTerminalsPanel } from "./admin-payment-terminals-panel";
 import { AdminSitesPanel } from "./admin-sites-panel";
 import { AdminTreatmentCatalogPanel } from "./admin-treatment-catalog-panel";
 
 export function AdminPage({
   section = "home",
 }: {
-  section?: "home" | "users" | "catalog" | "sites";
+  section?: "home" | "users" | "catalog" | "sites" | "payments";
 }) {
   return (
     <div className={styles.grid}>
@@ -23,7 +24,9 @@ export function AdminPage({
               ? "Usuarios"
               : section === "sites"
                 ? "Sedes y doctores"
-                : "Catálogo"
+                : section === "payments"
+                  ? "Cobros y datáfonos"
+                  : "Catálogo"
         }
         description="Usuarios, sedes y configuración."
       />
@@ -47,6 +50,12 @@ export function AdminPage({
               Sedes, gabinetes y qué días trabaja cada doctor en cada sede
             </span>
           </Link>
+          <Link className={styles.cardLink} href="/app/admin/payments">
+            <span className={styles.cardLinkTitle}>Cobros y datáfonos</span>
+            <span className={styles.cardLinkDescription}>
+              SumUp y Stripe: emparejar lectores y asignarlos a cada sede
+            </span>
+          </Link>
           <Link className={styles.cardLink} href="/app/admin/catalog">
             <span className={styles.cardLinkTitle}>Catálogo clínico</span>
             <span className={styles.cardLinkDescription}>Tratamientos, costes y precios</span>
@@ -60,6 +69,7 @@ export function AdminPage({
       {section === "users" ? <AdminUsersPanel /> : null}
       {section === "catalog" ? <AdminTreatmentCatalogPanel /> : null}
       {section === "sites" ? <AdminSitesPanel /> : null}
+      {section === "payments" ? <AdminPaymentTerminalsPanel /> : null}
     </div>
   );
 }
