@@ -12,7 +12,7 @@ const serverEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   OPENAI_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
-  ANTHROPIC_VOICE_MODEL: z.string().min(1).default("claude-opus-5-5"),
+  ANTHROPIC_VOICE_MODEL: z.string().min(1).default("claude-haiku-4-5"),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_DEFAULT_CONNECTED_ACCOUNT_ID: z.string().min(1).optional(),
   SUMUP_RETURN_URL: z.string().url().optional(),

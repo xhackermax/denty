@@ -248,9 +248,10 @@ export function VoiceCommandBar() {
         }
       }
 
-      // Claude understands free speech and maps it to Denty's tools; the local
-      // rules stay as the fallback when it isn't configured or doesn't answer.
-      if (claudeAvailableRef.current) {
+      // The local rules are free: when they fully understood the order, Claude
+      // isn't called. Claude (paid per call) handles only what they can't, and
+      // the rules stay as the fallback when it isn't configured or doesn't answer.
+      if (claudeAvailableRef.current && !canExecuteVoicePreview(next)) {
         setInterpreting(true);
         try {
           const result = await getBrowserApi().voice.interpret({ text: clean, pathname });

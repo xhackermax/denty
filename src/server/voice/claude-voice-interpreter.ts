@@ -9,6 +9,10 @@ import {
 
 export class ClaudeVoiceUnavailableError extends Error {}
 
+export function isHaiku45(model: string): boolean {
+  return model.startsWith("claude-haiku-4-5");
+}
+
 export interface ClaudeVoiceRequest {
   apiKey: string;
   model: string;
@@ -33,23 +37,32 @@ export async function interpretWithClaude(
     .filter(Boolean)
     .join(" ");
 
-  const response = await client.beta.messages.create({
-    model: request.model,
-    max_tokens: 4096,
-    // Voice needs a quick answer; the mapping is simple.
-    output_config: { effort: "low" },
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    cache_control: { type: "ephemeral" },
-    system: CLAUDE_VOICE_SYSTEM,
-    tools: CLAUDE_VOICE_TOOLS,
-    messages: [
-      {
-        role: "user",
-        content: `${context}\nOrden dictada: «${request.transcript}»`,
-      },
-    ],
-  });
+  const messages: Anthropic.MessageParam[] = [
+    { role: "user", content: `${context}\nOrden dictada: «${request.transcript}»` },
+  ];
+
+  // Haiku 4.5 (the default: cheapest, and enough to map a sentence to a tool)
+  // takes neither effort nor server-side fallbacks, and our ~2K-token prefix is
+  // below its 4096-token caching minimum. Newer models get the full options.
+  const response = isHaiku45(request.model)
+    ? await client.messages.create({
+        model: request.model,
+        max_tokens: 1024,
+        system: CLAUDE_VOICE_SYSTEM,
+        tools: CLAUDE_VOICE_TOOLS,
+        messages,
+      })
+    : await client.beta.messages.create({
+        model: request.model,
+        max_tokens: 4096,
+        output_config: { effort: "low" },
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        cache_control: { type: "ephemeral" },
+        system: CLAUDE_VOICE_SYSTEM,
+        tools: CLAUDE_VOICE_TOOLS,
+        messages,
+      });
 
   if (response.stop_reason === "refusal") {
     throw new ClaudeVoiceUnavailableError("Claude no ha podido procesar esta orden.");
