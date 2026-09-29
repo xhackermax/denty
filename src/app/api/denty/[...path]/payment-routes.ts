@@ -282,7 +282,7 @@ async function stripeStart(request: Request) {
       idempotencyKey: a.id,
     },
     b.readerId,
-    process.env.STRIPE_CONNECTED_ACCOUNT_ID,
+    process.env.STRIPE_CONNECTED_ACCOUNT_ID ?? process.env.STRIPE_DEFAULT_CONNECTED_ACCOUNT_ID,
   );
   a = await markPaymentAttempt(
     finance.paymentAttemptStore(),
@@ -315,7 +315,7 @@ async function stripeStatus(request: Request) {
     return NextResponse.json({ provider: "stripe", status: "PENDING", attemptId: id });
   const intent = await getStripePaymentIntent(
     a.providerTransactionId,
-    process.env.STRIPE_CONNECTED_ACCOUNT_ID,
+    process.env.STRIPE_CONNECTED_ACCOUNT_ID ?? process.env.STRIPE_DEFAULT_CONNECTED_ACCOUNT_ID,
   );
   const st = mapStripePaymentIntentStatus(intent);
   if (st === "COMPLETED") {

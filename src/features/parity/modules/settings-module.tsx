@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
+import { BillingSettingsSection } from "./billing-settings-section";
 
 export function SettingsModule() {
   const queryClient = useQueryClient();
@@ -198,6 +199,8 @@ export function SettingsModule() {
           ) : null}
         </div>
       </section>
+
+      <BillingSettingsSection />
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Privacidad</h3>

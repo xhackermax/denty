@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 
 import { formatEUR } from "@/domain/money";
 import { MotionNumber } from "@/shared/motion";
+import { PatientChargePanel } from "@/features/payments/patient-charge-panel";
 import { ClinicalSyncCard } from "@/shared/clinical/clinical-sync-card";
 import styles from "@/shared/ui/parity.module.css";
 import {
@@ -29,6 +30,7 @@ export function FinanceModule() {
     <Stack gap="md">
       {hasError ? <Alert color="red">Hay datos financieros no disponibles.</Alert> : null}
       {budgetPatientId ? <ClinicalSyncCard patientId={budgetPatientId} /> : null}
+      {budgetPatientId ? <PatientChargePanel patientId={budgetPatientId} /> : null}
 
       <Group justify="space-between">
         <Badge variant="light">Ledger real</Badge>

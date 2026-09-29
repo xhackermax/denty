@@ -1,3 +1,4 @@
+import { resolveRequestIdentity } from "@/server/denty-supabase/route-handler";
 import { getServerEnv } from "@/shared/config/env";
 
 export const runtime = "nodejs";
@@ -23,6 +24,12 @@ export async function POST(request: Request): Promise<Response> {
     } catch {
       return apiError(403, "INVALID_ORIGIN", "Origen de petición inválido.");
     }
+  }
+
+  // Stage 13: transcription spends a paid API key — only signed-in Denty users.
+  const identity = await resolveRequestIdentity(request).catch(() => null);
+  if (!identity) {
+    return apiError(401, "UNAUTHENTICATED", "Inicia sesión en Denty para usar el dictado por voz.");
   }
 
   const { OPENAI_API_KEY, OPENAI_TRANSCRIBE_MODEL } = getServerEnv();
