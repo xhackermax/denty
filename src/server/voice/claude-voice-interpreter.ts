@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+import { canonicalizeDentalSpeech } from "@/features/voice/dental-normalizer";
+
 import {
   CLAUDE_VOICE_SYSTEM,
   CLAUDE_VOICE_TOOLS,
@@ -38,7 +40,14 @@ export async function interpretWithClaude(
     .join(" ");
 
   const messages: Anthropic.MessageParam[] = [
-    { role: "user", content: `${context}\nOrden dictada: «${request.transcript}»` },
+    {
+      role: "user",
+      content: [
+        context,
+        `Orden dictada: «${request.transcript}»`,
+        `Normalizada: «${canonicalizeDentalSpeech(request.transcript)}»`,
+      ].join("\n"),
+    },
   ];
 
   // Haiku 4.5 (the default: cheapest, and enough to map a sentence to a tool)
