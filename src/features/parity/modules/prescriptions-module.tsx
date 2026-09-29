@@ -12,14 +12,27 @@ import {
   TextInput,
   Textarea,
 } from "@mantine/core";
-import { useState } from "react";
+import { IconPrinter } from "@tabler/icons-react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 
-import type { Prescription } from "@/shared/api";
+import { todayMadrid } from "@/domain/dates";
+import {
+  emptyPrescriptionLine,
+  isCompleteLine,
+  type PrescriptionLine,
+} from "@/domain/prescriptions/dental-vademecum";
+import type { Patient, Prescription } from "@/shared/api";
+import { getBrowserApi } from "@/shared/api/browser";
+import { DentyApiError } from "@/shared/api/errors";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
+import { dentyQueryKeys } from "@/shared/query";
+import { useActiveTenant } from "@/shared/tenancy/active-context";
 import styles from "@/shared/ui/parity.module.css";
 import { SignaturePad } from "@/shared/ui/signature-pad";
+import { PrescriptionLinesEditor } from "./prescription-line-editor";
+import { buildPrescriptionPrintHtml, printHtml } from "./prescription-print";
 import {
-  openPrescriptionPdf,
   useCancelPrescriptionMutation,
   useCreatePrescriptionMutation,
   useIssuePrescriptionMutation,
@@ -31,42 +44,117 @@ import {
   useValidatePrescriptionMutation,
 } from "./prescriptions-data";
 
-type MedicationDraft = {
-  activeIngredient: string;
-  strength: string;
-  pharmaceuticalForm: string;
-  route: string;
-  unitsPerDose: string;
-  frequency: string;
-  duration: string;
-  instructions: string;
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  DRAFT: { label: "Borrador", color: "gray" },
+  READY: { label: "Lista", color: "blue" },
+  SIGNING: { label: "Firmada", color: "teal" },
+  ISSUED: { label: "Emitida", color: "green" },
+  CANCELLED: { label: "Cancelada", color: "red" },
 };
 
-const emptyMedication = (): MedicationDraft => ({
-  activeIngredient: "",
-  strength: "",
-  pharmaceuticalForm: "",
-  route: "",
-  unitsPerDose: "",
-  frequency: "",
-  duration: "",
-  instructions: "",
-});
+type Settings = NonNullable<ReturnType<typeof usePrescriptionSettingsQuery>["data"]>;
+
+function toItems(lines: readonly PrescriptionLine[]) {
+  return lines.filter(isCompleteLine).map((line) => ({
+    activeIngredient: line.activeIngredient.trim(),
+    strength: line.strength.trim(),
+    pharmaceuticalForm: line.pharmaceuticalForm.trim(),
+    ...(line.route.trim() ? { route: line.route.trim() } : {}),
+    unitsPerDose: line.unitsPerDose.trim(),
+    frequency: line.frequency.trim(),
+    duration: line.duration.trim(),
+    ...(line.instructions.trim() ? { instructions: line.instructions.trim() } : {}),
+  }));
+}
+
+function toLines(prescription: Prescription): PrescriptionLine[] {
+  const lines = prescription.items.map((item) => ({
+    activeIngredient: item.activeIngredient ?? item.brandName ?? "",
+    strength: item.strength,
+    pharmaceuticalForm: item.pharmaceuticalForm,
+    route: item.route ?? "",
+    unitsPerDose: item.unitsPerDose,
+    frequency: item.frequency,
+    duration: item.duration,
+    instructions: item.instructions ?? "",
+  }));
+  return lines.length ? lines : [emptyPrescriptionLine()];
+}
+
+function errorText(error: unknown) {
+  return error instanceof DentyApiError ? error.message : "No se pudo guardar la receta.";
+}
+
+function printPrescription(input: {
+  prescription: {
+    id: string;
+    items: Prescription["items"];
+    prescriptionDate?: string | undefined;
+    prescriberStaffId?: string | undefined;
+    siteId?: string | undefined;
+  };
+  patient: Patient | undefined;
+  settings: Settings | undefined;
+  fallbackSiteId: string | null;
+}) {
+  const { prescription, patient, settings } = input;
+  const staff = settings?.staff.find((member) => member.id === prescription.prescriberStaffId);
+  const prescriber = settings?.prescribers.find(
+    (entry) => entry.staffId === prescription.prescriberStaffId,
+  ) as { licenseNumber?: string | null } | undefined;
+  const site =
+    settings?.sites.find((entry) => entry.id === (prescription.siteId ?? input.fallbackSiteId)) ??
+    settings?.sites.find((entry) => entry.active !== false);
+  printHtml(
+    buildPrescriptionPrintHtml({
+      clinicName: settings?.clinic.name ?? "Clínica dental",
+      ...(site ? { site } : {}),
+      date: prescription.prescriptionDate ?? todayMadrid(),
+      patient: {
+        name: patient ? `${patient.firstName} ${patient.lastName}`.trim() : "",
+        dni: patient?.dni ?? null,
+        recordNumber: patient?.recordNumber ?? null,
+        birthDate: patient?.birthDate ?? null,
+      },
+      prescriber: {
+        name: staff?.displayName ?? "",
+        collegiateNumber: staff?.collegiateNumber ?? prescriber?.licenseNumber ?? null,
+      },
+      items: prescription.items,
+      reference: prescription.id.slice(0, 8),
+    }),
+  );
+}
 
 export function PrescriptionsModule() {
   const prescriptions = usePrescriptionsQuery();
   const settings = usePrescriptionSettingsQuery();
   const patients = usePatientsQuery();
+  const { activeSiteId } = useActiveTenant();
+  const session = useQuery({
+    queryKey: dentyQueryKeys.session,
+    queryFn: () => getBrowserApi().auth.session(),
+    staleTime: 60_000,
+  });
   const create = useCreatePrescriptionMutation();
   const cancel = useCancelPrescriptionMutation();
   const update = useUpdatePrescriptionMutation();
   const validate = useValidatePrescriptionMutation();
   const sign = useSignPrescriptionMutation();
   const issue = useIssuePrescriptionMutation();
+
+  // Composer.
   const [patientId, setPatientId] = useState<string | null>(null);
-  const [prescriberId, setPrescriberId] = useState<string | null>(null);
+  const [prescriberChoice, setPrescriberChoice] = useState<string | null>(null);
+  const [siteChoice, setSiteChoice] = useState<string | null>(null);
+  const [date, setDate] = useState(todayMadrid());
+  const [lines, setLines] = useState<PrescriptionLine[]>(() => [emptyPrescriptionLine()]);
+  const [composerError, setComposerError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Existing prescriptions.
   const [editing, setEditing] = useState<Prescription | null>(null);
-  const [medication, setMedication] = useState<MedicationDraft>(emptyMedication);
+  const [editLines, setEditLines] = useState<PrescriptionLine[]>([]);
   const [signing, setSigning] = useState<Prescription | null>(null);
   const [cancelling, setCancelling] = useState<Prescription | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -76,187 +164,256 @@ export function PrescriptionsModule() {
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const hasError = prescriptions.isError || settings.isError || patients.isError;
 
-  const openEditor = (prescription: Prescription) => {
-    const first = prescription.items[0];
-    setEditing(prescription);
-    setMedication(
-      first
-        ? {
-            activeIngredient: first.activeIngredient ?? first.brandName ?? "",
-            strength: first.strength,
-            pharmaceuticalForm: first.pharmaceuticalForm,
-            route: first.route ?? "",
-            unitsPerDose: first.unitsPerDose,
-            frequency: first.frequency,
-            duration: first.duration,
-            instructions: first.instructions ?? "",
-          }
-        : emptyMedication(),
-    );
+  const patientList = useMemo(() => patients.data?.items ?? [], [patients.data]);
+  const patientsById = useMemo(
+    () => new Map(patientList.map((patient) => [patient.id, patient])),
+    [patientList],
+  );
+  const staff = settings.data?.staff ?? [];
+  const sites = (settings.data?.sites ?? []).filter((site) => site.active !== false);
+  // Defaults: the doctor who is signed in (or the first dentist) and the current site.
+  const actorStaffId = session.data?.actor.staffId;
+  const defaultPrescriber =
+    staff.find((member) => member.id === actorStaffId && member.role === "DENTIST")?.id ??
+    staff.find((member) => member.role === "DENTIST")?.id ??
+    staff[0]?.id ??
+    null;
+  const prescriberId = prescriberChoice ?? defaultPrescriber;
+  const siteId = siteChoice ?? activeSiteId ?? sites[0]?.id ?? null;
+  const items = toItems(lines);
+  const incomplete = lines.some((line) => line.activeIngredient.trim() && !isCompleteLine(line));
+  const canSave = Boolean(patientId && prescriberId && items.length && !incomplete);
+
+  const resetComposer = () => {
+    setPatientId(null);
+    setLines([emptyPrescriptionLine()]);
+    setDate(todayMadrid());
   };
 
-  const saveMedication = () => {
-    if (!editing) return;
-    update.mutate(
-      {
-        id: editing.id,
-        payload: {
-          items: [
-            {
-              activeIngredient: medication.activeIngredient.trim(),
-              strength: medication.strength.trim(),
-              pharmaceuticalForm: medication.pharmaceuticalForm.trim(),
-              ...(medication.route.trim() ? { route: medication.route.trim() } : {}),
-              unitsPerDose: medication.unitsPerDose.trim(),
-              frequency: medication.frequency.trim(),
-              duration: medication.duration.trim(),
-              ...(medication.instructions.trim()
-                ? { instructions: medication.instructions.trim() }
-                : {}),
-            },
-          ],
-        },
-      },
-      { onSuccess: () => setEditing(null) },
-    );
+  const saveComposer = async (andPrint: boolean) => {
+    if (!patientId || !prescriberId) return;
+    setSaving(true);
+    setComposerError(null);
+    try {
+      const created = await create.mutateAsync({
+        patientId,
+        prescriberStaffId: prescriberId,
+        prescriptionDate: date,
+        ...(siteId ? { siteId } : {}),
+        items,
+      });
+      if (andPrint) {
+        // Ready to print and sign by hand; without signing permission it stays a draft.
+        await validate.mutateAsync(created).catch(() => undefined);
+        printPrescription({
+          prescription: {
+            ...created,
+            prescriptionDate: date,
+            prescriberStaffId: prescriberId,
+            ...(siteId ? { siteId } : {}),
+          },
+          patient: patientsById.get(patientId),
+          settings: settings.data,
+          fallbackSiteId: siteId,
+        });
+      }
+      resetComposer();
+    } catch (error) {
+      setComposerError(errorText(error));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const medicationComplete =
-    medication.activeIngredient.trim().length > 0 &&
-    medication.strength.trim().length > 0 &&
-    medication.pharmaceuticalForm.trim().length > 0 &&
-    medication.unitsPerDose.trim().length > 0 &&
-    medication.frequency.trim().length > 0 &&
-    medication.duration.trim().length > 0;
+  const describe = (prescription: Prescription) => {
+    const patient = patientsById.get(prescription.patientId);
+    return {
+      patientName: patient ? `${patient.firstName} ${patient.lastName}` : "Paciente",
+      medicines: prescription.items
+        .map((item) => `${item.activeIngredient ?? item.brandName ?? ""} ${item.strength}`.trim())
+        .join(", "),
+      date: String((prescription as { prescriptionDate?: string }).prescriptionDate ?? "")
+        .split("-")
+        .reverse()
+        .join("/"),
+    };
+  };
 
   return (
     <Stack gap="md">
       {hasError ? (
         <Alert color="red">No se pudieron cargar todos los datos de recetas.</Alert>
       ) : null}
-      {settings.data && !settings.data.settings?.providerEnabled ? (
-        <Alert color="yellow">
-          El proveedor de receta electrónica todavía no está habilitado para la clínica. Las recetas
-          internas siguen pudiendo prepararse, firmarse y conservarse en Denty.
-        </Alert>
-      ) : null}
 
       <section className={styles.section}>
-        <Group justify="space-between">
-          <div>
-            <h3 className={styles.sectionTitle}>Nueva receta</h3>
-            <p className={styles.sectionDescription}>Borrador persistido en Supabase.</p>
-          </div>
-          <Badge variant="light">Servidor</Badge>
-        </Group>
-        <Group grow mt="md" align="end">
-          <Select
-            searchable
-            clearable
-            label="Paciente"
-            value={patientId}
-            onChange={setPatientId}
-            data={(patients.data?.items ?? []).map((patient) => ({
-              value: patient.id,
-              label: `${patient.firstName} ${patient.lastName}`,
-            }))}
-          />
-          <Select
-            searchable
-            clearable
-            label="Prescriptor"
-            value={prescriberId}
-            onChange={setPrescriberId}
-            data={(settings.data?.staff ?? []).map((staff) => ({
-              value: staff.id,
-              label: staff.displayName,
-            }))}
-          />
-          <Button
-            disabled={!patientId || !prescriberId}
-            loading={create.isPending}
-            onClick={() => {
-              if (!patientId || !prescriberId) return;
-              create.mutate({ patientId, prescriberStaffId: prescriberId, items: [] });
-            }}
-          >
-            Crear borrador
-          </Button>
-        </Group>
+        <h3 className={styles.sectionTitle}>Nueva receta</h3>
+        <Stack gap="sm" mt="sm">
+          <Group grow align="end">
+            <Select
+              searchable
+              label="Paciente"
+              placeholder="Buscar paciente"
+              value={patientId}
+              onChange={setPatientId}
+              data={patientList.map((patient) => ({
+                value: patient.id,
+                label: `${patient.firstName} ${patient.lastName}${patient.recordNumber ? ` · ${patient.recordNumber}` : ""}`,
+              }))}
+            />
+            <Select
+              label="Doctor que receta"
+              value={prescriberId}
+              onChange={setPrescriberChoice}
+              allowDeselect={false}
+              data={staff.map((member) => ({
+                value: member.id,
+                label: member.collegiateNumber
+                  ? `${member.displayName} · Col. ${member.collegiateNumber}`
+                  : member.displayName,
+              }))}
+            />
+            {sites.length > 1 ? (
+              <Select
+                label="Sede"
+                value={siteId}
+                onChange={setSiteChoice}
+                allowDeselect={false}
+                data={sites.map((site) => ({ value: site.id, label: site.name }))}
+              />
+            ) : null}
+            <TextInput
+              label="Fecha"
+              type="date"
+              value={date}
+              onChange={(event) => setDate(event.currentTarget.value || todayMadrid())}
+            />
+          </Group>
+          <PrescriptionLinesEditor lines={lines} onChange={setLines} />
+          {incomplete ? (
+            <Text size="sm" c="orange">
+              Completa dosis, forma, toma, posología y duración de cada medicamento.
+            </Text>
+          ) : null}
+          {composerError ? <Alert color="red">{composerError}</Alert> : null}
+          <Group justify="flex-end">
+            <Button
+              variant="default"
+              disabled={!canSave}
+              loading={saving}
+              onClick={() => void saveComposer(false)}
+            >
+              Guardar borrador
+            </Button>
+            <Button
+              leftSection={<IconPrinter size={16} />}
+              disabled={!canSave}
+              loading={saving}
+              onClick={() => void saveComposer(true)}
+            >
+              Guardar e imprimir
+            </Button>
+          </Group>
+        </Stack>
       </section>
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Recetas</h3>
         <div className={styles.rowList}>
-          {(prescriptions.data?.items ?? []).map((prescription) => (
-            <div className={styles.row} key={prescription.id}>
-              <div className={styles.rowMain}>
-                <span className={styles.rowTitle}>{prescription.id}</span>
-                <span className={styles.rowMeta}>
-                  {prescription.items.length} medicamento
-                  {prescription.items.length === 1 ? "" : "s"}
-                </span>
-              </div>
-              <div className={styles.rowActions}>
-                <Badge>{prescription.status}</Badge>
-                <Button
-                  size="xs"
-                  variant="light"
-                  onClick={() => void openPrescriptionPdf(prescription.id)}
-                >
-                  PDF
-                </Button>
-                <Button size="xs" variant="subtle" onClick={() => setHistoryId(prescription.id)}>
-                  Historial
-                </Button>
-                {prescription.status !== "CANCELLED" ? (
-                  <Button
-                    size="xs"
-                    variant="subtle"
-                    color="red"
-                    onClick={() => {
-                      setCancelling(prescription);
-                      setCancelReason("");
-                    }}
-                  >
-                    Cancelar receta
-                  </Button>
-                ) : null}
-                {prescription.status === "DRAFT" ? (
-                  <>
-                    <Button size="xs" variant="light" onClick={() => openEditor(prescription)}>
-                      Medicación
-                    </Button>
+          {(prescriptions.data?.items ?? []).map((prescription) => {
+            const info = describe(prescription);
+            const status = STATUS_LABELS[prescription.status] ?? {
+              label: prescription.status,
+              color: "gray",
+            };
+            return (
+              <div className={styles.row} key={prescription.id}>
+                <div className={styles.rowMain}>
+                  <span className={styles.rowTitle}>
+                    {info.patientName}
+                    {info.date ? ` · ${info.date}` : ""}
+                  </span>
+                  <span className={styles.rowMeta}>{info.medicines || "Sin medicamentos"}</span>
+                </div>
+                <div className={styles.rowActions}>
+                  <Badge color={status.color} variant="light">
+                    {status.label}
+                  </Badge>
+                  {prescription.items.length && prescription.status !== "CANCELLED" ? (
                     <Button
                       size="xs"
                       variant="light"
-                      disabled={prescription.items.length === 0}
-                      onClick={() => validate.mutate(prescription)}
+                      leftSection={<IconPrinter size={14} />}
+                      onClick={() =>
+                        printPrescription({
+                          prescription,
+                          patient: patientsById.get(prescription.patientId),
+                          settings: settings.data,
+                          fallbackSiteId: activeSiteId,
+                        })
+                      }
                     >
-                      Validar
+                      Imprimir
                     </Button>
-                  </>
-                ) : null}
-                {prescription.status === "READY" ? (
-                  <Button
-                    size="xs"
-                    onClick={() => {
-                      setSigning(prescription);
-                      setSignerName("");
-                      setSignatureDataUrl(null);
-                    }}
-                  >
-                    Firmar receta
+                  ) : null}
+                  {prescription.status === "DRAFT" ? (
+                    <>
+                      <Button
+                        size="xs"
+                        variant="light"
+                        onClick={() => {
+                          setEditing(prescription);
+                          setEditLines(toLines(prescription));
+                        }}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="light"
+                        disabled={prescription.items.length === 0}
+                        onClick={() => validate.mutate(prescription)}
+                      >
+                        Validar
+                      </Button>
+                    </>
+                  ) : null}
+                  {prescription.status === "READY" ? (
+                    <Button
+                      size="xs"
+                      onClick={() => {
+                        setSigning(prescription);
+                        setSignerName("");
+                        setSignatureDataUrl(null);
+                      }}
+                    >
+                      Firmar
+                    </Button>
+                  ) : null}
+                  {prescription.status === "SIGNING" ? (
+                    <Button size="xs" onClick={() => issue.mutate(prescription)}>
+                      Emitir
+                    </Button>
+                  ) : null}
+                  <Button size="xs" variant="subtle" onClick={() => setHistoryId(prescription.id)}>
+                    Historial
                   </Button>
-                ) : null}
-                {prescription.status === "SIGNING" ? (
-                  <Button size="xs" onClick={() => issue.mutate(prescription)}>
-                    Emitir
-                  </Button>
-                ) : null}
+                  {prescription.status !== "CANCELLED" ? (
+                    <Button
+                      size="xs"
+                      variant="subtle"
+                      color="red"
+                      onClick={() => {
+                        setCancelling(prescription);
+                        setCancelReason("");
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {!prescriptions.isLoading && (prescriptions.data?.items.length ?? 0) === 0 ? (
             <Text c="dimmed">Sin recetas.</Text>
           ) : null}
@@ -267,91 +424,29 @@ export function PrescriptionsModule() {
         opened={Boolean(editing)}
         onClose={() => setEditing(null)}
         title="Medicación de la receta"
+        size="xl"
         centered
       >
         <Stack gap="sm">
-          <TextInput
-            label="Principio activo"
-            value={medication.activeIngredient}
-            onChange={(event) =>
-              setMedication((current) => ({
-                ...current,
-                activeIngredient: event.currentTarget.value,
-              }))
-            }
-            required
-          />
-          <TextInput
-            label="Dosis"
-            placeholder="500 mg"
-            value={medication.strength}
-            onChange={(event) =>
-              setMedication((current) => ({ ...current, strength: event.currentTarget.value }))
-            }
-            required
-          />
-          <TextInput
-            label="Forma farmacéutica"
-            placeholder="Comprimidos"
-            value={medication.pharmaceuticalForm}
-            onChange={(event) =>
-              setMedication((current) => ({
-                ...current,
-                pharmaceuticalForm: event.currentTarget.value,
-              }))
-            }
-            required
-          />
-          <TextInput
-            label="Vía"
-            placeholder="Oral"
-            value={medication.route}
-            onChange={(event) =>
-              setMedication((current) => ({ ...current, route: event.currentTarget.value }))
-            }
-          />
-          <TextInput
-            label="Unidades por toma"
-            placeholder="1 comprimido"
-            value={medication.unitsPerDose}
-            onChange={(event) =>
-              setMedication((current) => ({ ...current, unitsPerDose: event.currentTarget.value }))
-            }
-            required
-          />
-          <TextInput
-            label="Frecuencia"
-            placeholder="Cada 8 horas"
-            value={medication.frequency}
-            onChange={(event) =>
-              setMedication((current) => ({ ...current, frequency: event.currentTarget.value }))
-            }
-            required
-          />
-          <TextInput
-            label="Duración"
-            placeholder="7 días"
-            value={medication.duration}
-            onChange={(event) =>
-              setMedication((current) => ({ ...current, duration: event.currentTarget.value }))
-            }
-            required
-          />
-          <Textarea
-            label="Indicaciones"
-            value={medication.instructions}
-            onChange={(event) =>
-              setMedication((current) => ({ ...current, instructions: event.currentTarget.value }))
-            }
-          />
+          <PrescriptionLinesEditor lines={editLines} onChange={setEditLines} />
+          {update.isError ? <Alert color="red">{errorText(update.error)}</Alert> : null}
           <Group justify="flex-end">
             <Button variant="default" onClick={() => setEditing(null)}>
               Cancelar
             </Button>
             <Button
-              disabled={!medicationComplete}
+              disabled={
+                !toItems(editLines).length ||
+                editLines.some((line) => line.activeIngredient.trim() && !isCompleteLine(line))
+              }
               loading={update.isPending}
-              onClick={saveMedication}
+              onClick={() => {
+                if (!editing) return;
+                update.mutate(
+                  { id: editing.id, payload: { items: toItems(editLines) } },
+                  { onSuccess: () => setEditing(null) },
+                );
+              }}
             >
               Guardar
             </Button>

@@ -97,6 +97,22 @@ interface StaffRow {
   id: string;
   display_name: string;
   active: boolean;
+  role?: string;
+  collegiate_number?: string | null;
+}
+
+interface ClinicRow {
+  id: string;
+  name: string;
+}
+
+interface SiteRow {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  phone: string | null;
+  active: boolean;
 }
 
 interface SignatureRow {
@@ -340,7 +356,7 @@ export class PrescriptionRepository {
   }
 
   async settings() {
-    const [settingsRows, prescriberRows, staffRows] = await Promise.all([
+    const [settingsRows, prescriberRows, staffRows, clinicRows, siteRows] = await Promise.all([
       this.client.select<ClinicSettingsRow>("prescription_clinic_settings", {
         select: "*",
         clinic_id: `eq.${this.clinicId}`,
@@ -352,17 +368,41 @@ export class PrescriptionRepository {
         order: "display_name.asc",
       }),
       this.client.select<StaffRow>("staff_members", {
-        select: "id,display_name,active",
+        select: "id,display_name,active,role,collegiate_number",
         clinic_id: `eq.${this.clinicId}`,
         active: "eq.true",
         order: "display_name.asc",
       }),
+      this.client.select<ClinicRow>("clinics", {
+        select: "id,name",
+        id: `eq.${this.clinicId}`,
+        limit: 1,
+      }),
+      this.client.select<SiteRow>("sites", {
+        select: "id,name,address,city,phone,active",
+        clinic_id: `eq.${this.clinicId}`,
+        order: "name.asc",
+      }),
     ]);
     return {
-      clinic: { id: this.clinicId },
+      // Letterhead of the printed prescription.
+      clinic: { id: this.clinicId, name: clinicRows[0]?.name ?? null },
+      sites: siteRows.map((site) => ({
+        id: site.id,
+        name: site.name,
+        address: site.address,
+        city: site.city,
+        phone: site.phone,
+        active: site.active,
+      })),
       settings: settingsRows[0] ? clinicSettings(settingsRows[0]) : null,
       prescribers: prescriberRows.map(prescriber),
-      staff: staffRows.map((staff) => ({ id: staff.id, displayName: staff.display_name })),
+      staff: staffRows.map((staff) => ({
+        id: staff.id,
+        displayName: staff.display_name,
+        role: staff.role ?? null,
+        collegiateNumber: staff.collegiate_number ?? null,
+      })),
     };
   }
 

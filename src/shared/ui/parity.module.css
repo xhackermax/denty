@@ -1991,3 +1991,8 @@ html[data-mantine-color-scheme="dark"] .disclosure {
 .rowMeter {
   min-width: 120px;
 }
+
+/* Prescriptions: a field that takes two columns of the medicine grid. */
+.spanTwo {
+  grid-column: span 2;
+}

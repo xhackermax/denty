@@ -37,7 +37,19 @@ export const prescriptionPrescriberInputSchema = z.object({
 
 export const prescriptionSettingsSchema = z
   .object({
-    clinic: z.object({ id: idSchema }).passthrough(),
+    clinic: z.object({ id: idSchema, name: z.string().nullable().optional() }).passthrough(),
+    sites: z
+      .array(
+        z.object({
+          id: idSchema,
+          name: z.string().min(1),
+          address: z.string().nullable().optional(),
+          city: z.string().nullable().optional(),
+          phone: z.string().nullable().optional(),
+          active: z.boolean().optional(),
+        }),
+      )
+      .default([]),
     settings: z
       .object({
         providerEnabled: z.boolean().optional(),
@@ -61,6 +73,8 @@ export const prescriptionSettingsSchema = z
         .object({
           id: idSchema,
           displayName: z.string().min(1),
+          role: z.string().nullable().optional(),
+          collegiateNumber: z.string().nullable().optional(),
         })
         .passthrough(),
     ),
