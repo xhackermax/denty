@@ -11,6 +11,7 @@ import {
   financialDashboardQuerySchema,
   financialDashboardSchema,
   patientAttributionSchema,
+  resetUserPasswordResultSchema,
   resetUserPasswordSchema,
   updateUserSchema,
   userSchema,
@@ -22,8 +23,6 @@ import {
 } from "../schemas/admin";
 import { encodeId } from "./shared";
 import { withQuery } from "./shared";
-
-const okSchema = z.object({ ok: z.literal(true) });
 
 export function createAdminResource(client: ApiClient) {
   return {
@@ -51,11 +50,11 @@ export function createAdminResource(client: ApiClient) {
         client.mutation(`/api/users/${encodeId(id)}`, userSchema, updateUserSchema.parse(payload), {
           method: "PATCH",
         }),
-      resetPassword: (id: string, password: string) =>
+      resetPassword: (id: string, payload: z.input<typeof resetUserPasswordSchema>) =>
         client.mutation(
           `/api/users/${encodeId(id)}/reset-password`,
-          okSchema,
-          resetUserPasswordSchema.parse({ password }),
+          resetUserPasswordResultSchema,
+          resetUserPasswordSchema.parse(payload),
         ),
     },
     attribution: {

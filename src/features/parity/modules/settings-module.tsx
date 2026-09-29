@@ -14,6 +14,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+import { ChangePasswordForm } from "@/features/auth";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
@@ -120,6 +121,15 @@ export function SettingsModule() {
           onChange={(value) => setVisitGapDays(typeof value === "number" ? value : 7)}
           suffix=" días"
         />
+      </section>
+
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>Tu contraseña</h3>
+        <p className={styles.sectionDescription}>
+          Cámbiala cuando quieras. Si la olvidas, un administrador puede restablecerla desde
+          Usuarios.
+        </p>
+        <ChangePasswordForm />
       </section>
 
       <section className={styles.section}>

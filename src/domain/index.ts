@@ -23,3 +23,4 @@ export * from "./implant-surgery-reminder";
 export * from "./implant-budget-versioning";
 export * from "./odontogram/clinical-rules";
 export * from "./odontogram/implant-planning";
+export * from "./patient-credentials";

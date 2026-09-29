@@ -100,6 +100,7 @@ export const dentyQueryKeys = {
     sessions: ["denty", "security", "sessions"] as const,
     backups: ["denty", "security", "backups"] as const,
     privacy: ["denty", "security", "privacy"] as const,
+    users: ["denty", "security", "users"] as const,
   },
   staff: {
     root: root("staff"),
