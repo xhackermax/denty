@@ -11,19 +11,40 @@ export const userSchema = z
     email: z.string().email().optional(),
     role: userRoleSchema,
     active: z.boolean().optional(),
+    patientId: idSchema.optional(),
   })
   .passthrough();
 
 export const usersSchema = z.object({ items: z.array(userSchema) });
 
-export const createUserSchema = z.object({
-  email: z.string().email(),
-  displayName: z.string().min(1),
-  role: userRoleSchema.default("RECEPTION"),
-  password: z.string().min(12),
-  staffId: idSchema.optional(),
-  patientId: idSchema.optional(),
-});
+export const createUserSchema = z
+  .object({
+    // Patient accounts may omit these: the server takes them from the patient record
+    // and the first-access password is the patient's DNI.
+    email: z.string().email().optional(),
+    displayName: z.string().min(1).optional(),
+    role: userRoleSchema.default("RECEPTION"),
+    password: z.string().min(8).optional(),
+    staffId: idSchema.optional(),
+    patientId: idSchema.optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.role === "PATIENT") {
+      if (!value.patientId)
+        context.addIssue({ code: "custom", path: ["patientId"], message: "Elige el paciente." });
+      return;
+    }
+    if (!value.email)
+      context.addIssue({ code: "custom", path: ["email"], message: "El email es obligatorio." });
+    if (!value.displayName)
+      context.addIssue({ code: "custom", path: ["displayName"], message: "Falta el nombre." });
+    if (!value.password || value.password.length < 12)
+      context.addIssue({
+        code: "custom",
+        path: ["password"],
+        message: "La contraseña del personal debe tener al menos 12 caracteres.",
+      });
+  });
 
 export const updateUserSchema = z.object({
   displayName: z.string().min(1).optional(),
@@ -31,7 +52,20 @@ export const updateUserSchema = z.object({
   role: userRoleSchema.optional(),
 });
 
-export const resetUserPasswordSchema = z.object({ password: z.string().min(8) });
+export const resetUserPasswordSchema = z
+  .object({
+    password: z.string().min(8).optional(),
+    /** Patient accounts only: go back to the DNI-based first-access password. */
+    useDni: z.boolean().optional(),
+  })
+  .refine((value) => Boolean(value.password) !== Boolean(value.useDni), {
+    message: "Indica una contraseña nueva o restablece al DNI.",
+  });
+
+export const resetUserPasswordResultSchema = z.object({
+  ok: z.literal(true),
+  usedDni: z.boolean().optional(),
+});
 
 export const acquisitionSourceInputSchema = z.object({
   declaredSource: patientAcquisitionSourceSchema,

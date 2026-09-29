@@ -101,6 +101,20 @@ export const agendaBlockSchema = looseEntitySchema.extend({
   endsAt: z.coerce.string(),
 });
 
+export const agendaBlockViewSchema = z.object({
+  id: idSchema,
+  staffId: idSchema.nullable(),
+  siteId: idSchema.nullable(),
+  cabinetId: idSchema.nullable(),
+  startsAt: z.coerce.string(),
+  endsAt: z.coerce.string(),
+  kind: z.string().min(1),
+  reason: z.string().nullable(),
+});
+
+export const agendaBlocksSchema = z.object({ items: z.array(agendaBlockViewSchema) });
+export type AgendaBlockView = z.infer<typeof agendaBlockViewSchema>;
+
 export const createWaitlistEntrySchema = z.object({
   patientId: idSchema,
   preferredStaffId: idSchema.optional(),

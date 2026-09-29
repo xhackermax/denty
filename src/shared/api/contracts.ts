@@ -122,6 +122,14 @@ export const appointmentStatusSchema = z.enum([
   "RUNNING_LATE",
 ]);
 
+/** Read-only clinical context resolved from the linked plan item (never stored twice). */
+export const appointmentClinicalSchema = z.object({
+  tooth: z.string().nullable().optional(),
+  treatmentCode: z.string().nullable().optional(),
+  label: z.string().nullable().optional(),
+  surfaces: z.array(z.string()).optional(),
+});
+
 export const appointmentSchema = z.object({
   id: idSchema,
   clinicId: idSchema,
@@ -139,6 +147,7 @@ export const appointmentSchema = z.object({
   version: versionSchema,
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
+  clinical: appointmentClinicalSchema.optional(),
 });
 
 export const createAppointmentSchema = z.object({

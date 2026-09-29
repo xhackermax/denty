@@ -6,6 +6,7 @@ import {
   agendaAppointmentRequestsSchema,
   agendaAvailabilitySchema,
   agendaBlockSchema,
+  agendaBlocksSchema,
   agendaContextSchema,
   agendaGameStatusSchema,
   agendaSettingsSchema,
@@ -66,6 +67,8 @@ export function createAgendaResource(client: ApiClient) {
       durationMin?: number;
     }) => client.request(withQuery("/api/agenda/availability", query), agendaAvailabilitySchema),
     blocks: {
+      list: (date: string, siteId?: string) =>
+        client.request(withQuery("/api/agenda/blocks", { date, siteId }), agendaBlocksSchema),
       create: (payload: z.input<typeof createAgendaBlockSchema>) =>
         client.mutation(
           "/api/agenda/blocks",

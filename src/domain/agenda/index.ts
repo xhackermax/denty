@@ -199,3 +199,6 @@ export function waitingVisualState(input: {
   const waitedMinutes = (now - epochMillis(input.arrivedAt)) / 60_000;
   return waitedMinutes > 15 ? "red" : "yellow";
 }
+
+export * from "./clinical-glyph";
+export * from "./view";

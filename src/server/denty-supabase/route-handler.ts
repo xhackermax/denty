@@ -400,7 +400,14 @@ export async function handleSupabaseDentyRoute(
             "AUTH_IDENTIFIER_MISSING",
             "La cuenta no tiene email o teléfono de acceso.",
           );
-        await identity.authClient.signInWithPassword(identifier, payload.currentPassword);
+        try {
+          await identity.authClient.signInWithPassword(identifier, payload.currentPassword);
+        } catch (caught) {
+          // Not a session failure: answering 401 here would sign the user out.
+          if (caught instanceof SupabaseAuthError)
+            return error(400, "CURRENT_PASSWORD_INVALID", "La contraseña actual no es correcta.");
+          throw caught;
+        }
         await identity.authClient.updatePassword(identity.accessToken, payload.newPassword);
         return json(200, { ok: true }, responseHeadersForIdentity(request, identity));
       }
@@ -1767,6 +1774,21 @@ export async function handleSupabaseDentyRoute(
       parts[0] === "api" &&
       parts[1] === "agenda" &&
       parts[2] === "blocks" &&
+      method === "GET"
+    ) {
+      if (identity.actor.role === "PATIENT")
+        return error(403, "FORBIDDEN", "El portal no puede ver los bloqueos de la agenda.");
+      const params = new URL(request.url).searchParams;
+      const date = params.get("date");
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
+        return error(400, "DATE_REQUIRED", "Indica la fecha de la agenda.");
+      return json(200, await agenda.listBlocks(date, params.get("siteId") ?? undefined), headers);
+    }
+    if (
+      parts.length === 3 &&
+      parts[0] === "api" &&
+      parts[1] === "agenda" &&
+      parts[2] === "blocks" &&
       method === "POST"
     ) {
       if (identity.actor.role === "PATIENT")
@@ -2178,10 +2200,6 @@ export async function handleSupabaseDentyRoute(
         return json(200, await auth.listUsers(identity.actor.clinicId), headers);
       if (method === "POST") {
         const payload = await parseJson(request, createUserSchema);
-        if (!payload.email)
-          return error(400, "EMAIL_REQUIRED", "El email es obligatorio para Supabase Auth.");
-        if (!payload.password)
-          return error(400, "PASSWORD_REQUIRED", "La contraseña es obligatoria.");
         return json(
           201,
           await auth.createUser({
@@ -2233,8 +2251,15 @@ export async function handleSupabaseDentyRoute(
         );
       const auth = new AuthRepository(identity.restClient, { adminClient, authClient });
       const payload = await parseJson(request, resetUserPasswordSchema);
-      await auth.resetUserPassword(decodeURIComponent(parts[2] ?? ""), payload.password);
-      return json(200, { ok: true }, headers);
+      return json(
+        200,
+        await auth.resetUserPassword(
+          identity.actor.clinicId,
+          decodeURIComponent(parts[2] ?? ""),
+          payload,
+        ),
+        headers,
+      );
     }
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "patients") {
       if (method === "GET") {

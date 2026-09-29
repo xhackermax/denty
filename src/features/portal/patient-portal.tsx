@@ -2,6 +2,7 @@
 
 import { Alert, Badge, Button, Group, Stack, Text, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChangePasswordForm } from "@/features/auth";
 import { usePatientProjectionQuery } from "@/shared/patients/patient-data";
 import { formatEUR } from "@/domain/money";
 import styles from "@/shared/ui/parity.module.css";
@@ -138,6 +139,10 @@ export function PatientPortal({ patientId }: { patientId: string }) {
           ))}
           {data.prescriptions.length === 0 ? <Text c="dimmed">Sin recetas emitidas.</Text> : null}
         </div>
+      </section>
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>Tu contraseña</h3>
+        <ChangePasswordForm hint="En tu primer acceso la contraseña es tu DNI/NIE (sin espacios ni guiones, con la letra en mayúscula). Te recomendamos cambiarla por una propia." />
       </section>
     </Stack>
   );

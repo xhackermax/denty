@@ -13,6 +13,12 @@ export const dentyQueryKeys = {
     root: root("appointments"),
     day: (date: string, siteId?: string | null) =>
       ["denty", "appointments", "day", { date, siteId: siteId ?? null }] as const,
+    blocks: (date: string, siteId?: string | null) =>
+      ["denty", "appointments", "blocks", { date, siteId: siteId ?? null }] as const,
+    dayRoot: ["denty", "appointments", "day"] as const,
+    availabilityIdle: ["denty", "appointments", "availability", "idle"] as const,
+    availability: (date: string, staffId: string, siteId: string | null, durationMin: number) =>
+      ["denty", "appointments", "availability", { date, staffId, siteId, durationMin }] as const,
     context: ["denty", "appointments", "context"] as const,
     settings: ["denty", "appointments", "settings"] as const,
   },
@@ -94,6 +100,7 @@ export const dentyQueryKeys = {
     sessions: ["denty", "security", "sessions"] as const,
     backups: ["denty", "security", "backups"] as const,
     privacy: ["denty", "security", "privacy"] as const,
+    users: ["denty", "security", "users"] as const,
   },
   staff: {
     root: root("staff"),

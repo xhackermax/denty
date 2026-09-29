@@ -35,6 +35,30 @@ interface AppointmentRpcResult extends Partial<AppointmentRow> {
   currentVersion?: number;
 }
 
+interface PlanItemClinicalRow {
+  id: string;
+  tooth: string | null;
+  treatment_code: string;
+  treatment_code_snapshot: string | null;
+  label: string;
+  label_snapshot: string | null;
+  dental_entity_id: string | null;
+}
+interface DentalEntitySurfacesRow {
+  id: string;
+  surfaces_json: string[] | null;
+}
+interface BlockRow {
+  id: string;
+  staff_id: string | null;
+  site_id: string | null;
+  cabinet_id: string | null;
+  starts_at: string;
+  ends_at: string;
+  kind: string;
+  reason: string | null;
+}
+
 interface StaffRow {
   id: string;
   display_name: string;
@@ -123,7 +147,74 @@ export class AgendaRepository {
       query.and = `(starts_at.lt.${toMadridISO(end)})`;
     }
     const rows = await this.client.select<AppointmentRow>("appointments", query);
-    return rows.map(mapAppointment);
+    return this.attachClinicalContext(rows.map(mapAppointment));
+  }
+
+  /**
+   * Reads tooth, treatment and surfaces from the linked plan item so the agenda can
+   * draw the odontogram glyph without duplicating clinical data on the appointment.
+   */
+  private async attachClinicalContext(appointments: Appointment[]): Promise<Appointment[]> {
+    const planItemIds = [...new Set(appointments.flatMap((item) => item.clinicalPlanItemId ?? []))];
+    if (planItemIds.length === 0) return appointments;
+    const items = await this.client.select<PlanItemClinicalRow>("clinical_plan_items", {
+      select:
+        "id,tooth,treatment_code,treatment_code_snapshot,label,label_snapshot,dental_entity_id",
+      clinic_id: `eq.${this.clinicId}`,
+      id: `in.(${planItemIds.join(",")})`,
+    });
+    const entityIds = [...new Set(items.flatMap((item) => item.dental_entity_id ?? []))];
+    const entities = entityIds.length
+      ? await this.client.select<DentalEntitySurfacesRow>("dental_entities", {
+          select: "id,surfaces_json",
+          clinic_id: `eq.${this.clinicId}`,
+          id: `in.(${entityIds.join(",")})`,
+        })
+      : [];
+    const surfacesByEntity = new Map(entities.map((row) => [row.id, row.surfaces_json ?? []]));
+    const byId = new Map(items.map((item) => [item.id, item]));
+    return appointments.map((appointment) => {
+      const item = appointment.clinicalPlanItemId
+        ? byId.get(appointment.clinicalPlanItemId)
+        : undefined;
+      if (!item) return appointment;
+      return {
+        ...appointment,
+        clinical: {
+          tooth: item.tooth,
+          treatmentCode: item.treatment_code_snapshot ?? item.treatment_code,
+          label: item.label_snapshot ?? item.label,
+          surfaces: item.dental_entity_id
+            ? (surfacesByEntity.get(item.dental_entity_id) ?? [])
+            : [],
+        },
+      };
+    });
+  }
+
+  async listBlocks(date: string, siteId?: string) {
+    const start = madridLocalDateTime(date, "00:00");
+    const end = addDaysMadrid(start, 1);
+    const rows = await this.client.select<BlockRow>("appointment_blocks", {
+      select: "id,staff_id,site_id,cabinet_id,starts_at,ends_at,kind,reason",
+      clinic_id: `eq.${this.clinicId}`,
+      starts_at: `lt.${toMadridISO(end)}`,
+      and: `(ends_at.gt.${toMadridISO(start)})`,
+      ...(siteId ? { or: `(site_id.is.null,site_id.eq.${siteId})` } : {}),
+      order: "starts_at.asc",
+    });
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        staffId: row.staff_id,
+        siteId: row.site_id,
+        cabinetId: row.cabinet_id,
+        startsAt: row.starts_at,
+        endsAt: row.ends_at,
+        kind: row.kind,
+        reason: row.reason,
+      })),
+    };
   }
 
   async createAppointment(payload: CreateAppointment): Promise<Appointment> {

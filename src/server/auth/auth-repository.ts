@@ -1,3 +1,4 @@
+import { initialPatientPassword } from "@/domain/patient-credentials";
 import {
   normalizeRole,
   permissionsForRole,
@@ -34,6 +35,16 @@ interface PatientAccountRow {
   profile_id: string;
   active: boolean;
   is_default?: boolean | null;
+}
+
+interface PatientIdentityRow {
+  id: string;
+  clinic_id: string;
+  first_name: string;
+  last_name: string;
+  dni: string | null;
+  email: string | null;
+  archived_at: string | null;
 }
 
 interface UserPermissionRow {
@@ -218,21 +229,31 @@ export class AuthRepository {
   }
 
   async listUsers(clinicId: string) {
-    const memberships = await this.client.select<ClinicMemberRow>("clinic_members", {
+    // Patient profiles are not visible to staff through RLS, so the admin client
+    // (always scoped by clinic_id below) reads both staff and patient accounts.
+    const db = this.options.adminClient ?? this.client;
+    const memberships = await db.select<ClinicMemberRow>("clinic_members", {
       select: "id,clinic_id,profile_id,role,active,is_default",
       clinic_id: `eq.${clinicId}`,
       order: "created_at.asc",
     });
-    if (memberships.length === 0) return { items: [] };
-    const profileIds = memberships.map((row) => row.profile_id);
-    const profiles = await this.client.select<ProfileRow>("profiles", {
+    const patientAccounts = await db.select<PatientAccountRow>("patient_accounts", {
+      select: "id,clinic_id,patient_id,profile_id,active,is_default",
+      clinic_id: `eq.${clinicId}`,
+    });
+    const profileIds = [
+      ...new Set([...memberships, ...patientAccounts].map((row) => row.profile_id)),
+    ];
+    if (profileIds.length === 0) return { items: [] };
+    const profiles = await db.select<ProfileRow>("profiles", {
       select: "id,first_name,last_name,email,active",
       id: `in.(${profileIds.join(",")})`,
     });
     const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
+    const staffIds = new Set(memberships.map((row) => row.profile_id));
     return {
-      items: memberships
-        .map((membership) => {
+      items: [
+        ...memberships.map((membership) => {
           const profile = profileMap.get(membership.profile_id);
           return {
             id: membership.profile_id,
@@ -241,34 +262,91 @@ export class AuthRepository {
             role: normalizeRole(membership.role),
             active: membership.active && (profile?.active ?? true),
           };
-        })
-        .sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        }),
+        ...patientAccounts
+          .filter((account) => !staffIds.has(account.profile_id))
+          .map((account) => {
+            const profile = profileMap.get(account.profile_id);
+            return {
+              id: account.profile_id,
+              displayName: profile ? displayName(profile) : "Paciente",
+              email: profile?.email ?? undefined,
+              role: "PATIENT" as Role,
+              active: account.active && (profile?.active ?? true),
+              patientId: account.patient_id,
+            };
+          }),
+      ].sort((a, b) => a.displayName.localeCompare(b.displayName)),
     };
   }
 
   async createUser(input: {
     clinicId: string;
-    email: string;
-    displayName: string;
+    email?: string | undefined;
+    displayName?: string | undefined;
     role: Role;
-    password: string;
+    password?: string | undefined;
     staffId?: string | undefined;
     patientId?: string | undefined;
   }) {
     const admin = this.requireAdminDependencies();
-    if (input.role === "PATIENT" && !input.patientId) {
-      throw new IdentityConfigurationError("patientId es obligatorio para una cuenta de paciente.");
+    let email = input.email;
+    let name = input.displayName;
+    let password = input.password;
+    let passwordFromDni = false;
+
+    if (input.role === "PATIENT") {
+      if (!input.patientId) {
+        throw new IdentityConfigurationError(
+          "patientId es obligatorio para una cuenta de paciente.",
+        );
+      }
+      const patient = await this.getClinicPatient(
+        admin.adminClient,
+        input.clinicId,
+        input.patientId,
+      );
+      const existing = await admin.adminClient.select<PatientAccountRow>("patient_accounts", {
+        select: "id,clinic_id,patient_id,profile_id,active,is_default",
+        clinic_id: `eq.${input.clinicId}`,
+        patient_id: `eq.${patient.id}`,
+        limit: 1,
+      });
+      if (existing[0]) {
+        throw new IdentityConfigurationError(
+          "Este paciente ya tiene cuenta. Usa «Restablecer contraseña» para darle acceso de nuevo.",
+        );
+      }
+      email ??= patient.email ?? undefined;
+      name ??= `${patient.first_name} ${patient.last_name}`.trim();
+      if (!password) {
+        password = initialPatientPassword(patient.dni) ?? undefined;
+        passwordFromDni = Boolean(password);
+      }
+      if (!email) {
+        throw new IdentityConfigurationError(
+          "El paciente no tiene email. Añádelo en su ficha o escríbelo al crear la cuenta.",
+        );
+      }
+      if (!password) {
+        throw new IdentityConfigurationError(
+          "El paciente no tiene un DNI/NIE válido en su ficha. Añádelo o indica una contraseña inicial.",
+        );
+      }
+    }
+    if (!email || !name || !password) {
+      throw new IdentityConfigurationError("Faltan email, nombre o contraseña.");
     }
 
     const authUser = await admin.authClient.adminCreateUser({
-      email: input.email,
-      password: input.password,
-      displayName: input.displayName,
+      email,
+      password,
+      displayName: name,
       emailConfirm: true,
     });
 
     try {
-      await ensureProfile(admin.adminClient, authUser.id, input.email, input.displayName);
+      await ensureProfile(admin.adminClient, authUser.id, email, name);
 
       if (input.role === "PATIENT") {
         await admin.adminClient.insert<PatientAccountRow>("patient_accounts", {
@@ -298,7 +376,7 @@ export class AuthRepository {
           await admin.adminClient.insert<StaffMemberRow>("staff_members", {
             clinic_id: input.clinicId,
             profile_id: authUser.id,
-            display_name: input.displayName,
+            display_name: name,
             role: input.role,
             active: true,
           });
@@ -311,10 +389,11 @@ export class AuthRepository {
 
     return {
       id: authUser.id,
-      displayName: input.displayName,
-      email: input.email.trim().toLowerCase(),
+      displayName: name,
+      email: email.trim().toLowerCase(),
       role: input.role,
       active: true,
+      ...(input.role === "PATIENT" ? { patientId: input.patientId, passwordFromDni } : {}),
     };
   }
 
@@ -380,9 +459,67 @@ export class AuthRepository {
     };
   }
 
-  async resetUserPassword(userId: string, password: string): Promise<void> {
-    const { authClient } = this.requireAdminDependencies();
+  /**
+   * Admin password reset, limited to accounts of the admin's own clinic. Patient
+   * accounts can go back to their DNI-based first-access password.
+   */
+  async resetUserPassword(
+    clinicId: string,
+    userId: string,
+    input: { password?: string | undefined; useDni?: boolean | undefined },
+  ): Promise<{ ok: true; usedDni: boolean }> {
+    const { adminClient, authClient } = this.requireAdminDependencies();
+    const [membership] = await adminClient.select<ClinicMemberRow>("clinic_members", {
+      select: "id,clinic_id,profile_id,role,active,is_default",
+      clinic_id: `eq.${clinicId}`,
+      profile_id: `eq.${userId}`,
+      limit: 1,
+    });
+    const [patientAccount] = membership
+      ? []
+      : await adminClient.select<PatientAccountRow>("patient_accounts", {
+          select: "id,clinic_id,patient_id,profile_id,active,is_default",
+          clinic_id: `eq.${clinicId}`,
+          profile_id: `eq.${userId}`,
+          limit: 1,
+        });
+    if (!membership && !patientAccount) {
+      throw new IdentityConfigurationError("El usuario no pertenece a esta clínica.");
+    }
+
+    let password = input.password;
+    if (input.useDni) {
+      if (!patientAccount) {
+        throw new IdentityConfigurationError(
+          "Solo las cuentas de paciente pueden volver a la contraseña del DNI.",
+        );
+      }
+      const patient = await this.getClinicPatient(adminClient, clinicId, patientAccount.patient_id);
+      password = initialPatientPassword(patient.dni) ?? undefined;
+      if (!password) {
+        throw new IdentityConfigurationError(
+          "El paciente no tiene un DNI/NIE válido en su ficha. Indica una contraseña manualmente.",
+        );
+      }
+    }
+    if (!password) throw new IdentityConfigurationError("Indica la contraseña nueva.");
     await authClient.adminUpdateUser(userId, { password });
+    return { ok: true, usedDni: Boolean(input.useDni) };
+  }
+
+  private async getClinicPatient(
+    client: SupabaseRestClient,
+    clinicId: string,
+    patientId: string,
+  ): Promise<PatientIdentityRow> {
+    const [patient] = await client.select<PatientIdentityRow>("patients", {
+      select: "id,clinic_id,first_name,last_name,dni,email,archived_at",
+      id: `eq.${patientId}`,
+      clinic_id: `eq.${clinicId}`,
+      limit: 1,
+    });
+    if (!patient) throw new IdentityConfigurationError("El paciente no pertenece a esta clínica.");
+    return patient;
   }
 
   private async getProfile(userId: string): Promise<ProfileRow | null> {
