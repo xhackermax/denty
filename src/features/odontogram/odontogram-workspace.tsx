@@ -31,6 +31,7 @@ import {
 } from "@/domain";
 import { ClinicalPipelineCard } from "@/shared/clinical/clinical-pipeline-card";
 import { TreatmentFlowModal } from "@/shared/clinical/treatment-flow";
+import { hasNewTreatmentWork } from "@/shared/clinical/treatment-flow-steps";
 import { ClinicalWorkspace } from "@/shared/clinical/clinical-workspace";
 import {
   odontogramEntities,
@@ -1016,6 +1017,8 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
         onSave={async (entities) => {
           if (expectedVersion === undefined) return;
           await saveMutation.mutateAsync({ expectedVersion, entities });
+          // New caries or treatments: carry on straight to plan, budget and appointments.
+          if (hasNewTreatmentWork(currentEntities, entities)) setTreatmentFlowOpen(true);
         }}
         onOpenTreatmentFlow={() => setTreatmentFlowOpen(true)}
       />

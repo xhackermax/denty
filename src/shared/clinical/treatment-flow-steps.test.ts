@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  hasNewTreatmentWork,
   eurosToCents,
   initialTreatmentFlowStep,
   isOpenPlanItem,
@@ -47,5 +48,36 @@ describe("treatment flow steps", () => {
     expect(eurosToCents(60)).toBe(6000);
     expect(eurosToCents("-3")).toBeNull();
     expect(eurosToCents("abc")).toBeNull();
+  });
+});
+
+describe("abrir el flujo al guardar el odontograma", () => {
+  const caries16 = { tooth: "16", entityType: "CARIES", status: "caries_pending", surfaces: ["D"] };
+  it("una caries nueva lleva al plan y a dar cita", () => {
+    expect(hasNewTreatmentWork([], [caries16])).toBe(true);
+  });
+  it("un tratamiento planificado o defectuoso nuevo también", () => {
+    expect(
+      hasNewTreatmentWork([], [{ tooth: "36", entityType: "ENDO", status: "endo_planned" }]),
+    ).toBe(true);
+    expect(
+      hasNewTreatmentWork(
+        [],
+        [{ tooth: "26", entityType: "RESTORATION", status: "restoration_unsatisfactory" }],
+      ),
+    ).toBe(true);
+  });
+  it("no se abre si no hay nada nuevo que tratar", () => {
+    expect(hasNewTreatmentWork([caries16], [{ ...caries16, surfaces: ["D"] }])).toBe(false);
+    expect(
+      hasNewTreatmentWork([], [{ tooth: "11", entityType: "HEALTHY", status: "healthy" }]),
+    ).toBe(false);
+    expect(
+      hasNewTreatmentWork(
+        [],
+        [{ tooth: "14", entityType: "RESTORATION", status: "restoration_completed" }],
+      ),
+    ).toBe(false);
+    expect(hasNewTreatmentWork([], [{ ...caries16, active: false }])).toBe(false);
   });
 });
