@@ -64,8 +64,9 @@ export class StorageRepository {
 
   async uploadPatientPhoto(clinicId: string, patientId: string, file: File): Promise<StoredObject> {
     if (!PHOTO_TYPES.has(file.type)) throw new Error("Formato de foto no permitido.");
-    if (file.size <= 0 || file.size > 5 * 1024 * 1024)
-      throw new Error("La foto debe ocupar entre 1 byte y 5 MB.");
+    // The app compresses photos to a few dozen KB before upload; 1 MB is a backstop.
+    if (file.size <= 0 || file.size > 1024 * 1024)
+      throw new Error("La foto debe ocupar como máximo 1 MB.");
     return this.upload(PATIENT_PHOTOS_BUCKET, clinicId, patientId, file);
   }
 

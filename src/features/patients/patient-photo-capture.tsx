@@ -5,6 +5,7 @@ import { IconCamera, IconPhoto, IconRefresh, IconX } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 
 import styles from "./patient-photo-capture.module.css";
+import { compressPhotoFile, compressVideoFrame } from "./photo-compression";
 
 interface PatientPhotoCaptureProps {
   value: File | null;
@@ -87,23 +88,22 @@ export function PatientPhotoCapture({
       setError("Espera a que aparezca la imagen de la cámara y vuelve a pulsar.");
       return;
     }
-    const maxSide = 1280;
-    const scale = Math.min(1, maxSide / Math.max(video.videoWidth, video.videoHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(video.videoWidth * scale);
-    canvas.height = Math.round(video.videoHeight * scale);
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.86),
-    );
-    if (!blob) {
+    try {
+      onPhotoReady(await compressVideoFrame(video));
+      stopCamera();
+    } catch {
       setError("No se pudo procesar la foto.");
-      return;
     }
-    onPhotoReady(new File([blob], `paciente-${Date.now()}.jpg`, { type: "image/jpeg" }));
-    stopCamera();
+  };
+
+  const choosePhoto = async (file: File | null) => {
+    setError(null);
+    if (!file) return;
+    try {
+      onPhotoReady(await compressPhotoFile(file));
+    } catch {
+      setError("No se pudo leer esa imagen. Prueba con una foto JPG, PNG o WebP.");
+    }
   };
 
   return (
@@ -161,7 +161,7 @@ export function PatientPhotoCapture({
           >
             Abrir cámara
           </Button>
-          <FileButton onChange={onPhotoReady} accept="image/jpeg,image/png,image/webp">
+          <FileButton onChange={(file) => void choosePhoto(file)} accept="image/*">
             {(props) => (
               <Button
                 {...props}
