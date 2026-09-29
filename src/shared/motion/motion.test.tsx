@@ -19,7 +19,9 @@ beforeAll(() => {
     observe() {}
     unobserve() {}
     disconnect() {}
-    takeRecords() { return []; }
+    takeRecords() {
+      return [];
+    }
   } as unknown as typeof IntersectionObserver;
 });
 

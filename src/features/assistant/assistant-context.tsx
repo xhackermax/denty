@@ -33,12 +33,14 @@ export function AssistantContextProvider({ children }: { children: ReactNode }) 
 
 export function useAssistantContext(): AssistantContext {
   const value = useContext(Context);
-  if (!value) throw new Error("useAssistantContext debe usarse dentro de AssistantContextProvider.");
+  if (!value)
+    throw new Error("useAssistantContext debe usarse dentro de AssistantContextProvider.");
   return value;
 }
 
 export function useAssistantContextPatch(): (patch: Partial<AssistantContext>) => void {
   const value = useContext(PatchContext);
-  if (!value) throw new Error("useAssistantContextPatch debe usarse dentro de AssistantContextProvider.");
+  if (!value)
+    throw new Error("useAssistantContextPatch debe usarse dentro de AssistantContextProvider.");
   return value;
 }

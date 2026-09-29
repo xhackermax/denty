@@ -1,6 +1,16 @@
 "use client";
 
-import { Alert, Badge, Button, FileButton, Group, Select, Stack, Text, TextInput } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Button,
+  FileButton,
+  Group,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -21,8 +31,12 @@ export function DocumentsModule() {
     queryFn: () => getBrowserApi().documents.templates.list(),
   });
   const create = useMutation({
-    mutationFn: (payload: { patientId: string; type: string; title: string; templateId?: string }) =>
-      getBrowserApi().documents.create({ ...payload, data: {} }),
+    mutationFn: (payload: {
+      patientId: string;
+      type: string;
+      title: string;
+      templateId?: string;
+    }) => getBrowserApi().documents.create({ ...payload, data: {} }),
     onSuccess: () =>
       void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.documents.root }),
   });
@@ -32,8 +46,10 @@ export function DocumentsModule() {
       void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.documents.root }),
   });
   const uploadFile = useMutation({
-    mutationFn: ({ id, file }: { id: string; file: File }) => getBrowserApi().documents.uploadFile(id, file),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.documents.root }),
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      getBrowserApi().documents.uploadFile(id, file),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.documents.root }),
   });
 
   const downloadFile = async (id: string, fileName?: string | null) => {
@@ -52,9 +68,7 @@ export function DocumentsModule() {
 
   return (
     <Stack gap="md">
-      {hasError ? (
-        <Alert color="red">No se pudieron cargar todos los documentos.</Alert>
-      ) : null}
+      {hasError ? <Alert color="red">No se pudieron cargar todos los documentos.</Alert> : null}
 
       <section className={styles.section}>
         <Group justify="space-between">
@@ -123,7 +137,10 @@ export function DocumentsModule() {
               <div className={styles.rowMain}>
                 <span className={styles.rowTitle}>{document.title}</span>
                 <span className={styles.rowMeta}>
-                  {document.type} · {new Date(document.createdAt).toLocaleDateString("es-ES")} · {document.fileSizeBytes ? `${Math.ceil(document.fileSizeBytes / 1024)} KB` : "sin archivo"}
+                  {document.type} · {new Date(document.createdAt).toLocaleDateString("es-ES")} ·{" "}
+                  {document.fileSizeBytes
+                    ? `${Math.ceil(document.fileSizeBytes / 1024)} KB`
+                    : "sin archivo"}
                 </span>
               </div>
               <div className={styles.rowActions}>
@@ -134,10 +151,20 @@ export function DocumentsModule() {
                   accept="application/pdf,image/jpeg,image/png,image/webp"
                   onChange={(file) => file && uploadFile.mutate({ id: document.id, file })}
                 >
-                  {(props) => <Button {...props} size="xs" variant="light">{document.fileName ? "Nueva versión" : "Adjuntar archivo"}</Button>}
+                  {(props) => (
+                    <Button {...props} size="xs" variant="light">
+                      {document.fileName ? "Nueva versión" : "Adjuntar archivo"}
+                    </Button>
+                  )}
                 </FileButton>
                 {document.fileName ? (
-                  <Button size="xs" variant="subtle" onClick={() => void downloadFile(document.id, document.fileName)}>Descargar</Button>
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    onClick={() => void downloadFile(document.id, document.fileName)}
+                  >
+                    Descargar
+                  </Button>
                 ) : null}
                 {document.status !== "FINAL" && document.status !== "SIGNED" ? (
                   <Button size="xs" variant="light" onClick={() => finalize.mutate(document.id)}>

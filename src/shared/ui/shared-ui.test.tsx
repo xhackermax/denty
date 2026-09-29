@@ -65,7 +65,7 @@ describe("shared UI", () => {
 
   it("derives patient initials", () => {
     renderWithTheme(<PatientAvatar name="Paciente Test" />);
-    expect(screen.getByText("JP")).toBeInTheDocument();
+    expect(screen.getByText("PT")).toBeInTheDocument();
   });
 
   it("restores the UI density preference without overwriting it during hydration", async () => {

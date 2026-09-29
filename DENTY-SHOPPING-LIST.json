@@ -12,22 +12,8 @@
     "stage2_findings_completed_in_code": 7,
     "remaining_audit_findings_after_stage2_code": 75,
     "next_implementation_stage": 7,
-    "completed_implementation_stages": [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6
-    ],
-    "do_not_reimplement_stages": [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6
-    ],
+    "completed_implementation_stages": [1, 2, 3, 4, 5, 6],
+    "do_not_reimplement_stages": [1, 2, 3, 4, 5, 6],
     "stage1_tasks_moved_to_stage3": 0,
     "stage2_live_validation_tasks_remaining": 6,
     "stage3_findings_completed_in_code": 9,
@@ -1846,43 +1832,44 @@
       "key": "dashboard_analytics",
       "name": "Inicio, análisis y KPIs reales",
       "type": "implementation",
-      "status": "pending",
+      "status": "implemented_code_pending_live_gate",
       "objective": "Eliminar cifras decorativas y hacer que todos los KPIs deriven del ledger operativo real.",
       "items": [
         {
           "id": "DNT-FIN-001",
-          "status": "resolved_by_previous_stage",
+          "status": "implemented_code_pending_live_gate",
           "severity": "P0_CRITICAL",
           "module": "Dashboard",
           "title": "Inicio muestra citas/alertas/KPIs demo",
-          "note": "Inicio ya no usa citas/alertas/KPIs codificados; consulta Agenda, Alerts y Analytics reales.",
-          "resolved_by": "stage3"
+          "note": "STAGE_9_IMPLEMENTED_PENDING_LIVE: Inicio consume Agenda/Alerts reales y KPIs DENTY-KPI-1; Stage 9 corrigió la ruta Supabase summary que faltaba y el gate finance.read.",
+          "resolved_by": "stage9"
         },
         {
           "id": "DNT-ANL-001",
-          "status": "resolved_by_previous_stage",
+          "status": "implemented_code_pending_live_gate",
           "severity": "P0_CRITICAL",
           "module": "Análisis",
           "title": "Análisis usa métricas y tratamientos hardcoded",
-          "note": "Análisis dejó de usar métricas/tratamientos hardcodeados y consulta Analytics real.",
-          "resolved_by": "stage3"
+          "note": "STAGE_9_IMPLEMENTED_PENDING_LIVE: Analytics summary/treatments/profitability/doctors/monthly/specialties ya tienen RPC/handler Supabase real; el cierre Stage 3 fue reabierto al descubrir 501.",
+          "resolved_by": "stage9"
         },
         {
           "id": "DNT-ANL-002",
-          "status": "resolved_by_previous_stage",
+          "status": "implemented_code_pending_live_gate",
           "severity": "P1_HIGH",
           "module": "Análisis",
           "title": "Selector Mes/Trimestre/Año es cosmético",
-          "note": "Mes/Trimestre/Año modifica realmente start/end de las consultas Analytics.",
-          "resolved_by": "stage3"
+          "note": "STAGE_9_IMPLEMENTED_PENDING_LIVE: Mes/Trimestre/Año modifica consultas reales con límites Europe/Madrid; falta validación LIVE/DST.",
+          "resolved_by": "stage9"
         },
         {
           "id": "DNT-ANL-003",
-          "status": "pending",
+          "status": "implemented_code_pending_live_gate",
           "severity": "P1_HIGH",
           "module": "Análisis",
           "title": "No hay definiciones canónicas de KPIs",
-          "note": "Pendiente según roadmap."
+          "note": "STAGE_9_IMPLEMENTED_PENDING_LIVE: diccionario DENTY-KPI-1 y fórmulas canónicas compartidas por Dashboard/Finanzas/Análisis.",
+          "resolved_by": "stage9"
         }
       ],
       "actions": [
@@ -1897,7 +1884,8 @@
         "Cambiar rango temporal cambia consultas/resultados.",
         "No quedan valores FINANCE_KPIS o tratamientos fijos en runtime real.",
         "Dos pantallas que muestran el mismo KPI devuelven el mismo valor."
-      ]
+      ],
+      "implementation_lock": "DO_NOT_REIMPLEMENT"
     },
     {
       "number": 10,
@@ -2568,10 +2556,7 @@
       "DNT-DOC-002",
       "DNT-P0-022"
     ],
-    "findings_pre_resolved_by_stage3": [
-      "DNT-PAT-002",
-      "DNT-DOC-001"
-    ],
+    "findings_pre_resolved_by_stage3": ["DNT-PAT-002", "DNT-DOC-001"],
     "migration": "supabase/migrations/20260928050000_stage5_storage_documents_backups.sql",
     "architecture_doc": "docs/architecture/storage-and-backup-policy.md",
     "verification_scripts": [

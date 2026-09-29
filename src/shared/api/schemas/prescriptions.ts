@@ -85,3 +85,41 @@ export const prescriptionsSchema = z.object({
 export const cancelPrescriptionSchema = z.object({
   reason: z.string().trim().min(1),
 });
+
+export const signPrescriptionMetadataSchema = z.object({
+  signerName: z.string().trim().min(1),
+  evidence: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const signPrescriptionSchema = signPrescriptionMetadataSchema.extend({
+  signatureDataUrl: z
+    .string()
+    .regex(
+      /^data:image\/(?:png|jpeg);base64,/,
+      "La firma debe ser una imagen PNG o JPEG codificada en data URL.",
+    ),
+});
+
+export const prescriptionHistorySchema = z.object({
+  items: z.array(
+    z.object({
+      id: idSchema,
+      version: z.number().int().positive(),
+      status: z.string().min(1),
+      snapshotJson: z.record(z.string(), z.unknown()),
+      contentHash: z.string().regex(/^[a-f0-9]{64}$/),
+      createdAt: z.string().min(1),
+    }),
+  ),
+  signatures: z.array(
+    z.object({
+      id: idSchema,
+      prescriptionVersionId: idSchema,
+      signerName: z.string().min(1),
+      checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
+      mimeType: z.enum(["image/png", "image/jpeg"]),
+      sizeBytes: z.number().int().positive(),
+      signedAt: z.string().min(1),
+    }),
+  ),
+});

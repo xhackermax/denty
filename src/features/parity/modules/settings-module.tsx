@@ -1,7 +1,18 @@
 "use client";
 
-import { Alert, Badge, Button, Group, Stack, Text } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Button,
+  Group,
+  NumberInput,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
@@ -21,18 +32,94 @@ export function SettingsModule() {
     queryKey: dentyQueryKeys.security.privacy,
     queryFn: () => getBrowserApi().security.privacy.list(),
   });
+  const patients = useQuery({
+    queryKey: dentyQueryKeys.patients.all,
+    queryFn: () => getBrowserApi().patients.list(),
+  });
+  const agendaSettings = useQuery({
+    queryKey: dentyQueryKeys.appointments.settings,
+    queryFn: () => getBrowserApi().agenda.settings.get(),
+  });
+  const [visitGapDays, setVisitGapDays] = useState(7);
+  const [privacyPatientId, setPrivacyPatientId] = useState("");
+  const [privacyType, setPrivacyType] = useState<
+    "ACCESS" | "EXPORT" | "RECTIFICATION" | "RESTRICTION" | "ERASURE"
+  >("ACCESS");
+  const [privacyNote, setPrivacyNote] = useState("");
+  useEffect(() => {
+    if (agendaSettings.data) setVisitGapDays(agendaSettings.data.clinicDefaultPlanVisitGapDays);
+  }, [agendaSettings.data]);
+  const saveAgendaSettings = useMutation({
+    mutationFn: () =>
+      getBrowserApi().agenda.settings.update({ defaultPlanVisitGapDays: visitGapDays }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.appointments.root });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.appointments.settings });
+    },
+  });
+  const createPrivacy = useMutation({
+    mutationFn: () =>
+      getBrowserApi().security.privacy.create({
+        patientId: privacyPatientId,
+        type: privacyType,
+        note: privacyNote.trim() || undefined,
+      }),
+    onSuccess: () => {
+      setPrivacyNote("");
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.security.privacy });
+    },
+  });
+  const updatePrivacy = useMutation({
+    mutationFn: (input: { id: string; status: "IN_REVIEW" | "COMPLETED" | "REJECTED" }) =>
+      getBrowserApi().security.privacy.update(input.id, { status: input.status }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.security.privacy }),
+  });
   const revoke = useMutation({
     mutationFn: (id: string) => getBrowserApi().security.sessions.revoke(id),
     onSuccess: () =>
       void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.security.sessions }),
   });
-  const hasError = sessions.isError || backups.isError || privacy.isError;
+  const hasError =
+    sessions.isError ||
+    backups.isError ||
+    privacy.isError ||
+    patients.isError ||
+    agendaSettings.isError;
 
   return (
     <Stack gap="md">
       {hasError ? (
         <Alert color="red">Parte de los ajustes de seguridad no está disponible.</Alert>
       ) : null}
+
+      <section className={styles.section}>
+        <Group justify="space-between" align="end">
+          <div>
+            <h3 className={styles.sectionTitle}>Agenda</h3>
+            <p className={styles.sectionDescription}>
+              Preferencias compartidas entre todos los dispositivos de la clínica.
+            </p>
+          </div>
+          <Button
+            size="xs"
+            loading={saveAgendaSettings.isPending}
+            onClick={() => saveAgendaSettings.mutate()}
+          >
+            Guardar
+          </Button>
+        </Group>
+        <NumberInput
+          mt="md"
+          label="Separación entre visitas"
+          description="Días por defecto entre citas creadas en serie."
+          min={0}
+          max={180}
+          value={visitGapDays}
+          onChange={(value) => setVisitGapDays(typeof value === "number" ? value : 7)}
+          suffix=" días"
+        />
+      </section>
 
       <section className={styles.section}>
         <Group justify="space-between">
@@ -69,16 +156,26 @@ export function SettingsModule() {
           <div>
             <h3 className={styles.sectionTitle}>Copias de seguridad</h3>
             <p className={styles.sectionDescription}>
-              Estado real de Supabase Managed Backups. Los objetos de Storage requieren su propia estrategia de retención.
+              Estado real de Supabase Managed Backups. Los objetos de Storage requieren su propia
+              estrategia de retención.
             </p>
           </div>
           <Badge color={backups.data?.configured ? "green" : "yellow"}>
             {backups.data?.configured ? "Supabase conectado" : "No conectado"}
           </Badge>
         </Group>
-        {backups.data?.message ? <Alert mt="md" color="yellow">{backups.data.message}</Alert> : null}
+        {backups.data?.message ? (
+          <Alert mt="md" color="yellow">
+            {backups.data.message}
+          </Alert>
+        ) : null}
         <Text mt="md" size="sm">
-          PITR: {backups.data?.pitrEnabled === true ? "activo" : backups.data?.pitrEnabled === false ? "inactivo" : "sin confirmar"}
+          PITR:{" "}
+          {backups.data?.pitrEnabled === true
+            ? "activo"
+            : backups.data?.pitrEnabled === false
+              ? "inactivo"
+              : "sin confirmar"}
         </Text>
         <div className={styles.rowList}>
           {(backups.data?.backups ?? []).map((backup) => (
@@ -86,13 +183,17 @@ export function SettingsModule() {
               <div className={styles.rowMain}>
                 <span className={styles.rowTitle}>{backup.type ?? "Backup"}</span>
                 <span className={styles.rowMeta}>
-                  {backup.createdAt ? new Date(backup.createdAt).toLocaleString("es-ES") : "Fecha no disponible"}
+                  {backup.createdAt
+                    ? new Date(backup.createdAt).toLocaleString("es-ES")
+                    : "Fecha no disponible"}
                   {backup.status ? ` · ${backup.status}` : ""}
                 </span>
               </div>
             </div>
           ))}
-          {backups.data?.configured && !backups.isLoading && (backups.data?.backups.length ?? 0) === 0 ? (
+          {backups.data?.configured &&
+          !backups.isLoading &&
+          (backups.data?.backups.length ?? 0) === 0 ? (
             <Text c="dimmed">Supabase no devolvió backups disponibles.</Text>
           ) : null}
         </div>
@@ -100,13 +201,72 @@ export function SettingsModule() {
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Privacidad</h3>
+        <Text size="sm" c="dimmed">
+          Las solicitudes quedan persistidas, auditadas y con vencimiento operativo de un mes.
+        </Text>
+        <Group mt="md" align="end" grow>
+          <Select
+            searchable
+            label="Paciente"
+            data={(patients.data?.items ?? []).map((patient) => ({
+              value: patient.id,
+              label: `${patient.firstName} ${patient.lastName} · ${patient.recordNumber}`,
+            }))}
+            value={privacyPatientId || null}
+            onChange={(value) => setPrivacyPatientId(value ?? "")}
+          />
+          <Select
+            label="Derecho"
+            data={["ACCESS", "EXPORT", "RECTIFICATION", "RESTRICTION", "ERASURE"]}
+            value={privacyType}
+            onChange={(value) => setPrivacyType((value ?? "ACCESS") as typeof privacyType)}
+          />
+          <TextInput
+            label="Nota"
+            value={privacyNote}
+            onChange={(event) => setPrivacyNote(event.currentTarget.value)}
+          />
+          <Button
+            disabled={!privacyPatientId}
+            loading={createPrivacy.isPending}
+            onClick={() => createPrivacy.mutate()}
+          >
+            Registrar
+          </Button>
+        </Group>
         <div className={styles.rowList}>
           {(privacy.data?.items ?? []).map((request) => (
             <div className={styles.row} key={request.id}>
               <div className={styles.rowMain}>
                 <span className={styles.rowTitle}>{request.type}</span>
-                <span className={styles.rowMeta}>{request.status}</span>
+                <span className={styles.rowMeta}>
+                  {request.status}
+                  {request.dueAt
+                    ? ` · vence ${new Date(request.dueAt).toLocaleDateString("es-ES")}`
+                    : ""}
+                </span>
               </div>
+              <Group gap="xs">
+                {request.status === "PENDING" ? (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    onClick={() => updatePrivacy.mutate({ id: request.id, status: "IN_REVIEW" })}
+                  >
+                    Revisar
+                  </Button>
+                ) : null}
+                {request.status === "IN_REVIEW" ? (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="green"
+                    onClick={() => updatePrivacy.mutate({ id: request.id, status: "COMPLETED" })}
+                  >
+                    Completar
+                  </Button>
+                ) : null}
+              </Group>
             </div>
           ))}
           {!privacy.isLoading && (privacy.data?.items.length ?? 0) === 0 ? (

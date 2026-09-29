@@ -3,9 +3,10 @@ import { z } from "zod";
 import type { ApiClient } from "../client";
 import {
   analyticsItemsSchema,
+  analyticsKpiDefinitionsSchema,
+  analyticsMetricItemsSchema,
   analyticsQuerySchema,
   analyticsResultSchema,
-  createSupplierInvoiceSchema,
   createTreatmentCostRecipeSchema,
   retireTreatmentCostRecipeSchema,
 } from "../schemas/analytics";
@@ -17,22 +18,30 @@ function analyticsPath(path: string, query: z.input<typeof analyticsQuerySchema>
 
 export function createAnalyticsResource(client: ApiClient) {
   return {
+    kpiDefinitions: () =>
+      client.request("/api/analytics/kpi-definitions", analyticsKpiDefinitionsSchema),
     summary: (query: z.input<typeof analyticsQuerySchema> = {}) =>
       client.request(analyticsPath("/api/analytics/summary", query), analyticsResultSchema),
     comparison: (query: z.input<typeof analyticsQuerySchema> = {}) =>
       client.request(analyticsPath("/api/analytics/comparison", query), analyticsResultSchema),
     specialties: (query: z.input<typeof analyticsQuerySchema> = {}) =>
-      client.request(analyticsPath("/api/analytics/specialties", query), analyticsItemsSchema),
+      client.request(
+        analyticsPath("/api/analytics/specialties", query),
+        analyticsMetricItemsSchema,
+      ),
     treatments: (query: z.input<typeof analyticsQuerySchema> = {}) =>
-      client.request(analyticsPath("/api/analytics/treatments", query), analyticsItemsSchema),
+      client.request(analyticsPath("/api/analytics/treatments", query), analyticsMetricItemsSchema),
     profitability: (query: z.input<typeof analyticsQuerySchema> = {}) =>
-      client.request(analyticsPath("/api/analytics/profitability", query), analyticsItemsSchema),
+      client.request(
+        analyticsPath("/api/analytics/profitability", query),
+        analyticsMetricItemsSchema,
+      ),
     doctors: (query: z.input<typeof analyticsQuerySchema> = {}) =>
-      client.request(analyticsPath("/api/analytics/doctors", query), analyticsItemsSchema),
+      client.request(analyticsPath("/api/analytics/doctors", query), analyticsMetricItemsSchema),
     losses: (query: z.input<typeof analyticsQuerySchema> = {}) =>
       client.request(analyticsPath("/api/analytics/losses", query), analyticsResultSchema),
     monthly: (query: z.input<typeof analyticsQuerySchema> = {}) =>
-      client.request(analyticsPath("/api/analytics/monthly", query), analyticsItemsSchema),
+      client.request(analyticsPath("/api/analytics/monthly", query), analyticsMetricItemsSchema),
     events: (query: z.input<typeof analyticsQuerySchema> = {}) =>
       client.request(analyticsPath("/api/analytics/events", query), analyticsItemsSchema),
     drilldown: (category: string, query: z.input<typeof analyticsQuerySchema> = {}) =>
@@ -46,12 +55,6 @@ export function createAnalyticsResource(client: ApiClient) {
     purchases: (query: z.input<typeof analyticsQuerySchema> = {}) =>
       client.request(analyticsPath("/api/analytics/purchases", query), analyticsResultSchema),
     suppliers: () => client.request("/api/suppliers", analyticsItemsSchema),
-    recordSupplierInvoice: (payload: z.input<typeof createSupplierInvoiceSchema>) =>
-      client.mutation(
-        "/api/supplier-invoices",
-        z.object({ id: z.string().min(1) }).passthrough(),
-        createSupplierInvoiceSchema.parse(payload),
-      ),
     costRecipes: {
       list: () => client.request("/api/analytics/cost-recipes", analyticsItemsSchema),
       create: (payload: z.input<typeof createTreatmentCostRecipeSchema>) =>

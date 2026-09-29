@@ -30,7 +30,12 @@ export function AnimatedProgress({
       return;
     }
     if (!inView) return;
-    const controls = animate(0, value, { duration, delay, ease: "easeOut", onUpdate: setDisplayValue });
+    const controls = animate(0, value, {
+      duration,
+      delay,
+      ease: "easeOut",
+      onUpdate: setDisplayValue,
+    });
     return () => controls.stop();
   }, [delay, duration, inView, reducedMotion, value]);
 

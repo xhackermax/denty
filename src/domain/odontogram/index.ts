@@ -1,5 +1,10 @@
 import { todayMadrid, type DateInput } from "../dates.ts";
 import type { ClinicalLifecycleState } from "./clinical-rules/types.ts";
+import {
+  createSupernumeraryIdentity,
+  mixedDentitionCandidates,
+  type SupernumeraryToothIdentity,
+} from "./dentition.ts";
 
 export const PERMANENT_UPPER = [
   "18",
@@ -100,6 +105,10 @@ export type DentitionStage = "primary" | "mixed" | "permanent";
 
 export const PEDIATRIC_TOOTH_STATUSES = [
   "healthy",
+  "unerupted",
+  "retained",
+  "impacted",
+  "congenitally_missing",
   "early_caries",
   "sealant",
   "pulpotomy",
@@ -159,7 +168,8 @@ export type DentalEntityType =
   | "SURGICAL_LESION"
   | "IMPLANT_COMPONENT"
   | "PROSTHETIC_STRUCTURE"
-  | "PERIODONTAL_FINDING";
+  | "PERIODONTAL_FINDING"
+  | "SUPERNUMERARY_TOOTH";
 
 export interface DentalEntity {
   id: string;
@@ -262,13 +272,9 @@ export function teethForDentition(stage: DentitionStage): {
 } {
   if (stage === "primary") return { upper: TEMPORARY_UPPER, lower: TEMPORARY_LOWER };
   if (stage === "mixed") {
-    // Typical mixed dentition view: erupted permanent incisors/first molars plus
-    // retained primary canines and molars. The clinical editor can still record
-    // eruption/exfoliation status tooth by tooth.
-    return {
-      upper: ["16", "55", "54", "53", "12", "11", "21", "22", "63", "64", "65", "26"],
-      lower: ["46", "85", "84", "83", "42", "41", "31", "32", "73", "74", "75", "36"],
-    };
+    // Mixed dentition is not one fixed eruption snapshot. Return every clinically
+    // relevant candidate; the patient profile decides which pieces are present.
+    return mixedDentitionCandidates();
   }
   return { upper: PERMANENT_UPPER, lower: PERMANENT_LOWER };
 }
@@ -421,11 +427,52 @@ export function createRemovable(arch: ToothArch, teeth: readonly string[]): Dent
 export function createPediatricEntity(tooth: string, status: PediatricToothStatus): DentalEntity {
   parseTooth(tooth);
   return {
-    id: `pediatric-${tooth}-${status}`,
+    id: `pediatric-${tooth}`,
     tooth,
     entityType: "PEDIATRIC",
     status,
     active: true,
+  };
+}
+
+export function createSupernumeraryToothEntity(input: {
+  id: string;
+  anchorFdi: string;
+  iso10394Designation?: string;
+  morphology?: SupernumeraryToothIdentity["morphology"];
+  clinicalType?: SupernumeraryToothIdentity["clinicalType"];
+  label?: string;
+}): DentalEntity {
+  const identity = createSupernumeraryIdentity(input);
+  return {
+    id: identity.key,
+    arch: identity.arch,
+    entityType: "SUPERNUMERARY_TOOTH",
+    status: "present",
+    active: true,
+    attributes: { toothIdentity: identity },
+  };
+}
+
+export function createSupernumeraryTreatmentEntity(input: {
+  supernumerary: DentalEntity;
+  treatmentId: string;
+  entityType: Exclude<DentalEntityType, "SUPERNUMERARY_TOOTH">;
+  status: string;
+  surfaces?: readonly ToothSurface[];
+}): DentalEntity {
+  if (input.supernumerary.entityType !== "SUPERNUMERARY_TOOTH") {
+    throw new RangeError("El tratamiento debe enlazarse a una pieza supernumeraria");
+  }
+  return {
+    id: `${input.treatmentId}-${input.supernumerary.id}`,
+    ...(input.supernumerary.arch === undefined ? {} : { arch: input.supernumerary.arch }),
+    entityType: input.entityType,
+    status: input.status,
+    ...(input.surfaces?.length ? { surfaces: [...input.surfaces] } : {}),
+    parentId: input.supernumerary.id,
+    active: true,
+    attributes: { toothIdentityKey: input.supernumerary.id },
   };
 }
 
@@ -501,3 +548,5 @@ export function compareOdontogramSnapshots(
     }),
   };
 }
+
+export * from "./dentition.ts";

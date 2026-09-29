@@ -1,6 +1,15 @@
 "use client";
 
-import { Alert, Badge, Button, Group, PasswordInput, Select, Stack, TextInput } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Button,
+  Group,
+  PasswordInput,
+  Select,
+  Stack,
+  TextInput,
+} from "@mantine/core";
 import { useEffect, useState, type FormEvent } from "react";
 
 import type { Role } from "@/domain/permissions";
@@ -57,7 +66,9 @@ export function AdminUsersPanel() {
         role,
         password,
       });
-      setUsers((current) => [...current, created as UserRow].sort((a, b) => a.displayName.localeCompare(b.displayName)));
+      setUsers((current) =>
+        [...current, created as UserRow].sort((a, b) => a.displayName.localeCompare(b.displayName)),
+      );
       setEmail("");
       setDisplayName("");
       setPassword("");

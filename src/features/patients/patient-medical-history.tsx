@@ -73,7 +73,6 @@ function catalogLabels(group: MedicalGroup): string[] {
   return dentalMedicalAdmissionOptions[group].map((option) => option.label);
 }
 
-
 function storageValues(group: MedicalGroup, values: readonly string[]): string[] {
   const valueByLabel = new Map(
     dentalMedicalAdmissionOptions[group].map((option) => [option.label, option.value]),
@@ -131,9 +130,7 @@ export function PatientMedicalHistory({
       await onSave(next);
       setOpened(false);
     } catch {
-      setError(
-        "No se pudo guardar la historia médica. Revisa la conexión y vuelve a intentarlo.",
-      );
+      setError("No se pudo guardar la historia médica. Revisa la conexión y vuelve a intentarlo.");
     }
   };
 

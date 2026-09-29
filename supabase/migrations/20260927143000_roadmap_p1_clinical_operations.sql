@@ -20,20 +20,8 @@ create index if not exists patient_recalls_due_idx on public.patient_recalls(cli
 alter table public.appointment_blocks enable row level security;
 alter table public.payment_allocations enable row level security;
 alter table public.patient_recalls enable row level security;
-do $$ begin
-  if exists(select 1 from pg_proc where proname='is_clinic_member') then
-    execute 'create policy "clinic members read appointment blocks" on public.appointment_blocks for select using (public.is_clinic_member(clinic_id))';
-  end if;
-exception when duplicate_object then null; end $$;
-do $$ begin
-  if exists(select 1 from pg_proc where proname='is_clinic_staff') then
-    execute 'create policy "staff manage appointment blocks" on public.appointment_blocks for all using (public.is_clinic_staff(clinic_id)) with check (public.is_clinic_staff(clinic_id))';
-    execute 'create policy "staff manage payment allocations" on public.payment_allocations for all using (exists(select 1 from public.payments p where p.id=payment_id and public.is_clinic_staff(p.clinic_id))) with check (exists(select 1 from public.payments p where p.id=payment_id and public.is_clinic_staff(p.clinic_id)))';
-    execute 'create policy "staff manage recalls" on public.patient_recalls for all using (public.is_clinic_staff(clinic_id)) with check (public.is_clinic_staff(clinic_id))';
-  end if;
-exception when duplicate_object then null; end $$;
-do $$ begin
-  if exists(select 1 from pg_proc where proname='is_clinic_member') and exists(select 1 from pg_proc where proname='is_patient_owner') then
-    execute 'create policy "clinic members read recalls" on public.patient_recalls for select using (public.is_clinic_member(clinic_id) or public.is_patient_owner(patient_id))';
-  end if;
-exception when duplicate_object then null; end $$;
+create policy "clinic members read appointment blocks" on public.appointment_blocks for select using (public.is_clinic_member(clinic_id));
+create policy "staff manage appointment blocks" on public.appointment_blocks for all using (public.is_clinic_staff(clinic_id)) with check (public.is_clinic_staff(clinic_id));
+create policy "staff manage payment allocations" on public.payment_allocations for all using (exists(select 1 from public.payments p where p.id=payment_id and public.is_clinic_staff(p.clinic_id))) with check (exists(select 1 from public.payments p where p.id=payment_id and public.is_clinic_staff(p.clinic_id)));
+create policy "clinic members read recalls" on public.patient_recalls for select using (public.is_clinic_member(clinic_id) or public.is_patient_owner(patient_id));
+create policy "staff manage recalls" on public.patient_recalls for all using (public.is_clinic_staff(clinic_id)) with check (public.is_clinic_staff(clinic_id));

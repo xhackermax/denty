@@ -3,12 +3,7 @@ export type PaymentIntegrationMode = "connected" | "semi_connected" | "manual";
 export type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "BIZUM" | "FINANCING" | "OTHER";
 
 export type PaymentCapability =
-  | "send_amount"
-  | "automatic_confirmation"
-  | "refund"
-  | "cancel"
-  | "receipt"
-  | "reader_status";
+  "send_amount" | "automatic_confirmation" | "refund" | "cancel" | "receipt" | "reader_status";
 
 export interface PaymentMethodOption {
   id: string;
@@ -31,6 +26,7 @@ export interface PaymentRequest {
   currency?: string;
   description?: string;
   budgetId?: string;
+  invoiceId?: string;
   paymentMethodOptionId?: string;
   idempotencyKey?: string;
 }
@@ -57,30 +53,47 @@ export function normalizeCurrency(currency?: string): string {
   return normalized;
 }
 
-export function hasPaymentCapability(option: PaymentMethodOption, capability: PaymentCapability): boolean {
+export function hasPaymentCapability(
+  option: PaymentMethodOption,
+  capability: PaymentCapability,
+): boolean {
   return option.capabilities.includes(capability);
 }
 
 /** One-tap is possible only when Denty can send the amount and verify success itself. */
 export function supportsOneTapPayment(option: PaymentMethodOption): boolean {
-  return option.enabled && option.integrationMode === "connected" &&
-    hasPaymentCapability(option, "send_amount") && hasPaymentCapability(option, "automatic_confirmation");
-}
-
-export function sortPaymentOptions(options: readonly PaymentMethodOption[]): PaymentMethodOption[] {
-  return [...options].filter((option) => option.enabled).sort((a, b) =>
-    Number(b.isDefault) - Number(a.isDefault) || a.priority - b.priority || a.label.localeCompare(b.label),
+  return (
+    option.enabled &&
+    option.integrationMode === "connected" &&
+    hasPaymentCapability(option, "send_amount") &&
+    hasPaymentCapability(option, "automatic_confirmation")
   );
 }
 
-export type NormalizedPaymentStatus =
-  | "created" | "processing" | "requires_action" | "succeeded" | "failed" | "cancelled" | "expired";
+export function sortPaymentOptions(options: readonly PaymentMethodOption[]): PaymentMethodOption[] {
+  return [...options]
+    .filter((option) => option.enabled)
+    .sort(
+      (a, b) =>
+        Number(b.isDefault) - Number(a.isDefault) ||
+        a.priority - b.priority ||
+        a.label.localeCompare(b.label),
+    );
+}
 
-const PAYMENT_TRANSITIONS: Readonly<Record<NormalizedPaymentStatus, readonly NormalizedPaymentStatus[]>> = {
+export type NormalizedPaymentStatus =
+  "created" | "processing" | "requires_action" | "succeeded" | "failed" | "cancelled" | "expired";
+
+const PAYMENT_TRANSITIONS: Readonly<
+  Record<NormalizedPaymentStatus, readonly NormalizedPaymentStatus[]>
+> = {
   created: ["processing", "succeeded", "cancelled", "expired"],
   processing: ["requires_action", "succeeded", "failed", "cancelled", "expired"],
   requires_action: ["processing", "succeeded", "failed", "cancelled", "expired"],
-  succeeded: [], failed: [], cancelled: [], expired: [],
+  succeeded: [],
+  failed: [],
+  cancelled: [],
+  expired: [],
 };
 
 export function normalizePaymentStatus(status: PaymentResult["status"]): NormalizedPaymentStatus {
@@ -89,7 +102,16 @@ export function normalizePaymentStatus(status: PaymentResult["status"]): Normali
   if (status === "CANCELLED") return "cancelled";
   return "processing";
 }
-export function canTransitionPayment(from: NormalizedPaymentStatus, to: NormalizedPaymentStatus): boolean { return PAYMENT_TRANSITIONS[from].includes(to); }
-export function assertPaymentTransition(from: NormalizedPaymentStatus, to: NormalizedPaymentStatus): void {
-  if (!canTransitionPayment(from, to)) throw new Error(`Transición de pago no permitida: ${from} -> ${to}`);
+export function canTransitionPayment(
+  from: NormalizedPaymentStatus,
+  to: NormalizedPaymentStatus,
+): boolean {
+  return PAYMENT_TRANSITIONS[from].includes(to);
+}
+export function assertPaymentTransition(
+  from: NormalizedPaymentStatus,
+  to: NormalizedPaymentStatus,
+): void {
+  if (!canTransitionPayment(from, to))
+    throw new Error(`Transición de pago no permitida: ${from} -> ${to}`);
 }

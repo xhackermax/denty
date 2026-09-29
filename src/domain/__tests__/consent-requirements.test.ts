@@ -11,6 +11,8 @@ describe("surgical consent requirements", () => {
     ["APICOECTOMY", "CONSENT_PERIAPICAL"],
     ["BIOPSY", "CONSENT_BIOPSY"],
   ] as const)("maps %s deterministically to %s", (treatmentCode, consentCode) => {
-    expect(requiredConsentTemplates([{ treatmentCode }]).map((item) => item.code)).toContain(consentCode);
+    expect(requiredConsentTemplates([{ treatmentCode }]).map((item) => item.code)).toContain(
+      consentCode,
+    );
   });
 });

@@ -30,17 +30,16 @@ const STEPS: readonly { key: ClinicalPipelineStepKey; label: string }[] = [
 ];
 
 function lifecycleStatus(value: string | undefined): BudgetLifecycleStatus {
-  return value === "PRESENTED" || value === "ACCEPTED" || value === "REJECTED" || value === "SIGNED" ? value : "DRAFT";
+  return value === "PRESENTED" || value === "ACCEPTED" || value === "REJECTED" || value === "SIGNED"
+    ? value
+    : "DRAFT";
 }
 
 export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
   const syncQuery = useClinicalSyncQuery(patientId ?? "", Boolean(patientId));
   const workflowQuery = useClinicalWorkflowQuery(patientId ?? "", Boolean(patientId));
   const consentRequirementsQuery = useConsentRequirementsQuery(patientId ?? "", Boolean(patientId));
-  const projectionQuery = usePatientProjectionQuery(
-    patientId ?? "",
-    Boolean(patientId),
-  );
+  const projectionQuery = usePatientProjectionQuery(patientId ?? "", Boolean(patientId));
   const progress = useMemo(() => {
     if (!patientId) return null;
     const sync = syncQuery.data;
@@ -96,7 +95,9 @@ export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
         <div>
           <Badge variant="light">Plan → consentimientos → presupuesto → firma → citas</Badge>
           {syncQuery.data?.budget?.outdated ? (
-            <Badge color="yellow" variant="light" ml="xs">Crear revisión del presupuesto</Badge>
+            <Badge color="yellow" variant="light" ml="xs">
+              Crear revisión del presupuesto
+            </Badge>
           ) : null}
         </div>
       </div>
@@ -104,7 +105,9 @@ export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
         {STEPS.map((step, index) => {
           const completed = progress?.completed.has(step.key) ?? false;
           const current = progress?.current === step.key;
-          const navigable = progress ? canNavigateToClinicalPipelineStep(progress, step.key) : false;
+          const navigable = progress
+            ? canNavigateToClinicalPipelineStep(progress, step.key)
+            : false;
           const className = `${styles.pipelineStep} ${completed || current ? styles.pipelineStepActive : ""}`;
           const content = (
             <>

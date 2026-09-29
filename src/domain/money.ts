@@ -62,12 +62,7 @@ export type PaymentProvider = "bank_terminal" | "sumup" | "stripe" | "manual";
 export type PaymentIntegrationMode = "connected" | "semi_connected" | "manual";
 export type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "BIZUM" | "FINANCING" | "OTHER";
 export type PaymentCapability =
-  | "send_amount"
-  | "automatic_confirmation"
-  | "refund"
-  | "cancel"
-  | "receipt"
-  | "reader_status";
+  "send_amount" | "automatic_confirmation" | "refund" | "cancel" | "receipt" | "reader_status";
 
 export interface PaymentMethodOption {
   id: string;
@@ -90,6 +85,7 @@ export interface PaymentRequest {
   currency?: string;
   description?: string;
   budgetId?: string;
+  invoiceId?: string;
   paymentMethodOptionId?: string;
   idempotencyKey?: string;
 }
@@ -116,33 +112,39 @@ export function normalizeCurrency(currency?: string): string {
   return normalized;
 }
 
-export function hasPaymentCapability(option: PaymentMethodOption, capability: PaymentCapability): boolean {
+export function hasPaymentCapability(
+  option: PaymentMethodOption,
+  capability: PaymentCapability,
+): boolean {
   return option.capabilities.includes(capability);
 }
 
 export function supportsOneTapPayment(option: PaymentMethodOption): boolean {
-  return option.enabled &&
+  return (
+    option.enabled &&
     option.integrationMode === "connected" &&
     hasPaymentCapability(option, "send_amount") &&
-    hasPaymentCapability(option, "automatic_confirmation");
-}
-
-export function sortPaymentOptions(options: readonly PaymentMethodOption[]): PaymentMethodOption[] {
-  return [...options].filter((option) => option.enabled).sort((a, b) =>
-    Number(b.isDefault) - Number(a.isDefault) || a.priority - b.priority || a.label.localeCompare(b.label),
+    hasPaymentCapability(option, "automatic_confirmation")
   );
 }
 
-export type NormalizedPaymentStatus =
-  | "created"
-  | "processing"
-  | "requires_action"
-  | "succeeded"
-  | "failed"
-  | "cancelled"
-  | "expired";
+export function sortPaymentOptions(options: readonly PaymentMethodOption[]): PaymentMethodOption[] {
+  return [...options]
+    .filter((option) => option.enabled)
+    .sort(
+      (a, b) =>
+        Number(b.isDefault) - Number(a.isDefault) ||
+        a.priority - b.priority ||
+        a.label.localeCompare(b.label),
+    );
+}
 
-const PAYMENT_TRANSITIONS: Readonly<Record<NormalizedPaymentStatus, readonly NormalizedPaymentStatus[]>> = {
+export type NormalizedPaymentStatus =
+  "created" | "processing" | "requires_action" | "succeeded" | "failed" | "cancelled" | "expired";
+
+const PAYMENT_TRANSITIONS: Readonly<
+  Record<NormalizedPaymentStatus, readonly NormalizedPaymentStatus[]>
+> = {
   created: ["processing", "succeeded", "cancelled", "expired"],
   processing: ["requires_action", "succeeded", "failed", "cancelled", "expired"],
   requires_action: ["processing", "succeeded", "failed", "cancelled", "expired"],
@@ -159,12 +161,19 @@ export function normalizePaymentStatus(status: PaymentResult["status"]): Normali
   return "processing";
 }
 
-export function canTransitionPayment(from: NormalizedPaymentStatus, to: NormalizedPaymentStatus): boolean {
+export function canTransitionPayment(
+  from: NormalizedPaymentStatus,
+  to: NormalizedPaymentStatus,
+): boolean {
   return PAYMENT_TRANSITIONS[from].includes(to);
 }
 
-export function assertPaymentTransition(from: NormalizedPaymentStatus, to: NormalizedPaymentStatus): void {
-  if (!canTransitionPayment(from, to)) throw new Error(`Transición de pago no permitida: ${from} -> ${to}`);
+export function assertPaymentTransition(
+  from: NormalizedPaymentStatus,
+  to: NormalizedPaymentStatus,
+): void {
+  if (!canTransitionPayment(from, to))
+    throw new Error(`Transición de pago no permitida: ${from} -> ${to}`);
 }
 
 export interface PaymentBalance {
@@ -177,7 +186,12 @@ export function applyPayment(balance: PaymentBalance, amountCents: number) {
   const paidCents = balance.paidCents + amountCents;
   if (paidCents > balance.totalCents) throw new RangeError("El pago supera el saldo pendiente");
   const outstandingCents = balance.totalCents - paidCents;
-  return { totalCents: balance.totalCents, paidCents, outstandingCents, settled: outstandingCents === 0 };
+  return {
+    totalCents: balance.totalCents,
+    paidCents,
+    outstandingCents,
+    settled: outstandingCents === 0,
+  };
 }
 
 export interface PaymentAttempt {
@@ -190,6 +204,8 @@ export interface PaymentAttempt {
   amountCents: number;
   currency: string;
   budgetId?: string;
+  invoiceId?: string;
+  paymentMethod?: PaymentMethod;
   providerTransactionId?: string;
   providerCheckoutId?: string;
   readerId?: string;
@@ -199,7 +215,11 @@ export interface PaymentAttempt {
 }
 
 export interface PaymentAttemptStore {
-  find(clinicId: string, provider: PaymentProvider, idempotencyKey: string): Promise<PaymentAttempt | null>;
+  find(
+    clinicId: string,
+    provider: PaymentProvider,
+    idempotencyKey: string,
+  ): Promise<PaymentAttempt | null>;
   create(value: Omit<PaymentAttempt, "id">): Promise<PaymentAttempt>;
   update(id: string, patch: Partial<PaymentAttempt>): Promise<PaymentAttempt>;
 }
@@ -212,14 +232,27 @@ export interface CreatePaymentAttemptInput {
   currency?: string;
   idempotencyKey: string;
   budgetId?: string;
+  invoiceId?: string;
+  paymentMethod?: PaymentMethod;
 }
 
-export async function createOrGetPaymentAttempt(store: PaymentAttemptStore, input: CreatePaymentAttemptInput): Promise<PaymentAttempt> {
+export async function createOrGetPaymentAttempt(
+  store: PaymentAttemptStore,
+  input: CreatePaymentAttemptInput,
+): Promise<PaymentAttempt> {
   assertPaymentAmount(input.amountCents);
-  if (!input.clinicId || !input.patientId || !input.idempotencyKey.trim()) throw new Error("clinicId, patientId e idempotencyKey son obligatorios");
+  if (!input.clinicId || !input.patientId || !input.idempotencyKey.trim())
+    throw new Error("clinicId, patientId e idempotencyKey son obligatorios");
   const existing = await store.find(input.clinicId, input.provider, input.idempotencyKey);
   if (existing) {
-    if (existing.patientId !== input.patientId || existing.amountCents !== input.amountCents || existing.currency !== normalizeCurrency(input.currency)) {
+    if (
+      existing.patientId !== input.patientId ||
+      existing.amountCents !== input.amountCents ||
+      existing.currency !== normalizeCurrency(input.currency) ||
+      (existing.budgetId ?? null) !== (input.budgetId ?? null) ||
+      (existing.invoiceId ?? null) !== (input.invoiceId ?? null) ||
+      (existing.paymentMethod ?? null) !== (input.paymentMethod ?? null)
+    ) {
       throw new Error("La clave de idempotencia ya pertenece a otro cobro");
     }
     return existing;
@@ -233,6 +266,8 @@ export async function createOrGetPaymentAttempt(store: PaymentAttemptStore, inpu
     amountCents: input.amountCents,
     currency: normalizeCurrency(input.currency),
     ...(input.budgetId ? { budgetId: input.budgetId } : {}),
+    ...(input.invoiceId ? { invoiceId: input.invoiceId } : {}),
+    ...(input.paymentMethod ? { paymentMethod: input.paymentMethod } : {}),
   });
 }
 
@@ -258,9 +293,13 @@ export interface PostPaymentDependencies {
   linkLedger(attemptId: string, paymentId: string): Promise<unknown>;
 }
 
-export async function postSucceededPayment(attemptId: string, deps: PostPaymentDependencies): Promise<string> {
+export async function postSucceededPayment(
+  attemptId: string,
+  deps: PostPaymentDependencies,
+): Promise<string> {
   const attempt = await deps.loadAttempt(attemptId);
-  if (attempt.providerStatus !== "succeeded") throw new Error("Solo un cobro verificado puede registrarse en el ledger");
+  if (attempt.providerStatus !== "succeeded")
+    throw new Error("Solo un cobro verificado puede registrarse en el ledger");
   if (attempt.ledgerPaymentId) return attempt.ledgerPaymentId;
   const payment = await deps.postLedger(attempt);
   await deps.linkLedger(attempt.id, payment.id);
@@ -328,7 +367,9 @@ export function availablePaymentMethods(config: ClinicPaymentConfig): PaymentMet
   return sortPaymentOptions(config.methods);
 }
 
-export function preferredPaymentMethod(config: ClinicPaymentConfig): PaymentMethodOption | undefined {
+export function preferredPaymentMethod(
+  config: ClinicPaymentConfig,
+): PaymentMethodOption | undefined {
   return availablePaymentMethods(config)[0];
 }
 

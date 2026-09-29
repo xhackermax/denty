@@ -371,17 +371,23 @@ export const periodontalExamSchema = z
     grade: z.string().nullable().optional(),
     extent: z.string().nullable().optional(),
     version: versionSchema.optional(),
-    sites: z.array(z.object({
-      tooth: z.string().min(1),
-      site: z.string().min(1),
-      probingDepth: z.number().int().nonnegative().optional(),
-      recession: z.number().int().optional(),
-      mobility: z.number().int().nonnegative().optional(),
-      furcation: z.number().int().nonnegative().optional(),
-      bleeding: z.boolean().optional(),
-      plaque: z.boolean().optional(),
-      suppuration: z.boolean().optional(),
-    }).passthrough()).default([]),
+    sites: z
+      .array(
+        z
+          .object({
+            tooth: z.string().min(1),
+            site: z.string().min(1),
+            probingDepth: z.number().int().nonnegative().optional(),
+            recession: z.number().int().optional(),
+            mobility: z.number().int().nonnegative().optional(),
+            furcation: z.number().int().nonnegative().optional(),
+            bleeding: z.boolean().optional(),
+            plaque: z.boolean().optional(),
+            suppuration: z.boolean().optional(),
+          })
+          .passthrough(),
+      )
+      .default([]),
   })
   .passthrough();
 

@@ -34,7 +34,9 @@ export function requireSameOrigin(request: Request): void {
   }
 }
 
-export async function requireFinanceSession(request: Request): Promise<import("@/shared/api/contracts").SessionResponse["actor"]> {
+export async function requireFinanceSession(
+  request: Request,
+): Promise<import("@/shared/api/contracts").SessionResponse["actor"]> {
   const headers = new Headers({ accept: "application/json" });
   const cookie = request.headers.get("cookie");
   if (cookie) headers.set("cookie", cookie);
@@ -114,7 +116,10 @@ export async function getStripeClient(): Promise<StripeClient> {
   return stripeClient;
 }
 
-export function stripeRequestOptions(connectedAccountId?: string, idempotencyKey?: string): StripeRequestOptions {
+export function stripeRequestOptions(
+  connectedAccountId?: string,
+  idempotencyKey?: string,
+): StripeRequestOptions {
   return {
     ...(connectedAccountId ? { stripeAccount: connectedAccountId } : {}),
     ...(idempotencyKey ? { idempotencyKey } : {}),
@@ -159,7 +164,11 @@ export async function createStripeTerminalPayment(
 
 export async function getStripePaymentIntent(paymentIntentId: string, connectedAccountId?: string) {
   const stripe = await getStripeClient();
-  return stripe.paymentIntents.retrieve(paymentIntentId, {}, stripeRequestOptions(connectedAccountId));
+  return stripe.paymentIntents.retrieve(
+    paymentIntentId,
+    {},
+    stripeRequestOptions(connectedAccountId),
+  );
 }
 
 export function mapStripePaymentIntentStatus(intent: StripePaymentIntent): PaymentResult["status"] {

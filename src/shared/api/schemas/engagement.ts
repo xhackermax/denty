@@ -9,6 +9,7 @@ export const communicationCategorySchema = z.enum([
   "PAYMENT_REMINDER",
   "DOCUMENT_AVAILABLE",
   "ADMINISTRATIVE",
+  "MARKETING",
 ]);
 
 export const communicationSchema = z.object({ id: idSchema }).passthrough();
@@ -25,6 +26,8 @@ export const createCommunicationSchema = z
     templateKey: z.string().min(1).optional(),
     variables: z.record(z.string(), z.unknown()).optional(),
     scheduledAt: z.string().datetime({ offset: true }).optional(),
+    campaignId: idSchema.optional(),
+    idempotencyKey: z.string().min(1).max(160).optional(),
   })
   .passthrough();
 
@@ -80,10 +83,16 @@ export const marketingConnectionsSchema = z.object({
 
 export const marketingCampaignSchema = z
   .object({
+    id: idSchema.optional(),
     externalId: z.string().min(1),
     provider: z.string().min(1),
     name: z.string().min(1),
     status: z.string().min(1),
+    version: z.number().int().positive().optional(),
+    attributedPatients: z.number().int().nonnegative().optional(),
+    signedBudgets: z.number().int().nonnegative().optional(),
+    invoicedCents: z.number().nonnegative().optional(),
+    collectedCents: z.number().nonnegative().optional(),
   })
   .passthrough();
 
@@ -95,8 +104,20 @@ export const createMarketingCampaignSchema = z
   .object({
     provider: marketingProviderSchema,
     name: z.string().min(1),
+    externalId: z.string().min(1).optional(),
+    dailyBudgetCents: z.number().int().nonnegative().optional(),
+    utmSource: z.string().max(120).optional(),
+    utmMedium: z.string().max(120).optional(),
+    utmCampaign: z.string().max(160).optional(),
   })
   .passthrough();
+
+export const updateMarketingCampaignSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  status: z.enum(["ACTIVE", "PAUSED"]).optional(),
+  dailyBudgetCents: z.number().int().nonnegative().optional(),
+  expectedVersion: z.number().int().positive().optional(),
+});
 
 export const campaignStatusSchema = z.object({
   status: z.enum(["ACTIVE", "PAUSED"]),
@@ -156,3 +177,17 @@ export const finishGamePlaySchema = z.object({
 export const gameDashboardSchema = z.object({ patientId: idSchema }).passthrough();
 export const gamePlaySchema = z.object({ id: idSchema }).passthrough();
 export const gameVoucherSchema = z.object({ id: idSchema }).passthrough();
+
+export const patientAttributionTouchSchema = z.object({ id: idSchema }).passthrough();
+export const createPatientAttributionTouchSchema = z.object({
+  campaignId: idSchema.optional(),
+  source: z.string().max(120).optional(),
+  detail: z.string().max(300).optional(),
+  utmSource: z.string().max(120).optional(),
+  utmMedium: z.string().max(120).optional(),
+  utmCampaign: z.string().max(160).optional(),
+  utmContent: z.string().max(160).optional(),
+  utmTerm: z.string().max(160).optional(),
+  landingUrl: z.string().url().max(1000).optional(),
+  idempotencyKey: z.string().min(1).max(160).optional(),
+});

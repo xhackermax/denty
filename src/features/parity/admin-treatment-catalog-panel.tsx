@@ -1,6 +1,17 @@
 "use client";
 
-import { Alert, Badge, Button, Group, NumberInput, Stack, Switch, Text, TextInput, Title } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Button,
+  Group,
+  NumberInput,
+  Stack,
+  Switch,
+  Text,
+  TextInput,
+  Title,
+} from "@mantine/core";
 import { useEffect, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -96,24 +107,53 @@ export function AdminTreatmentCatalogPanel() {
     <section className={styles.section}>
       <Title order={3}>Tratamientos y costes base</Title>
       <Text c="dimmed" size="sm" mt="xs">
-        Fuente única para plan, presupuesto, laboratorio, facturación y analítica. Los planes guardan un snapshot para que los históricos no cambien al editar el catálogo.
+        Fuente única para plan, presupuesto, laboratorio, facturación y analítica. Los planes
+        guardan un snapshot para que los históricos no cambien al editar el catálogo.
       </Text>
 
       <form onSubmit={createItem}>
         <Stack mt="lg">
           <Group grow align="end">
-            <TextInput label="Código" placeholder="IMPLANT" value={code} onChange={(event) => setCode(event.currentTarget.value)} required />
-            <TextInput label="Tratamiento" placeholder="Implante" value={name} onChange={(event) => setName(event.currentTarget.value)} required />
-            <NumberInput label="Precio base (€)" min={0} decimalScale={2} value={priceEuros} onChange={setPriceEuros} />
+            <TextInput
+              label="Código"
+              placeholder="IMPLANT"
+              value={code}
+              onChange={(event) => setCode(event.currentTarget.value)}
+              required
+            />
+            <TextInput
+              label="Tratamiento"
+              placeholder="Implante"
+              value={name}
+              onChange={(event) => setName(event.currentTarget.value)}
+              required
+            />
+            <NumberInput
+              label="Precio base (€)"
+              min={0}
+              decimalScale={2}
+              value={priceEuros}
+              onChange={setPriceEuros}
+            />
           </Group>
           <Group justify="space-between">
-            <Switch label="Requiere laboratorio" checked={requiresLab} onChange={(event) => setRequiresLab(event.currentTarget.checked)} />
-            <Button type="submit" loading={pending}>Añadir tratamiento</Button>
+            <Switch
+              label="Requiere laboratorio"
+              checked={requiresLab}
+              onChange={(event) => setRequiresLab(event.currentTarget.checked)}
+            />
+            <Button type="submit" loading={pending}>
+              Añadir tratamiento
+            </Button>
           </Group>
         </Stack>
       </form>
 
-      {error ? <Alert color="red" mt="md">{error}</Alert> : null}
+      {error ? (
+        <Alert color="red" mt="md">
+          {error}
+        </Alert>
+      ) : null}
 
       <div className={styles.rowList}>
         {items.map((item) => {
@@ -123,25 +163,60 @@ export function AdminTreatmentCatalogPanel() {
               <div className={styles.rowMain}>
                 {editing ? (
                   <Group grow>
-                    <TextInput value={editName} onChange={(event) => setEditName(event.currentTarget.value)} aria-label={`Nombre ${item.code}`} />
-                    <NumberInput value={editPriceEuros} onChange={setEditPriceEuros} min={0} decimalScale={2} suffix=" €" aria-label={`Precio ${item.code}`} />
+                    <TextInput
+                      value={editName}
+                      onChange={(event) => setEditName(event.currentTarget.value)}
+                      aria-label={`Nombre ${item.code}`}
+                    />
+                    <NumberInput
+                      value={editPriceEuros}
+                      onChange={setEditPriceEuros}
+                      min={0}
+                      decimalScale={2}
+                      suffix=" €"
+                      aria-label={`Precio ${item.code}`}
+                    />
                   </Group>
                 ) : (
                   <>
                     <span className={styles.rowTitle}>{item.name}</span>
-                    <span className={styles.rowMeta}>{item.code} · {(item.defaultPriceCents / 100).toFixed(2)} €{item.requiresLab ? " · laboratorio" : ""}</span>
+                    <span className={styles.rowMeta}>
+                      {item.code} · {(item.defaultPriceCents / 100).toFixed(2)} €
+                      {item.requiresLab ? " · laboratorio" : ""}
+                    </span>
                   </>
                 )}
               </div>
               <Group gap="xs">
-                <Badge color={item.active ? "green" : "gray"}>{item.active ? "Activo" : "Inactivo"}</Badge>
+                <Badge color={item.active ? "green" : "gray"}>
+                  {item.active ? "Activo" : "Inactivo"}
+                </Badge>
                 {editing ? (
                   <>
-                    <Button size="xs" variant="default" onClick={() => setEditingId(null)} disabled={pending}>Cancelar</Button>
-                    <Button size="xs" onClick={() => void saveEdit(item)} loading={pending}>Guardar</Button>
+                    <Button
+                      size="xs"
+                      variant="default"
+                      onClick={() => setEditingId(null)}
+                      disabled={pending}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button size="xs" onClick={() => void saveEdit(item)} loading={pending}>
+                      Guardar
+                    </Button>
                   </>
                 ) : (
-                  <Button size="xs" variant="light" onClick={() => { setEditingId(item.id); setEditName(item.name); setEditPriceEuros(item.defaultPriceCents / 100); }}>Editar</Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    onClick={() => {
+                      setEditingId(item.id);
+                      setEditName(item.name);
+                      setEditPriceEuros(item.defaultPriceCents / 100);
+                    }}
+                  >
+                    Editar
+                  </Button>
                 )}
               </Group>
             </div>

@@ -8,7 +8,11 @@ assert.match(moduleSource, /createDocumentRow\(/);
 assert.match(moduleSource, /postCreateAction\(document\)/);
 assert.match(moduleSource, /openSigning\(document\)/);
 assert.match(moduleSource, /openDocumentPreview\(document\)/);
-assert.doesNotMatch(moduleSource, /setDocuments[\s\S]{0,240}documents\.find/, "Post-create opening must not read stale React state");
+assert.doesNotMatch(
+  moduleSource,
+  /setDocuments[\s\S]{0,240}documents\.find/,
+  "Post-create opening must not read stale React state",
+);
 assert.match(flowSource, /kind: "sign"/);
 assert.match(flowSource, /kind: "preview"/);
 

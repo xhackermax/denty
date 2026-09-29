@@ -20,6 +20,11 @@ function invalidateFinance(queryClient: ReturnType<typeof useQueryClient>) {
 }
 
 export function useFinanceQueries(enabled: boolean) {
+  const summary = useQuery({
+    queryKey: dentyQueryKeys.analytics.summary(),
+    queryFn: () => getBrowserApi().analytics.summary(),
+    enabled,
+  });
   const invoices = useQuery({
     queryKey: dentyQueryKeys.finance.invoices,
     queryFn: () => getBrowserApi().billing.invoices.list(),
@@ -66,6 +71,7 @@ export function useFinanceQueries(enabled: boolean) {
     enabled,
   });
   return {
+    summary,
     invoices,
     payments,
     budgets,

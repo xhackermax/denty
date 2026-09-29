@@ -26,18 +26,27 @@ export function appendAuthSessionCookies(
   options: { secure: boolean },
 ): void {
   const accessMaxAge = Math.max(60, session.expiresAt - Math.floor(Date.now() / 1000));
-  headers.append("set-cookie", serializeCookie(DENTY_ACCESS_COOKIE, session.accessToken, {
-    maxAge: accessMaxAge,
-    secure: options.secure,
-  }));
-  headers.append("set-cookie", serializeCookie(DENTY_REFRESH_COOKIE, session.refreshToken, {
-    maxAge: 60 * 60 * 24 * 30,
-    secure: options.secure,
-  }));
-  headers.append("set-cookie", serializeCookie(DENTY_APP_SESSION_COOKIE, appSessionId, {
-    maxAge: 60 * 60 * 24 * 30,
-    secure: options.secure,
-  }));
+  headers.append(
+    "set-cookie",
+    serializeCookie(DENTY_ACCESS_COOKIE, session.accessToken, {
+      maxAge: accessMaxAge,
+      secure: options.secure,
+    }),
+  );
+  headers.append(
+    "set-cookie",
+    serializeCookie(DENTY_REFRESH_COOKIE, session.refreshToken, {
+      maxAge: 60 * 60 * 24 * 30,
+      secure: options.secure,
+    }),
+  );
+  headers.append(
+    "set-cookie",
+    serializeCookie(DENTY_APP_SESSION_COOKIE, appSessionId, {
+      maxAge: 60 * 60 * 24 * 30,
+      secure: options.secure,
+    }),
+  );
 }
 
 export function appendRefreshedTokenCookies(
@@ -47,18 +56,27 @@ export function appendRefreshedTokenCookies(
   options: { secure: boolean },
 ): void {
   const accessMaxAge = Math.max(60, session.expiresAt - Math.floor(Date.now() / 1000));
-  headers.append("set-cookie", serializeCookie(DENTY_ACCESS_COOKIE, session.accessToken, {
-    maxAge: accessMaxAge,
-    secure: options.secure,
-  }));
-  headers.append("set-cookie", serializeCookie(DENTY_REFRESH_COOKIE, session.refreshToken, {
-    maxAge: 60 * 60 * 24 * 30,
-    secure: options.secure,
-  }));
-  headers.append("set-cookie", serializeCookie(DENTY_APP_SESSION_COOKIE, appSessionId, {
-    maxAge: 60 * 60 * 24 * 30,
-    secure: options.secure,
-  }));
+  headers.append(
+    "set-cookie",
+    serializeCookie(DENTY_ACCESS_COOKIE, session.accessToken, {
+      maxAge: accessMaxAge,
+      secure: options.secure,
+    }),
+  );
+  headers.append(
+    "set-cookie",
+    serializeCookie(DENTY_REFRESH_COOKIE, session.refreshToken, {
+      maxAge: 60 * 60 * 24 * 30,
+      secure: options.secure,
+    }),
+  );
+  headers.append(
+    "set-cookie",
+    serializeCookie(DENTY_APP_SESSION_COOKIE, appSessionId, {
+      maxAge: 60 * 60 * 24 * 30,
+      secure: options.secure,
+    }),
+  );
 }
 
 export function appendClearedAuthCookies(headers: Headers, options: { secure: boolean }): void {
@@ -81,7 +99,10 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   const parts = token.split(".");
   if (parts.length < 2 || !parts[1]) return null;
   try {
-    return JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as Record<string, unknown>;
+    return JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as Record<
+      string,
+      unknown
+    >;
   } catch {
     return null;
   }

@@ -62,7 +62,12 @@ describe("SupabaseAuthClient", () => {
           expires_at: 4102444800,
           token_type: "bearer",
         },
-        user: { id: "00000000-0000-0000-0000-000000000001", email: "staff@clinic.es", user_metadata: {}, app_metadata: {} },
+        user: {
+          id: "00000000-0000-0000-0000-000000000001",
+          email: "staff@clinic.es",
+          user_metadata: {},
+          app_metadata: {},
+        },
       },
       error: null,
     });
@@ -84,7 +89,14 @@ describe("SupabaseAuthClient", () => {
 
   test("keeps privileged user creation on the service-role client", async () => {
     mocks.adminCreateUser.mockResolvedValue({
-      data: { user: { id: "00000000-0000-0000-0000-000000000002", email: "new@clinic.es", user_metadata: {}, app_metadata: {} } },
+      data: {
+        user: {
+          id: "00000000-0000-0000-0000-000000000002",
+          email: "new@clinic.es",
+          user_metadata: {},
+          app_metadata: {},
+        },
+      },
       error: null,
     });
     const client = new SupabaseAuthClient(credentials, vi.fn());

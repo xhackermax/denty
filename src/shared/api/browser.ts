@@ -12,4 +12,3 @@ export function getBrowserApi() {
   browserApi ??= createDentyApi(new ApiClient({ baseUrl: DENTY_BROWSER_API_BASE_URL }));
   return browserApi;
 }
-

@@ -4,10 +4,12 @@ import {
   type LocalVoiceContext,
   type LocalVoicePlan,
 } from "./local-nlu";
+import { isExecutableVoiceAction } from "./voice-executor";
 
 export interface VoicePreview {
   planToken: string;
   plan: LocalVoicePlan;
+  unsupportedActions: LocalVoiceAction["type"][];
 }
 
 const DESTINATIONS: Readonly<Record<string, string>> = {
@@ -29,12 +31,17 @@ export function patientIdFromPathname(pathname?: string): string | undefined {
 
 export function previewVoiceCommand(input: string, context: LocalVoiceContext = {}): VoicePreview {
   const patientId = context.patientId ?? patientIdFromPathname(context.pathname);
+  const plan = planLocalVoiceCommand(input, {
+    ...context,
+    ...(patientId ? { patientId } : {}),
+  });
+  const unsupportedActions = plan.actions
+    .filter((action) => !isExecutableVoiceAction(action))
+    .map((action) => action.type);
   return {
     planToken: crypto.randomUUID(),
-    plan: planLocalVoiceCommand(input, {
-      ...context,
-      ...(patientId ? { patientId } : {}),
-    }),
+    plan,
+    unsupportedActions,
   };
 }
 
@@ -85,5 +92,9 @@ export function primaryHrefForVoicePlan(plan: LocalVoicePlan): string | undefine
 }
 
 export function canExecuteVoicePreview(preview: VoicePreview): boolean {
-  return preview.plan.actions.length > 0 && preview.plan.ambiguities.length === 0;
+  return (
+    preview.plan.actions.length > 0 &&
+    preview.plan.ambiguities.length === 0 &&
+    preview.unsupportedActions.length === 0
+  );
 }

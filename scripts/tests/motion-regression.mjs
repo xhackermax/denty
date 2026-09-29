@@ -38,7 +38,8 @@ assert.match(metric, /data-speeding-trail=/);
 
 // Visible-motion contract: protagonist metrics belong on the always-visible analysis surface.
 assert.match(analysis, /<SpeedingMetric/);
-for (const label of ["Producción", "Margen", "Conversión", "No presentados"]) assert.match(analysis, new RegExp(label));
+for (const label of ["Producción", "Margen", "Conversión", "No presentados"])
+  assert.match(analysis, new RegExp(label));
 assert.match(analysis, /MotionScrollReveal/);
 assert.match(analysis, /MotionParallax/);
 

@@ -72,7 +72,10 @@ export class DocumentRepository {
 
   async create(payload: CreateDocument): Promise<DocumentView> {
     const patients = await this.rest.select<{ id: string }>("patients", {
-      select: "id", clinic_id: `eq.${this.clinicId}`, id: `eq.${payload.patientId}`, limit: 1,
+      select: "id",
+      clinic_id: `eq.${this.clinicId}`,
+      id: `eq.${payload.patientId}`,
+      limit: 1,
     });
     if (!patients[0]) throw new Error("El paciente no pertenece a la clínica activa.");
     const row = await this.rest.insert<DocumentRow>("documents", {
@@ -99,7 +102,11 @@ export class DocumentRepository {
   async uploadFile(id: string, file: File): Promise<DocumentView> {
     const current = await this.get(id);
     if (!current) throw new Error("Documento no encontrado.");
-    const stored = await this.storage.uploadClinicalDocument(this.clinicId, current.patient_id, file);
+    const stored = await this.storage.uploadClinicalDocument(
+      this.clinicId,
+      current.patient_id,
+      file,
+    );
     try {
       if (!current.storage_path) {
         const updated = await this.rest.patch<DocumentRow>(

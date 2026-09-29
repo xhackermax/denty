@@ -15,7 +15,12 @@ function transitionFrames(kind: RouteTransitionKind, direction: RouteTransitionD
       duration: 0.3,
     } as const;
   }
-  if (kind === "lift") return { initial: { opacity: 0, y: 12, scale: 0.99 }, exit: { opacity: 0, y: -8, scale: 0.99 }, duration: 0.28 } as const;
+  if (kind === "lift")
+    return {
+      initial: { opacity: 0, y: 12, scale: 0.99 },
+      exit: { opacity: 0, y: -8, scale: 0.99 },
+      duration: 0.28,
+    } as const;
   return {
     initial: { opacity: 0, x: direction * 6 },
     exit: { opacity: 0, x: direction * -4 },

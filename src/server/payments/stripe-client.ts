@@ -9,7 +9,10 @@ export function getStripeClient(): Stripe {
   return client;
 }
 
-export function stripeRequestOptions(connectedAccountId?: string, idempotencyKey?: string): Stripe.RequestOptions {
+export function stripeRequestOptions(
+  connectedAccountId?: string,
+  idempotencyKey?: string,
+): Stripe.RequestOptions {
   return {
     ...(connectedAccountId ? { stripeAccount: connectedAccountId } : {}),
     ...(idempotencyKey ? { idempotencyKey } : {}),

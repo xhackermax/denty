@@ -338,7 +338,10 @@ if (!authProxy.includes("decideStaffRouteAccess")) {
 if (loginPage.includes(removedEntryPhrase)) {
   fail("la página de login no puede exponer un bypass de acceso alternativo");
 }
-if (loginForm.includes(removedModeVariable) || loginForm.toLowerCase().includes(removedModePhrase)) {
+if (
+  loginForm.includes(removedModeVariable) ||
+  loginForm.toLowerCase().includes(removedModePhrase)
+) {
   fail("el formulario no puede conservar ramas de acceso alternativo");
 }
 if (!loginForm.includes("getBrowserApi().auth") && !loginForm.includes("api.auth.login")) {

@@ -113,9 +113,7 @@ export const ENDODONTIC_VISUAL_MARKS: Record<EndodonticVisualCode, EndodonticVis
   },
 };
 
-export function endodonticVisualCodeForApicalDiagnosis(
-  diagnosis: string,
-): EndodonticVisualCode {
+export function endodonticVisualCodeForApicalDiagnosis(diagnosis: string): EndodonticVisualCode {
   if (diagnosis === "Tejidos apicales normales") return "normal_apex";
   if (
     diagnosis === "Periodontitis apical sintomatica" ||

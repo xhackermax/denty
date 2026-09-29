@@ -3,8 +3,30 @@ import fs from "node:fs";
 const domain = fs.readFileSync("src/domain/odontogram/index.ts", "utf8");
 const panel = fs.readFileSync("src/features/odontogram/pediatric-panel.tsx", "utf8");
 
-const expectedUpper = ['"55"', '"54"', '"53"', '"52"', '"51"', '"61"', '"62"', '"63"', '"64"', '"65"'];
-const expectedLower = ['"85"', '"84"', '"83"', '"82"', '"81"', '"71"', '"72"', '"73"', '"74"', '"75"'];
+const expectedUpper = [
+  '"55"',
+  '"54"',
+  '"53"',
+  '"52"',
+  '"51"',
+  '"61"',
+  '"62"',
+  '"63"',
+  '"64"',
+  '"65"',
+];
+const expectedLower = [
+  '"85"',
+  '"84"',
+  '"83"',
+  '"82"',
+  '"81"',
+  '"71"',
+  '"72"',
+  '"73"',
+  '"74"',
+  '"75"',
+];
 
 function extractArray(name) {
   const match = domain.match(new RegExp(`export const ${name} = \\[([\\s\\S]*?)\\] as const;`));

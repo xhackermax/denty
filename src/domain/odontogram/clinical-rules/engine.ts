@@ -91,6 +91,8 @@ export function evaluateClinicalBatch(
       ...evaluateRulesR019R035(action.entity, peers, context),
     ];
   });
-  const unique = [...new Map(decisions.map((item) => [`${item.ruleId}:${item.message}`, item])).values()];
+  const unique = [
+    ...new Map(decisions.map((item) => [`${item.ruleId}:${item.message}`, item])).values(),
+  ];
   return evaluationFromDecisions(unique, context);
 }

@@ -8,11 +8,21 @@ import { TimeColorSchemeProvider, useDentyAppearance } from "./time-color-scheme
 
 function Probe() {
   const { preference, resolvedScheme, setPreference } = useDentyAppearance();
-  return <button onClick={() => setPreference("dark")}>{preference}:{resolvedScheme}</button>;
+  return (
+    <button onClick={() => setPreference("dark")}>
+      {preference}:{resolvedScheme}
+    </button>
+  );
 }
 
 function renderProvider() {
-  return render(<MantineProvider defaultColorScheme="light"><TimeColorSchemeProvider><Probe /></TimeColorSchemeProvider></MantineProvider>);
+  return render(
+    <MantineProvider defaultColorScheme="light">
+      <TimeColorSchemeProvider>
+        <Probe />
+      </TimeColorSchemeProvider>
+    </MantineProvider>,
+  );
 }
 
 describe("TimeColorSchemeProvider", () => {

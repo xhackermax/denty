@@ -41,7 +41,14 @@ function toArgs(action: LocalVoiceAction, plan: LocalVoicePlan): unknown | undef
           }
         : undefined;
     case "odontogram.bridge":
-      return patientId ? { patientId, teeth: action.teeth, missingTeeth: action.missingTeeth, status: action.status } : undefined;
+      return patientId
+        ? {
+            patientId,
+            teeth: action.teeth,
+            missingTeeth: action.missingTeeth,
+            status: action.status,
+          }
+        : undefined;
     case "odontogram.removable":
       return patientId ? { patientId, teeth: action.teeth, arch: action.arch } : undefined;
     case "periodontal.update":

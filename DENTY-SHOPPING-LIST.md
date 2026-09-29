@@ -395,14 +395,14 @@ No recrear catálogo, requirements, snapshots, periodoncia versionada ni otra RP
 
 ---
 
-## Etapa 9 — Inicio, análisis y KPIs reales
+## Etapa 9 — Inicio, análisis y KPIs reales — IMPLEMENTADA EN CÓDIGO / LIVE PENDIENTE
 
 **Estado:** `pending`
 
 - [x] **DNT-FIN-001 · Inicio mostraba citas/alertas/KPIs ficticios** — `RESOLVED_BY_STAGE_3`: Inicio consume Agenda, Alerts y Analytics reales.
 - [x] **DNT-ANL-001 · Análisis usaba métricas y tratamientos hardcoded** — `RESOLVED_BY_STAGE_3`: consulta Analytics real.
 - [x] **DNT-ANL-002 · Selector Mes/Trimestre/Año era cosmético** — `RESOLVED_BY_STAGE_3`: modifica start/end de la consulta real.
-- [ ] **DNT-ANL-003 · No hay definiciones canónicas de KPIs** — Pendiente según roadmap.
+- [x] **DNT-ANL-003 · No hay definiciones canónicas de KPIs** — DENTY-KPI-1 canónico implementado; validación LIVE pendiente.
 
 ### Gate de salida
 

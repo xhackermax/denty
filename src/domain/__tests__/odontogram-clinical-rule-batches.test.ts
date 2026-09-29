@@ -14,14 +14,45 @@ const action = (value: DentalEntity): ClinicalAction => ({ type: "UPSERT_ENTITY"
 
 describe("clinical batch validation", () => {
   it.each([
-    ["forward", [action(entity("implant", { entityType: "IMPLANT", status: "implant_pending" })), action(entity("tibase", { status: "tibase" })), action(entity("crown", { entityType: "CROWN", status: "crown_pending", parentId: "tibase", attributes: { implantSupported: true } }))]],
-    ["reverse", [action(entity("crown", { entityType: "CROWN", status: "crown_pending", parentId: "tibase", attributes: { implantSupported: true } })), action(entity("tibase", { status: "tibase" })), action(entity("implant", { entityType: "IMPLANT", status: "implant_pending" }))]],
-  ] as const)("evaluates implant + TiBase + crown independently of %s insertion order", (_label, actions) => {
-    const result = evaluateClinicalBatch(actions, []);
-    expect(result.outcome).toBe("ALLOW");
-    expect(result.ruleIds).not.toContain("R022");
-    expect(result.ruleIds).not.toContain("R028");
-  });
+    [
+      "forward",
+      [
+        action(entity("implant", { entityType: "IMPLANT", status: "implant_pending" })),
+        action(entity("tibase", { status: "tibase" })),
+        action(
+          entity("crown", {
+            entityType: "CROWN",
+            status: "crown_pending",
+            parentId: "tibase",
+            attributes: { implantSupported: true },
+          }),
+        ),
+      ],
+    ],
+    [
+      "reverse",
+      [
+        action(
+          entity("crown", {
+            entityType: "CROWN",
+            status: "crown_pending",
+            parentId: "tibase",
+            attributes: { implantSupported: true },
+          }),
+        ),
+        action(entity("tibase", { status: "tibase" })),
+        action(entity("implant", { entityType: "IMPLANT", status: "implant_pending" })),
+      ],
+    ],
+  ] as const)(
+    "evaluates implant + TiBase + crown independently of %s insertion order",
+    (_label, actions) => {
+      const result = evaluateClinicalBatch(actions, []);
+      expect(result.outcome).toBe("ALLOW");
+      expect(result.ruleIds).not.toContain("R022");
+      expect(result.ruleIds).not.toContain("R028");
+    },
+  );
 
   it("detects conflicts against the aggregate proposed state", () => {
     const result = evaluateClinicalBatch(

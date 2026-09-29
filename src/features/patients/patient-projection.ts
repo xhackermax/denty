@@ -1,6 +1,5 @@
 import type { Patient } from "@/shared/api";
 
-
 export interface PatientCardView {
   id: string;
   recordNumber: string;

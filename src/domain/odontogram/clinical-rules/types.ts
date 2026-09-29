@@ -1,10 +1,7 @@
 import type { DentalEntity } from "../index.ts";
 
 export type ClinicalLifecycleState =
-  | "HALLAZGO_EXISTENTE"
-  | "PLANIFICADO"
-  | "REALIZADO"
-  | "REALIZADO_OTRA_CLINICA";
+  "HALLAZGO_EXISTENTE" | "PLANIFICADO" | "REALIZADO" | "REALIZADO_OTRA_CLINICA";
 
 export type ClinicalRuleSeverity = "ALLOW" | "WARN" | "BLOCK" | "REQUIRE_CONTEXT";
 

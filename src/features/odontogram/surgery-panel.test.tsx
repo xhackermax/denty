@@ -32,8 +32,20 @@ describe("SurgeryPanel", () => {
 
   it("exposes restrained text equivalents for surgical SVG marks", () => {
     const marks = surgicalVisualsForTooth("16", [
-      { id: "implant-16", tooth: "16", entityType: "IMPLANT", status: "implant_planned", active: true },
-      { id: "graft-16", tooth: "16", entityType: "BONE_GRAFT", status: "socket_preservation", active: true },
+      {
+        id: "implant-16",
+        tooth: "16",
+        entityType: "IMPLANT",
+        status: "implant_planned",
+        active: true,
+      },
+      {
+        id: "graft-16",
+        tooth: "16",
+        entityType: "BONE_GRAFT",
+        status: "socket_preservation",
+        active: true,
+      },
     ]);
     expect(marks.map((mark) => mark.ariaLabel)).toEqual([
       "Implante planificado en 16",

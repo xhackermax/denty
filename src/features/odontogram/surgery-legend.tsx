@@ -17,7 +17,9 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
 
 function entityTitle(entity: DentalEntity): string {
   if (entity.entityType === "IMPLANT") {
-    return entity.attributes?.lifecycle === "REALIZADO" ? "Implante realizado" : "Implante planificado";
+    return entity.attributes?.lifecycle === "REALIZADO"
+      ? "Implante realizado"
+      : "Implante planificado";
   }
   return String(entity.attributes?.label ?? entity.status);
 }
@@ -66,7 +68,9 @@ export function SurgeryLegend({
               <span>Estado: {String(entity.attributes?.lifecycle ?? entity.status)}</span>
               {entity.entityType === "IMPLANT" ? (
                 <>
-                  <span>Sistema: {String(entity.attributes?.system ?? "Pendiente de cirugía")}</span>
+                  <span>
+                    Sistema: {String(entity.attributes?.system ?? "Pendiente de cirugía")}
+                  </span>
                   <span>Diámetro: {String(entity.attributes?.diameterMm ?? "Pendiente")}</span>
                   <span>Longitud: {String(entity.attributes?.lengthMm ?? "Pendiente")}</span>
                 </>

@@ -718,6 +718,18 @@ export function VoiceCommandBar() {
               </Alert>
             ) : null}
 
+            {preview.unsupportedActions.length ? (
+              <Alert
+                icon={<IconAlertCircle size={18} />}
+                color="yellow"
+                title="Acción aún no ejecutable"
+              >
+                Denty ha entendido la orden, pero no la ejecutará hasta que estas acciones estén
+                conectadas al mismo comando transaccional que la interfaz:{" "}
+                {preview.unsupportedActions.join(" · ")}.
+              </Alert>
+            ) : null}
+
             <List size="sm" spacing="xs">
               {preview.plan.actions.map((action, index) => (
                 <List.Item key={`${action.type}-${index}`}>{action.type}</List.Item>

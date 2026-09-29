@@ -11,6 +11,8 @@ type SiteOption = { id: string; name: string };
 interface ActiveTenantContextValue {
   activeClinicId: string | null;
   activeSiteId: string | null;
+  role: string | null;
+  permissions: readonly string[];
   sites: readonly SiteOption[];
   setActiveSiteId: (siteId: string | null) => void;
   loading: boolean;
@@ -45,11 +47,21 @@ export function ActiveTenantProvider({ children }: { children: ReactNode }) {
     () => ({
       activeClinicId: sessionQuery.data?.actor.clinicId ?? null,
       activeSiteId,
+      role: sessionQuery.data?.actor.role ?? null,
+      permissions: sessionQuery.data?.actor.permissions ?? [],
       sites,
       setActiveSiteId,
       loading: sessionQuery.isPending || agendaContextQuery.isPending,
     }),
-    [activeSiteId, agendaContextQuery.isPending, sessionQuery.data?.actor.clinicId, sessionQuery.isPending, sites],
+    [
+      activeSiteId,
+      agendaContextQuery.isPending,
+      sessionQuery.data?.actor.clinicId,
+      sessionQuery.data?.actor.permissions,
+      sessionQuery.data?.actor.role,
+      sessionQuery.isPending,
+      sites,
+    ],
   );
 
   return <ActiveTenantContext.Provider value={value}>{children}</ActiveTenantContext.Provider>;

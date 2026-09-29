@@ -21,7 +21,9 @@ import {
 } from "@/shared/clinical/clinical-data";
 import styles from "@/shared/ui/parity.module.css";
 
-interface PatientClinicalSummaryProps { patientId: string; }
+interface PatientClinicalSummaryProps {
+  patientId: string;
+}
 
 export function PatientClinicalSummary({ patientId }: PatientClinicalSummaryProps) {
   const [problemTooth, setProblemTooth] = useState("");
@@ -75,31 +77,31 @@ export function PatientClinicalSummary({ patientId }: PatientClinicalSummaryProp
           </div>
           <Badge variant="light">{problems.length}</Badge>
         </Group>
-          <>
-            <SimpleGrid cols={{ base: 1, sm: 2 }} mt="lg">
-              <TextInput
-                label="Diente / zona"
-                placeholder="Ej. 46"
-                value={problemTooth}
-                onChange={(event) => setProblemTooth(event.currentTarget.value)}
-              />
-              <TextInput
-                label="Problema"
-                placeholder="Ej. dolor a la masticación"
-                value={problemTitle}
-                onChange={(event) => setProblemTitle(event.currentTarget.value)}
-              />
-            </SimpleGrid>
-            <Button
-              mt="md"
-              size="xs"
-              loading={problemMutation.isPending}
-              disabled={!problemTitle.trim()}
-              onClick={() => void createProblem()}
-            >
-              Registrar problema
-            </Button>
-          </>
+        <>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} mt="lg">
+            <TextInput
+              label="Diente / zona"
+              placeholder="Ej. 46"
+              value={problemTooth}
+              onChange={(event) => setProblemTooth(event.currentTarget.value)}
+            />
+            <TextInput
+              label="Problema"
+              placeholder="Ej. dolor a la masticación"
+              value={problemTitle}
+              onChange={(event) => setProblemTitle(event.currentTarget.value)}
+            />
+          </SimpleGrid>
+          <Button
+            mt="md"
+            size="xs"
+            loading={problemMutation.isPending}
+            disabled={!problemTitle.trim()}
+            onClick={() => void createProblem()}
+          >
+            Registrar problema
+          </Button>
+        </>
 
         {problemMutation.isError ? (
           <Alert mt="lg" color="red" title="No se guardó el problema">
@@ -134,24 +136,24 @@ export function PatientClinicalSummary({ patientId }: PatientClinicalSummaryProp
         </Group>
 
         <>
-            <Textarea
-              mt="lg"
-              minRows={3}
-              label="Evolución"
-              placeholder="Motivo, hallazgos, procedimiento e indicaciones"
-              value={note}
-              onChange={(event) => setNote(event.currentTarget.value)}
-            />
-            <Button
-              mt="md"
-              size="xs"
-              loading={encounterMutation.isPending}
-              disabled={!note.trim()}
-              onClick={() => void createEncounter()}
-            >
-              Firmar nota clínica
-            </Button>
-          </>
+          <Textarea
+            mt="lg"
+            minRows={3}
+            label="Evolución"
+            placeholder="Motivo, hallazgos, procedimiento e indicaciones"
+            value={note}
+            onChange={(event) => setNote(event.currentTarget.value)}
+          />
+          <Button
+            mt="md"
+            size="xs"
+            loading={encounterMutation.isPending}
+            disabled={!note.trim()}
+            onClick={() => void createEncounter()}
+          >
+            Firmar nota clínica
+          </Button>
+        </>
 
         {encounterMutation.isError ? (
           <Alert mt="lg" color="red" title="No se guardó la evolución">

@@ -52,31 +52,40 @@ export interface SurgeryPanelProps {
   onWarning: (message: string) => void;
 }
 
-export function SurgeryPanel({ selectedTooth, entities, readOnly, onCommitBatch }: SurgeryPanelProps) {
+export function SurgeryPanel({
+  selectedTooth,
+  entities,
+  readOnly,
+  onCommitBatch,
+}: SurgeryPanelProps) {
   const [procedure, setProcedure] = useState<string>("extraction_simple");
   const [state, setState] = useState<"PLANIFICADO" | "REALIZADO">("PLANIFICADO");
   const [implantDesign, setImplantDesign] = useState<ImplantProstheticDesign>("UNIT_TIBASE");
   const procedureLabel = PROCEDURES.find(([value]) => value === procedure)?.[1] ?? procedure;
-  const selectedCount = entities.filter((entity) => entity.active && entity.tooth === selectedTooth).length;
+  const selectedCount = entities.filter(
+    (entity) => entity.active && entity.tooth === selectedTooth,
+  ).length;
 
   const commit = () => {
     if (procedure === "implant_planned") {
       onCommitBatch(implantPlanEntities(createPlannedImplant(selectedTooth, implantDesign)));
       return;
     }
-    onCommitBatch([{
-      id: `surgery-${selectedTooth}-${procedure}`,
-      tooth: selectedTooth,
-      entityType: entityTypeFor(procedure),
-      status: procedure,
-      active: true,
-      attributes: {
-        lifecycle: state,
-        procedure,
-        label: procedureLabel,
-        ...(procedure === "extraction_surgical" ? { impacted: true } : {}),
+    onCommitBatch([
+      {
+        id: `surgery-${selectedTooth}-${procedure}`,
+        tooth: selectedTooth,
+        entityType: entityTypeFor(procedure),
+        status: procedure,
+        active: true,
+        attributes: {
+          lifecycle: state,
+          procedure,
+          label: procedureLabel,
+          ...(procedure === "extraction_surgical" ? { impacted: true } : {}),
+        },
       },
-    }]);
+    ]);
   };
 
   return (
@@ -84,18 +93,37 @@ export function SurgeryPanel({ selectedTooth, entities, readOnly, onCommitBatch 
       <Group justify="space-between" align="flex-start">
         <div>
           <Text fw={850}>Cirugía · pieza {selectedTooth}</Text>
-          <Text size="xs" c="dimmed">Planifica o registra el procedimiento en el mismo historial clínico.</Text>
+          <Text size="xs" c="dimmed">
+            Planifica o registra el procedimiento en el mismo historial clínico.
+          </Text>
         </div>
         <Badge variant="light">{selectedCount} registros</Badge>
       </Group>
       <Group mt="sm" align="end">
-        <Select label="Procedimiento" value={procedure} onChange={(value) => setProcedure(value ?? procedure)} data={PROCEDURES.map(([value, label]) => ({ value, label }))} disabled={readOnly} />
-        <Select label="Estado" value={state} onChange={(value) => setState((value as "PLANIFICADO" | "REALIZADO") ?? state)} data={[{ value: "PLANIFICADO", label: "Planificado" }, { value: "REALIZADO", label: "Realizado" }]} disabled={readOnly} />
+        <Select
+          label="Procedimiento"
+          value={procedure}
+          onChange={(value) => setProcedure(value ?? procedure)}
+          data={PROCEDURES.map(([value, label]) => ({ value, label }))}
+          disabled={readOnly}
+        />
+        <Select
+          label="Estado"
+          value={state}
+          onChange={(value) => setState((value as "PLANIFICADO" | "REALIZADO") ?? state)}
+          data={[
+            { value: "PLANIFICADO", label: "Planificado" },
+            { value: "REALIZADO", label: "Realizado" },
+          ]}
+          disabled={readOnly}
+        />
         {procedure === "implant_planned" ? (
           <Select
             label="Diseño protésico"
             value={implantDesign}
-            onChange={(value) => setImplantDesign((value as ImplantProstheticDesign) ?? "UNIT_TIBASE")}
+            onChange={(value) =>
+              setImplantDesign((value as ImplantProstheticDesign) ?? "UNIT_TIBASE")
+            }
             data={[
               { value: "UNIT_TIBASE", label: "Unitario · TiBase + corona" },
               { value: "MULTIUNIT_FIXED", label: "Multiunit + estructura atornillada" },
@@ -108,7 +136,9 @@ export function SurgeryPanel({ selectedTooth, entities, readOnly, onCommitBatch 
             disabled={readOnly}
           />
         ) : null}
-        <Button disabled={readOnly} onClick={commit}>Registrar</Button>
+        <Button disabled={readOnly} onClick={commit}>
+          Registrar
+        </Button>
       </Group>
       <SurgeryLegend selectedTooth={selectedTooth} entities={entities} requiredFields={[]} />
     </section>

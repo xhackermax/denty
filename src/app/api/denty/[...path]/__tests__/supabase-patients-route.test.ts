@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { authenticatedHeaders, withAuthenticatedStaff } from "@/test/supabase-auth-fixture";
+
 import { GET, POST } from "../route";
 
 interface StoredPatient {
@@ -90,6 +92,27 @@ function createSupabaseFetch() {
       dentalEntities.push(row);
       return json([row], 201);
     }
+    if (url.pathname === "/rest/v1/rpc/save_odontogram_batch" && method === "POST") {
+      const body = JSON.parse(String(init?.body)) as {
+        p_expected_version: number;
+        p_entities: Array<Record<string, unknown>>;
+      };
+      for (const entity of dentalEntities) entity.active = false;
+      const rows = body.p_entities.map((entity) => {
+        const row = {
+          ...entity,
+          id: `entity-${++dentalEntityCounter}`,
+          patient_id: "patient-1",
+          clinic_id: clinicId,
+          entity_type: entity.entityType,
+          active: true,
+          version: body.p_expected_version + 1,
+        };
+        dentalEntities.push(row);
+        return row;
+      });
+      return json({ version: body.p_expected_version + 1, entities: rows });
+    }
     if (url.pathname === "/rest/v1/clinical_history_events" && method === "POST") {
       return json([{ id: "history-1" }], 201);
     }
@@ -116,13 +139,15 @@ function createSupabaseFetchWithLostPatientWrite() {
 describe("Supabase-backed patient API", () => {
   beforeEach(() => {
     process.env.SUPABASE_URL = "https://example.supabase.co";
+    process.env.SUPABASE_PUBLISHABLE_KEY = "sb_publishable_test-key";
     process.env.SUPABASE_SECRET_KEY = "test-secret";
-    vi.stubGlobal("fetch", createSupabaseFetch());
+    vi.stubGlobal("fetch", withAuthenticatedStaff(createSupabaseFetch(), { clinicId: "clinic-1" }));
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
     delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_PUBLISHABLE_KEY;
     delete process.env.SUPABASE_SECRET_KEY;
   });
 
@@ -131,6 +156,7 @@ describe("Supabase-backed patient API", () => {
       new Request("https://denty.test/api/denty/api/patients", {
         method: "POST",
         headers: {
+          ...authenticatedHeaders(),
           "content-type": "application/json",
           origin: "https://denty.test",
         },
@@ -167,7 +193,7 @@ describe("Supabase-backed patient API", () => {
     });
 
     const odontogramResponse = await GET(
-      new Request("https://denty.test/api/denty/api/patients/patient-1/odontogram"),
+      new Request("https://denty.test/api/denty/api/patients/patient-1/odontogram", { headers: authenticatedHeaders() }),
       { params: Promise.resolve({ path: ["api", "patients", "patient-1", "odontogram"] }) },
     );
 
@@ -182,14 +208,14 @@ describe("Supabase-backed patient API", () => {
     });
   });
 
-
   test("rejects patient creation when Supabase does not confirm the inserted row on readback", async () => {
-    vi.stubGlobal("fetch", createSupabaseFetchWithLostPatientWrite());
+    vi.stubGlobal("fetch", withAuthenticatedStaff(createSupabaseFetchWithLostPatientWrite(), { clinicId: "clinic-1" }));
 
     const createResponse = await POST(
       new Request("https://denty.test/api/denty/api/patients", {
         method: "POST",
         headers: {
+          ...authenticatedHeaders(),
           "content-type": "application/json",
           origin: "https://denty.test",
         },
@@ -217,6 +243,7 @@ describe("Supabase-backed patient API", () => {
       new Request("https://denty.test/api/denty/api/patients", {
         method: "POST",
         headers: {
+          ...authenticatedHeaders(),
           "content-type": "application/json",
           origin: "https://denty.test",
         },
@@ -229,6 +256,7 @@ describe("Supabase-backed patient API", () => {
       new Request("https://denty.test/api/denty/api/patients/patient-1/odontogram/batch", {
         method: "POST",
         headers: {
+          ...authenticatedHeaders(),
           "content-type": "application/json",
           origin: "https://denty.test",
         },
@@ -245,7 +273,9 @@ describe("Supabase-backed patient API", () => {
           ],
         }),
       }),
-      { params: Promise.resolve({ path: ["api", "patients", "patient-1", "odontogram", "batch"] }) },
+      {
+        params: Promise.resolve({ path: ["api", "patients", "patient-1", "odontogram", "batch"] }),
+      },
     );
 
     expect(saveResponse.status).toBe(200);

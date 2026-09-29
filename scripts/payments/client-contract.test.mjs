@@ -1,1 +1,5 @@
-import assert from 'node:assert/strict'; const m=await import('../../src/features/payments/card-terminal.ts'); assert.equal(typeof m.startProviderPayment,'function'); assert.equal(typeof m.waitForProviderPayment,'function'); console.log('payment client contract: OK');
+import assert from "node:assert/strict";
+const m = await import("../../src/features/payments/card-terminal.ts");
+assert.equal(typeof m.startProviderPayment, "function");
+assert.equal(typeof m.waitForProviderPayment, "function");
+console.log("payment client contract: OK");

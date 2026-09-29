@@ -1,7 +1,15 @@
 "use client";
 
 import { useMantineColorScheme } from "@mantine/core";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import {
   DENTY_APPEARANCE_STORAGE_KEY,
@@ -29,7 +37,9 @@ function initialPreference(): DentyAppearancePreference {
 export function TimeColorSchemeProvider({ children }: { children: ReactNode }) {
   const { setColorScheme } = useMantineColorScheme();
   const [preference, setPreferenceState] = useState<DentyAppearancePreference>(initialPreference);
-  const [resolvedScheme, setResolvedScheme] = useState<DentyColorScheme>(() => resolveAppearanceScheme(initialPreference()));
+  const [resolvedScheme, setResolvedScheme] = useState<DentyColorScheme>(() =>
+    resolveAppearanceScheme(initialPreference()),
+  );
 
   const setPreference = useCallback((nextPreference: DentyAppearancePreference) => {
     window.localStorage.setItem(DENTY_APPEARANCE_STORAGE_KEY, nextPreference);
@@ -65,8 +75,13 @@ export function TimeColorSchemeProvider({ children }: { children: ReactNode }) {
     };
   }, [preference, setColorScheme]);
 
-  const value = useMemo(() => ({ preference, resolvedScheme, setPreference }), [preference, resolvedScheme, setPreference]);
-  return <DentyAppearanceContext.Provider value={value}>{children}</DentyAppearanceContext.Provider>;
+  const value = useMemo(
+    () => ({ preference, resolvedScheme, setPreference }),
+    [preference, resolvedScheme, setPreference],
+  );
+  return (
+    <DentyAppearanceContext.Provider value={value}>{children}</DentyAppearanceContext.Provider>
+  );
 }
 
 export function useDentyAppearance(): DentyAppearanceContextValue {

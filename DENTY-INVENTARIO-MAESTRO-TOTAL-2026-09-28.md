@@ -1,41 +1,48 @@
 # Denty — Inventario maestro histórico completo
 
-> Este documento **no filtra solo lo pendiente**. Parte de los 91 hallazgos originales y conserva también lo ya resuelto, las validaciones LIVE, las acciones/gates de control y el estado actual tras la Etapa 6.
+> Este documento **no filtra solo lo pendiente**. Parte de los 91 hallazgos originales y conserva también lo ya resuelto, las validaciones LIVE, las acciones/gates de control y el estado actual tras la Etapa 12, preservando la extensión 6.1 de dentición real.
 
 ## Corrección de conteo
 
 - **91** hallazgos únicos en la auditoría original.
-- **49** hallazgos figuran resueltos en código/repositorio.
-- **9** hallazgos de Etapa 1 están implementados en código pero siguen sujetos a validaciones LIVE.
-- **33** hallazgos originales siguen sin implementar.
-- Por tanto, **58 / 91** ya fueron abordados en código y **33 / 91** siguen pendientes de implementación.
-- Además existen **40 tareas LIVE** generadas durante Etapas 1–6: **39 pendientes** y **1 completada/absorbida**.
+- **44** hallazgos figuran resueltos en código/repositorio.
+- **47** hallazgos están implementados en código pero siguen sujetos a validaciones LIVE.
+- **0** hallazgos originales siguen sin implementar.
+- Por tanto, **91 / 91** ya fueron abordados en código y **0 / 91** siguen pendientes de implementación.
+- Existen **101 tareas LIVE/operativas registradas hasta Etapa 12**: **100 pendientes** y **1 completada/absorbida**.
+- La bajada de `RESOLVED_IN_CODE` de 46 a 44 no es una regresión: **DNT-ALT-001/002 fueron reabiertos al demostrarse que el cierre de Stage 3 era incompleto** y pasan honestamente a `IMPLEMENTED_PENDING_LIVE_VALIDATION` tras su implementación real en Stage 10.
 
-**Importante:** los **46 pendientes tras Etapa 4** eran 46 *hallazgos originales todavía no implementados en ese momento*. No representaban el total histórico de hallazgos/tareas. Las validaciones LIVE son una categoría separada y no deben provocar reimplementaciones de etapas cerradas.
+**Importante:** los **46 pendientes tras Etapa 4** eran 46 _hallazgos originales todavía no implementados en ese momento_. No representaban el total histórico de hallazgos/tareas. Las validaciones LIVE son una categoría separada y no deben provocar reimplementaciones de etapas cerradas.
 
 ## Evolución histórica de los 91 hallazgos
 
-| Momento | Hallazgos originales restantes | Cerrados desde el checkpoint anterior |
-|---|---:|---:|
-| Auditoría inicial | 91 | 0 |
-| Tras Etapa 1 | 82 | 9 |
-| Tras Etapa 2 | 75 | 7 |
-| Tras Etapa 3 | 55 | 20 |
-| Tras Etapa 4 | 46 | 9 |
-| Tras Etapa 5 | 41 | 5 |
-| Tras Etapa 6 | 33 | 8 |
+| Momento           | Hallazgos originales restantes | Cerrados desde el checkpoint anterior |
+| ----------------- | -----------------------------: | ------------------------------------: |
+| Auditoría inicial |                             91 |                                     0 |
+| Tras Etapa 1      |                             82 |                                     9 |
+| Tras Etapa 2      |                             75 |                                     7 |
+| Tras Etapa 3      |                             55 |                                    20 |
+| Tras Etapa 4      |                             46 |                                     9 |
+| Tras Etapa 5      |                             41 |                                     5 |
+| Tras Etapa 6      |                             33 |                                     8 |
+| Tras Etapa 7      |                             24 |                                     9 |
+| Tras Etapa 8      |                             20 |                                     4 |
+| Tras Etapa 9      |                             19 |                                     1 |
+| Tras Etapa 10     |                             12 |                                     7 |
+| Tras Etapa 11     |                              4 |                                     8 |
+| Tras Etapa 12     |                              0 |                                     4 |
 
 ## Estado actual de los 91 hallazgos
 
-- `RESOLVED_IN_CODE`: **49**
-- `IMPLEMENTED_PENDING_LIVE_VALIDATION`: **9**
-- `PENDING_IMPLEMENTATION`: **33**
+- `RESOLVED_IN_CODE`: **44**
+- `IMPLEMENTED_PENDING_LIVE_VALIDATION`: **47**
+- `PENDING_IMPLEMENTATION`: **0**
 
 Pendientes por prioridad:
 
-- **P0_CRITICAL: 7**
-- **P1_HIGH: 24**
-- **P2_MEDIUM: 2**
+- **P0_CRITICAL: 0**
+- **P1_HIGH: 0**
+- **P2_MEDIUM: 0**
 
 ---
 
@@ -1322,25 +1329,83 @@ Esta etapa es un gate de control y no posee IDs `DNT-*` propios.
 
 Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo el fallo reproducible. La siguiente implementación funcional es **Etapa 7 — Agenda, recepción, no-show y sala de espera**.
 
+## Extensión Etapa 6.1 — Motor de dentición real (2026-09-28)
+
+Esta extensión corrige una limitación clínica detectada después del cierre inicial de Etapa 6. **No reabre las fronteras transaccionales anteriores** y no requiere una segunda tabla dental paralela.
+
+### [x] S6-ODO-001 — Dentición mixta modelada como fotografía fija
+
+- **Problema:** `teethForDentition("mixed")` imponía una combinación fija de temporales y permanentes.
+- **Corrección:** `MIXED_DENTITION_SITES` representa sitios anatómicos de recambio y permite coexistencia temporal/permanente por sitio.
+- **Estado:** RESUELTO EN CÓDIGO.
+
+### [x] S6-ODO-002 — Morfología pediátrica genérica
+
+- **Problema:** incisivos, caninos y molares temporales se dibujaban con prácticamente el mismo SVG.
+- **Corrección:** catálogo anatómico por tipo dental, con coronas y raíces diferenciadas para centrales, laterales, caninos, premolares, molares y molares temporales.
+- **Estado:** RESUELTO EN CÓDIGO.
+
+### [x] S6-ODO-003 — Edad usada como dentición implícita
+
+- **Problema:** una plantilla sugerida por edad podía aparentar que el paciente tenía piezas concretas.
+- **Corrección:** la edad solo sugiere `primary/mixed`; el profesional confirma presencia, erupción, retención, inclusión, exfoliación o ausencia por pieza.
+- **Estado:** RESUELTO EN CÓDIGO.
+
+### [x] S6-ODO-004 — Adultos con supernumerarios sin representación
+
+- **Problema:** el odontograma permanente estaba limitado conceptualmente a las 32 posiciones FDI.
+- **Corrección:** `SUPERNUMERARY_TOOTH` tiene identidad propia, ancla FDI solo para posición, tipo clínico, morfología y código ISO 10394 opcional; no renumera las piezas normales.
+- **Estado:** RESUELTO EN CÓDIGO.
+
+### [x] S6-ODO-005 — Supernumerario sin tratamientos propios
+
+- **Problema:** una pieza adicional no podía ser padre de caries/restauración/endo/corona/extracción.
+- **Corrección:** los tratamientos de supernumerario se enlazan por `parentId`/`toothIdentityKey` a la entidad adicional.
+- **Estado:** RESUELTO EN CÓDIGO.
+
+### [ ] S6-LIVE-007 — E2E visual de temporal/mixta/supernumerarios
+
+- Probar con navegador real: 20 temporales, sitios de recambio, coexistencia 55+15, cambio de presencia, reload y snapshot histórico.
+- Probar adulto con varios supernumerarios en una misma región y tratamientos separados.
+- **Tipo:** VALIDACIÓN LIVE; no reimplementar el motor.
+
+### [ ] S6-LIVE-008 — Validación clínica de designación ISO 10394
+
+- El código valida el formato alfanumérico de dos caracteres que publica ISO 10394:2023.
+- Validar con acceso al texto normativo/licencia la semántica exacta de los códigos antes de autogenerarlos; mientras tanto Denty los acepta como designación clínica explícita introducida por el profesional.
+- **Tipo:** VALIDACIÓN NORMATIVA; no inventar códigos.
+
+### Evidencia de la extensión
+
+- `scripts/stage6-dentition-engine-runtime.test.mjs`: PASS.
+- `scripts/stage6-dentition-ui-contract.test.mjs`: PASS.
+- `scripts/tests/pediatric-numbering-regression.mjs`: PASS.
+- Stage 1–6 contract gates: PASS.
+- Architecture gate: PASS.
+- API parity: 201/201 PASS.
+- Pipeline self-check: PASS.
+- Transpilación sintáctica TypeScript de archivos tocados: PASS.
+- Suite completa Node 24 sigue pendiente dentro de `S6-LIVE-006`.
 
 # Etapa 7 — Agenda, recepción, no-show y sala de espera
 
-**Estado de etapa:** `pending`
+**Estado de etapa:** `implemented_code_pending_live_gate`
+**Bloqueo:** `DO_NOT_REIMPLEMENT`
 
 **Objetivo:** Convertir la agenda en un sistema transaccional conectado con recepción, doctores y portal.
 
 **Hallazgos originales asignados:** 9
 
-- PENDING_IMPLEMENTATION: **9**
+- IMPLEMENTED_PENDING_LIVE_VALIDATION: **9**
 
 ## Hallazgos
 
-### [ ] DNT-AGD-001 — Appointments no están implementadas en el handler Supabase
+### [x] DNT-AGD-001 — Appointments no están implementadas en el handler Supabase
 
 - **Prioridad:** P0_CRITICAL
 - **Módulo:** Agenda
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Nota de estado:** AgendaRepository y el handler Supabase local cubren lectura/alta/edición/transiciones; DENTY_API_URL deja de ser requisito para el flujo principal de agenda.
 - **Objetivo original:** Agenda debe leer/escribir la misma DB Supabase que el resto.
 - **Problema observado originalmente:** appointments tiene schema y API client, pero route-handler Supabase no implementa las rutas de citas, por lo que caen al backend externo.
 - **Solución Supabase prevista:**
@@ -1348,12 +1413,12 @@ Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo
 - **Criterios de aceptación originales:**
   - DENTY_API_URL vacío no rompe agenda.
 
-### [ ] DNT-AGD-002 — No hay garantía DB contra doble reserva
+### [x] DNT-AGD-002 — No hay garantía DB contra doble reserva
 
 - **Prioridad:** P0_CRITICAL
 - **Módulo:** Agenda
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Nota de estado:** PostgreSQL aplica exclusion constraints por profesional/gabinete y RPC con advisory locks; también se cierran carreras cita↔bloqueo y cita↔ausencia.
 - **Objetivo original:** Dos usuarios concurrentes no deben reservar el mismo profesional/sillón.
 - **Problema observado originalmente:** El objetivo exige disponibilidad atómica; no se observó exclusion constraint o función transaccional de booking en schema.
 - **Solución Supabase prevista:**
@@ -1361,12 +1426,12 @@ Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo
 - **Criterios de aceptación originales:**
   - Test concurrente: dos reservas del mismo hueco, exactamente una confirma.
 
-### [ ] DNT-AGD-003 — Transiciones ARRIVED/IN_CHAIR/COMPLETED no están cerradas en Supabase
+### [x] DNT-AGD-003 — Transiciones ARRIVED/IN_CHAIR/COMPLETED no están cerradas en Supabase
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Recepción
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Nota de estado:** La state machine transaccional cubre ARRIVED, WAITING, IN_CHAIR, COMPLETED, RUNNING_LATE, NO_SHOW y CANCELLED con timestamps/eventos.
 - **Objetivo original:** Estado de recepción debe actualizar cita + timestamps + evento atómicamente.
 - **Problema observado originalmente:** Migración añade timestamps/status events, pero las acciones de agenda/reception caen fuera del handler Supabase actual.
 - **Solución Supabase prevista:**
@@ -1374,12 +1439,12 @@ Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo
 - **Criterios de aceptación originales:**
   - No se puede saltar transición inválida; todos los puestos ven el estado nuevo.
 
-### [ ] DNT-AGD-004 — Avisos de sala de espera no tienen Broadcast real
+### [x] DNT-AGD-004 — Avisos de sala de espera no tienen Broadcast real
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Recepción
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Nota de estado:** Triggers de Broadcast privado clinic:<id> notifican cambios canónicos de appointments y appointment_status_events al bridge Realtime.
 - **Objetivo original:** Doctor debe recibir aviso realtime del paciente esperando.
 - **Problema observado originalmente:** No hay triggers Broadcast; notifications existe pero no se conecta al estado de cita en las migraciones revisadas.
 - **Solución Supabase prevista:**
@@ -1387,12 +1452,12 @@ Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo
 - **Criterios de aceptación originales:**
   - Al marcar ARRIVED aparece en vista del doctor sin recargar.
 
-### [ ] DNT-AGD-005 — Separación/visit gap se guarda en localStorage
+### [x] DNT-AGD-005 — Separación/visit gap se guarda en localStorage
 
 - **Prioridad:** P2_MEDIUM
 - **Módulo:** Agenda
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Nota de estado:** clinic_settings/staff_settings persisten default_plan_visit_gap_days y Ajustes/Agenda consumen la preferencia canónica.
 - **Objetivo original:** Preferencias de agenda por clínica/profesional deben viajar entre dispositivos.
 - **Problema observado originalmente:** Settings usa DEMO_SCHEDULING_STORAGE_KEY/localStorage para planVisitGapDays.
 - **Solución Supabase prevista:**
@@ -1400,12 +1465,12 @@ Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo
 - **Criterios de aceptación originales:**
   - Cambiar gap en un dispositivo se refleja en otro.
 
-### [ ] DNT-AGD-006 — Tablas parciales sin pipeline completo de reagendado
+### [x] DNT-AGD-006 — Tablas parciales sin pipeline completo de reagendado
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** No-show / recalls
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Nota de estado:** NO_SHOW crea recall idempotente, notification y integration_events; el reagendado guarda rescheduled_from_id y appointment_relationships.
 - **Objetivo original:** No-show debe producir notificación, recall y reagendado controlado.
 - **Problema observado originalmente:** patient_recalls existe, pero rutas core siguen externas y no hay wiring Realtime/outbox completo visible.
 - **Solución Supabase prevista:**
@@ -1413,12 +1478,12 @@ Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo
 - **Criterios de aceptación originales:**
   - NO_SHOW genera recall único/idempotente y aparece en tareas/portal según reglas.
 
-### [ ] DNT-AGD-007 — Métricas de espera/sillón no tienen proyección DB canónica
+### [x] DNT-AGD-007 — Métricas de espera/sillón no tienen proyección DB canónica
 
 - **Prioridad:** P2_MEDIUM
 - **Módulo:** Analytics operativa
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Nota de estado:** analytics_wait_times calcula KPIs desde timestamps reales y Analysis los consume mediante API/Query Key canónica.
 - **Objetivo original:** Wait time/chair time/puntualidad deben derivarse de timestamps reales.
 - **Problema observado originalmente:** Hay timestamps en appointments, pero Analysis usa métricas hardcoded y no hay vistas/RPC visibles para estos KPIs.
 - **Solución Supabase prevista:**
@@ -1426,12 +1491,12 @@ Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo
 - **Criterios de aceptación originales:**
   - KPI reproduce fixtures SQL conocidos.
 
-### [ ] DNT-STF-002 — Ausencias no tienen modelo Supabase canónico
+### [x] DNT-STF-002 — Ausencias no tienen modelo Supabase canónico
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Personal / ausencias
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Nota de estado:** staff_absences/staff_schedules son canónicos; altas/cancelaciones pasan por RPC y disponibilidad excluye ausencias aprobadas.
 - **Objetivo original:** Horarios, bajas, vacaciones y ausencias deben afectar agenda.
 - **Problema observado originalmente:** attendance-module guarda absences localmente y en no-demo intenta API externa; no hay staff_absences table.
 - **Solución Supabase prevista:**
@@ -1441,12 +1506,12 @@ Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo
 - **Criterios de aceptación originales:**
   - Crear ausencia bloquea disponibilidad inmediatamente.
 
-### [ ] DNT-PRT-002 — Lista de espera del portal es un boolean local
+### [x] DNT-PRT-002 — Lista de espera del portal es un boolean local
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Portal del paciente
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Nota de estado:** patient_waitlist_requests sustituye el boolean local; alta, retirada y cumplimiento persisten y las transiciones sensibles pasan por RPC.
 - **Objetivo original:** Reagendado/avisos deben ser workflow persistente.
 - **Problema observado originalmente:** waitingList solo usa useState.
 - **Solución Supabase prevista:**
@@ -1457,22 +1522,60 @@ Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo
 
 ## Acciones de la etapa
 
-- Implementar appointments completamente en Supabase.
-- Impedir doble reserva a nivel DB.
-- Persistir transiciones ARRIVED/IN_CHAIR/COMPLETED.
-- Usar Broadcast/Realtime para sala de espera.
-- Persistir preferencias de gap/agenda por clínica/doctor.
-- Completar pipeline no-show/recall/reagendado.
-- Persistir lista de espera del portal.
-- Modelar ausencias del personal y bloquear agenda.
-- Construir métricas canónicas de espera y sillón.
+- [x] Implementar appointments completamente en Supabase.
+- [x] Impedir doble reserva a nivel DB.
+- [x] Persistir transiciones ARRIVED/IN_CHAIR/COMPLETED.
+- [x] Usar Broadcast/Realtime para sala de espera.
+- [x] Persistir preferencias de gap/agenda por clínica/doctor.
+- [x] Completar pipeline no-show/recall/reagendado.
+- [x] Persistir lista de espera del portal.
+- [x] Modelar ausencias del personal y bloquear agenda.
+- [x] Construir métricas canónicas de espera y sillón.
 
 ## Gate de salida
 
-- [ ] Dos clientes concurrentes no pueden reservar el mismo recurso.
-- [ ] Recepción y agenda reflejan el mismo estado sin recargar.
-- [ ] Una ausencia bloquea correctamente disponibilidad.
-- [ ] No-show/recall deja trazabilidad y puede reagendarse.
+- [ ] Dos clientes concurrentes no pueden reservar el mismo recurso. → `S7-LIVE-002`
+- [ ] Recepción y agenda reflejan el mismo estado sin recargar. → `S7-LIVE-003`
+- [ ] Una ausencia bloquea correctamente disponibilidad. → `S7-LIVE-004`
+- [ ] No-show/recall deja trazabilidad y puede reagendarse. → `S7-LIVE-005`
+
+## Implementación Stage 7 — 2026-09-28
+
+- Migración canónica: `supabase/migrations/20260928070000_stage7_agenda_reception.sql`.
+- Escritura de citas por RPC `book_appointment` / `update_appointment`; DML directo revocado.
+- Exclusion constraints `tstzrange(..., '[)')` para profesional/gabinete y advisory locks de recursos.
+- Bloqueos de agenda por `create_agenda_block`, con conflicto transaccional cita↔bloqueo.
+- State machine de recepción ampliada con `WAITING` y eventos/timestamps canónicos.
+- Broadcast privado por clínica y bridge Realtime compartido con Stage 3.
+- No-show: recall único, notificación, outbox e histórico de reagendado.
+- Ausencias y horarios canónicos; disponibilidad respeta ausencias/bloqueos.
+- Lista de espera persistente; paciente no puede autoelevar prioridad ni autocompletar solicitudes.
+- Solicitudes de cita del portal pasan por RPC: paciente crea/cancela, staff programa reutilizando la reserva transaccional.
+- Guardas de integridad tenant impiden enlazar paciente/profesional/sede/gabinete/plan/solicitud de otra clínica.
+- Preferencias de separación de visitas persistentes por clínica/profesional.
+- Métricas de espera/sillón/puntualidad derivadas de timestamps reales.
+
+### Gates ejecutados
+
+- Stage 1–7 contracts: PASS.
+- Architecture gate: PASS.
+- API parity: **208/208 PASS**; 3 server-only excluidas.
+- Pipeline self-check: PASS.
+- Agenda empty-slot regression: PASS bajo loader experimental por Node 22.
+- Transpilación sintáctica de TS/TSX tocados: **16/16 PASS**.
+- Suite completa Node 24/build/E2E: pendiente en `S7-LIVE-008`.
+
+### Validaciones LIVE nuevas
+
+- `S7-LIVE-001` — Aplicar migración en staging y resolver solapes/duplicados legacy antes de constraints.
+- `S7-LIVE-002` — Concurrencia real doble reserva + cita↔bloqueo.
+- `S7-LIVE-003` — Broadcast real entre dos sesiones.
+- `S7-LIVE-004` — Carrera ausencia↔reserva.
+- `S7-LIVE-005` — No-show/recall/outbox/reagendado E2E e idempotencia.
+- `S7-LIVE-006` — Lista de espera con cuenta paciente/staff y pruebas de privilegios.
+- `S7-LIVE-007` — Fixtures SQL de analytics_wait_times.
+- `S7-LIVE-008` — npm ci/typecheck/test/build/E2E bajo Node 24.
+- `S7-LIVE-009` — Ciclo de solicitudes de cita del portal + matriz cross-clinic y rechazo de auto-programación.
 
 ## Dependencias ya realizadas que NO deben duplicarse
 
@@ -1482,497 +1585,488 @@ Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo
 
 # Etapa 8 — Facturación, pagos y fiscal
 
-**Estado de etapa:** `pending`
+**Estado de etapa:** `implemented_code_pending_live_gate`  
+**Bloqueo:** `DO_NOT_REIMPLEMENT`
 
 **Objetivo:** Cerrar el circuito presupuesto → factura → pago → imputación → fiscal.
 
 **Hallazgos originales asignados:** 4
 
-- PENDING_IMPLEMENTATION: **4**
+- IMPLEMENTED_PENDING_LIVE_VALIDATION: **4**
 
-## Hallazgos
+## Hallazgos cerrados en código
 
-### [ ] DNT-FIN-002 — Faltan tablas de facturas aunque la UI/API las usa
+- [x] **DNT-FIN-002** — invoice_series, invoices e invoice_lines canónicos; numeración atómica, snapshots e inmutabilidad tras emisión.
+- [x] **DNT-FIN-003** — payment_attempt → proveedor → payment/allocation exactamente una vez mediante idempotencia y estados terminales irreversibles.
+- [x] **DNT-FIN-004** — Realtime invalida Finanzas, ficha paciente, Inicio y Analytics.
+- [x] **DNT-FIN-005** — fiscal_records enlazado a factura, cadena SHA-256 serializada por clínica y outbox VERI*FACTU.
 
-- **Prioridad:** P0_CRITICAL
-- **Módulo:** Finanzas
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Factura/serie/items deben ser fuente canónica del ciclo económico.
-- **Problema observado originalmente:** Supabase tiene budgets/payments/fiscal_records, pero no se encontraron invoices/invoice_items/invoice_series; resources sí las consultan.
-- **Solución Supabase prevista:**
-  - Estrategia: Crear invoice ledger.
-  - schema: invoice_series
-  - schema: invoices
-  - schema: invoice_items
-  - schema: credit_notes o tipo documental
-  - schema: invoice_payment_allocations si se separa de allocations genéricas
-- **Criterios de aceptación originales:**
-  - Emitir factura crea número único y snapshot de items/paciente/clinic fiscal.
+## Refuerzos adicionales
 
-### [ ] DNT-FIN-003 — Proveedor de pago y ledger interno no están garantizados como una sola operación idempotente
+- Snapshot fiscal del emisor congelado al emitir; cambiar NIF/razón social después no reescribe facturas históricas.
+- Prefijos de serie únicos por clínica y full_number único por clínica.
+- Rectificación mediante factura nueva vinculada al original; factura emitida y líneas quedan inmutables.
+- RLS financiera y RPCs SECURITY DEFINER alineadas con permisos de Denty; se retira el writer legacy `record_payment` para usuarios autenticados.
+- Un pago no puede imputarse por encima del saldo de una factura ni repartirse por encima del importe cobrado.
+- Rutas manual/Stripe dedicadas delegan al flujo canónico y checkout SumUp legacy sin ledger devuelve 410.
 
-- **Prioridad:** P0_CRITICAL
-- **Módulo:** Pagos
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Un cobro confirmado debe producir exactamente un payment interno y allocations.
-- **Problema observado originalmente:** Rutas de proveedores gestionan attempts/response; la persistencia del ledger payments no queda garantizada de forma uniforme en el mismo flujo observado.
-- **Solución Supabase prevista:**
-  - Estrategia: State machine + webhook/idempotencia.
-  - schema: payment_attempts unique idempotency_key/provider_reference
-  - schema: payments unique provider_transaction_id cuando aplique
-- **Criterios de aceptación originales:**
-  - Repetir webhook no duplica pago; fallo después de cobro se reconcilia.
+## Gate de salida de código
 
-### [ ] DNT-FIN-004 — Eventos financieros no invalidan dashboard/analytics/paciente
+- [x] Reintentar la misma identidad de cobro reutiliza el payment_attempt y no duplica ledger.
+- [x] La suma de allocations no puede exceder factura ni pago.
+- [x] Numeración/serie protegida en PostgreSQL y cadena fiscal serializada por clínica.
+- [x] Eventos financieros invalidan ficha, Finanzas, Inicio y Analytics.
 
-- **Prioridad:** P1_HIGH
-- **Módulo:** Finanzas
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Registrar pago debe refrescar saldo, historial y KPIs.
-- **Problema observado originalmente:** Realtime ROOT_KEYS no tiene payment/finance/invoice/analytics.
-- **Solución Supabase prevista:**
-  - Estrategia: Eventos payment.posted/payment.refunded/invoice.issued → invalidación cruzada y Broadcast.
-- **Criterios de aceptación originales:**
-  - Cobro se ve simultáneamente en ficha, Finanzas, Inicio y Análisis.
+## Pendientes LIVE de Etapa 8
 
-### [ ] DNT-FIN-005 — fiscal_records existe sin cadena de factura completa
+- `S8-LIVE-001…009`: staging Supabase, concurrencia real, proveedores reales, RLS multiclínica, Realtime, validación fiscal/VERI*FACTU, revisión contable y build completo Node 24.
 
-- **Prioridad:** P1_HIGH
-- **Módulo:** Verifactu / fiscal
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Registro fiscal debe derivarse de factura emitida y estado fiscal, no ser isla.
-- **Problema observado originalmente:** Hay fiscal_records y API Verifactu, pero faltan invoices canónicas en Supabase.
-- **Solución Supabase prevista:**
-  - Estrategia: FK fiscal_records.invoice_id; outbox integration_events; Edge Function para envío externo; estados/idempotencia/checksum.
-- **Criterios de aceptación originales:**
-  - Cada registro fiscal referencia factura inmutable y respuesta/proveedor.
+- **S8-LIVE-001:** aplicar migración en Supabase staging con backup y datos legacy.
+- **S8-LIVE-002:** concurrencia real de varias series y cadena fiscal sin bifurcaciones.
+- **S8-LIVE-003:** E2E manual/SumUp/Stripe con idempotencia real.
+- **S8-LIVE-004:** reconciliación tras fallo de red/callback repetido.
+- **S8-LIVE-005:** matriz RLS/permisos y aislamiento cross-clinic.
+- **S8-LIVE-006:** Realtime financiero en dos sesiones.
+- **S8-LIVE-007:** integración oficial VERI*FACTU/certificado/AEAT/QR.
+- **S8-LIVE-008:** revisión fiscal-contable de IVA/exenciones, PDF y rectificativas.
+- **S8-LIVE-009:** Node 24 + npm ci + typecheck + tests + build + E2E.
 
-## Acciones de la etapa
-
-- Crear invoice_series, invoices e invoice_items.
-- Vincular facturas con presupuesto/paciente/clínica.
-- Garantizar idempotencia entre proveedor de pago y ledger interno.
-- Persistir payment_attempts, payments y payment_allocations de forma coherente.
-- Conectar fiscal_records/Verifactu con la factura real.
-- Emitir eventos/invalidation al registrar, anular o imputar pagos.
-
-## Gate de salida
-
-- [ ] Un webhook repetido no duplica pagos.
-- [ ] La suma de allocations no excede el pago.
-- [ ] Una factura tiene numeración/serie consistente.
-- [ ] Dashboard y cuenta del paciente reaccionan al pago registrado.
-
-## Dependencias ya realizadas que NO deben duplicarse
-
-- BASE YA HECHA EN ETAPA 2: record_payment existe como RPC transaccional base y auditada. Etapa 8 debe construir invoices/idempotencia/fiscal y extenderla si hace falta, no crear otro ledger paralelo.
+**Nota fiscal:** esta etapa implementa la arquitectura fiscal y la cadena/inmutabilidad. No se declara certificación VERI*FACTU de producción hasta completar las pruebas oficiales y la revisión fiscal LIVE.
 
 ---
 
 # Etapa 9 — Inicio, análisis y KPIs reales
 
-**Estado de etapa:** `pending`
+**Estado de etapa:** `implemented_code_pending_live_gate`  
+**Bloqueo:** `DO_NOT_REIMPLEMENT`
 
 **Objetivo:** Eliminar cifras decorativas y hacer que todos los KPIs deriven del ledger operativo real.
 
 **Hallazgos originales asignados:** 4
 
-- RESOLVED_IN_CODE: **3**
-- PENDING_IMPLEMENTATION: **1**
+- IMPLEMENTED_PENDING_LIVE_VALIDATION: **4**
+- PENDING_IMPLEMENTATION: **0**
 
-## Hallazgos
+## Hallazgos originales
 
 ### [x] DNT-FIN-001 — Inicio muestra citas/alertas/KPIs demo
 
 - **Prioridad:** P0_CRITICAL
-- **Módulo:** Dashboard
-- **Estado actual:** `RESOLVED_IN_CODE` (`resolved_by_previous_stage`)
-- **Resuelto por:** stage3
-- **Nota de estado:** Inicio ya no usa citas/alertas/KPIs codificados; consulta Agenda, Alerts y Analytics reales.
-- **Objetivo original:** Inicio debe ser una proyección de estado real.
-- **Problema observado originalmente:** dashboard importa DEMO_ALERTS, DEMO_APPOINTMENTS y FINANCE_KPIS directamente.
-- **Solución Supabase prevista:**
-  - Estrategia: dashboard_summary RPC/view parametrizada por clínica/sede/fecha.
-- **Criterios de aceptación originales:**
-  - Cuenta real vacía muestra ceros/empty states; pago/alerta/cita actualizan Inicio.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Resuelto/revalidado por:** Stage 9
+- **Resultado:** Inicio consume Agenda/Alertas reales y `analytics.summary` canónico; el bloque económico exige `finance.read` y respeta `activeSiteId`.
 
 ### [x] DNT-ANL-001 — Análisis usa métricas y tratamientos hardcoded
 
 - **Prioridad:** P0_CRITICAL
-- **Módulo:** Análisis
-- **Estado actual:** `RESOLVED_IN_CODE` (`resolved_by_previous_stage`)
-- **Resuelto por:** stage3
-- **Nota de estado:** Análisis dejó de usar métricas/tratamientos hardcodeados y consulta Analytics real.
-- **Objetivo original:** KPIs deben derivarse de transacciones reales.
-- **Problema observado originalmente:** analysis-module define TREATMENTS y valores como conversión/no-show/reworks/idle slots en código.
-- **Solución Supabase prevista:**
-  - Estrategia: SQL views/RPC de analytics con definiciones documentadas.
-- **Criterios de aceptación originales:**
-  - Ningún KPI productivo procede de constante frontend.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Resuelto/revalidado por:** Stage 9
+- **Resultado:** `summary`, `treatments`, `profitability`, `doctors`, `monthly` y `specialties` tienen RPC/handler Supabase real. No se sustituyen errores con cifras ficticias.
 
 ### [x] DNT-ANL-002 — Selector Mes/Trimestre/Año es cosmético
 
 - **Prioridad:** P1_HIGH
-- **Módulo:** Análisis
-- **Estado actual:** `RESOLVED_IN_CODE` (`resolved_by_previous_stage`)
-- **Resuelto por:** stage3
-- **Nota de estado:** Mes/Trimestre/Año modifica realmente start/end de las consultas Analytics.
-- **Objetivo original:** Periodo seleccionado debe cambiar query/resultado.
-- **Problema observado originalmente:** El módulo cambia estado/etiqueta pero los valores siguen siendo constantes.
-- **Solución Supabase prevista:**
-  - Estrategia: Inputs start_date/end_date/timezone/site_id/staff_id en RPC; query key incluye filtros.
-- **Criterios de aceptación originales:**
-  - Cambiar periodo modifica request y resultado con fixtures SQL.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Resuelto/revalidado por:** Stage 9
+- **Resultado:** Mes/Trimestre/Año modifica `start/end` reales usando límites de negocio `Europe/Madrid`; queda validación LIVE de DST.
 
-### [ ] DNT-ANL-003 — No hay definiciones canónicas de KPIs
+### [x] DNT-ANL-003 — No hay definiciones canónicas de KPIs
 
 - **Prioridad:** P1_HIGH
-- **Módulo:** Análisis
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Producción, facturación, cobrado, pendiente, margen y conversión necesitan fórmulas únicas.
-- **Problema observado originalmente:** UI/API nombran KPIs pero schema no documenta reglas de reconocimiento ni sources transaccionales.
-- **Solución Supabase prevista:**
-  - Estrategia: Crear data dictionary versionado.
-- **Criterios de aceptación originales:**
-  - Mismo KPI devuelve igual en Dashboard, Finanzas y Análisis para mismos filtros.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Resuelto por:** Stage 9
+- **Resultado:** `DENTY-KPI-1` define fórmula, regla de reconocimiento, timestamp, timezone `Europe/Madrid`, tablas fuente y filtros. Dashboard, Finanzas y Análisis consumen las mismas RPC.
 
-## Acciones de la etapa
+## KPIs canónicos DENTY-KPI-1
 
-- Eliminar KPIs, citas, tratamientos y alertas hardcoded del Inicio/Análisis.
-- Definir formalmente cada KPI: fórmula, rango temporal, timezone y filtros.
-- Hacer funcional Mes/Trimestre/Año.
-- Calcular producción, cobrado, pendiente, ticket, no-show, margen y tratamientos desde tablas reales.
-- Cachear/proyectar solo cuando aporte rendimiento, manteniendo fuente canónica.
+- **Producción:** primer `COMPLETED` por `clinical_plan_item_id`, usando snapshots clínicos.
+- **Facturado:** facturas `ISSUED/RECTIFIED` por `issued_at`, incluyendo rectificativas en neto.
+- **Cobrado:** pagos `COMPLETED` por `paid_at`; con sede/profesional solo se atribuye la parte imputable.
+- **Pendiente:** saldo vivo neto de facturas reconocidas en el periodo.
+- **Margen:** producción menos `cost_snapshot_cents` clínico.
+- **Ticket medio:** cobrado / pagos completados del ámbito.
+- **Conversión:** cohorte de presupuestos creados y firmados dentro del rango.
+- **No-show:** `NO_SHOW / (NO_SHOW + COMPLETED)` por `starts_at`.
 
-## Gate de salida
+## Hallazgos nuevos detectados y cerrados durante Stage 9
 
-- [ ] Un pago real modifica el KPI correspondiente.
-- [ ] Cambiar rango temporal cambia consultas/resultados.
-- [ ] No quedan valores FINANCE_KPIS o tratamientos fijos en runtime real.
-- [ ] Dos pantallas que muestran el mismo KPI devuelven el mismo valor.
+- [x] **S9-NEW-001** — Rutas Analytics declaradas como reales podían caer en 501.
+- [x] **S9-NEW-002** — Inicio consultaba analítica financiera sin proteger `finance.read`.
+- [x] **S9-NEW-003** — Los límites del periodo dependían del timezone del navegador.
+- [x] **S9-NEW-004** — Especialidad/categoría no estaban congeladas históricamente.
+- [x] **S9-NEW-005** — Pendiente podía inflarse al aplicar flooring por factura antes de netear rectificativas.
+- [x] **S9-NEW-006** — Conversión por tratamiento mezclaba cohortes y podía superar 100%.
+- [x] **S9-NEW-007** — Tratamientos solo facturados podían desaparecer del breakdown.
+- [x] **S9-NEW-008** — Cambios en `clinical_plan_items` no invalidaban Analytics/Inicio.
+- [x] **S9-NEW-009** — La atribución derivada de factura podía usar cualquier cita y no el evento de producción reconocido.
+- [x] **S9-NEW-010** — Los buckets mensuales usaban timezone de sesión/servidor.
+- [x] **S9-NEW-011** — Las rutas Analytics no compartían validación uniforme `start < end`.
+- [x] **S9-NEW-012** — El diccionario KPI no versionaba explícitamente el timezone.
+- [x] **S9-NEW-013** — El bloque financiero de Inicio ignoraba la sede activa.
+
+## Hallazgos/limitaciones que siguen abiertos
+
+- [ ] **S9-PEND-001** — Recursos legacy no usados `comparison/losses/events/treatments-drilldown` siguen expuestos sin semántica canónica; retirar o definir en limpieza, sin inventar KPIs.
+- [ ] **S9-PEND-002** — `purchases/suppliers/cost-recipes/supplier-invoices` dependen del ledger de laboratorios/proveedores de Stage 10.
+- [ ] **S9-PEND-003** — `PARTIALLY_REFUNDED` no dispone todavía de ledger explícito del importe reembolsado; DENTY-KPI-1 cuenta solo pagos `COMPLETED`.
+- [ ] **S9-PEND-004** — Margen v1 no incluye costes externos de laboratorio hasta Stage 10.
+- [ ] **S9-INHERITED-001** — `games-integrity` tiene un manifiesto SHA-256 obsoleto desde al menos Stage 5: el asset no fue modificado por Stage 9. Debe reconciliarse como gate heredado, no rehacer Analytics.
+
+## Validaciones LIVE Stage 9
+
+- [ ] **S9-LIVE-001** — Aplicar migración Stage 9 en Supabase staging.
+- [ ] **S9-LIVE-002** — Comparar los mismos KPIs entre Inicio, Finanzas y Análisis con fixtures conocidos.
+- [ ] **S9-LIVE-003** — Validar Mes/Trimestre/Año y cambios CET/CEST de Madrid.
+- [ ] **S9-LIVE-004** — Validar rectificativas, allocations y pendiente neto.
+- [ ] **S9-LIVE-005** — Validar reconocimiento único de producción y snapshots históricos.
+- [ ] **S9-LIVE-006** — Validar atribución por sede/profesional.
+- [ ] **S9-LIVE-007** — Ejecutar `EXPLAIN/ANALYZE` con volumen realista.
+- [ ] **S9-LIVE-008** — Validar Realtime KPI entre dos sesiones y aislamiento cross-clinic.
+- [ ] **S9-LIVE-009** — Node 24 + `npm ci` + typecheck + tests + build + E2E.
+
+## Gate de salida de código
+
+- [x] Un pago usa la misma fuente canónica que el KPI de Cobrado.
+- [x] Cambiar rango modifica las consultas reales.
+- [x] No quedan `FINANCE_KPIS` ni tratamientos fijos en Inicio/Análisis productivo.
+- [x] Dashboard, Finanzas y Análisis reutilizan `analytics.summary` para KPIs compartidos.
+- [ ] Validación con Supabase real/fixtures financieros: `S9-LIVE-001…009`.
 
 ---
 
 # Etapa 10 — Laboratorios y alertas conectadas
 
-**Estado de etapa:** `pending`
+**Estado de etapa:** `implemented_code_pending_live_gate`
+
+**Implementation lock:** `DO_NOT_REIMPLEMENT`
 
 **Objetivo:** Sustituir mocks de laboratorio/alertas por entidades persistentes y enlazadas al resto de Denty.
 
 **Hallazgos originales asignados:** 9
 
-- PENDING_IMPLEMENTATION: **7**
-- RESOLVED_IN_CODE: **2**
+- IMPLEMENTED_PENDING_LIVE_VALIDATION: **9**
+- PENDING_IMPLEMENTATION: **0**
+
+> **Corrección histórica:** `DNT-ALT-001` y `DNT-ALT-002` figuraban como resueltos desde Stage 3, pero Stage 10 demostró que faltaban la tabla/RPCs Supabase reales y `/api/admin/alerts` podía terminar en `501`. Se reabrieron y se implementaron realmente aquí; quedan pendientes solo de validación LIVE.
 
 ## Hallazgos
 
-### [ ] DNT-LAB-001 — No existe maestro de laboratorios en Supabase
+### [x] DNT-LAB-001 — No existe maestro de laboratorios en Supabase
 
 - **Prioridad:** P0_CRITICAL
 - **Módulo:** Laboratorio
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Resuelto por implementación:** stage10
+- **Nota de estado:** Stage 10 crea public.laboratories canónico con CRUD versionado, RLS, auditoría, Realtime y desactivación sin inferir identidades desde Analytics.
 - **Objetivo original:** Múltiples laboratorios deben ser entidades editables y compartidas.
 - **Problema observado originalmente:** La UI deriva cuentas desde lab works/analytics suppliers; no hay public.laboratories.
-- **Solución Supabase prevista:**
-  - Estrategia: Crear laboratories.
-  - schema: id,clinic_id,name,tax_id,phone,email,address,default_turnaround_days,active,created_at,updated_at,version
-  - rls: clinic read; lab.manage write
 - **Criterios de aceptación originales:**
   - CRUD persiste y aparece en selector de trabajo.
+- **Contratos de regresión:**
+  - `scripts/stage10-laboratory-contract.test.mjs`
+  - `scripts/stage10-laboratory-ui-contract.test.mjs`
 
-### [ ] DNT-LAB-002 — No existe tabla lab_works aunque la API y UI la usan
+### [x] DNT-LAB-002 — No existe tabla lab_works aunque la API y UI la usan
 
 - **Prioridad:** P0_CRITICAL
 - **Módulo:** Laboratorio
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Resuelto por implementación:** stage10
+- **Nota de estado:** Stage 10 crea lab_works, timeline persistido y reworks, con RPCs transaccionales y relaciones clínicas.
 - **Objetivo original:** Trabajo de laboratorio debe ser una entidad persistente conectada al paciente/plan.
 - **Problema observado originalmente:** El cliente tiene labWorkSchema y mutations, pero no se encontró lab_works en migrations.
-- **Solución Supabase prevista:**
-  - Estrategia: Crear lab_works + events.
-  - schema: lab_works(id,clinic_id,patient_id,laboratory_id,clinical_plan_item_id,appointment_id,title,category,tooth_or_zone,status,sent_at,eta_at,received_at,placed_at,cost_cents,version,created_at,updated_at)
-  - schema: lab_work_status_events
-  - schema: lab_reworks(parent_lab_work_id,reason,cost_cents)
 - **Criterios de aceptación originales:**
   - Crear/transicionar/rework funciona sin DENTY_API_URL y queda en timeline.
+- **Contratos de regresión:**
+  - `scripts/stage10-laboratory-runtime-contract.test.mjs`
+  - `scripts/stage10-laboratory-timeline-contract.test.mjs`
 
-### [ ] DNT-LAB-003 — Pestaña Laboratorios no ofrece CRUD real
+### [x] DNT-LAB-003 — Pestaña Laboratorios no ofrece CRUD real
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Laboratorio
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Resuelto por implementación:** stage10
+- **Nota de estado:** Stage 10 añade CRUD real de laboratorios en UI con React Query e invalidación Realtime.
 - **Objetivo original:** Usuario debe poder crear/editar laboratorios.
 - **Problema observado originalmente:** Vista lista cuentas derivadas; no hay mutation/UI de create/edit laboratory.
-- **Solución Supabase prevista:**
-  - Estrategia: CRUD contra laboratories con React Query keys dedicadas y audit.
 - **Criterios de aceptación originales:**
   - Crear/editar/desactivar lab actualiza lista y selector sin reload.
+- **Contratos de regresión:**
+  - `scripts/stage10-laboratory-ui-contract.test.mjs`
 
-### [ ] DNT-LAB-004 — Balances reales están incompletos y pagos de laboratorio son demo
+### [x] DNT-LAB-004 — Balances reales están incompletos y pagos de laboratorio son demo
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Laboratorio
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Resuelto por implementación:** stage10
+- **Nota de estado:** Stage 10 añade supplier_invoices, supplier_payments y allocations; el saldo deriva de cargos confirmados menos allocations, con permisos financieros y auditoría.
 - **Objetivo original:** Saldo por laboratorio debe derivarse de obligaciones/pagos reales.
 - **Problema observado originalmente:** El módulo conserva pagos demo en localStorage y el modo real no tiene un ledger de pagos a proveedor equivalente.
-- **Solución Supabase prevista:**
-  - Estrategia: Supplier finance ledger.
-  - schema: supplier_invoices o lab_supplier_charges
-  - schema: supplier_payments
-  - schema: supplier_payment_allocations
 - **Criterios de aceptación originales:**
   - Balance = cargos confirmados - allocations; pago real reduce saldo y queda auditado.
+- **Contratos de regresión:**
+  - `scripts/stage10-laboratory-finance-ui-contract.test.mjs`
+  - `scripts/stage10-supplier-ledger-robustness-contract.test.mjs`
 
-### [ ] DNT-LAB-005 — Suppliers analytics se usa como fuente de laboratorios
+### [x] DNT-LAB-005 — Suppliers analytics se usa como fuente de laboratorios
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Laboratorio
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Resuelto por implementación:** stage10
+- **Nota de estado:** Stage 10 convierte laboratories en fuente canónica; Analytics suppliers consume el ledger de laboratorios y no al revés.
 - **Objetivo original:** El maestro de laboratorio no debe inferirse desde analytics.
 - **Problema observado originalmente:** supplierAccounts convierte registros genéricos de analytics suppliers en LaboratoryAccount mediante regex de nombre/categoría.
-- **Solución Supabase prevista:**
-  - Estrategia: Laboratory id FK canónico; analytics consume laboratories, nunca al revés.
 - **Criterios de aceptación originales:**
   - No hay regex para descubrir laboratorios.
+- **Contratos de regresión:**
+  - `scripts/stage10-laboratory-no-legacy-supplier-contract.test.mjs`
 
-### [ ] DNT-LAB-006 — Adjuntos se convierten a base64 y se envían por JSON
+### [x] DNT-LAB-006 — Adjuntos se convierten a base64 y se envían por JSON
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Laboratorio
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Resuelto por implementación:** stage10
+- **Nota de estado:** Stage 10 mueve adjuntos a Storage privado lab-attachments con metadata, hash SHA-256, límites de tipo/tamaño y RLS.
 - **Objetivo original:** Archivos de laboratorio deben ir a Storage privado.
 - **Problema observado originalmente:** fileAsBase64 lee File y mutation envía base64 al API.
-- **Solución Supabase prevista:**
-  - Estrategia: Upload directo/autorizado a lab-attachments privado + metadata lab_attachments.
-  - schema: lab_attachments(id,clinic_id,lab_work_id,storage_path,file_name,mime,size,sha256,created_by)
 - **Criterios de aceptación originales:**
   - JSON de lab work no contiene bytes base64; descarga respeta RLS.
+- **Contratos de regresión:**
+  - `scripts/stage10-laboratory-attachment-security-contract.test.mjs`
 
-### [ ] DNT-LAB-007 — Trabajo de laboratorio no tiene vínculo DB garantizado con plan/cita/prótesis
+### [x] DNT-LAB-007 — Trabajo de laboratorio no tiene vínculo DB garantizado con plan/cita/prótesis
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Laboratorio
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Resuelto por implementación:** stage10
+- **Nota de estado:** Stage 10 enlaza lab_work con paciente, clinical_plan_item, cita, dental_entity y sede; plan→laboratorio y laboratorio→plan/cita/paciente son navegables.
 - **Objetivo original:** El pipeline tratamiento→laboratorio→cita debe ser navegable.
 - **Problema observado originalmente:** Al no existir lab_works DB, tampoco existen FKs a clinical_plan_item/appointment/dental entity.
-- **Solución Supabase prevista:**
-  - Estrategia: FK clinical_plan_item_id obligatorio cuando proviene de plan; appointment_id opcional; dental_entity_id/prosthetic_entity_id cuando proceda.
 - **Criterios de aceptación originales:**
   - Desde plan se abre trabajo; desde trabajo se navega al item/cita/paciente.
+- **Contratos de regresión:**
+  - `scripts/stage10-laboratory-clinical-link-contract.test.mjs`
+  - `scripts/stage10-laboratory-plan-reference-contract.test.mjs`
 
 ### [x] DNT-ALT-001 — Alertas solo viven en useState demo
 
 - **Prioridad:** P0_CRITICAL
 - **Módulo:** Alertas
-- **Estado actual:** `RESOLVED_IN_CODE` (`resolved_by_previous_stage`)
-- **Resuelto por:** stage3
-- **Nota de estado:** Alertas dejó INITIAL/useState y consume engagement.alerts persistente.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Resuelto por implementación:** stage10
+- **Nota de estado:** Reabierto en Stage 10: Stage 3 había retirado el demo en UI pero /api/admin/alerts seguía sin implementación Supabase y podía devolver 501. Stage 10 crea ledger alerts, RPCs list/review/resolve/snooze/assign, auditoría, RLS, Realtime y UI completa.
 - **Objetivo original:** Alertas deben ser persistentes, asignables, snoozable y resolubles.
 - **Problema observado originalmente:** alerts-module inicializa INITIAL_ALERTS y muta state; aunque el API client define list/resolve/review/snooze/assign, no hay alerts table.
-- **Solución Supabase prevista:**
-  - Estrategia: Crear alerts ledger.
-  - schema: id,clinic_id,patient_id,source_type,source_id,dedupe_key,priority,status,category,title,message,assignee_member_id,due_at,snoozed_until,resolved_at,resolved_by,created_at,updated_at
 - **Criterios de aceptación originales:**
   - Reload conserva estado; acciones auditadas.
+- **Contratos de regresión:**
+  - `scripts/stage10-alerts-persistence-contract.test.mjs`
+  - `scripts/stage10-alerts-ui-contract.test.mjs`
+  - `scripts/stage10-alerts-idempotency-contract.test.mjs`
+  - `scripts/stage10-alerts-recurrence-contract.test.mjs`
 
 ### [x] DNT-ALT-002 — Inicio cuenta una lista distinta de la que se resuelve en Alertas
 
 - **Prioridad:** P0_CRITICAL
 - **Módulo:** Alertas
-- **Estado actual:** `RESOLVED_IN_CODE` (`resolved_by_previous_stage`)
-- **Resuelto por:** stage3
-- **Nota de estado:** Resolver/revisar alerta invalida alerts + dashboard; Inicio y Alertas comparten fuente.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION` (`implemented_code_pending_live_gate`)
+- **Resuelto por implementación:** stage10
+- **Nota de estado:** Reabierto en Stage 10: Inicio y Alertas compartían API client, pero el backend canónico no existía. Stage 10 conecta ambos al mismo ledger Supabase y la invalidación Realtime; Inicio respeta alerts.read.
 - **Objetivo original:** Una alerta resuelta debe desaparecer/cambiar en todos los consumidores.
 - **Problema observado originalmente:** Dashboard usa DEMO_ALERTS mientras AlertsModule mantiene INITIAL_ALERTS independiente.
-- **Solución Supabase prevista:**
-  - Estrategia: Una query alerts(open) compartida; dashboard_summary cuenta la misma tabla; Broadcast alert.changed invalida ambas.
 - **Criterios de aceptación originales:**
   - Resolver alerta reduce contador de Inicio en otra pestaña sin reload.
+- **Contratos de regresión:**
+  - `scripts/stage10-dashboard-alert-permission-contract.test.mjs`
+  - `scripts/stage10-alerts-persistence-contract.test.mjs`
 
-## Acciones de la etapa
+## Implementación Stage 10 — 2026-09-28
 
-- Crear maestro laboratories con CRUD y estado activo/inactivo.
-- Crear lab_works y sus relaciones con paciente, plan, cita y prótesis.
-- Persistir balances/costes/pagos de laboratorio.
-- Mover adjuntos a Storage y guardar referencias.
-- Eliminar suppliers analytics como sustituto del maestro de laboratorios.
-- Crear alerts persistentes con lifecycle resolve/review/snooze/assign.
-- Hacer que Inicio consuma exactamente la misma fuente de alertas.
-- Invalidar contadores y superficies al resolver una alerta.
+- Migraciones canónicas:
+  - `supabase/migrations/20260928100000_stage10_laboratories_supplier_ledger.sql`
+  - `supabase/migrations/20260928101000_stage10_alerts_connected.sql`
+  - `supabase/migrations/20260928102000_stage10_analytics_lab_costs.sql`
+- Maestro `laboratories` persistente, versionado y multi-clínica.
+- `lab_works` persistente con timeline, reworks y relaciones a paciente, plan, cita y entidad dental.
+- Adjuntos en bucket privado `lab-attachments`, con metadata y SHA-256; no se envían bytes base64 en JSON.
+- Ledger de proveedores: facturas, pagos y allocations con idempotencia concurrente y protección contra sobreasignación.
+- Permisos clínicos de laboratorio separados de permisos financieros de proveedor.
+- Pipeline navegable plan → laboratorio → cita/paciente y avisos por ETA/incidencia.
+- Ledger canónico `alerts` con review/resolve/snooze/assign, dedupe, recurrencia real, RLS, auditoría y Realtime.
+- Inicio y Alertas consumen la misma fuente y respetan `alerts.read`.
+- El margen `DENTY-KPI-1` incorpora coste externo de laboratorio: provisional hasta factura real, y real después sin doble conteo.
 
-## Gate de salida
+## Hallazgos nuevos detectados y cerrados durante Stage 10
 
-- [ ] Se puede crear y editar un laboratorio y usarlo inmediatamente.
-- [ ] Un trabajo tiene trazabilidad clínica y económica.
-- [ ] Resolver una alerta cambia Inicio sin inconsistencias.
-- [ ] No quedan trabajos/laboratorios demo en cuentas reales.
+- [x] S10-FIND-001 Supplier finance required lab.* + finance.* at RLS/RPC/API.
+- [x] S10-FIND-002 CANCELLED lab works cannot be revived by rework.
+- [x] S10-FIND-003 Generic application/octet-stream is accepted only for .stl.
+- [x] S10-FIND-004 Lab plan-item validation originally referenced nonexistent clinical_plan_items.patient_id; corrected through clinical_plans.
+- [x] S10-FIND-005 DNT-ALT-001/002 were false closures: Supabase alerts routes/table were absent and could return 501; canonical alerts ledger added.
+- [x] S10-FIND-006 Derived alert refresh initially churned version/audit/Realtime on unchanged reads; UPSERT/clear logic made idempotent.
+- [x] S10-FIND-007 Dashboard queried alerts for actors without alerts.read; query/card now permission-gated.
+- [x] S10-FIND-008 Supplier payment idempotency was race-prone and supplier invoice number could be blank; advisory serialization and DB validation added.
+- [x] S10-FIND-009 Manually resolved derived alerts could suppress a later recurrence forever; condition_active now distinguishes clear vs recurrence.
+- [x] S10-FIND-010 DENTY-KPI-1 margin omitted attributable external lab cost; Stage 10 adds provisional/actual lab cost attribution without mutating production history.
+- [x] S10-INHERITED-001 Games integrity manifest had three stale hashes unchanged since Stage 5; baseline hashes reconciled, game assets untouched.
+- [x] S10-INHERITED-002 .env.example omitted documented Supabase service-role/anon variables used by server wiring; example completed.
+
+## Pendientes/limitaciones que siguen abiertas después de Stage 10
+
+- [ ] S10-PEND-001 Residual S9-PEND-002: purchases/suppliers/supplier-invoices are now canonical, but legacy cost-recipes still has no defined Stage 10 semantic and remains for cleanup rather than inventing a metric.
+- [ ] S9-PEND-001 Legacy unused analytics comparison/losses/events/treatments-drilldown still need retirement or explicit semantics.
+- [ ] S9-PEND-003 PARTIALLY_REFUNDED still lacks an explicit refund-amount ledger.
+
+## Validaciones LIVE de Stage 10 — NO reimplementar
+
+- [ ] **S10-LIVE-001 — Aplicar migraciones Stage 10 en Supabase staging**
+  - Aplicar las tres migraciones Stage 10 con backup y validar RLS, triggers, RPCs, vistas y rollback.
+- [ ] **S10-LIVE-002 — Validar CRUD y aislamiento de laboratorios**
+  - Crear/editar/desactivar laboratorios en dos clínicas y confirmar que RLS/RPC impiden referencias cross-clinic.
+- [ ] **S10-LIVE-003 — Validar ciclo de trabajo, timeline y reworks**
+  - Ejecutar transiciones, conflictos de versión, reworks y estados terminales con dos sesiones concurrentes.
+- [ ] **S10-LIVE-004 — Validar Storage privado de laboratorio**
+  - Subir/descargar PDF, imágenes, ZIP y STL; comprobar 50 MB, RLS, path clinic/work, hash y rechazo de binarios genéricos no STL.
+- [ ] **S10-LIVE-005 — Validar ledger de proveedor e idempotencia**
+  - Registrar factura, pago y allocations parciales/concurrentes; repetir idempotency key y verificar saldo, auditoría y ausencia de duplicados.
+- [ ] **S10-LIVE-006 — Validar pipeline plan→laboratorio→cita**
+  - Abrir trabajo desde plan, volver a plan/cita/paciente y comprobar avisos cuando ETA queda después de la cita.
+- [ ] **S10-LIVE-007 — Validar alertas persistentes y Realtime**
+  - En dos sesiones probar list/review/resolve/snooze/assign, recurrencia tras clear, alertas derivadas de laboratorio y contador de Inicio sin reload.
+- [ ] **S10-LIVE-008 — Validar margen con coste externo de laboratorio**
+  - Con fixtures conocidos comprobar coste provisional, sustitución por línea real de proveedor, factura VOID y paridad Inicio/Finanzas/Análisis.
+- [ ] **S10-LIVE-009 — Validar permisos lab/finance/alerts**
+  - Probar ADMIN, RECEPTION, DENTIST y ASSISTANT; el acceso clínico a laboratorio no debe conceder contabilidad de proveedor ni alertas sin permiso.
+- [ ] **S10-LIVE-010 — Validar auditoría y Broadcast de tablas Stage 10**
+  - Confirmar audit_log y Broadcast privado por clínica para laboratories, lab_works, supplier ledger y alerts, sin tormentas de eventos por refrescos idempotentes.
+- [ ] **S10-LIVE-011 — Ejecutar Node 24, dependencias, typecheck, unit, build y E2E**
+  - El contenedor actual usa Node 22.16.0 y no tiene node_modules; ejecutar npm ci, domain-smoke, format, lint, styles, typecheck, unit, build y E2E bajo Node 24.x en CI/Vercel.
+
+## Gate de salida de código
+
+- [x] Se puede crear/editar/desactivar un laboratorio y usarlo en trabajos.
+- [x] Un trabajo tiene trazabilidad clínica, timeline, rework, adjuntos y vínculo económico.
+- [x] Resolver/revisar/posponer/asignar una alerta usa el mismo ledger que Inicio.
+- [x] No se infieren laboratorios desde Analytics ni se guardan pagos demo/localStorage en cuentas reales.
+- [x] El coste externo de laboratorio alimenta el margen canónico sin doble conteo.
+- [ ] Validación LIVE contra Supabase real y suite completa Node 24: `S10-LIVE-001…011`.
 
 ---
 
 # Etapa 11 — Personal, comunicaciones, campañas, privacidad y tareas
 
-**Estado de etapa:** `pending`
+**Estado de etapa:** `implemented_code_pending_live_gate`  
+**Bloqueo:** `DO_NOT_REIMPLEMENT`
 
-**Objetivo:** Persistir los subsistemas operativos que aún viven en useState/fixtures.
+**Objetivo:** Persistir personal, privacidad, campañas/atribución, comunicaciones/outbox y tareas sobre Supabase como fuente canónica.
 
 **Hallazgos originales asignados:** 8
 
-- PENDING_IMPLEMENTATION: **8**
+- IMPLEMENTED_PENDING_LIVE_VALIDATION: **8**
+- PENDING_IMPLEMENTATION: **0**
 
 ## Hallazgos
 
-### [ ] DNT-STF-001 — Fichajes viven en memoria
+### [x] DNT-STF-001 — Fichajes viven en memoria
 
-- **Prioridad:** P1_HIGH
-- **Módulo:** Personal / fichaje
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Entrada/salida debe persistir con correcciones auditadas.
-- **Problema observado originalmente:** attendance-module inicializa punches con useState y punch() solo añade fila local.
-- **Solución Supabase prevista:**
-  - Estrategia: attendance_punches append-only.
-  - schema: id,clinic_id,staff_member_id,type,occurred_at,source,created_by,corrects_punch_id,correction_reason
-- **Criterios de aceptación originales:**
-  - Reload conserva fichajes; corrección deja rastro.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** `attendance_punches` append-only; fichaje entrada/salida persistente; corrección administrativa crea un nuevo evento ligado al original y queda auditada.
+- **Pendiente:** `S11-LIVE-002` valida secuencia, concurrencia, actor y Europe/Madrid en Supabase real.
 
-### [ ] DNT-STF-004 — Solicitudes de privacidad son estado local
+### [x] DNT-STF-004 — Solicitudes de privacidad son estado local
 
-- **Prioridad:** P1_HIGH
-- **Módulo:** Privacidad
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Solicitudes acceso/rectificación/supresión deben tener workflow persistente.
-- **Problema observado originalmente:** Settings usa INITIAL_PRIVACY y añade filas con useState.
-- **Solución Supabase prevista:**
-  - Estrategia: privacy_requests.
-  - schema: id,clinic_id,patient_id,type,status,requested_at,due_at,assigned_to,notes,resolution_document_id,closed_at
-- **Criterios de aceptación originales:**
-  - Solicitud persiste, tiene SLA/estado/actor y export asociado cuando corresponda.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** `privacy_requests` persistente con estado, SLA de un mes, asignación, versionado, auditoría y `resolution_document_id` restringido al mismo paciente/clínica.
+- **Pendiente:** `S11-LIVE-003` y revisión operativa/legal `S11-LIVE-011`.
 
-### [ ] DNT-MKT-001 — Campañas son constantes/useState
+### [x] DNT-MKT-001 — Campañas son constantes/useState
 
-- **Prioridad:** P1_HIGH
-- **Módulo:** Campañas
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Campañas deben persistir y alimentar atribución/ROI.
-- **Problema observado originalmente:** campaigns-module usa INITIAL_CAMPAIGNS y setState; no hay campaigns table.
-- **Solución Supabase prevista:**
-  - Estrategia: campaigns tenant table + attribution.
-  - schema: id,clinic_id,name,provider,status,budget_cents,start/end,external_campaign_id,utm defaults,created_by
-- **Criterios de aceptación originales:**
-  - Campaña persiste y puede vincular pacientes/ingresos.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** `marketing_campaigns` tenant-scoped; presupuesto, estado, UTM defaults, permisos `marketing.read`/`marketing.manage` separados y métricas de atribución persistentes.
+- **Pendiente:** conexión LIVE con proveedores Meta/Google si se desea sincronización externa.
 
-### [ ] DNT-MKT-002 — Comunicaciones son useState y pacientes demo
+### [x] DNT-MKT-002 — Comunicaciones son useState y pacientes demo
 
-- **Prioridad:** P1_HIGH
-- **Módulo:** Comunicaciones
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Mensajes y estado de entrega deben persistir.
-- **Problema observado originalmente:** communications-module usa INITIAL_ROWS, DEMO_PATIENTS y estado local.
-- **Solución Supabase prevista:**
-  - Estrategia: communication_messages/outbox + provider delivery events.
-  - schema: clinic_id,patient_id,channel,category,subject,body,status,provider_message_id,scheduled_at,sent_at,delivered_at,failed_at,created_by
-- **Criterios de aceptación originales:**
-  - Mensaje enviado tiene estado persistente y delivery update idempotente.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** pacientes reales, `communication_messages`, estado persistente, envío encolado y delivery reconciliable por provider message ID.
+- **Pendiente:** `S11-LIVE-006` configura y prueba proveedor externo real.
 
-### [ ] DNT-MKT-003 — Consentimiento de marketing es un checkbox local
+### [x] DNT-MKT-003 — Consentimiento de marketing es un checkbox local
 
-- **Prioridad:** P1_HIGH
-- **Módulo:** Comunicaciones
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Preferencias/consentimiento deben ser persistentes y auditables.
-- **Problema observado originalmente:** communications-module mantiene marketingConsent en useState.
-- **Solución Supabase prevista:**
-  - Estrategia: communication_consents append/history.
-  - schema: patient_id,channel,purpose,status,source,captured_at,revoked_at,evidence_document_id,created_by
-- **Criterios de aceptación originales:**
-  - Opt-out bloquea envío desde cualquier dispositivo y queda auditado.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** `communication_consents` append-only; opt-in/opt-out por canal. Marketing valida consentimiento al encolar **y otra vez al reclamar el outbox**, cancelando mensajes si hubo revocación posterior.
+- **Pendiente:** `S11-LIVE-005` prueba multicanal y dos dispositivos.
 
-### [ ] DNT-MKT-004 — notifications existe pero no hay outbox unificada de entrega externa
+### [x] DNT-MKT-004 — Falta outbox unificada de entrega externa
 
-- **Prioridad:** P1_HIGH
-- **Módulo:** Notificaciones
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Notificaciones internas y mensajes externos deben tener estados de entrega/reintento.
-- **Problema observado originalmente:** Existe notifications e integration_events, pero Campaigns/Communications siguen locales y no se ve una unión de outbox→provider.
-- **Solución Supabase prevista:**
-  - Estrategia: Transactional outbox.
-- **Criterios de aceptación originales:**
-  - Reintentos no duplican mensajes; estado final es observable.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** `communication_outbox` con `idempotency_key`, `attempt_count`, `next_attempt_at`, `SKIP LOCKED`, RPC claim/finish y Edge worker genérico con retry/backoff.
+- **Pendiente:** credenciales/endpoint proveedor y callbacks LIVE (`S11-LIVE-006`).
 
-### [ ] DNT-TSK-001 — Tareas rápidas son vista previa sin efectos
+### [x] DNT-TSK-001 — Tareas rápidas son vista previa sin efectos
 
-- **Prioridad:** P1_HIGH
-- **Módulo:** Tareas
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Crear paciente/cobrar/citar/recibir lab/receta deben ejecutar flujos reales.
-- **Problema observado originalmente:** TasksPage recorre DEMO_TASKS, muestra 'Vista previa en modo demo' y Confirmar solo cierra modal.
-- **Solución Supabase prevista:**
-  - Estrategia: Task launcher no necesita tabla si es navegación/comando; cada acción llama el RPC/módulo real. Si hay tareas asignables, crear tasks.
-  - schema: tasks solo para work items persistentes: clinic_id,patient_id,type,status,assignee,due_at,source_type/source_id
-- **Criterios de aceptación originales:**
-  - Confirmar Cobrar produce payment o navega a cobro real; ningún botón es no-op.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** acciones rápidas navegan a Paciente, Agenda, Recetas, Finanzas y Laboratorio reales; `tasks` persistentes soporta prioridad, estado, paciente, responsable, vencimiento y source linkage.
+- **Pendiente:** la rama **Receta** se revalida al completar Stage 12, porque su persistencia Supabase pertenece a `DNT-RX-001/002`.
 
-### [ ] DNT-PAT-013 — Origen declarado no está conectado a campaña/UTM
+### [x] DNT-PAT-013 — Origen declarado no está conectado a campaña/UTM
 
-- **Prioridad:** P1_HIGH
-- **Módulo:** Marketing / atribución
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Medir origen declarado y atribución observada.
-- **Problema observado originalmente:** patients guarda declared_source/detail, pero no hay tablas campaigns/attribution en Supabase.
-- **Solución Supabase prevista:**
-  - Estrategia: campaigns + patient_attribution/touchpoints.
-  - schema: campaigns
-  - schema: patient_attribution(first_touch,last_touch,campaign_id,utm_source,utm_medium,utm_campaign,captured_at)
-- **Criterios de aceptación originales:**
-  - Paciente de campaña se conecta a leads→presupuesto→ingreso.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** `patients.declared_campaign_id` hace atómica la selección de campaña con la creación del paciente; trigger genera touchpoint y hereda UTM de la campaña. `patient_attribution` conserva first/last touch y el ROI atribuye presupuestos/facturas/pagos según el touchpoint existente **en el momento de la conversión**, evitando reatribución histórica.
+- **Pendiente:** `S11-LIVE-004` valida el ciclo completo con datos reales.
+
+## Hallazgos adicionales encontrados y corregidos en Stage 11
+
+1. **S11-FIND-001 — Carrera consentimiento→outbox:** una revocación posterior al enqueue podía llegar al proveedor. Corregido revalidando consentimientos en `claim_communication_outbox`.
+2. **S11-FIND-002 — Deriva histórica de ROI:** usar `last_campaign_id` actual podía reatribuir ingresos antiguos. Corregido usando touchpoints por fecha de conversión.
+3. **S11-FIND-003 — Permiso de campaña en UI:** `marketing.read` mostraba mutadores. Crear/pausar queda visible solo con `marketing.manage`.
+4. **S11-FIND-004 — Evidencia de privacidad incompleta en API:** `resolution_document_id` existía en DB pero no viajaba por schema/repository. Corregido.
+5. **S11-FIND-005 — Regresión Stage 3 en query keys:** Comunicaciones/Tareas introdujeron arrays manuales. Corregido con `dentyQueryKeys`.
+6. **S11-FIND-006 — Campaña sin UTM heredados:** el touchpoint no copiaba UTM defaults. Corregido en PostgreSQL.
+7. **S11-FIND-007 — PATCH de campaña sin validación:** ruta genérica aceptaba `Record<string, unknown>`. Corregido con `updateMarketingCampaignSchema`.
+8. **S11-FIND-008 — Architecture gate:** dos módulos Stage 11 tenían líneas excesivamente largas. Remaquetados sin cambiar comportamiento.
+9. **S11-FIND-009 — API parity incompleta:** rutas Tasks/Attribution faltaban en manifiesto. Reconciliado a **221/221**.
+10. **S11-FIND-010 — Alta paciente→campaña no atómica:** la campaña dependía de una segunda petición. Corregido con `declared_campaign_id` + trigger en la misma transacción del alta.
 
 ## Acciones de la etapa
 
-- Persistir fichajes de empleados.
-- Persistir solicitudes de privacidad y su lifecycle.
-- Crear campañas reales y atribución UTM/origen.
-- Crear comunicaciones persistentes.
-- Persistir consentimiento de marketing.
-- Crear outbox de notificaciones para entrega externa e idempotencia.
-- Convertir tareas rápidas en comandos reales con permisos/auditoría.
+- [x] Persistir fichajes de empleados.
+- [x] Persistir solicitudes de privacidad y lifecycle.
+- [x] Crear campañas y atribución origen/UTM.
+- [x] Crear comunicaciones persistentes.
+- [x] Persistir consentimiento/opt-out.
+- [x] Crear outbox idempotente y worker reclamable concurrentemente.
+- [x] Convertir tareas rápidas en destinos reales y crear work-items persistentes.
+- [x] RLS/RPC/audit/Broadcast en tablas Stage 11.
 
-## Gate de salida
+## Gate de salida de código
 
-- [ ] Recargar la página no borra fichajes, campañas ni tareas.
-- [ ] Una comunicación tiene destinatario, consentimiento y estado de entrega.
-- [ ] La atribución de paciente puede enlazarse a campaña/origen.
-- [ ] Solicitudes de privacidad son auditables.
+- [x] Recargar no borra fichajes, campañas, comunicaciones, consentimientos, privacidad ni tareas.
+- [x] Mensaje tiene destinatario, consentimiento aplicable, outbox y estado persistente.
+- [x] Atribución paciente→campaña→presupuesto/factura/pago tiene semántica histórica estable.
+- [x] Solicitudes de privacidad y correcciones de fichaje quedan auditables.
+- [x] Stage 11 contracts PASS y API parity 221/221.
+- [ ] Validación LIVE contra Supabase/proveedor real y suite completa Node 24: `S11-LIVE-001…012`.
 
 ---
 
 # Etapa 12 — Portal del paciente, recetas y Oye Denty
 
-**Estado de etapa:** `pending`
+**Estado de etapa:** `implemented_code_pending_live_gate`  
+**Bloqueo:** `DO_NOT_REIMPLEMENT`
 
 **Objetivo:** Conectar las superficies finales que dependen de casi toda la infraestructura anterior.
 
 **Hallazgos originales asignados:** 5
 
-- RESOLVED_IN_CODE: **1**
-- PENDING_IMPLEMENTATION: **4**
+- RESOLVED_IN_CODE: **1** (`DNT-PRT-001`, resuelto por Stage 3)
+- IMPLEMENTED_PENDING_LIVE_VALIDATION: **4**
+- PENDING_IMPLEMENTATION: **0**
 
 ## Hallazgos
 
@@ -1981,86 +2075,88 @@ Etapa 6 queda `DO_NOT_REIMPLEMENT`. Si una validación LIVE falla, corregir solo
 - **Prioridad:** P0_CRITICAL
 - **Módulo:** Portal del paciente
 - **Estado actual:** `RESOLVED_IN_CODE` (`resolved_by_previous_stage`)
-- **Resuelto por:** stage3
-- **Nota de estado:** Portal dejó el corpus de pacientes ficticios y consume la proyección real patient-scoped.
-- **Objetivo original:** Paciente debe ver sus datos reales bajo RLS.
-- **Problema observado originalmente:** patient-portal.tsx busca el paciente en DEMO_PATIENTS y renderiza contenido estático por tabs.
-- **Solución Supabase prevista:**
-  - Estrategia: Portal queries con JWT paciente + patient_accounts/RLS.
-- **Criterios de aceptación originales:**
-  - Paciente real ve solo sus filas; cambios staff aparecen al portal.
+- **Resuelto por:** Stage 3
+- **Nota Stage 12:** La proyección patient-scoped se amplía con recetas reales; RLS Stage 12 limita al paciente a sus propias recetas finales y el portal abre el PDF canónico.
 
-### [ ] DNT-RX-001 — No existe schema Supabase de recetas
+### [x] DNT-RX-001 — No existe schema Supabase de recetas
 
 - **Prioridad:** P0_CRITICAL
 - **Módulo:** Recetas
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Recetas, items, firma, cancelación e historial deben persistir.
-- **Problema observado originalmente:** API/UI de prescriptions existe y alterna demo/real, pero no se encontraron prescriptions tables en migrations.
-- **Solución Supabase prevista:**
-  - Estrategia: Crear prescription ledger.
-  - schema: prescriptions(id,clinic_id,patient_id,prescriber_staff_id,status,issued_at,cancelled_at,cancellation_reason,document_id,signature_hash,version)
-  - schema: prescription_items(medication,dose,route,frequency,duration,instructions)
-  - schema: prescription_events
-  - storage: PDF/firma en buckets privados
-- **Criterios de aceptación originales:**
-  - Crear/firma/cancelación persiste y aparece en ficha/portal autorizado.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** `prescription_clinic_settings`, `prescription_prescribers`, `prescriptions`, `prescription_items`, `prescription_versions` y `prescription_signatures`; RPCs de draft/update/validate/sign/issue/cancel; repository/routes Supabase; PDF reproducible; historial y cancelación; audit/Broadcast/RLS.
+- **Persistencia clínica:** la validación crea un snapshot versionado con SHA-256; la emisión exige la firma de la versión actual.
+- **Pendiente:** `S12-LIVE-001`, `S12-LIVE-002` y matriz real de permisos/RLS.
 
-### [ ] DNT-RX-002 — Firma de receta vive como data URL en UI antes de persistencia externa
+### [x] DNT-RX-002 — Firma de receta vive como data URL en UI antes de persistencia externa
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Recetas
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** La firma final debe convertirse en evidencia inmutable asociada a receta/version.
-- **Problema observado originalmente:** prescriptions-module mantiene signatureDataUrl local y la persistencia depende del API externo.
-- **Solución Supabase prevista:**
-  - Estrategia: Al firmar, subir evidencia a signatures privado, generar hash del documento y finalizar receta vía RPC atómica.
-- **Criterios de aceptación originales:**
-  - Una receta SIGNED referencia document/version/hash y no puede mutar clínicamente.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** la UI captura la firma, la convierte a `File` y la transporta como `multipart/form-data`; Storage privado `prescription-evidence` conserva el binario y `prescription_signatures` fija receta, versión, path, MIME, tamaño y SHA-256. La evidencia/versiones son inmutables.
+- **Corrección de regresión:** se descartó transportar Base64 por JSON porque rompía el contrato Storage de Stage 5.
+- **Pendiente:** `S12-LIVE-003` con bytes reales, checksum y pruebas de tampering/cross-clinic.
 
-### [ ] DNT-TSK-002 — NLU reconoce más acciones de las que el executor puede ejecutar
+### [x] DNT-TSK-002 — NLU reconoce más acciones de las que el executor puede ejecutar
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Voice / IA
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** La voz no debe confirmar acciones no soportadas.
-- **Problema observado originalmente:** LocalVoiceAction incluye schedule/reschedule/arrive/no_show, dependencies, alerts, prosthesis, lab, etc.; executeAction solo implementa un subconjunto y el resto retorna false.
-- **Solución Supabase prevista:**
-  - Estrategia: Capability registry generado desde comandos reales.
-- **Criterios de aceptación originales:**
-  - Test de cobertura: todo intent habilitado tiene executor y contract test.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** registro explícito `EXECUTABLE_VOICE_ACTION_TYPES`, `isExecutableVoiceAction()` y capability gate en preview/confirmación. Un intent entendido pero no ejecutable o incompleto no puede confirmarse ni anunciar éxito.
+- **Atomicidad práctica:** el plan completo se preflighta antes de cualquier acción, evitando que una secuencia ejecute parcialmente y falle al final.
+- **Pendiente:** `S12-LIVE-005` con órdenes reales y múltiples dispositivos/sesiones.
 
-### [ ] DNT-TSK-003 — Acciones de voz dependen de rutas que Supabase parcial no implementa
+### [x] DNT-TSK-003 — Acciones de voz dependen de rutas que Supabase parcial no implementa
 
 - **Prioridad:** P1_HIGH
 - **Módulo:** Voice / IA
-- **Estado actual:** `PENDING_IMPLEMENTATION` (`pending`)
-- **Nota de estado:** Pendiente según roadmap.
-- **Objetivo original:** Dispatcher de voz debe usar los mismos comandos transaccionales que UI.
-- **Problema observado originalmente:** Executor llama clinical workflow, periodontal, budget sync, billing payments; muchas rutas caen al backend externo.
-- **Solución Supabase prevista:**
-  - Estrategia: Voice executor llama los mismos RPC/command endpoints canónicos; nunca escribe una ruta alternativa.
-- **Criterios de aceptación originales:**
-  - Misma acción por voz o UI produce exactamente mismos rows/audit/events.
+- **Estado actual:** `IMPLEMENTED_PENDING_LIVE_VALIDATION`
+- **Implementado:** las acciones soportadas de voz usan `getBrowserApi()` y los mismos recursos/endpoints/RPC canónicos que la UI. No existe una segunda ruta de escritura específica para voz.
+- **Guardas adicionales:** `payment.record` exige importe+método; `patient.create` ya no exige DNI cuando el schema canónico lo permite opcional; las mutaciones relevantes requieren confirmación.
+- **Pendiente:** `S12-LIVE-006` para demostrar equivalencia real de rows/audit/Broadcast entre UI y voz.
+
+## Hallazgos adicionales encontrados y corregidos en Stage 12
+
+1. **S12-FIND-001 — Firma Base64 violaba Stage 5:** corregida a `multipart File` + Storage privado.
+2. **S12-FIND-002 — Visibilidad de receta en portal:** PATIENT queda limitado por RLS a sus propias recetas finales, sin DRAFT/READY/SIGNING.
+3. **S12-FIND-003 — Ejecución parcial de planes de voz:** ahora se preflighta el plan entero antes de la primera escritura.
+4. **S12-FIND-004 — DNI obligatorio solo en voz:** eliminado; se alinea con `createPatientSchema` donde DNI es opcional.
+5. **S12-FIND-005 — Pago de voz sin método:** NLU marca ambigüedad y executor exige `amount + method`.
+6. **S12-FIND-006 — API parity:** rutas `sign/history` incorporadas a manifests; paridad **223/223**.
+7. **S12-FIND-007 — Lifecycle incompleto en UI:** añadidas firma, emisión, cancelación e historial versionado sobre recursos canónicos.
+8. **S12-FIND-008 — Huérfanos de firma en Storage:** policy de upload ligada a receta `READY` y cleanup DELETE restringido a objetos sin fila de firma; la ruta intenta limpiar el objeto si la RPC falla.
+9. **S12-FIND-009 — PDF perdía tildes/ñ:** salida migrada a WinAnsi para conservar caracteres españoles soportados.
+10. **S12-FIND-010 — Firma por profesional distinto:** `record_prescription_signature` exige que el staff autenticado coincida con `prescriber_staff_id`, y `issue_prescription` solo acepta esa evidencia.
 
 ## Acciones de la etapa
 
-- Sustituir DEMO_PATIENTS del portal por proyecciones patient-scoped con RLS.
-- Crear schema de recetas, versionado y persistencia de firma.
-- Guardar firma/artefactos de receta en Storage cuando corresponda.
-- Alinear intents reconocidos por voz con acciones realmente implementadas.
-- Hacer que Oye Denty use los mismos comandos/RPC que la UI.
-- Exigir confirmación y auditoría en acciones sensibles de voz.
+- [x] Mantener portal patient-scoped y añadir recetas reales con RLS.
+- [x] Crear schema de recetas, items, versionado, lifecycle y firma.
+- [x] Guardar evidencia de firma en Storage privado sin Base64 clínico en JSON.
+- [x] Alinear intents reconocidos con capacidades ejecutables.
+- [x] Hacer que Oye Denty use los mismos comandos/API/RPC que la UI.
+- [x] Exigir confirmación/capability checks antes de mutaciones de voz.
+- [x] Añadir contratos Stage 12 y reconciliar API parity.
 
-## Gate de salida
+## Gate de salida de código
 
-- [ ] El paciente solo ve sus propios datos.
-- [ ] Una receta queda persistida y reproducible después de recargar.
-- [ ] La voz no anuncia acciones que el backend no puede ejecutar.
-- [ ] UI y voz producen el mismo resultado y audit trail.
+- [x] El portal consume datos patient-scoped y recetas finales bajo RLS.
+- [x] Una receta posee persistencia, versión, items, firma, emisión, cancelación e historial reproducible por backend.
+- [x] La voz no puede confirmar una acción que el executor declara no ejecutable.
+- [x] UI y voz comparten el mismo `BrowserApi`/rutas canónicas para las acciones soportadas.
+- [x] Stage 12 contracts **7/7 PASS**; regresión Stage 1→12 **61/61 PASS**; API parity **223/223 PASS**.
+- [ ] Validación LIVE contra Supabase real, Storage/JWT/Realtime y suite completa Node 24: `S12-LIVE-001…009`.
+
+## Validaciones LIVE de Stage 12
+
+- [ ] **S12-LIVE-001** — Aplicar migración Stage 12 en Supabase staging.
+- [ ] **S12-LIVE-002** — Validar lifecycle completo de receta y persistencia tras reload.
+- [ ] **S12-LIVE-003** — Validar evidencia de firma privada e inmutable.
+- [ ] **S12-LIVE-004** — Validar recetas del portal con JWT/RLS real.
+- [ ] **S12-LIVE-005** — Validar capability gate de Oye Denty.
+- [ ] **S12-LIVE-006** — Validar equivalencia UI↔voz y ausencia de escrituras parciales.
+- [ ] **S12-LIVE-007** — Validar permisos de recetas por rol.
+- [ ] **S12-LIVE-008** — Ejecutar Node 24, dependencias, typecheck, lint, build y E2E.
+- [ ] **S12-LIVE-009** — Revisión clínica/legal e integración de receta electrónica externa si aplica.
 
 ---
 
@@ -2094,60 +2190,11 @@ Esta etapa es un gate de control y no posee IDs `DNT-*` propios.
 
 # Resumen de trabajo todavía pendiente
 
-## A. Hallazgos originales sin implementar
+## A. Hallazgos originales sin implementar — 0
 
-### Etapa 7 — Agenda, recepción, no-show y sala de espera (9)
+Los **91/91 hallazgos originales** ya están resueltos en código o implementados y bloqueados a la espera de validación LIVE. Stage 13 no debe reimplementar ninguno; debe integrar y validar.
 
-- [ ] **DNT-AGD-001** — Appointments no están implementadas en el handler Supabase (P0_CRITICAL)
-- [ ] **DNT-AGD-002** — No hay garantía DB contra doble reserva (P0_CRITICAL)
-- [ ] **DNT-AGD-003** — Transiciones ARRIVED/IN_CHAIR/COMPLETED no están cerradas en Supabase (P1_HIGH)
-- [ ] **DNT-AGD-004** — Avisos de sala de espera no tienen Broadcast real (P1_HIGH)
-- [ ] **DNT-AGD-005** — Separación/visit gap se guarda en localStorage (P2_MEDIUM)
-- [ ] **DNT-AGD-006** — Tablas parciales sin pipeline completo de reagendado (P1_HIGH)
-- [ ] **DNT-AGD-007** — Métricas de espera/sillón no tienen proyección DB canónica (P2_MEDIUM)
-- [ ] **DNT-STF-002** — Ausencias no tienen modelo Supabase canónico (P1_HIGH)
-- [ ] **DNT-PRT-002** — Lista de espera del portal es un boolean local (P1_HIGH)
-
-### Etapa 8 — Facturación, pagos y fiscal (4)
-
-- [ ] **DNT-FIN-002** — Faltan tablas de facturas aunque la UI/API las usa (P0_CRITICAL)
-- [ ] **DNT-FIN-003** — Proveedor de pago y ledger interno no están garantizados como una sola operación idempotente (P0_CRITICAL)
-- [ ] **DNT-FIN-004** — Eventos financieros no invalidan dashboard/analytics/paciente (P1_HIGH)
-- [ ] **DNT-FIN-005** — fiscal_records existe sin cadena de factura completa (P1_HIGH)
-
-### Etapa 9 — Inicio, análisis y KPIs reales (1)
-
-- [ ] **DNT-ANL-003** — No hay definiciones canónicas de KPIs (P1_HIGH)
-
-### Etapa 10 — Laboratorios y alertas conectadas (7)
-
-- [ ] **DNT-LAB-001** — No existe maestro de laboratorios en Supabase (P0_CRITICAL)
-- [ ] **DNT-LAB-002** — No existe tabla lab_works aunque la API y UI la usan (P0_CRITICAL)
-- [ ] **DNT-LAB-003** — Pestaña Laboratorios no ofrece CRUD real (P1_HIGH)
-- [ ] **DNT-LAB-004** — Balances reales están incompletos y pagos de laboratorio son demo (P1_HIGH)
-- [ ] **DNT-LAB-005** — Suppliers analytics se usa como fuente de laboratorios (P1_HIGH)
-- [ ] **DNT-LAB-006** — Adjuntos se convierten a base64 y se envían por JSON (P1_HIGH)
-- [ ] **DNT-LAB-007** — Trabajo de laboratorio no tiene vínculo DB garantizado con plan/cita/prótesis (P1_HIGH)
-
-### Etapa 11 — Personal, comunicaciones, campañas, privacidad y tareas (8)
-
-- [ ] **DNT-STF-001** — Fichajes viven en memoria (P1_HIGH)
-- [ ] **DNT-STF-004** — Solicitudes de privacidad son estado local (P1_HIGH)
-- [ ] **DNT-MKT-001** — Campañas son constantes/useState (P1_HIGH)
-- [ ] **DNT-MKT-002** — Comunicaciones son useState y pacientes demo (P1_HIGH)
-- [ ] **DNT-MKT-003** — Consentimiento de marketing es un checkbox local (P1_HIGH)
-- [ ] **DNT-MKT-004** — notifications existe pero no hay outbox unificada de entrega externa (P1_HIGH)
-- [ ] **DNT-TSK-001** — Tareas rápidas son vista previa sin efectos (P1_HIGH)
-- [ ] **DNT-PAT-013** — Origen declarado no está conectado a campaña/UTM (P1_HIGH)
-
-### Etapa 12 — Portal del paciente, recetas y Oye Denty (4)
-
-- [ ] **DNT-RX-001** — No existe schema Supabase de recetas (P0_CRITICAL)
-- [ ] **DNT-RX-002** — Firma de receta vive como data URL en UI antes de persistencia externa (P1_HIGH)
-- [ ] **DNT-TSK-002** — NLU reconoce más acciones de las que el executor puede ejecutar (P1_HIGH)
-- [ ] **DNT-TSK-003** — Acciones de voz dependen de rutas que Supabase parcial no implementa (P1_HIGH)
-
-## B. Validaciones LIVE aún pendientes de Etapas 1–6
+## B. Validaciones LIVE/operativas aún pendientes de Etapas 1–12
 
 ### Etapa 1 (9)
 
@@ -2197,7 +2244,7 @@ Esta etapa es un gate de control y no posee IDs `DNT-*` propios.
 - [ ] **S5-LIVE-006** — Definir retención/backup operativo de objetos Storage
 - [ ] **S5-LIVE-007** — Ejecutar suite completa bajo Node 24
 
-### Etapa 6 (6)
+### Etapa 6 (8)
 
 - [ ] **S6-LIVE-001** — Aplicar migración Stage 6 en Supabase staging
 - [ ] **S6-LIVE-002** — Validar concurrencia e historial de odontograma/periodoncia
@@ -2205,6 +2252,64 @@ Esta etapa es un gate de control y no posee IDs `DNT-*` propios.
 - [ ] **S6-LIVE-004** — Ejecutar E2E de consentimientos y firma de presupuesto
 - [ ] **S6-LIVE-005** — Verificar ledger clínico y audit_log con actor real
 - [ ] **S6-LIVE-006** — Ejecutar suite completa y build bajo Node 24
+- [ ] **S6-LIVE-007** — E2E visual temporal/mixta/supernumerarios
+- [ ] **S6-LIVE-008** — Validación clínica de semántica ISO 10394
+
+### Etapa 7 (9)
+
+- [ ] **S7-LIVE-001** — Aplicar migración Stage 7 en Supabase staging
+- [ ] **S7-LIVE-002** — Validar concurrencia de reservas y bloqueos
+- [ ] **S7-LIVE-003** — Validar Broadcast de recepción
+- [ ] **S7-LIVE-004** — Validar carrera ausencia↔reserva
+- [ ] **S7-LIVE-005** — Validar no-show, outbox y reagendado
+- [ ] **S7-LIVE-006** — Validar lista de espera y privilegios
+- [ ] **S7-LIVE-007** — Validar métricas operativas
+- [ ] **S7-LIVE-008** — Ejecutar suite completa y build bajo Node 24
+- [ ] **S7-LIVE-009** — Validar solicitudes de cita del portal y aislamiento cross-clinic
+
+### Etapa 8 (9)
+
+- [ ] **S8-LIVE-001** — Aplicar migración Stage 8 en Supabase staging
+- [ ] **S8-LIVE-002** — Validar emisión concurrente y cadena fiscal
+- [ ] **S8-LIVE-003** — E2E real de cobros manual, SumUp y Stripe
+- [ ] **S8-LIVE-004** — Validar reconciliación tras fallo de red o callback repetido
+- [ ] **S8-LIVE-005** — Validar matriz RLS y permisos financieros
+- [ ] **S8-LIVE-006** — Validar Realtime financiero con dos sesiones
+- [ ] **S8-LIVE-007** — Validar integración fiscal/VERI*FACTU real
+- [ ] **S8-LIVE-008** — Revisión fiscal y contable con asesoría
+- [ ] **S8-LIVE-009** — Ejecutar Node 24, typecheck, tests, build y E2E
+
+### Etapa 9 (9)
+
+- [ ] **S9-LIVE-001** — Aplicar migración Stage 9 en Supabase staging
+- [ ] **S9-LIVE-002** — Validar paridad de KPIs entre Inicio, Finanzas y Análisis
+- [ ] **S9-LIVE-003** — Validar periodos Mes/Trimestre/Año y DST Madrid
+- [ ] **S9-LIVE-004** — Validar rectificativas, allocations y pendiente neto
+- [ ] **S9-LIVE-005** — Validar reconocimiento de producción y snapshots históricos
+- [ ] **S9-LIVE-006** — Validar atribución por sede y profesional
+- [ ] **S9-LIVE-007** — Validar rendimiento SQL Analytics
+- [ ] **S9-LIVE-008** — Validar Realtime KPI entre dos sesiones
+- [ ] **S9-LIVE-009** — Ejecutar Node 24, typecheck, tests, build y E2E
+
+### Etapa 10 (11)
+
+- [ ] **S10-LIVE-001** — Aplicar migraciones Stage 10 en Supabase staging
+- [ ] **S10-LIVE-002** — Validar CRUD y aislamiento de laboratorios
+- [ ] **S10-LIVE-003** — Validar ciclo de trabajo, timeline y reworks
+- [ ] **S10-LIVE-004** — Validar Storage privado de laboratorio
+- [ ] **S10-LIVE-005** — Validar ledger de proveedor e idempotencia
+- [ ] **S10-LIVE-006** — Validar pipeline plan→laboratorio→cita
+- [ ] **S10-LIVE-007** — Validar alertas persistentes y Realtime
+- [ ] **S10-LIVE-008** — Validar margen con coste externo de laboratorio
+- [ ] **S10-LIVE-009** — Validar permisos lab/finance/alerts
+- [ ] **S10-LIVE-010** — Validar auditoría y Broadcast de tablas Stage 10
+- [ ] **S10-LIVE-011** — Ejecutar Node 24, dependencias, typecheck, unit, build y E2E
+
+## B.1 Pendientes técnicos adicionales fuera de los 91 originales
+
+- [ ] S10-PEND-001 Residual S9-PEND-002: purchases/suppliers/supplier-invoices are now canonical, but legacy cost-recipes still has no defined Stage 10 semantic and remains for cleanup rather than inventing a metric.
+- [ ] S9-PEND-001 Legacy unused analytics comparison/losses/events/treatments-drilldown still need retirement or explicit semantics.
+- [ ] S9-PEND-003 PARTIALLY_REFUNDED still lacks an explicit refund-amount ledger.
 
 ## C. Gates de control pendientes
 
@@ -2237,8 +2342,35 @@ Esta etapa es un gate de control y no posee IDs `DNT-*` propios.
 
 # Regla de handoff
 
-- Etapas 1–5 siguen siendo `DO_NOT_REIMPLEMENT`.
+- Etapas 1–12 siguen siendo `DO_NOT_REIMPLEMENT`.
 - Sus tareas LIVE se validan después sin reescribir esas etapas.
-- La siguiente implementación funcional es **Etapa 7**.
+- La siguiente fase es **Etapa 13 — Gate final de integración**; no introduce nuevos `DNT-*`, verifica el sistema completo.
 - Los IDs marcados `resolved_by_previous_stage` no deben recrearse en su etapa original.
 - Este inventario conserva **los 91 IDs originales**: cualquier documento futuro que contenga menos debe explicar explícitamente el filtro aplicado.
+
+### Etapa 11 (12)
+
+- [ ] **S11-LIVE-001** — Aplicar migraciones Stage 11 en Supabase staging
+- [ ] **S11-LIVE-002** — Validar fichaje y correcciones con dos sesiones
+- [ ] **S11-LIVE-003** — Validar workflow de privacidad y SLA
+- [ ] **S11-LIVE-004** — Validar campaña, origen y atribución histórica
+- [ ] **S11-LIVE-005** — Validar consentimiento y opt-out multicanal
+- [ ] **S11-LIVE-006** — Configurar proveedor externo del communication outbox
+- [ ] **S11-LIVE-007** — Validar permisos de campañas y comunicaciones
+- [ ] **S11-LIVE-008** — Validar tareas persistentes y acciones rápidas
+- [ ] **S11-LIVE-009** — Validar Realtime Stage 11 entre dos sesiones
+- [ ] **S11-LIVE-010** — Validar audit_log y aislamiento cross-clinic
+- [ ] **S11-LIVE-011** — Revisión operativa de privacidad y marketing
+- [ ] **S11-LIVE-012** — Ejecutar Node 24, dependencias, typecheck, lint, build y E2E
+
+### Etapa 12 (9)
+
+- [ ] **S12-LIVE-001** — Aplicar migración Stage 12 en Supabase staging
+- [ ] **S12-LIVE-002** — Validar lifecycle completo de receta y persistencia tras reload
+- [ ] **S12-LIVE-003** — Validar evidencia de firma privada e inmutable
+- [ ] **S12-LIVE-004** — Validar recetas en portal del paciente con RLS real
+- [ ] **S12-LIVE-005** — Validar capability gate de Oye Denty
+- [ ] **S12-LIVE-006** — Validar equivalencia UI↔voz y ausencia de escrituras parciales
+- [ ] **S12-LIVE-007** — Validar permisos de recetas por rol
+- [ ] **S12-LIVE-008** — Ejecutar Node 24, dependencias, typecheck, lint, build y E2E
+- [ ] **S12-LIVE-009** — Revisión clínica/legal e integración de receta electrónica externa

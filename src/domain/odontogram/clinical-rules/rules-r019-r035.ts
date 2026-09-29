@@ -8,7 +8,12 @@ const decision = (
   severity: ClinicalRuleDecision["severity"],
   message: string,
   missingContext?: readonly string[],
-): ClinicalRuleDecision => ({ ruleId, severity, message, ...(missingContext ? { missingContext } : {}) });
+): ClinicalRuleDecision => ({
+  ruleId,
+  severity,
+  message,
+  ...(missingContext ? { missingContext } : {}),
+});
 
 const has = (entities: readonly DentalEntity[], predicate: (entity: DentalEntity) => boolean) =>
   entities.some((entity) => entity.active && predicate(entity));
@@ -27,13 +32,26 @@ export function evaluateRulesR019R035(
 
   push(
     status === "diastema_closure" &&
-      has(sameTooth, (entity) => entity.status === "diastema_closure" && entity.entityType !== proposed.entityType) &&
-      decision("R019", "WARN", "Confirma la alternativa ortodóncica o restauradora para el diastema."),
+      has(
+        sameTooth,
+        (entity) =>
+          entity.status === "diastema_closure" && entity.entityType !== proposed.entityType,
+      ) &&
+      decision(
+        "R019",
+        "WARN",
+        "Confirma la alternativa ortodóncica o restauradora para el diastema.",
+      ),
   );
   push(
     status === "pink_spot" &&
       !has(sameTooth, (entity) => entity.status === "internal_resorption") &&
-      decision("R020", "REQUIRE_CONTEXT", "La mancha rosada requiere registrar reabsorción interna.", ["internalResorption"]),
+      decision(
+        "R020",
+        "REQUIRE_CONTEXT",
+        "La mancha rosada requiere registrar reabsorción interna.",
+        ["internalResorption"],
+      ),
   );
   push(
     proposed.entityType === "SINUS_LIFT" &&
@@ -47,16 +65,26 @@ export function evaluateRulesR019R035(
         (entity) =>
           entity.entityType === "IMPLANT" || entity.attributes?.preparedForAttachment === true,
       ) &&
-      decision("R022", "REQUIRE_CONTEXT", "El anclaje requiere implante o soporte preparado.", ["support"]),
+      decision("R022", "REQUIRE_CONTEXT", "El anclaje requiere implante o soporte preparado.", [
+        "support",
+      ]),
   );
   push(
     ["bar", "locator"].includes(status) &&
-      has(sameTooth, (entity) => ["bar", "locator"].includes(entity.status) && entity.status !== status) &&
-      decision("R023", "BLOCK", "Barra y Locator son alternativas excluyentes en el mismo implante."),
+      has(
+        sameTooth,
+        (entity) => ["bar", "locator"].includes(entity.status) && entity.status !== status,
+      ) &&
+      decision(
+        "R023",
+        "BLOCK",
+        "Barra y Locator son alternativas excluyentes en el mismo implante.",
+      ),
   );
   push(
     ((status === "veneer" && has(sameTooth, (entity) => entity.entityType === "CROWN")) ||
-      (proposed.entityType === "CROWN" && has(sameTooth, (entity) => entity.status === "veneer"))) &&
+      (proposed.entityType === "CROWN" &&
+        has(sameTooth, (entity) => entity.status === "veneer"))) &&
       decision("R024", "BLOCK", "Carilla y corona completa son incompatibles en la misma pieza."),
   );
   const hasImplant = has(sameTooth, (entity) => entity.entityType === "IMPLANT");
@@ -71,20 +99,28 @@ export function evaluateRulesR019R035(
   push(
     status === "furcation" &&
       !isFurcationEligibleTooth(proposed.tooth) &&
-      decision("R026", "BLOCK", "La furca solo se registra en dientes multirradiculares elegibles."),
+      decision(
+        "R026",
+        "BLOCK",
+        "La furca solo se registra en dientes multirradiculares elegibles.",
+      ),
   );
   push(
     status === "immediate_loading" &&
       (Number(proposed.attributes?.insertionTorqueNcm) < 35 ||
         Number(proposed.attributes?.primaryIsq) < 65) &&
-      decision("R027", "WARN", "Carga inmediata con estabilidad primaria baja: confirma la decisión clínica."),
+      decision(
+        "R027",
+        "WARN",
+        "Carga inmediata con estabilidad primaria baja: confirma la decisión clínica.",
+      ),
   );
   push(
     status === "tibase" &&
-      !has(sameTooth, (entity) =>
-        ["CROWN", "PROSTHETIC_STRUCTURE"].includes(entity.entityType),
-      ) &&
-      decision("R028", "REQUIRE_CONTEXT", "TiBase requiere una corona o estructura asociada.", ["prostheticStructure"]),
+      !has(sameTooth, (entity) => ["CROWN", "PROSTHETIC_STRUCTURE"].includes(entity.entityType)) &&
+      decision("R028", "REQUIRE_CONTEXT", "TiBase requiere una corona o estructura asociada.", [
+        "prostheticStructure",
+      ]),
   );
   push(
     status === "multiunit" &&
@@ -96,7 +132,11 @@ export function evaluateRulesR019R035(
     status === "angled_abutment" &&
       Number(proposed.attributes?.angleDeg) >= 25 &&
       proposed.attributes?.straightScrewAccess === true &&
-      decision("R030", "BLOCK", "La angulación es incompatible con el acceso de tornillo recto indicado."),
+      decision(
+        "R030",
+        "BLOCK",
+        "La angulación es incompatible con el acceso de tornillo recto indicado.",
+      ),
   );
   push(
     proposed.entityType === "MEMBRANE" &&
@@ -114,8 +154,16 @@ export function evaluateRulesR019R035(
       push(
         configured
           ? !configured.includes(dimension) &&
-              decision("R032", "BLOCK", "La dimensión no figura en el catálogo configurado del fabricante.")
-          : decision("R032", "WARN", "Catálogo del fabricante no configurado; verifica manualmente la dimensión."),
+              decision(
+                "R032",
+                "BLOCK",
+                "La dimensión no figura en el catálogo configurado del fabricante.",
+              )
+          : decision(
+              "R032",
+              "WARN",
+              "Catálogo del fabricante no configurado; verifica manualmente la dimensión.",
+            ),
       );
     }
   }

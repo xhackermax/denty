@@ -12,8 +12,8 @@ export interface BackupStatusView {
 }
 
 export async function readSupabaseBackupStatus(input: {
-  projectRef?: string | undefined;
-  accessToken?: string | undefined;
+  projectRef?: string;
+  accessToken?: string;
   fetchImpl?: typeof fetch;
 }): Promise<BackupStatusView> {
   if (!input.projectRef || !input.accessToken) {
@@ -22,14 +22,18 @@ export async function readSupabaseBackupStatus(input: {
       configured: false,
       pitrEnabled: null,
       backups: [],
-      message: "Configura SUPABASE_PROJECT_REF y SUPABASE_MANAGEMENT_ACCESS_TOKEN para consultar backups reales.",
+      message:
+        "Configura SUPABASE_PROJECT_REF y SUPABASE_MANAGEMENT_ACCESS_TOKEN para consultar backups reales.",
     };
   }
 
   const fetchImpl = input.fetchImpl ?? fetch;
   const response = await fetchImpl(
     `https://api.supabase.com/v1/projects/${encodeURIComponent(input.projectRef)}/database/backups`,
-    { headers: { authorization: `Bearer ${input.accessToken}`, accept: "application/json" }, cache: "no-store" },
+    {
+      headers: { authorization: `Bearer ${input.accessToken}`, accept: "application/json" },
+      cache: "no-store",
+    },
   );
   const raw = await response.text();
   const payload = raw ? safeJson(raw) : null;
@@ -56,14 +60,20 @@ export async function readSupabaseBackupStatus(input: {
     provider: "SUPABASE_MANAGED",
     configured: true,
     pitrEnabled: pitr,
-    backups: source.map(normalizeBackup).filter((item): item is BackupStatusView["backups"][number] => Boolean(item)),
+    backups: source
+      .map(normalizeBackup)
+      .filter((item): item is BackupStatusView["backups"][number] => Boolean(item)),
     message: null,
   };
 }
 
 function normalizeBackup(value: unknown): BackupStatusView["backups"][number] | null {
   if (!isRecord(value)) return null;
-  const id = stringValue(value.id) ?? stringValue(value.name) ?? stringValue(value.created_at) ?? crypto.randomUUID();
+  const id =
+    stringValue(value.id) ??
+    stringValue(value.name) ??
+    stringValue(value.created_at) ??
+    crypto.randomUUID();
   return {
     id,
     createdAt: stringValue(value.created_at) ?? stringValue(value.inserted_at) ?? null,
@@ -79,5 +89,9 @@ function stringValue(value: unknown): string | null {
   return typeof value === "string" && value ? value : null;
 }
 function safeJson(value: string): unknown {
-  try { return JSON.parse(value) as unknown; } catch { return null; }
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
 }

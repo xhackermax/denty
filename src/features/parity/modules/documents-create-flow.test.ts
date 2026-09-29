@@ -18,7 +18,12 @@ describe("document creation flow", () => {
       patient,
       doctor,
       clinicSite: "Av. Navarra",
-      template: { value: "CONSENT_IMPLANT", label: "CI Implantes", type: "CONSENT", sourceUrl: "https://example.test/implant.pdf" },
+      template: {
+        value: "CONSENT_IMPLANT",
+        label: "CI Implantes",
+        type: "CONSENT",
+        sourceUrl: "https://example.test/implant.pdf",
+      },
       title: "  CI Implantes personalizado  ",
       createdAt: "2026-09-27T08:00:00.000Z",
     });

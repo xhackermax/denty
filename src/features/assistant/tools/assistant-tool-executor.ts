@@ -6,9 +6,7 @@ import type { AssistantToolCall } from "../assistant-types";
 import { assistantToolNeedsConfirmation } from "./assistant-policy";
 
 export type AssistantExecutionEffect =
-  | { type: "NAVIGATE"; href: string }
-  | { type: "SELECT_TOOTH"; tooth: string }
-  | { type: "NONE" };
+  { type: "NAVIGATE"; href: string } | { type: "SELECT_TOOTH"; tooth: string } | { type: "NONE" };
 
 export interface AssistantExecutionBatchResult {
   executed: string[];
@@ -26,7 +24,9 @@ async function saveOdontogramEntities(patientId: string, entities: readonly Dent
   });
 }
 
-export async function executeAssistantTool(call: AssistantToolCall): Promise<AssistantExecutionEffect> {
+export async function executeAssistantTool(
+  call: AssistantToolCall,
+): Promise<AssistantExecutionEffect> {
   const api = getBrowserApi();
   const args = call.args as Record<string, unknown>;
 
@@ -87,7 +87,11 @@ export async function executeAssistantTool(call: AssistantToolCall): Promise<Ass
     const status = String(args.status);
     const state = status === "CARIES" ? "caries" : status === "HEALTHY" ? "healthy" : "missing";
     await saveOdontogramEntities(String(args.patientId), [
-      createStateEntity(String(args.tooth), state, (args.surfaces as Parameters<typeof createStateEntity>[2]) ?? []),
+      createStateEntity(
+        String(args.tooth),
+        state,
+        (args.surfaces as Parameters<typeof createStateEntity>[2]) ?? [],
+      ),
     ]);
     return { type: "NONE" };
   }
@@ -104,7 +108,8 @@ export async function executeAssistantTool(call: AssistantToolCall): Promise<Ass
     const first = teeth[0];
     if (!first) throw new Error("La prótesis removible necesita al menos un diente.");
     const archValue = String(args.arch ?? "UNSPECIFIED");
-    const arch = archValue === "UPPER" ? "upper" : archValue === "LOWER" ? "lower" : archForTooth(first);
+    const arch =
+      archValue === "UPPER" ? "upper" : archValue === "LOWER" ? "lower" : archForTooth(first);
     await saveOdontogramEntities(String(args.patientId), [createRemovable(arch, teeth)]);
     return { type: "NONE" };
   }

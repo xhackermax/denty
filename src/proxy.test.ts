@@ -31,6 +31,8 @@ describe("app route proxy", () => {
       expect.objectContaining({ cache: "no-store" }),
     );
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://denty-repo.vercel.app/login?next=%2Fapp");
+    expect(response.headers.get("location")).toBe(
+      "https://denty-repo.vercel.app/login?next=%2Fapp",
+    );
   });
 });

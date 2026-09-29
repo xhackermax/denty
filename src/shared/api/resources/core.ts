@@ -37,6 +37,7 @@ import {
 } from "../contracts";
 import {
   absenceSchema,
+  absencesSchema,
   appointmentsSchema,
   attendanceCertificateSchema,
   attendanceCorrectionSchema,
@@ -51,10 +52,25 @@ import {
   documentTemplateSchema,
   documentTemplatesSchema,
   labAgendaWarningSchema,
-  labAttachmentInputSchema,
   labAttachmentSchema,
   labReworkSchema,
   labWorksSchema,
+  laboratoriesSchema,
+  laboratorySchema,
+  createLaboratorySchema,
+  updateLaboratorySchema,
+  laboratoryBalancesSchema,
+  supplierInvoicesSchema,
+  supplierInvoiceSchema,
+  recordSupplierInvoiceSchema,
+  supplierPaymentsSchema,
+  supplierPaymentSchema,
+  recordSupplierPaymentSchema,
+  allocateSupplierPaymentSchema,
+  tasksSchema,
+  taskSchema,
+  createTaskSchema,
+  updateTaskSchema,
 } from "../schemas/core";
 import { encodeId, withQuery } from "./shared";
 
@@ -84,7 +100,9 @@ export function createCoreResource(client: ApiClient) {
     patients: {
       list: (options: { includeArchived?: boolean } = {}) =>
         client.request(
-          withQuery("/api/patients", { includeArchived: options.includeArchived ? "true" : undefined }),
+          withQuery("/api/patients", {
+            includeArchived: options.includeArchived ? "true" : undefined,
+          }),
           pageSchema(patientSchema),
         ),
       get: (id: string) => client.request(`/api/patients/${encodeId(id)}`, patientSchema),
@@ -115,7 +133,9 @@ export function createCoreResource(client: ApiClient) {
         return client.upload(`/api/patients/${encodeId(id)}/patient-photo`, patientSchema, form);
       },
       photo: (id: string) =>
-        client.requestBlob(`/api/patients/${encodeId(id)}/photo`, { headers: { accept: "image/*" } }),
+        client.requestBlob(`/api/patients/${encodeId(id)}/photo`, {
+          headers: { accept: "image/*" },
+        }),
     },
     appointments: {
       list: (date?: string, siteId?: string) =>
@@ -135,6 +155,10 @@ export function createCoreResource(client: ApiClient) {
         ),
       arrive: (id: string, expectedVersion: number) =>
         client.mutation(`/api/appointments/${encodeId(id)}/arrive`, appointmentSchema, {
+          expectedVersion,
+        }),
+      waiting: (id: string, expectedVersion: number) =>
+        client.mutation(`/api/appointments/${encodeId(id)}/waiting`, appointmentSchema, {
           expectedVersion,
         }),
       chair: (id: string, expectedVersion: number) =>
@@ -174,16 +198,58 @@ export function createCoreResource(client: ApiClient) {
         ),
       agendaWarning: (id: string) =>
         client.request(`/api/lab-works/${encodeId(id)}/agenda-warning`, labAgendaWarningSchema),
-      addAttachment: (id: string, payload: z.input<typeof labAttachmentInputSchema>) =>
-        client.mutation(
+      addAttachment: (id: string, file: File) => {
+        const form = new FormData();
+        form.set("file", file, file.name);
+        return client.upload(
           `/api/lab-works/${encodeId(id)}/attachments`,
           labAttachmentSchema,
-          labAttachmentInputSchema.parse(payload),
-        ),
+          form,
+        );
+      },
       downloadAttachment: (id: string, attachmentId: string) =>
         client.requestBlob(`/api/lab-works/${encodeId(id)}/attachments/${encodeId(attachmentId)}`, {
           headers: { accept: "application/octet-stream" },
         }),
+      listLaboratories: () => client.request("/api/laboratories", laboratoriesSchema),
+      createLaboratory: (payload: z.input<typeof createLaboratorySchema>) =>
+        client.mutation(
+          "/api/laboratories",
+          laboratorySchema,
+          createLaboratorySchema.parse(payload),
+        ),
+      updateLaboratory: (id: string, payload: z.input<typeof updateLaboratorySchema>) =>
+        client.mutation(
+          `/api/laboratories/${encodeId(id)}`,
+          laboratorySchema,
+          updateLaboratorySchema.parse(payload),
+          { method: "PATCH" },
+        ),
+      balances: () => client.request("/api/laboratories/balances", laboratoryBalancesSchema),
+      supplierInvoices: {
+        list: () => client.request("/api/supplier-invoices", supplierInvoicesSchema),
+        create: (payload: z.input<typeof recordSupplierInvoiceSchema>) =>
+          client.mutation(
+            "/api/supplier-invoices",
+            supplierInvoiceSchema,
+            recordSupplierInvoiceSchema.parse(payload),
+          ),
+      },
+      supplierPayments: {
+        list: () => client.request("/api/supplier-payments", supplierPaymentsSchema),
+        create: (payload: z.input<typeof recordSupplierPaymentSchema>) =>
+          client.mutation(
+            "/api/supplier-payments",
+            supplierPaymentSchema,
+            recordSupplierPaymentSchema.parse(payload),
+          ),
+        allocate: (id: string, payload: z.input<typeof allocateSupplierPaymentSchema>) =>
+          client.mutation(
+            `/api/supplier-payments/${encodeId(id)}/allocate`,
+            z.object({ id: z.string().min(1) }).passthrough(),
+            allocateSupplierPaymentSchema.parse(payload),
+          ),
+      },
     },
     documents: {
       templates: {
@@ -233,11 +299,22 @@ export function createCoreResource(client: ApiClient) {
       uploadFile: (id: string, file: File) => {
         const form = new FormData();
         form.set("file", file);
-        return client.upload(`/api/documents/${encodeId(id)}/file`, documentSchema, form, { method: "POST" });
+        return client.upload(`/api/documents/${encodeId(id)}/file`, documentSchema, form, {
+          method: "POST",
+        });
       },
       download: (id: string) =>
         client.requestBlob(`/api/documents/${encodeId(id)}/file`, {
           headers: { accept: "application/pdf" },
+        }),
+    },
+    tasks: {
+      list: () => client.request("/api/tasks", tasksSchema),
+      create: (payload: z.input<typeof createTaskSchema>) =>
+        client.mutation("/api/tasks", taskSchema, createTaskSchema.parse(payload)),
+      update: (id: string, payload: z.input<typeof updateTaskSchema>) =>
+        client.mutation(`/api/tasks/${encodeId(id)}`, taskSchema, updateTaskSchema.parse(payload), {
+          method: "PATCH",
         }),
     },
     attendance: {
@@ -253,6 +330,7 @@ export function createCoreResource(client: ApiClient) {
         ),
       daily: (date?: string) =>
         client.request(withQuery("/api/attendance/daily", { date }), attendanceDailySchema),
+      listAbsences: () => client.request("/api/attendance/absences", absencesSchema),
       createAbsence: (payload: z.input<typeof createAbsenceSchema>) =>
         client.mutation(
           "/api/attendance/absences",

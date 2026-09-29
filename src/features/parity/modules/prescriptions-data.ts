@@ -3,7 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
 
-import { createPrescriptionSchema, type Prescription } from "@/shared/api";
+import {
+  createPrescriptionSchema,
+  signPrescriptionSchema,
+  updatePrescriptionSchema,
+  type Prescription,
+} from "@/shared/api";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 
@@ -27,11 +32,37 @@ export function usePrescriptionSettingsQuery(enabled = true) {
   });
 }
 
+export function usePrescriptionHistoryQuery(id: string | null) {
+  return useQuery({
+    queryKey: dentyQueryKeys.prescriptions.history(id ?? "none"),
+    queryFn: () => getBrowserApi().prescriptions.history(id ?? ""),
+    enabled: Boolean(id),
+  });
+}
+
 export function useCreatePrescriptionMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: z.input<typeof createPrescriptionSchema>) =>
       getBrowserApi().prescriptions.create(payload),
+    onSuccess: () => invalidatePrescriptions(queryClient),
+  });
+}
+
+export function useUpdatePrescriptionMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: string; payload: z.input<typeof updatePrescriptionSchema> }) =>
+      getBrowserApi().prescriptions.update(input.id, input.payload),
+    onSuccess: () => invalidatePrescriptions(queryClient),
+  });
+}
+
+export function useSignPrescriptionMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: string; payload: z.input<typeof signPrescriptionSchema> }) =>
+      getBrowserApi().prescriptions.sign(input.id, input.payload),
     onSuccess: () => invalidatePrescriptions(queryClient),
   });
 }

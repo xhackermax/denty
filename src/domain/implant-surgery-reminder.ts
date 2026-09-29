@@ -1,10 +1,5 @@
 export type ImplantSurgeryField =
-  | "system"
-  | "lengthMm"
-  | "diameterMm"
-  | "placementDate"
-  | "insertionTorqueNcm"
-  | "primaryIsq";
+  "system" | "lengthMm" | "diameterMm" | "placementDate" | "insertionTorqueNcm" | "primaryIsq";
 
 export interface ImplantSurgeryData {
   system?: string;
@@ -25,14 +20,11 @@ export function implantSurgeryDataFromAttributes(
     system: typeof attributes.system === "string" ? attributes.system : "",
     ...(typeof attributes.diameterMm === "number" ? { diameterMm: attributes.diameterMm } : {}),
     ...(typeof attributes.lengthMm === "number" ? { lengthMm: attributes.lengthMm } : {}),
-    placementDate:
-      typeof attributes.placementDate === "string" ? attributes.placementDate : "",
+    placementDate: typeof attributes.placementDate === "string" ? attributes.placementDate : "",
     ...(typeof attributes.insertionTorqueNcm === "number"
       ? { insertionTorqueNcm: attributes.insertionTorqueNcm }
       : {}),
-    ...(typeof attributes.primaryIsq === "number"
-      ? { primaryIsq: attributes.primaryIsq }
-      : {}),
+    ...(typeof attributes.primaryIsq === "number" ? { primaryIsq: attributes.primaryIsq } : {}),
     lotNumber: typeof attributes.lotNumber === "string" ? attributes.lotNumber : "",
     connection: typeof attributes.connection === "string" ? attributes.connection : "",
     notes: typeof attributes.notes === "string" ? attributes.notes : "",

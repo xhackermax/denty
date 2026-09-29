@@ -9,7 +9,9 @@ import {
 } from "@/shared/clinical/clinical-data";
 import styles from "@/shared/ui/parity.module.css";
 
-interface ClinicalSyncCardProps { patientId: string; }
+interface ClinicalSyncCardProps {
+  patientId: string;
+}
 
 export function ClinicalSyncCard({ patientId }: ClinicalSyncCardProps) {
   const syncQuery = useClinicalSyncQuery(patientId);

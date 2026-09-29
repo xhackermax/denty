@@ -1,9 +1,10 @@
 :root {
   color-scheme: light;
+
   --denty-bg: #f5f5f7;
   --denty-bg-elevated: #fbfbfd;
   --denty-card: rgb(255 255 255 / 92%);
-  --denty-card-solid: #ffffff;
+  --denty-card-solid: #fff;
   --denty-text: #1d1d1f;
   --denty-muted: #6e6e73;
   --denty-line: rgb(60 60 67 / 12%);
@@ -41,7 +42,8 @@ html[data-density="compact"] {
 
 html[data-mantine-color-scheme="dark"] {
   color-scheme: dark;
-  --denty-bg: #000000;
+
+  --denty-bg: #000;
   --denty-bg-elevated: #0b0b0d;
   --denty-card: rgb(28 28 30 / 92%);
   --denty-card-solid: #1c1c1e;

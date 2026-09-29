@@ -91,9 +91,9 @@ describe("odontogram entity reducer", () => {
     if (!implant) throw new Error("Implante no generado");
 
     const result = executeValidatedOdontogramCommand(createBoundedHistory(initial), {
-        type: "UPSERT_ENTITY",
-        entity: implant,
-      });
+      type: "UPSERT_ENTITY",
+      entity: implant,
+    });
     expect(result.evaluation.outcome).toBe("BLOCK");
     expect(result.history.present.entitiesById[implant.id]).toBeUndefined();
   });

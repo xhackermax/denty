@@ -65,6 +65,13 @@ export const agendaContextSchema = z.object({
     role: z.string().min(1),
     staffId: idSchema.nullable().optional(),
   }),
+  settings: z
+    .object({
+      defaultPlanVisitGapDays: z.number().int().min(0).max(180),
+      clinicDefaultPlanVisitGapDays: z.number().int().min(0).max(180),
+      staffOverridePlanVisitGapDays: z.number().int().min(0).max(180).nullable(),
+    })
+    .optional(),
 });
 
 export const availabilitySlotSchema = z.object({
@@ -165,3 +172,22 @@ export const agendaGameStatusSchema = z.object({
 export type AgendaContext = z.infer<typeof agendaContextSchema>;
 export type AgendaStaff = z.infer<typeof agendaStaffSchema>;
 export type AgendaSite = z.infer<typeof agendaSiteSchema>;
+
+export const agendaSettingsSchema = z.object({
+  defaultPlanVisitGapDays: z.number().int().min(0).max(180),
+  clinicDefaultPlanVisitGapDays: z.number().int().min(0).max(180),
+  staffOverridePlanVisitGapDays: z.number().int().min(0).max(180).nullable(),
+});
+export const updateAgendaSettingsSchema = z.object({
+  defaultPlanVisitGapDays: z.number().int().min(0).max(180),
+  staffId: idSchema.optional(),
+});
+export const waitTimeMetricsSchema = z.object({
+  appointmentCount: z.number().int().nonnegative(),
+  avgWaitMinutes: z.coerce.number(),
+  avgChairMinutes: z.coerce.number(),
+  avgArrivalDelayMinutes: z.coerce.number(),
+  onTimeRate: z.coerce.number(),
+});
+export type CreateAgendaBlock = z.input<typeof createAgendaBlockSchema>;
+export type CreateWaitlistEntry = z.input<typeof createWaitlistEntrySchema>;

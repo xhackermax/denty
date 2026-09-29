@@ -63,7 +63,8 @@ foundForbidden.length
 
 if (pkg.workspaces) fail("workspaces", "package.json declares workspaces");
 else ok("no workspaces");
-if (pkg.engines?.node !== "24.x") fail("node-runtime", `engines.node=${pkg.engines?.node ?? "missing"}`);
+if (pkg.engines?.node !== "24.x")
+  fail("node-runtime", `engines.node=${pkg.engines?.node ?? "missing"}`);
 else ok("Node runtime pinned to 24.x");
 if (!String(pkg.devDependencies?.["@types/node"] ?? "").startsWith("24.")) {
   fail("node-types", `@types/node=${pkg.devDependencies?.["@types/node"] ?? "missing"}`);

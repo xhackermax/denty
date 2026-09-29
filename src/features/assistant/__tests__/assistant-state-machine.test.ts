@@ -11,7 +11,10 @@ describe("assistant state machine", () => {
 
   it("requires explicit confirmation state for red actions", () => {
     const armed = reduceAssistantState(initialAssistantState, { type: "ENABLE" });
-    const confirming = reduceAssistantState(armed, { type: "REQUEST_CONFIRMATION", callId: "call-1" });
+    const confirming = reduceAssistantState(armed, {
+      type: "REQUEST_CONFIRMATION",
+      callId: "call-1",
+    });
     expect(confirming.status).toBe("CONFIRMING");
     expect(confirming.pendingConfirmationId).toBe("call-1");
   });

@@ -13,7 +13,11 @@ export async function createSupabaseServerClient() {
       getAll: () => store.getAll(),
       setAll: (values) => {
         for (const { name, value, options } of values) {
-          try { store.set(name, value, options); } catch { /* Server Components may be read-only. */ }
+          try {
+            store.set(name, value, options);
+          } catch {
+            /* Server Components may be read-only. */
+          }
         }
       },
     },

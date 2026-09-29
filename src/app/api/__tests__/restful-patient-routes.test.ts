@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { TEST_AUTH, authenticatedHeaders, withAuthenticatedStaff } from "@/test/supabase-auth-fixture";
+
 import { GET, POST } from "../[...path]/route";
 
 function json(data: unknown, status = 200): Response {
@@ -13,10 +15,13 @@ function createSupabaseFetch() {
   return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     const method = init?.method ?? (input instanceof Request ? input.method : "GET");
-    const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
-    const apiKey = headers.get("apikey");
-    if (apiKey && headers.get("authorization") !== `Bearer ${apiKey}`) {
-      return json({ code: "PGRST301", message: "Missing bearer token" }, 401);
+    const headers = new Headers(
+      init?.headers ?? (input instanceof Request ? input.headers : undefined),
+    );
+    // Stage 1/2: data access must run with the signed-in user's JWT (RLS),
+    // never with the service key.
+    if (headers.get("authorization") !== `Bearer ${TEST_AUTH.accessToken}`) {
+      return json({ code: "PGRST301", message: "Missing user bearer token" }, 401);
     }
     if (url.pathname === "/rest/v1/clinics" && method === "GET") {
       return json([{ id: "clinic-1" }]);
@@ -56,7 +61,8 @@ function createSupabaseFetch() {
       return json(patients);
     }
 
-    if (url.pathname === "/rest/v1/dental_entities" && method === "GET") return json(dentalEntities);
+    if (url.pathname === "/rest/v1/dental_entities" && method === "GET")
+      return json(dentalEntities);
     if (url.pathname === "/rest/v1/periodontal_measurements" && method === "GET") return json([]);
     if (url.pathname === "/rest/v1/odontogram_snapshots" && method === "GET") return json([]);
 
@@ -67,13 +73,15 @@ function createSupabaseFetch() {
 describe("RESTful patient routes", () => {
   beforeEach(() => {
     process.env.SUPABASE_URL = "https://example.supabase.co";
+    process.env.SUPABASE_PUBLISHABLE_KEY = "sb_publishable_test-key";
     process.env.SUPABASE_SECRET_KEY = "sb_secret_test-key";
-    vi.stubGlobal("fetch", createSupabaseFetch());
+    vi.stubGlobal("fetch", withAuthenticatedStaff(createSupabaseFetch(), { clinicId: "clinic-1" }));
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
     delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_PUBLISHABLE_KEY;
     delete process.env.SUPABASE_SECRET_KEY;
   });
 
@@ -82,6 +90,7 @@ describe("RESTful patient routes", () => {
       new Request("https://denty.test/api/patients", {
         method: "POST",
         headers: {
+          ...authenticatedHeaders(),
           "content-type": "application/json",
           origin: "https://denty.test",
         },
@@ -99,7 +108,7 @@ describe("RESTful patient routes", () => {
     });
 
     const odontogramResponse = await GET(
-      new Request("https://denty.test/api/patients/patient-1/odontogram"),
+      new Request("https://denty.test/api/patients/patient-1/odontogram", { headers: authenticatedHeaders() }),
       { params: Promise.resolve({ path: ["patients", "patient-1", "odontogram"] }) },
     );
 

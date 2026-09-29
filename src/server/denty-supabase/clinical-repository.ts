@@ -19,8 +19,8 @@ interface SnapshotRow {
 interface TreatmentCatalogRow {
   id: string;
   clinic_id: string;
-  code: string | undefined;
-  name: string | undefined;
+  code: string;
+  name: string;
   specialty: string | null;
   category: string | null;
   default_price_cents: number;
@@ -119,8 +119,8 @@ interface PeriodontalExamRow {
 
 interface PeriodontalMeasurementRow {
   id: string;
-  exam_id?: string | null;
-  exam_version?: number | null;
+  exam_id: string | null;
+  exam_version: number | null;
   tooth: string;
   site: string;
   probing_depth: number | null;
@@ -150,7 +150,6 @@ interface PeriodontalRpcResult {
   }>;
 }
 
-
 interface FinalizeBudgetSignatureInput {
   expectedVersion: number;
   signerName: string;
@@ -172,41 +171,27 @@ interface FinalizeBudgetSignatureRpcResult {
 export interface TreatmentCatalogInput {
   code: string;
   name: string;
-  specialty?: string | null | undefined;
-  category?: string | null | undefined;
-  defaultPriceCents?: number | undefined;
-  baseCostCents?: number | undefined;
-  defaultDurationMin?: number | null | undefined;
-  requiresLab?: boolean | undefined;
-  active?: boolean | undefined;
-  metadata?: Record<string, unknown> | undefined;
+  specialty?: string | null;
+  category?: string | null;
+  defaultPriceCents?: number;
+  baseCostCents?: number;
+  defaultDurationMin?: number | null;
+  requiresLab?: boolean;
+  active?: boolean;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ClinicalPlanItemInput {
-  treatmentCatalogId?: string | undefined;
+  treatmentCatalogId?: string;
   treatmentCode: string;
   label: string;
-  tooth?: string | undefined;
-  patientLabel?: string | undefined;
-  clinicalReason?: string | undefined;
-  phase?: number | undefined;
-  priority?: number | undefined;
-  priceCents?: number | undefined;
-  adHoc?: boolean | undefined;
-}
-
-export interface TreatmentCatalogUpdateInput {
-  expectedVersion: number;
-  code?: string | undefined;
-  name?: string | undefined;
-  specialty?: string | null | undefined;
-  category?: string | null | undefined;
-  defaultPriceCents?: number | undefined;
-  baseCostCents?: number | undefined;
-  defaultDurationMin?: number | null | undefined;
-  requiresLab?: boolean | undefined;
-  active?: boolean | undefined;
-  metadata?: Record<string, unknown> | undefined;
+  tooth?: string;
+  patientLabel?: string;
+  clinicalReason?: string;
+  phase?: number;
+  priority?: number;
+  priceCents?: number;
+  adHoc?: boolean;
 }
 
 export class ClinicalRepository {
@@ -217,12 +202,15 @@ export class ClinicalRepository {
 
   async getClinicalSync(patientId: string): Promise<ClinicalSyncState> {
     const [entities, snapshots, plans, budgets] = await Promise.all([
-      this.client.select<{ version: number; status: string; created_at: string }>("dental_entities", {
-        select: "version,status,created_at",
-        patient_id: `eq.${patientId}`,
-        active: "eq.true",
-        order: "created_at.desc",
-      }),
+      this.client.select<{ version: number; status: string; created_at: string }>(
+        "dental_entities",
+        {
+          select: "version,status,created_at",
+          patient_id: `eq.${patientId}`,
+          active: "eq.true",
+          order: "created_at.desc",
+        },
+      ),
       this.client.select<{ id: string }>("odontogram_snapshots", {
         select: "id",
         patient_id: `eq.${patientId}`,
@@ -257,13 +245,15 @@ export class ClinicalRepository {
         version: odontogramVersion,
         updatedAt: entities[0]?.created_at ?? new Date(0).toISOString(),
         historyCount: snapshots.length,
-        suggestionCount: entities.filter((row) => /pending|indicated|planned/i.test(row.status)).length,
+        suggestionCount: entities.filter((row) => /pending|indicated|planned/i.test(row.status))
+          .length,
       },
       plan: {
         version: plan?.version ?? 1,
         sourceOdontogramVersion: plan?.source_odontogram_version ?? null,
         outdated: planOutdated,
-        itemCount: planItems.filter((item) => !["CANCELLED", "SUPERSEDED"].includes(item.status)).length,
+        itemCount: planItems.filter((item) => !["CANCELLED", "SUPERSEDED"].includes(item.status))
+          .length,
       },
       budget: budget
         ? {
@@ -296,22 +286,31 @@ export class ClinicalRepository {
   }
 
   async syncBudgetFromPlan(patientId: string) {
-    const row = await this.client.rpc<BudgetRow>("sync_budget_from_plan", { p_patient_id: patientId });
+    const row = await this.client.rpc<BudgetRow>("sync_budget_from_plan", {
+      p_patient_id: patientId,
+    });
     const budget = await this.getBudget(row.id);
-    if (!budget) throw new SupabaseRestError("No se pudo reconstruir el presupuesto sincronizado.", 502, row);
+    if (!budget)
+      throw new SupabaseRestError("No se pudo reconstruir el presupuesto sincronizado.", 502, row);
     return { budget, sync: await this.getClinicalSync(patientId) };
   }
 
   async finalizeBudgetSignature(budgetId: string, input: FinalizeBudgetSignatureInput) {
-    const result = await this.client.rpc<FinalizeBudgetSignatureRpcResult>("finalize_budget_signature", {
-      p_budget_id: budgetId,
-      p_expected_version: input.expectedVersion,
-      p_signer_name: input.signerName,
-      p_signature_data: input.signatureData,
-      p_snapshot_json: {},
-    });
+    const result = await this.client.rpc<FinalizeBudgetSignatureRpcResult>(
+      "finalize_budget_signature",
+      {
+        p_budget_id: budgetId,
+        p_expected_version: input.expectedVersion,
+        p_signer_name: input.signerName,
+        p_signature_data: input.signatureData,
+        p_snapshot_json: {},
+      },
+    );
     if (result.conflict) {
-      return { conflict: true as const, currentVersion: result.currentVersion ?? input.expectedVersion };
+      return {
+        conflict: true as const,
+        currentVersion: result.currentVersion ?? input.expectedVersion,
+      };
     }
     if (!result.budget || !result.snapshot) {
       throw new SupabaseRestError("La firma no devolvió un snapshot válido.", 502, result);
@@ -345,9 +344,20 @@ export class ClinicalRepository {
     const plan = plans[0];
     if (!plan) return null;
     const [items, dependencies, budgets] = await Promise.all([
-      this.client.select<PlanItemRow>("clinical_plan_items", { select: "*", plan_id: `eq.${plan.id}`, order: "phase.asc,priority.desc" }),
-      this.client.select<DependencyRow>("clinical_plan_dependencies", { select: "*", clinic_id: `eq.${this.clinicId}` }),
-      this.client.select<BudgetRow>("budgets", { select: "*", clinical_plan_id: `eq.${plan.id}`, order: "revision.desc" }),
+      this.client.select<PlanItemRow>("clinical_plan_items", {
+        select: "*",
+        plan_id: `eq.${plan.id}`,
+        order: "phase.asc,priority.desc",
+      }),
+      this.client.select<DependencyRow>("clinical_plan_dependencies", {
+        select: "*",
+        clinic_id: `eq.${this.clinicId}`,
+      }),
+      this.client.select<BudgetRow>("budgets", {
+        select: "*",
+        clinical_plan_id: `eq.${plan.id}`,
+        order: "revision.desc",
+      }),
     ]);
     const mappedItems = items.map(mapPlanItem);
     const mappedBudgets = await Promise.all(budgets.map((budget) => this.getBudget(budget.id)));
@@ -360,7 +370,12 @@ export class ClinicalRepository {
       items: mappedItems,
       dependencies: dependencies
         .filter((row) => items.some((item) => item.id === row.item_id))
-        .map((row) => ({ id: row.id, itemId: row.item_id, dependsOnId: row.depends_on_id, reason: row.reason })),
+        .map((row) => ({
+          id: row.id,
+          itemId: row.item_id,
+          dependsOnId: row.depends_on_id,
+          reason: row.reason,
+        })),
       route: mappedItems,
       budgets: mappedBudgets.filter(Boolean),
     };
@@ -382,7 +397,6 @@ export class ClinicalRepository {
     });
     return mapPlanItem(row);
   }
-
 
   async listConsentRequirements(patientId: string) {
     const rows = await this.client.select<ConsentRequirementRow>("consent_requirements", {
@@ -420,7 +434,12 @@ export class ClinicalRepository {
     return {
       problems: [],
       endodonticAssessments: [],
-      periodontalExams: exams.map((exam) => mapPeriodontalExam(exam, measurements.filter((row) => row.exam_id === exam.id))),
+      periodontalExams: exams.map((exam) =>
+        mapPeriodontalExam(
+          exam,
+          measurements.filter((row) => row.exam_id === exam.id),
+        ),
+      ),
       encounters: [],
     };
   }
@@ -430,7 +449,12 @@ export class ClinicalRepository {
       p_patient_id: patientId,
       p_exam: input,
     });
-    if (!result.exam) throw new SupabaseRestError("La revisión periodontal no devolvió el examen creado.", 502, result);
+    if (!result.exam)
+      throw new SupabaseRestError(
+        "La revisión periodontal no devolvió el examen creado.",
+        502,
+        result,
+      );
     return mapPeriodontalExam(result.exam, result.measurements ?? []);
   }
 
@@ -440,7 +464,12 @@ export class ClinicalRepository {
       p_exam: { sites: [input] },
     });
     const row = result.measurements?.[0];
-    if (!row) throw new SupabaseRestError("La revisión periodontal no devolvió la medición creada.", 502, result);
+    if (!row)
+      throw new SupabaseRestError(
+        "La revisión periodontal no devolvió la medición creada.",
+        502,
+        result,
+      );
     return {
       id: row.id,
       tooth: row.tooth,
@@ -458,10 +487,21 @@ export class ClinicalRepository {
 
   async listSnapshots(patientId: string) {
     const [rows, entities] = await Promise.all([
-      this.client.select<SnapshotRow>("odontogram_snapshots", { select: "*", patient_id: `eq.${patientId}`, order: "created_at.desc" }),
-      this.client.select<{ version: number }>("dental_entities", { select: "version", patient_id: `eq.${patientId}`, active: "eq.true" }),
+      this.client.select<SnapshotRow>("odontogram_snapshots", {
+        select: "*",
+        patient_id: `eq.${patientId}`,
+        order: "created_at.desc",
+      }),
+      this.client.select<{ version: number }>("dental_entities", {
+        select: "version",
+        patient_id: `eq.${patientId}`,
+        active: "eq.true",
+      }),
     ]);
-    return { items: rows.map(mapSnapshot), currentVersion: Math.max(1, ...entities.map((row) => row.version)) };
+    return {
+      items: rows.map(mapSnapshot),
+      currentVersion: Math.max(1, ...entities.map((row) => row.version)),
+    };
   }
 
   async createSnapshot(patientId: string, input: CreateOdontogramSnapshot) {
@@ -498,7 +538,10 @@ export class ClinicalRepository {
     return mapTreatmentCatalog(row);
   }
 
-  async updateTreatmentCatalogItem(id: string, input: TreatmentCatalogUpdateInput) {
+  async updateTreatmentCatalogItem(
+    id: string,
+    input: Partial<TreatmentCatalogInput> & { expectedVersion: number },
+  ) {
     const body: Record<string, unknown> = { version: input.expectedVersion + 1 };
     if (input.code !== undefined) body.code = input.code.trim().toUpperCase();
     if (input.name !== undefined) body.name = input.name.trim();
@@ -506,23 +549,36 @@ export class ClinicalRepository {
     if (input.category !== undefined) body.category = input.category;
     if (input.defaultPriceCents !== undefined) body.default_price_cents = input.defaultPriceCents;
     if (input.baseCostCents !== undefined) body.base_cost_cents = input.baseCostCents;
-    if (input.defaultDurationMin !== undefined) body.default_duration_min = input.defaultDurationMin;
+    if (input.defaultDurationMin !== undefined)
+      body.default_duration_min = input.defaultDurationMin;
     if (input.requiresLab !== undefined) body.requires_lab = input.requiresLab;
     if (input.active !== undefined) body.active = input.active;
     if (input.metadata !== undefined) body.metadata = input.metadata;
-    const row = await this.client.patch<TreatmentCatalogRow>("treatment_catalog", {
-      id: `eq.${id}`,
-      clinic_id: `eq.${this.clinicId}`,
-      version: `eq.${input.expectedVersion}`,
-    }, body);
+    const row = await this.client.patch<TreatmentCatalogRow>(
+      "treatment_catalog",
+      {
+        id: `eq.${id}`,
+        clinic_id: `eq.${this.clinicId}`,
+        version: `eq.${input.expectedVersion}`,
+      },
+      body,
+    );
     return mapTreatmentCatalog(row);
   }
 
   private async getBudget(id: string) {
-    const budgets = await this.client.select<BudgetRow>("budgets", { select: "*", id: `eq.${id}`, limit: 1 });
+    const budgets = await this.client.select<BudgetRow>("budgets", {
+      select: "*",
+      id: `eq.${id}`,
+      limit: 1,
+    });
     const budget = budgets[0];
     if (!budget) return null;
-    const items = await this.client.select<BudgetItemRow>("budget_items", { select: "*", budget_id: `eq.${budget.id}`, order: "created_at.asc" });
+    const items = await this.client.select<BudgetItemRow>("budget_items", {
+      select: "*",
+      budget_id: `eq.${budget.id}`,
+      order: "created_at.asc",
+    });
     return {
       id: budget.id,
       code: budget.code,
@@ -542,8 +598,10 @@ export class ClinicalRepository {
   }
 }
 
-
-function mapPeriodontalExam(exam: PeriodontalExamRow, rows: readonly PeriodontalMeasurementRow[]) {
+function mapPeriodontalExam(
+  exam: PeriodontalExamRow,
+  rows: readonly Omit<PeriodontalMeasurementRow, "exam_id" | "exam_version">[],
+) {
   return {
     id: exam.id,
     title: exam.title,
@@ -576,7 +634,11 @@ function mapSnapshot(row: SnapshotRow) {
     createdAt: row.created_at,
     version: row.version,
   });
-  if (!parsed.success) throw new SupabaseRestError("Snapshot clínico incompatible.", 502, { snapshotId: row.id, issues: parsed.error.issues });
+  if (!parsed.success)
+    throw new SupabaseRestError("Snapshot clínico incompatible.", 502, {
+      snapshotId: row.id,
+      issues: parsed.error.issues,
+    });
   return parsed.data;
 }
 

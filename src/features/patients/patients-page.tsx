@@ -10,6 +10,7 @@ import {
   Menu,
   Modal,
   MultiSelect,
+  Select,
   SimpleGrid,
   Text,
   TextInput,
@@ -26,6 +27,7 @@ import {
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { dateDMY } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
@@ -46,13 +48,16 @@ import {
   parsePatientImportFile,
   validatePatientImportRows,
 } from "./patient-import";
+import { patientCardFromApi, type PatientCardView } from "./patient-projection";
 import {
-  patientCardFromApi,
-  type PatientCardView,
-} from "./patient-projection";
-import { useCreatePatientMutation, usePatientsQuery, useUploadPatientPhotoMutation } from "@/shared/patients/patient-data";
+  useCreatePatientMutation,
+  usePatientsQuery,
+  useUploadPatientPhotoMutation,
+} from "@/shared/patients/patient-data";
 import { PageHeader, PatientAvatar } from "@/shared/ui";
 import { PatientPhotoCapture } from "./patient-photo-capture";
+import { getBrowserApi } from "@/shared/api/browser";
+import { dentyQueryKeys } from "@/shared/query";
 
 interface ImportNotice {
   color: "green" | "yellow" | "red";
@@ -66,6 +71,8 @@ const EMPTY_ADMISSION_DRAFT: PatientAdmissionDraft = {
   dni: "",
   phone: "",
   email: "",
+  declaredSource: undefined,
+  declaredSourceDetail: "",
   allergies: [],
   medications: [],
   conditions: [],
@@ -92,6 +99,12 @@ export function PatientsPage() {
   const [notice, setNotice] = useState<ImportNotice | null>(null);
   const [includeArchived, setIncludeArchived] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [admissionCampaignId, setAdmissionCampaignId] = useState("");
+  const campaignsQuery = useQuery({
+    queryKey: dentyQueryKeys.campaigns.all,
+    queryFn: () => getBrowserApi().engagement.marketing.campaigns(),
+    retry: false,
+  });
   const carouselRef = useRef<HTMLDivElement>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const scrollSettleTimerRef = useRef<number | null>(null);
@@ -157,25 +170,34 @@ export function PatientsPage() {
     } catch (error) {
       setNotice({
         color: "red",
-        message: error instanceof Error ? error.message : "No se pudo leer el archivo de importación.",
+        message:
+          error instanceof Error ? error.message : "No se pudo leer el archivo de importación.",
       });
     }
   };
 
   const createPatient = async () => {
-    const payload = buildAdmissionPayload(admissionDraft);
-    if (!payload.firstName || !payload.lastName || !admissionDraft.birthDate) return;
+    const basePayload = buildAdmissionPayload(admissionDraft);
+    if (!basePayload.firstName || !basePayload.lastName || !admissionDraft.birthDate) return;
+    const payload = admissionCampaignId
+      ? { ...basePayload, declaredCampaignId: admissionCampaignId }
+      : basePayload;
     const created = await createMutation.mutateAsync(payload);
     if (photoFile) {
       try {
         await uploadPhotoMutation.mutateAsync({ patientId: created.id, file: photoFile });
       } catch {
-        setNotice({ color: "yellow", message: "Paciente creado, pero la foto no pudo guardarse. Puedes repetirla desde la ficha." });
+        setNotice({
+          color: "yellow",
+          message:
+            "Paciente creado, pero la foto no pudo guardarse. Puedes repetirla desde la ficha.",
+        });
       }
     }
 
     setAdmissionDraft(EMPTY_ADMISSION_DRAFT);
     setPhotoFile(null);
+    setAdmissionCampaignId("");
     setOpened(false);
   };
 
@@ -370,8 +392,8 @@ export function PatientsPage() {
   const suggestedDentition = suggestedDentitionForBirthDate(admissionDraft.birthDate);
   const admissionReady = Boolean(
     admissionDraft.firstName.trim() &&
-      admissionDraft.lastName.trim() &&
-      admissionDraft.birthDate.trim(),
+    admissionDraft.lastName.trim() &&
+    admissionDraft.birthDate.trim(),
   );
 
   const updateAdmissionDraft = <Key extends keyof PatientAdmissionDraft>(
@@ -565,7 +587,9 @@ export function PatientsPage() {
                                 <span className={styles.patientCarouselName}>
                                   {fullName}
                                   {patient.archivedAt ? (
-                                    <Badge color="gray" size="xs" ml="xs">Archivado</Badge>
+                                    <Badge color="gray" size="xs" ml="xs">
+                                      Archivado
+                                    </Badge>
                                   ) : null}
                                 </span>
                                 <span className={styles.patientCarouselRecord}>
@@ -629,8 +653,8 @@ export function PatientsPage() {
               <div className={styles.sectionHeaderText}>
                 <h3 className={styles.sectionTitle}>Identificación</h3>
                 <p className={styles.sectionDescription}>
-                  La fecha de nacimiento decide si el odontograma parte de dentición primaria,
-                  mixta o permanente.
+                  La fecha de nacimiento decide si el odontograma parte de dentición primaria, mixta
+                  o permanente.
                 </p>
               </div>
               <Badge color="teal" variant="light">
@@ -674,6 +698,47 @@ export function PatientsPage() {
                 value={admissionDraft.email ?? ""}
                 onChange={(event) => updateAdmissionDraft("email", event.currentTarget.value)}
               />
+              <Select
+                label="¿Cómo nos conoció?"
+                clearable
+                data={[
+                  { value: "GOOGLE", label: "Google" },
+                  { value: "INSTAGRAM", label: "Instagram" },
+                  { value: "FACEBOOK", label: "Facebook" },
+                  { value: "PATIENT_REFERRAL", label: "Recomendación de paciente" },
+                  { value: "PROFESSIONAL_REFERRAL", label: "Recomendación profesional" },
+                  { value: "WALK_IN", label: "Pasó por la clínica" },
+                  { value: "EXISTING_PATIENT", label: "Paciente existente" },
+                  { value: "OTHER", label: "Otro" },
+                ]}
+                value={admissionDraft.declaredSource ?? null}
+                onChange={(value) =>
+                  updateAdmissionDraft(
+                    "declaredSource",
+                    (value || undefined) as PatientAdmissionDraft["declaredSource"],
+                  )
+                }
+              />
+              <TextInput
+                label="Detalle del origen"
+                value={admissionDraft.declaredSourceDetail ?? ""}
+                onChange={(event) =>
+                  updateAdmissionDraft("declaredSourceDetail", event.currentTarget.value)
+                }
+              />
+              {!campaignsQuery.isError ? (
+                <Select
+                  searchable
+                  clearable
+                  label="Campaña atribuida"
+                  data={(campaignsQuery.data?.items ?? []).map((campaign) => ({
+                    value: campaign.id ?? campaign.externalId,
+                    label: `${campaign.name} · ${campaign.provider}`,
+                  }))}
+                  value={admissionCampaignId || null}
+                  onChange={(value) => setAdmissionCampaignId(value ?? "")}
+                />
+              ) : null}
             </SimpleGrid>
           </section>
 

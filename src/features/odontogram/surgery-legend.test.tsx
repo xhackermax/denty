@@ -26,7 +26,13 @@ describe("SurgeryLegend", () => {
   });
 
   it("opens and moves focus when validation requires context", () => {
-    render(<SurgeryLegend selectedTooth="16" entities={[implant]} requiredFields={["system", "diameterMm"]} />);
+    render(
+      <SurgeryLegend
+        selectedTooth="16"
+        entities={[implant]}
+        requiredFields={["system", "diameterMm"]}
+      />,
+    );
     expect(screen.getByTestId("surgery-legend")).toHaveAttribute("open");
     expect(screen.getByRole("button", { name: /Detalles quirúrgicos de 16/ })).toHaveFocus();
     expect(screen.getByText(/Faltan: sistema, diámetro/)).toBeInTheDocument();

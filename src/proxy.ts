@@ -75,9 +75,10 @@ export async function proxy(request: NextRequest): Promise<Response> {
   let result: NextResponse;
   if (request.nextUrl.pathname.startsWith("/patient/")) {
     const patientId = request.nextUrl.pathname.split("/")[2];
-    result = patientId && canAccessPatient(actor, patientId)
-      ? NextResponse.next()
-      : forbiddenRedirect(request);
+    result =
+      patientId && canAccessPatient(actor, patientId)
+        ? NextResponse.next()
+        : forbiddenRedirect(request);
     return carrySessionCookies(result, response);
   }
 
@@ -91,4 +92,3 @@ export async function proxy(request: NextRequest): Promise<Response> {
 export const config = {
   matcher: ["/app/:path*", "/patient/:path*"],
 };
-

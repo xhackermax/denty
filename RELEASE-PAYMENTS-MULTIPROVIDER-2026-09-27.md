@@ -1,6 +1,7 @@
 # Denty Payments Multiprovider — Release checkpoint
 
 ## Implementado
+
 - Contrato normalizado de proveedores y estados de pago.
 - Máquina de estados con transiciones terminales protegidas.
 - `payment_attempts` con idempotencia por clínica/proveedor, RLS y referencias de proveedor.
@@ -13,7 +14,9 @@
 - Node objetivo permanece en 24.x.
 
 ## Verificación ejecutada en este entorno
+
 PASS:
+
 - `npm run payments:release`
 - `npm run architecture:check`
 - `npm run roadmap:p3`
@@ -24,9 +27,11 @@ PASS:
 - `npm run pipeline:self-check`
 
 ## Limitación del entorno
+
 El runtime disponible durante esta sesión es Node 22.16.0 y `npm ci` no pudo completarse dentro del límite de ejecución. Por ello no se certifican aquí `typecheck`, `lint`, suite Vitest completa ni `next build` bajo Node 24. El paquete conserva `engines.node=24.x`, `.nvmrc=24` y `.node-version=24`.
 
 ## Gate final recomendado al subir
+
 ```bash
 node -v
 npm ci

@@ -8,12 +8,19 @@ const admission = fs.readFileSync("src/features/patients/patient-admission.ts", 
 const contracts = fs.readFileSync("src/shared/api/contracts.ts", "utf8");
 
 const failures = [];
-if (!profile.includes("PatientMedicalHistory")) failures.push("patient profile must render PatientMedicalHistory");
+if (!profile.includes("PatientMedicalHistory"))
+  failures.push("patient profile must render PatientMedicalHistory");
 if (!history.includes("Historia médica")) failures.push("medical history section title is missing");
-for (const label of ["Alergias", "Medicación habitual", "Enfermedades y condiciones", "Riesgos odontológicos"]) {
+for (const label of [
+  "Alergias",
+  "Medicación habitual",
+  "Enfermedades y condiciones",
+  "Riesgos odontológicos",
+]) {
   if (!history.includes(label)) failures.push(`medical history editor is missing ${label}`);
 }
-if (!history.includes("TagsInput")) failures.push("medical history must allow custom free-text entries");
+if (!history.includes("TagsInput"))
+  failures.push("medical history must allow custom free-text entries");
 for (const token of [
   "macrolides",
   "clindamycin",
@@ -27,7 +34,8 @@ for (const token of [
   "breastfeeding",
   "thyroid_disease",
 ]) {
-  if (!admission.includes(`value: "${token}"`)) failures.push(`Spain anamnesis catalog missing ${token}`);
+  if (!admission.includes(`value: "${token}"`))
+    failures.push(`Spain anamnesis catalog missing ${token}`);
 }
 if (!contracts.includes("medicalProfile: medicalProfileSchema.optional()")) {
   failures.push("patient response schema must preserve medicalProfile");

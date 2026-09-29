@@ -6,10 +6,7 @@ export const initialAssistantState: AssistantState = {
   status: "OFF",
 };
 
-export function reduceAssistantState(
-  state: AssistantState,
-  event: AssistantEvent,
-): AssistantState {
+export function reduceAssistantState(state: AssistantState, event: AssistantEvent): AssistantState {
   if (event.type === "DISABLE") {
     return { enabled: false, visible: state.visible, status: "OFF" };
   }

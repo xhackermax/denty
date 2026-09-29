@@ -17,20 +17,10 @@ export function FinanceModule() {
   const issue = useIssueInvoiceMutation();
   const submit = useSubmitVerifactuMutation();
   const hasError = Object.values(finance).some((query) => query.isError);
-  const issued = (finance.invoices.data?.items ?? []).filter(
-    (invoice) => invoice.status === "ISSUED",
-  );
-  const invoiceTotal = issued.reduce((sum, invoice) => sum + invoice.totalCents, 0);
-  const collected = (finance.payments.data?.items ?? []).reduce(
-    (sum, payment) => sum + payment.amountCents,
-    0,
-  );
 
   return (
     <Stack gap="md">
-      {hasError ? (
-        <Alert color="red">Hay datos financieros no disponibles.</Alert>
-      ) : null}
+      {hasError ? <Alert color="red">Hay datos financieros no disponibles.</Alert> : null}
 
       <Group justify="space-between">
         <Badge variant="light">Ledger real</Badge>
@@ -42,15 +32,33 @@ export function FinanceModule() {
       <SimpleGrid cols={{ base: 1, md: 3 }}>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Facturado emitido</span>
-          <strong className={styles.metricValue}>{formatEUR(invoiceTotal)}</strong>
+          <strong className={styles.metricValue}>
+            {formatEUR(finance.summary.data?.invoicedCents ?? 0)}
+          </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Cobrado</span>
-          <strong className={styles.metricValue}>{formatEUR(collected)}</strong>
+          <strong className={styles.metricValue}>
+            {formatEUR(finance.summary.data?.collectedCents ?? 0)}
+          </strong>
+        </div>
+        <div className={styles.metric}>
+          <span className={styles.metricLabel}>Pendiente de cobro</span>
+          <strong className={styles.metricValue}>
+            {formatEUR(finance.summary.data?.pendingCents ?? 0)}
+          </strong>
+        </div>
+        <div className={styles.metric}>
+          <span className={styles.metricLabel}>Ticket medio</span>
+          <strong className={styles.metricValue}>
+            {formatEUR(finance.summary.data?.averageTicketCents ?? 0)}
+          </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Pendiente Verifactu</span>
-          <strong className={styles.metricValue}>{finance.verifactu.data?.counts.pending ?? 0}</strong>
+          <strong className={styles.metricValue}>
+            {finance.verifactu.data?.counts.pending ?? 0}
+          </strong>
         </div>
       </SimpleGrid>
 

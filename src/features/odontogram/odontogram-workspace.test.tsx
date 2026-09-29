@@ -103,8 +103,8 @@ describe("clinical odontogram workspace", () => {
       />,
     );
     expect(screen.getByText("Odontograma pediátrico")).toBeInTheDocument();
-    expect(screen.getAllByText("Dentición mixta").length).toBeGreaterThan(0);
-    expect(screen.getByText(/Raíces fantasma/)).toBeInTheDocument();
+    expect(screen.getAllByText("Dentición mixta dinámica").length).toBeGreaterThan(0);
+    expect(screen.getByText(/sucesor permanente/)).toBeInTheDocument();
   });
 
   it("muestra diagnostico visual de absceso apical cronico", () => {

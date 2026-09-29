@@ -43,10 +43,16 @@ export async function createStripeTerminalPayment(
 
 export async function getStripePaymentIntent(paymentIntentId: string, connectedAccountId?: string) {
   const stripe = getStripeClient();
-  return stripe.paymentIntents.retrieve(paymentIntentId, {}, stripeRequestOptions(connectedAccountId));
+  return stripe.paymentIntents.retrieve(
+    paymentIntentId,
+    {},
+    stripeRequestOptions(connectedAccountId),
+  );
 }
 
-export function mapStripePaymentIntentStatus(intent: Stripe.PaymentIntent): PaymentResult["status"] {
+export function mapStripePaymentIntentStatus(
+  intent: Stripe.PaymentIntent,
+): PaymentResult["status"] {
   if (intent.status === "succeeded") return "COMPLETED";
   if (intent.status === "canceled") return "CANCELLED";
   if (intent.status === "requires_payment_method") return "FAILED";

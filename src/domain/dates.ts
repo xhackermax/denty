@@ -4,6 +4,9 @@ import {
   addMinutes as addMinutesDateFns,
   format,
   startOfDay,
+  startOfMonth,
+  startOfQuarter,
+  startOfYear,
 } from "date-fns";
 
 export const BUSINESS_TIME_ZONE = "Europe/Madrid" as const;
@@ -60,6 +63,18 @@ export function madridLocalDateTime(date: string, time: string): TZDate {
 
 export function startOfDayMadrid(value: DateInput): TZDate {
   return startOfDay(madridDate(value));
+}
+
+export type ReportingPeriod = "month" | "quarter" | "year";
+
+export function startOfReportingPeriodMadrid(
+  period: ReportingPeriod,
+  value: DateInput = Date.now(),
+): TZDate {
+  const date = madridDate(value);
+  if (period === "year") return startOfYear(date);
+  if (period === "quarter") return startOfQuarter(date);
+  return startOfMonth(date);
 }
 
 export function toMadridISO(value: DateInput): string {

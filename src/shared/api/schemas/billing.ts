@@ -12,7 +12,7 @@ export const invoiceLineInputSchema = z.object({
 });
 
 export const createInvoiceDraftSchema = z.object({
-  patientId: idSchema.optional(),
+  patientId: idSchema,
   budgetId: idSchema.optional(),
   appointmentId: idSchema.optional(),
   seriesId: idSchema,
@@ -80,7 +80,6 @@ export const finalizedBudgetSignatureSchema = z.object({
     .passthrough(),
 });
 
-
 export const invoiceSeriesSchema = z
   .object({
     id: idSchema,
@@ -95,8 +94,9 @@ export const invoiceSeriesListSchema = z.object({
 });
 
 export const createInvoiceSeriesSchema = z.object({
-  code: z.string().min(1),
-  name: z.string().min(1),
+  code: z.string().trim().min(1).max(24),
+  name: z.string().trim().min(1).max(120),
+  prefix: z.string().trim().max(24).optional(),
 });
 
 export const allocatePaymentSchema = z.object({
@@ -139,6 +139,10 @@ export const billingSettingsSchema = z
     fiscalMode: z.enum(["VERIFACTU", "NO_VERIFACTU"]),
     defaultDueDays: z.number().int().min(0).max(365),
     autoSubmitVerifactu: z.boolean(),
+    fiscalTaxId: z.string().trim().min(1).nullable().optional(),
+    fiscalLegalName: z.string().trim().min(1).nullable().optional(),
+    fiscalAddress: z.string().trim().min(1).nullable().optional(),
+    verifactuEnvironment: z.enum(["test", "production"]).default("test"),
   })
   .passthrough();
 
@@ -146,6 +150,10 @@ export const updateBillingSettingsSchema = billingSettingsSchema.pick({
   fiscalMode: true,
   defaultDueDays: true,
   autoSubmitVerifactu: true,
+  fiscalTaxId: true,
+  fiscalLegalName: true,
+  fiscalAddress: true,
+  verifactuEnvironment: true,
 });
 
 export const verifactuStatusSchema = z.object({
