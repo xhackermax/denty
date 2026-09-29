@@ -276,7 +276,11 @@ grant execute on function private.can_receive_clinic_topic(text) to authenticate
 do $$ begin
   create policy denty_clinic_broadcast_read on realtime.messages
   for select to authenticated using (private.can_receive_clinic_topic(topic));
-exception when duplicate_object then null; end $$;
+exception
+  when duplicate_object then null;
+  -- Stage 13: hosted Supabase may not let "postgres" alter realtime.messages.
+  when insufficient_privilege then raise notice 'Skipping realtime.messages policy (not owner).';
+end $$;
 
 -- Stage 2 helpers remain the single audit/update mechanism.
 drop trigger if exists clinic_settings_set_updated_at on public.clinic_settings;
