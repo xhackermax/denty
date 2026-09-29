@@ -78,7 +78,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
         />
 
         <TextInput
-          label={mode === "login" ? "Email o teléfono" : "Email"}
+          label={mode === "login" ? "Email, teléfono o nº de ficha" : "Email"}
           type={mode === "request" ? "email" : "text"}
           value={identifier}
           onChange={(event) => setIdentifier(event.currentTarget.value)}

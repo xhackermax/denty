@@ -235,7 +235,6 @@ function PatientAccountForm({
   );
   const patient = (patients.data?.items ?? []).find((item) => item.id === patientId) ?? null;
   const dniPassword = initialPatientPassword(patient?.dni);
-  const needsEmail = Boolean(patient) && !patient?.email;
   const needsPassword = Boolean(patient) && !dniPassword;
 
   const create = useMutation({
@@ -247,10 +246,14 @@ function PatientAccountForm({
         password: password || undefined,
       }),
     onSuccess: (created) => {
-      const login = created.email ?? email;
+      const recordNumber = patient?.recordNumber;
+      const typedEmail = email.trim() || patient?.email;
+      const login = [recordNumber ? `su nº de ficha ${recordNumber}` : null, typedEmail]
+        .filter(Boolean)
+        .join(" o ");
       const secret = password ? "la contraseña que has indicado" : `su DNI/NIE (${dniPassword})`;
       onCreated(
-        `Cuenta creada para ${created.displayName}. Usuario: ${login}. Contraseña inicial: ${secret}. El paciente puede cambiarla desde su portal.`,
+        `Cuenta creada para ${created.displayName}. Usuario: ${login || created.email}. Contraseña inicial: ${secret}. El paciente puede cambiarla desde su portal.`,
       );
       setPatientId(null);
       setEmail("");
@@ -288,13 +291,12 @@ function PatientAccountForm({
               type="email"
               placeholder={patient.email ?? "paciente@correo.es"}
               description={
-                needsEmail
-                  ? "La ficha no tiene email: escribe uno para crear el acceso."
-                  : "Vacío = el email de su ficha."
+                patient.email
+                  ? "Opcional: vacío = el email de su ficha."
+                  : "Opcional: la ficha no tiene email; podrá entrar con su nº de ficha."
               }
               value={email}
               onChange={(event) => setEmail(event.currentTarget.value)}
-              required={needsEmail}
             />
             <PasswordInput
               label="Contraseña inicial"
@@ -312,8 +314,9 @@ function PatientAccountForm({
           </Group>
         ) : (
           <Text size="sm" c="dimmed">
-            La primera contraseña del paciente será su DNI/NIE. Después podrá cambiarla desde su
-            portal, y tú podrás restablecerla cuando lo necesite.
+            El paciente entrará con su número de ficha (o su email) y, la primera vez, con su
+            DNI/NIE como contraseña. Después podrá cambiarla desde su portal, y tú podrás
+            restablecerla cuando lo necesite.
           </Text>
         )}
         <Button type="submit" loading={create.isPending} disabled={!patientId}>

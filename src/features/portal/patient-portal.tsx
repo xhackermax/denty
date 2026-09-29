@@ -142,7 +142,9 @@ export function PatientPortal({ patientId }: { patientId: string }) {
       </section>
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Tu contraseña</h3>
-        <ChangePasswordForm hint="En tu primer acceso la contraseña es tu DNI/NIE (sin espacios ni guiones, con la letra en mayúscula). Te recomendamos cambiarla por una propia." />
+        <ChangePasswordForm
+          hint={`${data.patient.recordNumber ? `Tu usuario es tu número de ficha (${data.patient.recordNumber}). ` : ""}En tu primer acceso la contraseña es tu DNI/NIE, sin espacios ni guiones y con la letra en mayúscula. Te recomendamos cambiarla por una propia.`}
+        />
       </section>
     </Stack>
   );
