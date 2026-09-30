@@ -144,7 +144,6 @@ const SPOKEN_AUTORUN_ACTIONS = new Set<LocalVoiceAction["type"]>([
   "clinical.complete_item",
   "clinical.mark_unsatisfactory",
   "clinical.note",
-  "clinical.alert",
 ]);
 
 export function shouldAutoExecuteSpokenPreview(preview: VoicePreview): boolean {

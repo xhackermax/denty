@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import type { LocalVoiceAction, LocalVoicePlan } from "../local-nlu";
 import {
+  canExecuteVoicePreview,
   patientIdFromPathname,
   previewVoiceCommand,
   primaryHrefForVoicePlan,
+  shouldAutoExecuteSpokenPreview,
+  type VoicePreview,
 } from "../voice-router";
 
 describe("voice router", () => {
@@ -35,5 +39,143 @@ describe("voice router", () => {
       contextPatientId: "patient-1",
     };
     expect(primaryHrefForVoicePlan(resolved)).toBe("/app/patients/patient-1");
+  });
+});
+
+function makePlan(
+  actions: LocalVoiceAction[],
+  overrides: Partial<LocalVoicePlan> = {},
+): LocalVoicePlan {
+  return {
+    raw: "test",
+    actions,
+    ambiguities: [],
+    requiresConfirmation: false,
+    readback: "",
+    confidence: 1,
+    ...overrides,
+  };
+}
+
+function makePreview(
+  actions: LocalVoiceAction[],
+  planOverrides: Partial<LocalVoicePlan> = {},
+): VoicePreview {
+  return {
+    planToken: "test-token",
+    plan: makePlan(actions, planOverrides),
+    unsupportedActions: [],
+  };
+}
+
+describe("canExecuteVoicePreview", () => {
+  it("returns true when actions exist, no ambiguities, no unsupported", () => {
+    const preview = makePreview(
+      [{ type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] }],
+      { contextPatientId: "p1" },
+    );
+    expect(canExecuteVoicePreview(preview)).toBe(true);
+  });
+
+  it("returns false when there are ambiguities", () => {
+    const preview = makePreview(
+      [{ type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] }],
+      { ambiguities: ["paciente no encontrado"] },
+    );
+    expect(canExecuteVoicePreview(preview)).toBe(false);
+  });
+
+  it("returns false when there are unsupported actions", () => {
+    const preview: VoicePreview = {
+      planToken: "test",
+      plan: makePlan([{ type: "clinical.alert", patientRef: "", text: "alerta", severity: "HIGH" }]),
+      unsupportedActions: ["clinical.alert"],
+    };
+    expect(canExecuteVoicePreview(preview)).toBe(false);
+  });
+
+  it("returns false when no actions exist", () => {
+    const preview = makePreview([]);
+    expect(canExecuteVoicePreview(preview)).toBe(false);
+  });
+});
+
+describe("shouldAutoExecuteSpokenPreview", () => {
+  it("auto-executes odontogram.set_state on a patient page", () => {
+    const preview = makePreview(
+      [{ type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] }],
+      { contextPatientId: "p1" },
+    );
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
+  });
+
+  it("auto-executes clinical.add_item on a patient page", () => {
+    const preview = makePreview(
+      [{ type: "clinical.add_item", tooth: 14, treatmentCode: "ENDO", notes: "" }],
+      { contextPatientId: "p1" },
+    );
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
+  });
+
+  it("auto-executes clinical.complete_item on a patient page", () => {
+    const preview = makePreview(
+      [{ type: "clinical.complete_item", tooth: 14, treatmentCode: "ENDO" }],
+      { contextPatientId: "p1" },
+    );
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
+  });
+
+  it("auto-executes clinical.note on a patient page", () => {
+    const preview = makePreview(
+      [{ type: "clinical.note", text: "nota clínica" }],
+      { contextPatientId: "p1" },
+    );
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
+  });
+
+  it("does NOT auto-execute without a patient context", () => {
+    const preview = makePreview([
+      { type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] },
+    ]);
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
+  });
+
+  it("does NOT auto-execute navigation actions", () => {
+    const preview = makePreview(
+      [{ type: "navigation.open", destination: "agenda" }],
+      { contextPatientId: "p1" },
+    );
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
+  });
+
+  it("does NOT auto-execute when there are ambiguities", () => {
+    const preview = makePreview(
+      [{ type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] }],
+      { contextPatientId: "p1", ambiguities: ["no está claro"] },
+    );
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
+  });
+
+  it("does NOT auto-execute unsupported actions", () => {
+    const preview: VoicePreview = {
+      planToken: "test",
+      plan: makePlan(
+        [{ type: "clinical.alert", patientRef: "", text: "alerta", severity: "HIGH" }],
+        { contextPatientId: "p1" },
+      ),
+      unsupportedActions: ["clinical.alert"],
+    };
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
+  });
+
+  it("ignores patient.resolve actions when checking auto-execute set", () => {
+    const preview = makePreview(
+      [
+        { type: "patient.resolve", query: "García" },
+        { type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] },
+      ],
+      { contextPatientId: "p1" },
+    );
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
   });
 });
