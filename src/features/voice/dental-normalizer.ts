@@ -108,6 +108,11 @@ function applySelfCorrection(text: string): string {
   return `${left} ${right}`;
 }
 
+/** True when the speaker corrected themselves mid-sentence ("no, perdón, mesial"). */
+export function hasSelfCorrection(raw: string): boolean {
+  return phrasePattern(lexicon.correctionMarkers).test(fold(raw));
+}
+
 export function canonicalizeDentalSpeech(raw: string): string {
   let text = fold(raw);
   text = text.replace(phrasePattern(lexicon.fillers), " ");
@@ -130,7 +135,7 @@ export function canonicalizeDentalSpeech(raw: string): string {
   // "el 18 falta", "quita el 18 del odontograma".
   text = text
     .replace(/\bno\s+(?:esta|tiene)\s+(?:el\s+|la\s+)?(\d{2})\b/g, "$1 ausente")
-    .replace(/\bfalta(?:\s+el|\s+la)?\s+(\d{2})\b/g, "$1 ausente")
+    .replace(/\bfaltan?(?:\s+el|\s+la)?\s+(\d{2})\b/g, "$1 ausente")
     .replace(/\b(\d{2})\s+falta\b/g, "$1 ausente")
     .replace(/\bquita\s+(?:el\s+|la\s+)?(\d{2})\s+del\s+odontograma\b/g, "$1 ausente");
   // Surfaces last: "por fuera", "cara externa", "palatal"…

@@ -1,6 +1,6 @@
 import type { ToothSurface } from "@/domain";
 
-import { canonicalizeDentalSpeech } from "./dental-normalizer";
+import { canonicalizeDentalSpeech, hasSelfCorrection } from "./dental-normalizer";
 
 export type PaymentMethod = "CARD" | "CASH" | "TRANSFER" | "FINANCING";
 export type ClinicalTreatmentState = "PLANNED" | "COMPLETED" | "UNSATISFACTORY";
@@ -113,20 +113,20 @@ const TREATMENTS: readonly [RegExp, string, string][] = [
   [/corona/, "crown", "Corona"],
   [/revis(?:ar|ion).*implante|control.*implante/, "implant_review", "Revisión de implante"],
   [/implante/, "implant", "Implante"],
-  [/extracci|exodon/, "extraction", "Extracción"],
+  [/extracci|exodon|extraer|extraid/, "extraction", "Extracción"],
   [/incrustacion|incrustación|onlay|overlay|inlay/, "inlay", "Incrustación"],
   [/empaste|obturacion|obturación|restauracion|restauración/, "restoration", "Restauración"],
   [/raspado|alisado|periodontal/, "periodontal", "Tratamiento periodontal"],
-  [/limpieza|profilaxis|higiene/, "prophylaxis", "Profilaxis"],
+  [/limpieza|profilaxis|higiene|tartrect|destartraje/, "prophylaxis", "Profilaxis"],
 ];
 
 const TREATMENT_CUE = new RegExp(
   [
     "apicectom|reendodon|retratamiento|endodon|conductos?",
     "reconstru|munon|muñon|perno|poste|corona|implante",
-    "extracci|exodon|incrust|onlay|overlay|inlay",
+    "extracci|exodon|extraer|extraid|incrust|onlay|overlay|inlay",
     "empaste|obtur|restaur|raspado|alisado|periodontal",
-    "limpieza|profilaxis|higiene",
+    "limpieza|profilaxis|higiene|tartrect|destartraje",
   ].join("|"),
 );
 
@@ -224,29 +224,137 @@ function extractDni(raw: string): string | undefined {
   return raw.match(/(?:dni|nie|nif)\s*[:-]?\s*([A-Z0-9-]{6,14})/i)?.[1]?.toUpperCase();
 }
 
+// Vowels accept an accent so raw (unnormalized) speech can be matched: "llegó" / "llego".
+function accentInsensitive(source: string): string {
+  const classes: Record<string, string> = {
+    a: "[aá]",
+    e: "[eé]",
+    i: "[ií]",
+    o: "[oó]",
+    u: "[uúü]",
+  };
+  return source.replace(/[aeiou]/g, (vowel) => classes[vowel] ?? vowel);
+}
+
+const NAME = "([a-záéíóúüñ]+(?:\\s+[a-záéíóúüñ]+){0,3})";
+const ARRIVAL_PHRASES = [
+  "ha llegado",
+  "ya ha llegado",
+  "acaba de llegar",
+  "ya esta aqui",
+  "esta aqui",
+  "ha venido",
+  "llego",
+  "ha faltado",
+  "no vino",
+  "no ha venido",
+  "no se ha presentado",
+  "no se presento",
+  "no ha aparecido",
+]
+  .map(accentInsensitive)
+  .join("|");
+const NAV_VERBS = [
+  "busca",
+  "buscar",
+  "abre",
+  "abrir",
+  "encuentra",
+  "ver",
+  "selecciona",
+  "carga",
+  "ve",
+  "ir",
+  "vamos",
+  "llevame",
+  "muestrame",
+  "ensename",
+]
+  .map(accentInsensitive)
+  .join("|");
+
+// A captured name ends where the sentence moves on to a date, a time or a companion.
+const NAME_STOP_WORDS = new Set([
+  "pasala",
+  "pasalo",
+  "muevela",
+  "muevelo",
+  "cambiala",
+  "cambialo",
+  "ponla",
+  "ponlo",
+  "no",
+  "se",
+  "a",
+  "al",
+  "el",
+  "para",
+  "con",
+  "en",
+  "por",
+  "que",
+  "ya",
+  "hoy",
+  "manana",
+  "pasado",
+  "tarde",
+  "temprano",
+  "lunes",
+  "martes",
+  "miercoles",
+  "jueves",
+  "viernes",
+  "sabado",
+  "domingo",
+]);
+
+function trimNameAtStop(candidate: string): string {
+  const words = candidate.trim().split(/\s+/);
+  const stop = words.findIndex((word) => NAME_STOP_WORDS.has(normalize(word)));
+  return (stop < 0 ? words : words.slice(0, stop)).join(" ");
+}
+
+function extractFileNumber(raw: string): string | undefined {
+  return raw.match(
+    new RegExp(
+      "\\b(?:ficha|paciente|historia|expediente)\\s+" +
+        "(?:(?:n[uú]mero|num\\.?|n[º°o]\\.?|#)\\s*)?(\\d{3,9})\\b",
+      "i",
+    ),
+  )?.[1];
+}
+
 function extractPatient(raw: string): string {
-  const name = "([a-záéíóúüñ]+(?:\\s+[a-záéíóúüñ]+){0,3})";
+  const fileNumber = extractFileNumber(raw);
+  if (fileNumber) return fileNumber;
   const patterns = [
     new RegExp(
-      `(?:paciente|ficha|de|a)\\s+${name}\\s+` +
+      `\\b(?:paciente|ficha|de|a)\\s+${NAME}\\s+` +
         "(?:ha llegado|llego|llegó|no vino|no ha venido|ausente|hay que|necesita|" +
         "hacer|realiz|program|pon|mueve|cambia|presupuesto|ha pagado|pago|receta|tiene)",
       "i",
     ),
+    new RegExp(`(?:${ARRIVAL_PHRASES})\\s+${NAME}`, "i"),
     new RegExp(
-      "(?:busca|buscar|abre|abrir|encuentra|ver|selecciona|carga)\\s+" +
-        `(?:(?:el|la)\\s+)?(?:ficha\\s+de\\s+|paciente\\s+|a\\s+)?${name}`,
+      `^\\s*(?:(?:el|la)\\s+)?(?:paciente\\s+)?${NAME}\\s+(?:ya\\s+)?(?:${ARRIVAL_PHRASES}|ha\\s+pagado|ha\\s+abonado)`,
       "i",
     ),
+    new RegExp(`\\bcobr\\w*\\b.*?\\b(?:a|de)\\s+${NAME}\\s*$`, "i"),
     new RegExp(
-      `(?:cita|agenda).*?(?:de|para)\\s+${name}` +
+      `\\b(?:${NAV_VERBS})\\s+(?:(?:a|al|en)\\s+)?(?:(?:el|la)\\s+)?` +
+        `(?:(?:ficha|historia|historial|expediente)\\s+(?:clinica\\s+|clínica\\s+)?de\\s+|paciente\\s+|a\\s+)?${NAME}`,
+      "i",
+    ),
+    new RegExp(`\\b(?:odontograma|periodontograma|presupuesto|historial)\\s+de\\s+${NAME}`, "i"),
+    new RegExp(
+      `(?:cita|agenda).*?(?:de|para)\\s+${NAME}` +
         "(?=\\s+(?:hoy|mañana|manana|pasado|lunes|martes|miercoles|miércoles|" +
         "jueves|viernes|sabado|sábado|domingo|a\\s+las)|$)",
       "i",
     ),
   ];
   for (const pattern of patterns) {
-    const match = raw.match(pattern)?.[1]?.trim();
+    const match = trimNameAtStop(raw.match(pattern)?.[1] ?? "");
     if (match && looksLikePersonName(match)) return match;
   }
   return "";
@@ -299,11 +407,50 @@ const NOT_NAME_WORDS = new Set([
   "administracion",
   "inicio",
   "hoy",
+  "manana",
+  "pasado",
+  "lunes",
+  "martes",
+  "miercoles",
+  "jueves",
+  "viernes",
+  "sabado",
+  "domingo",
+  "radiografia",
+  "radiografias",
+  "presupuesto",
+  "presupuestos",
+  "historial",
+  "historia",
+  "nota",
+  "notas",
+  "cita",
+  "citas",
+  "calendario",
+  "resumen",
+  "documentos",
+  "recetas",
+  "informe",
+  "informes",
+  "numero",
+  "revision",
+  "limpieza",
+  "control",
+  "consulta",
+  "urgencia",
+  "endodoncia",
+  "extraccion",
+  "implante",
+  "implantes",
+  "periodoncia",
+  "sondaje",
+  "trabajo",
 ]);
 
 function looksLikePersonName(candidate: string): boolean {
   const words = normalize(candidate).split(" ");
   if (!words.length || /^(?:el|la|los|las|un|una)$/.test(words[0] ?? "")) return false;
+  if (words.length === 1 && /^(?:ficha|paciente)$/.test(words[0] ?? "")) return false;
   return !words.some((word) => NOT_NAME_WORDS.has(word) || /\d/.test(word));
 }
 
@@ -329,9 +476,10 @@ function extractTeeth(raw: string): string[] {
     if (looksLikeNonToothNumber(text, start, start + value.length)) continue;
     if (
       TREATMENT_CUE.test(text) ||
-      /\b(?:diente|pieza|muela|puente|caries|bolsa|sondaje|ausente|sano|realizado|defectuoso)\b/.test(
+      /\b(?:diente|pieza|muela|puente|caries|bolsa|sondaje|ausentes?|sano|sana|sanos|sanas|realizado|defectuoso)\b/.test(
         text,
       ) ||
+      /\b(?:sangrado|sangra|movilidad|recesion|placa|supuracion|bop)\b/.test(text) ||
       /\b(?:mesial|distal|oclusal|incisal|vestibular|lingual|palatino)\b/.test(text)
     ) {
       found.push(value);
@@ -394,23 +542,47 @@ function extractDate(text: string): string | undefined {
   return text.match(/\b(\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)\b/)?.[1];
 }
 
-function extractTime(text: string): string | undefined {
-  const numeric = text.match(/(?:a\s+las?|sobre\s+las?)\s*(\d{1,2})(?::|\s+y\s+)?(\d{2})?\b/);
-  if (numeric?.[1]) {
-    const hour = Math.min(23, Number(numeric[1]));
-    const minute = numeric[2] ? Math.min(59, Number(numeric[2])) : 0;
-    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-  }
-  const hourWords = Object.keys(HOUR_WORDS).join("|");
-  const words = text.match(
-    new RegExp(`(?:a\\s+las?|sobre\\s+las?)\\s+(${hourWords})(?:\\s+y\\s+(cuarto|media))?`),
-  );
-  const hourWord = words?.[1];
-  if (!hourWord) return undefined;
-  const hour = HOUR_WORDS[hourWord];
-  if (hour === undefined) return undefined;
-  const minute = words?.[2] === "cuarto" ? 15 : words?.[2] === "media" ? 30 : 0;
+const MINUTE_WORDS: Readonly<Record<string, number>> = {
+  cuarto: 15,
+  media: 30,
+  veinte: 20,
+  veinticinco: 25,
+  diez: 10,
+  cinco: 5,
+};
+
+function formatTime(hour: number, minute: number): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function extractTime(text: string): string | undefined {
+  const hourWords = Object.keys(HOUR_WORDS).join("|");
+  const match = text.match(
+    new RegExp(
+      `(?:a|sobre)\\s+las?\\s+(\\d{1,2}|${hourWords})(?::(\\d{2}))?` +
+        `(?:\\s+(y|menos)\\s+(cuarto|media|veinticinco|veinte|diez|cinco|\\d{2})\\b)?` +
+        "(?:\\s+(?:de\\s+la|por\\s+la)\\s+(manana|tarde|noche|madrugada))?",
+    ),
+  );
+  const hourToken = match?.[1];
+  if (!hourToken) return undefined;
+  const hour = Math.min(
+    23,
+    /^\d+$/.test(hourToken) ? Number(hourToken) : (HOUR_WORDS[hourToken] ?? 0),
+  );
+  const modifier = match?.[4];
+  const offset = modifier
+    ? /^\d+$/.test(modifier)
+      ? Math.min(59, Number(modifier))
+      : (MINUTE_WORDS[modifier] ?? 0)
+    : Number(match?.[2] ?? 0);
+  const minuteOfHour = match?.[3] === "menos" ? -offset : offset;
+  const period = match?.[5];
+  // Clinics do not open at 5 a.m.: "a las cinco" without a period means the afternoon.
+  const afternoon = period === "tarde" || period === "noche" || (!period && hour >= 1 && hour <= 7);
+  const base = afternoon && hour < 12 ? hour + 12 : hour;
+  const total = base * 60 + minuteOfHour;
+  return formatTime(Math.floor(total / 60), total % 60);
 }
 
 function extractDuration(text: string): number | undefined {
@@ -430,9 +602,92 @@ function extractStaff(raw: string): string | undefined {
     ?.trim();
 }
 
+const NUMBER_WORDS: Readonly<Record<string, number>> = {
+  cero: 0,
+  un: 1,
+  uno: 1,
+  una: 1,
+  dos: 2,
+  tres: 3,
+  cuatro: 4,
+  cinco: 5,
+  seis: 6,
+  siete: 7,
+  ocho: 8,
+  nueve: 9,
+  diez: 10,
+  once: 11,
+  doce: 12,
+  trece: 13,
+  catorce: 14,
+  quince: 15,
+  dieciseis: 16,
+  diecisiete: 17,
+  dieciocho: 18,
+  diecinueve: 19,
+  veinte: 20,
+  veintiuno: 21,
+  veintiun: 21,
+  veintidos: 22,
+  veintitres: 23,
+  veinticuatro: 24,
+  veinticinco: 25,
+  veintiseis: 26,
+  veintisiete: 27,
+  veintiocho: 28,
+  veintinueve: 29,
+  treinta: 30,
+  cuarenta: 40,
+  cincuenta: 50,
+  sesenta: 60,
+  setenta: 70,
+  ochenta: 80,
+  noventa: 90,
+  cien: 100,
+  ciento: 100,
+  doscientos: 200,
+  trescientos: 300,
+  cuatrocientos: 400,
+  quinientos: 500,
+  seiscientos: 600,
+  setecientos: 700,
+  ochocientos: 800,
+  novecientos: 900,
+};
+
+function parseSpokenNumber(words: readonly string[]): number | undefined {
+  let total = 0;
+  let current = 0;
+  let seen = false;
+  for (const word of words) {
+    if (word === "y") continue;
+    if (word === "mil") {
+      total += (current || 1) * 1000;
+      current = 0;
+      seen = true;
+      continue;
+    }
+    const value = NUMBER_WORDS[word];
+    if (value === undefined) return undefined;
+    current += value;
+    seen = true;
+  }
+  return seen ? total + current : undefined;
+}
+
 function extractMoney(text: string): number | undefined {
   const raw = text.match(/(\d+(?:[.,]\d{1,2})?)\s*(?:€|euros?)\b/)?.[1];
-  return raw ? Math.round(Number(raw.replace(",", ".")) * 100) : undefined;
+  if (raw) return Math.round(Number(raw.replace(",", ".")) * 100);
+  const spoken =
+    text
+      .match(/((?:[a-z]+\s+){1,6})euros?\b/)?.[1]
+      ?.trim()
+      .split(" ") ?? [];
+  for (let start = 0; start < spoken.length; start += 1) {
+    const amount = parseSpokenNumber(spoken.slice(start));
+    if (amount !== undefined && amount > 0) return amount * 100;
+  }
+  return undefined;
 }
 
 function extractPaymentMethod(text: string): PaymentMethod | undefined {
@@ -445,10 +700,21 @@ function extractPaymentMethod(text: string): PaymentMethod | undefined {
 
 function treatmentState(text: string, code: string): ClinicalTreatmentState {
   if (code === "reendodontics") return "PLANNED";
-  if (/\b(?:repetir|rehacer|defectuos|insatisfactor|fallad|fracturad|filtrad)\w*/.test(text)) {
+  if (
+    /\b(?:repetir|rehacer|defectuos|insatisfactor|fallad|fracturad|filtrad|desajustad|rot[oa]s?)\w*/.test(
+      text,
+    ) ||
+    /\bmal\s+(?:hech|puest|colocad|sellad|ajustad|adaptad|realizad|obturad|cementad|terminad)\w*/.test(
+      text,
+    )
+  ) {
     return "UNSATISFACTORY";
   }
-  if (/\b(?:realizad|hech|terminad|completad|finalizad|colocad)\w*\b/.test(text)) {
+  if (
+    /\b(?:realizad|hech|terminad|completad|finalizad|colocad|puest|cementad|instalad|rematad|acabad|extraid)\w*\b/.test(
+      text,
+    )
+  ) {
     return "COMPLETED";
   }
   return "PLANNED";
@@ -458,9 +724,10 @@ function treatmentActions(
   patientRef: string,
   raw: string,
   context: LocalVoiceContext,
+  toothOverride?: string,
 ): LocalVoiceAction[] {
   const text = normalize(raw);
-  const tooth = extractTooth(raw, context);
+  const tooth = toothOverride ?? extractTooth(raw, context);
   const surfaces = extractSurfaces(raw);
   const actions: LocalVoiceAction[] = [];
 
@@ -485,20 +752,35 @@ function treatmentActions(
     });
   }
 
+  return actions;
+}
+
+const TREATMENT_ORDER = [
+  "endodontics",
+  "reendodontics",
+  "reconstruction",
+  "post",
+  "crown",
+] as const;
+
+// Dependencies are derived after all clauses so "endodoncia en 26 y corona en 26" keeps its order.
+function dependencyActions(
+  patientRef: string,
+  actions: readonly LocalVoiceAction[],
+): LocalVoiceAction[] {
   const planned = actions.filter(
-    (action): action is ClinicalTreatmentAction => action.type === "clinical.add_item",
+    (action): action is ClinicalTreatmentAction =>
+      action.type === "clinical.add_item" && action.tooth !== undefined,
   );
-  const ordered = ["endodontics", "reendodontics", "reconstruction", "post", "crown"] as const;
-  if (tooth) {
-    for (let index = 1; index < ordered.length; index += 1) {
-      const beforeCode = ordered[index - 1];
-      const afterCode = ordered[index];
+  const dependencies: LocalVoiceAction[] = [];
+  for (const tooth of uniq(planned.map((action) => action.tooth as string))) {
+    const codes = planned.filter((action) => action.tooth === tooth).map((a) => a.treatmentCode);
+    for (let index = 1; index < TREATMENT_ORDER.length; index += 1) {
+      const beforeCode = TREATMENT_ORDER[index - 1];
+      const afterCode = TREATMENT_ORDER[index];
       if (!beforeCode || !afterCode) continue;
-      if (
-        planned.some((action) => action.treatmentCode === beforeCode) &&
-        planned.some((action) => action.treatmentCode === afterCode)
-      ) {
-        actions.push({
+      if (codes.includes(beforeCode) && codes.includes(afterCode)) {
+        dependencies.push({
           type: "clinical.add_dependency",
           patientRef,
           tooth,
@@ -508,16 +790,17 @@ function treatmentActions(
       }
     }
   }
-  return actions;
+  return dependencies;
 }
 
 function odontogramActions(
   patientRef: string,
   raw: string,
   context: LocalVoiceContext,
+  toothOverride?: string,
 ): LocalVoiceAction[] {
   const text = normalize(raw);
-  const range = extractRange(raw);
+  const range = toothOverride ? [] : extractRange(raw);
   if (/puente|protesis\s+fija/.test(text) && range.length >= 2) {
     const missing = raw.match(/(?:con|y)\s+(.+?)\s+ausente/i)?.[1] ?? "";
     return [
@@ -525,7 +808,7 @@ function odontogramActions(
         type: "odontogram.bridge",
         patientRef,
         teeth: range,
-        missingTeeth: extractTeeth(missing),
+        missingTeeth: extractTeeth(`${missing} ausente`),
         status: /realizad|colocad|hech/.test(text) ? "COMPLETED" : "PLANNED",
       },
     ];
@@ -548,17 +831,17 @@ function odontogramActions(
     ];
   }
 
-  const tooth = extractTooth(raw, context);
+  const tooth = toothOverride ?? extractTooth(raw, context);
   if (!tooth) return [];
   const surfaces = extractSurfaces(raw);
   // "Quita la caries del 26" asks to remove it: never add one.
   if (/caries/.test(text) && !/\b(?:quita|quitale|elimina|borra|retira|desmarca)\b/.test(text)) {
     return [{ type: "odontogram.set_state", patientRef, tooth, status: "CARIES", surfaces }];
   }
-  if (/\b(?:sano|saludable)\b/.test(text)) {
+  if (/\b(?:sanos?|sanas?|saludables?)\b/.test(text)) {
     return [{ type: "odontogram.set_state", patientRef, tooth, status: "HEALTHY" }];
   }
-  if (/\b(?:ausente|falta|perdido)\b/.test(text)) {
+  if (/\b(?:ausentes?|faltan?|perdid[oa]s?)\b/.test(text)) {
     return [{ type: "odontogram.set_state", patientRef, tooth, status: "MISSING" }];
   }
   return [];
@@ -568,14 +851,20 @@ function periodontalActions(
   patientRef: string,
   raw: string,
   context: LocalVoiceContext,
+  toothOverride?: string,
 ): LocalVoiceAction[] {
   const text = normalize(raw);
-  const tooth = extractTooth(raw, context);
+  const tooth = toothOverride ?? extractTooth(raw, context);
   if (!tooth) return [];
   const mobility = text.match(/movilidad\s*(?:grado\s*)?(0|1|2|3|i{1,3})/)?.[1];
   const depth = text.match(/(?:bolsa|sondaje|profundidad)\s*(?:de\s*)?(\d{1,2})/)?.[1];
   const recession = text.match(/recesion\s*(?:de\s*)?(\d{1,2})/)?.[1];
-  if (!mobility && !depth && !recession && !/sangrado|bop|supuracion|placa/.test(text)) {
+  if (
+    !mobility &&
+    !depth &&
+    !recession &&
+    !/sangrado|sangra\b|bop|supuracion|placa(?!\s+de\s+descarga)/.test(text)
+  ) {
     return [];
   }
   return [
@@ -587,15 +876,21 @@ function periodontalActions(
       ...(depth ? { probingDepth: Number(depth) } : {}),
       ...(recession ? { recession: Number(recession) } : {}),
       ...(mobility ? { mobility: mobility.toUpperCase() } : {}),
-      ...(/sangrado|bop/.test(text) ? { bleeding: true } : {}),
+      ...(/sangrado|sangra\b|bop/.test(text) ? { bleeding: true } : {}),
       ...(/supuracion/.test(text) ? { suppuration: true } : {}),
-      ...(/placa/.test(text) ? { plaque: true } : {}),
+      ...(/placa(?!\s+de\s+descarga)/.test(text) ? { plaque: true } : {}),
     },
   ];
 }
 
 function navigationAction(text: string): LocalVoiceAction | undefined {
-  if (!/\b(?:abre|abrir|ir|ve|ver|muestra|ensena)\b/.test(text)) return undefined;
+  if (
+    !/\b(?:abre|abrir|ir|ve|vamos|ver|muestra|muestrame|ensena|ensename|llevame|llevanos|ponme)\b/.test(
+      text,
+    )
+  ) {
+    return undefined;
+  }
   const targets: readonly [RegExp, string][] = [
     [/\bodontograma\b/, "odontogram"],
     [/\bagenda\b/, "agenda"],
@@ -609,6 +904,85 @@ function navigationAction(text: string): LocalVoiceAction | undefined {
   ];
   const match = targets.find(([pattern]) => pattern.test(text));
   return match ? { type: "navigation.open", destination: match[1] } : undefined;
+}
+
+const CLAUSE_CUE = new RegExp(
+  `caries|sano|sana|sanos|sanas|ausentes?|${TREATMENT_CUE.source}|` +
+    "sondaje|bolsa|sangrado|sangra\\b|movilidad|recesion|supuracion|bop",
+);
+const TOOTHLESS_TREATMENT = /limpieza|profilaxis|higiene|tartrect|destartraje|raspado|alisado/;
+
+// "caries en 14 y 15, endodoncia en 26" -> ["caries en 14 15", "endodoncia en 26"]:
+// pieces without a finding of their own ("15", "mesial") join the clause before them.
+function clinicalClauses(raw: string): string[] {
+  if (hasSelfCorrection(raw) || /puente|protesis/i.test(raw))
+    return [canonicalizeDentalSpeech(raw)];
+  const pieces = raw
+    .split(
+      /\s*[,;]\s*|(?<!treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa)\s+y\s+|\s+(?:luego|ademas|además|tambien|también|despues|después)\s+/i,
+    )
+    .map(canonicalizeDentalSpeech)
+    .filter(Boolean);
+  const clauses: string[] = [];
+  let pending = "";
+  for (const piece of pieces) {
+    if (!CLAUSE_CUE.test(piece)) {
+      if (clauses.length) clauses[clauses.length - 1] += ` ${piece}`;
+      else pending = `${pending} ${piece}`.trim();
+      continue;
+    }
+    clauses.push(`${pending} ${piece}`.trim());
+    pending = "";
+  }
+  if (pending) clauses.push(pending);
+  // A treatment named before its tooth ("endodoncia y corona en 26") shares the next clause.
+  const merged: string[] = [];
+  for (let index = 0; index < clauses.length; index += 1) {
+    let clause = clauses[index] ?? "";
+    while (
+      index + 1 < clauses.length &&
+      extractTeeth(clause).length === 0 &&
+      !TOOTHLESS_TREATMENT.test(clause) &&
+      TREATMENT_CUE.test(clause)
+    ) {
+      index += 1;
+      clause = `${clause} ${clauses[index] ?? ""}`;
+    }
+    const previousTeeth = extractTeeth(merged.at(-1) ?? "");
+    const needsTooth =
+      extractTeeth(clause).length === 0 &&
+      TREATMENT_CUE.test(clause) &&
+      !TOOTHLESS_TREATMENT.test(clause);
+    // "corona en el 16 y una endodoncia": the second treatment is for the same tooth.
+    merged.push(
+      needsTooth && previousTeeth.length === 1 ? `${clause} ${previousTeeth[0]}` : clause,
+    );
+  }
+  return merged;
+}
+
+function perClauseActions(
+  patientRef: string,
+  clause: string,
+  context: LocalVoiceContext,
+): LocalVoiceAction[] {
+  const teeth = extractTeeth(clause);
+  const isBridgeLike = /puente|protesis|removible/.test(normalize(clause));
+  if (teeth.length < 2 || isBridgeLike) {
+    return [
+      ...odontogramActions(patientRef, clause, context),
+      ...periodontalActions(patientRef, clause, context),
+      ...treatmentActions(patientRef, clause, context),
+    ];
+  }
+  const measured = /(?:bolsa|sondaje|profundidad|recesion|movilidad)/.test(normalize(clause));
+  return teeth.flatMap((tooth) => [
+    ...odontogramActions(patientRef, clause, context, tooth),
+    ...(measured && tooth !== teeth[0]
+      ? []
+      : periodontalActions(patientRef, clause, context, tooth)),
+    ...treatmentActions(patientRef, clause, context, tooth),
+  ]);
 }
 
 export function voiceReadback(
@@ -707,14 +1081,29 @@ export function planLocalVoiceCommand(
   if (patientRef) actions.push({ type: "patient.resolve", query: patientRef });
   const navigation = navigationAction(text);
   if (navigation) actions.push(navigation);
-  const asksForPatient = /\b(?:busca|buscar|abre|abrir|ver|selecciona|carga)\b/.test(text);
-  if (asksForPatient && /\b(?:paciente|ficha)\b/.test(text)) {
+  const asksForPatient =
+    /\b(?:busca|buscar|abre|abrir|ver|selecciona|carga|ve|vamos|llevame|muestrame|ensename|ponme)\b/.test(
+      text,
+    );
+  if (asksForPatient && (/\b(?:paciente|ficha)\b/.test(text) || explicitPatient)) {
     actions.push({ type: "navigation.patient", patientRef });
   }
-  if (/ha llegado|llego|esta aqui|ya esta aqui/.test(text) && !/laboratorio/.test(text)) {
+  const arrived = /ha llegado|llego|esta aqui|ya esta aqui|acaba de llegar|(?<!no )ha venido/.test(
+    text,
+  );
+  if (arrived && !/laboratorio/.test(text)) {
     actions.push({ type: "appointment.arrive", patientRef });
   }
-  if (/no vino|no ha venido|npa|no presentado|\bausente\b/.test(text)) {
+  // "ausente" describes a tooth when the sentence talks about one.
+  const absentTooth =
+    extractTeeth(canonicalizeDentalSpeech(raw)).length > 0 ||
+    /\b(?:diente|pieza|muela|molar|premolar|incisivo|canino|colmillo)\b/.test(text);
+  if (
+    /no vino|no ha venido|npa|no presentado|ha faltado|no se ha presentado|no se presento|no ha aparecido/.test(
+      text,
+    ) ||
+    (/\bausente\b/.test(text) && !absentTooth)
+  ) {
     actions.push({ type: "appointment.no_show", patientRef });
   }
   if (/(?:anade|añade|agrega|pon|registra).*\b(?:comentario|nota clinica)\b/.test(text)) {
@@ -722,7 +1111,9 @@ export function planLocalVoiceCommand(
     if (note) actions.push({ type: "clinical.note", patientRef, text: note });
   }
   if (/alerg|\balerta\b/.test(text)) {
-    const allergy = raw.match(/alerg(?:ia|ico|ica)?\s+(?:a\s+)?(.+)$/i)?.[1];
+    const allergy = raw
+      .match(/al[eé]rg(?:ia|ic[oa])\s+(?:a\s+(?:la\s+|el\s+|los\s+|las\s+)?|al\s+)?(.+)$/i)?.[1]
+      ?.replace(/[.!\s]+$/, "");
     actions.push({
       type: "clinical.alert",
       patientRef,
@@ -733,12 +1124,10 @@ export function planLocalVoiceCommand(
 
   // Regional and colloquial speech ("calza en el dos seis por fuera") is
   // canonicalized with the dental dictionary before clinical extraction.
-  const clinical = canonicalizeDentalSpeech(raw);
-  const extractedClinical = [
-    ...odontogramActions(patientRef, clinical, context),
-    ...periodontalActions(patientRef, clinical, context),
-    ...treatmentActions(patientRef, clinical, context),
-  ];
+  const clauseActions = clinicalClauses(raw).flatMap((clause) =>
+    perClauseActions(patientRef, clause, context),
+  );
+  const extractedClinical = [...clauseActions, ...dependencyActions(patientRef, clauseActions)];
   actions.push(...extractedClinical);
   // "Anota que refiere dolor al frío en el 36": dictated note, original wording kept.
   const dictated = raw.match(
@@ -757,10 +1146,16 @@ export function planLocalVoiceCommand(
   const timeText = extractTime(text);
   const durationMin = extractDuration(text);
   const staffRef = extractStaff(raw);
-  const moving = /\b(?:mueve|cambia|reprograma|pasa)\b/.test(text) && /\bcita\b/.test(text);
-  const schedulesAppointment = /\b(?:pon|agenda|cita|programa|programar|citar|dame\s+cita)\b/.test(
-    text,
-  );
+  const moving =
+    /\b(?:mueve|muevela|cambia|cambiala|reprograma|pasa|pasala|pospon|posponla|adelanta|adelantala|retrasa|retrasala|aplaza|aplazala)\b/.test(
+      text,
+    ) && /\bcita\b/.test(text);
+  // "abre la agenda de mañana" opens the agenda; it does not book anything.
+  const schedulesAppointment = (
+    navigation
+      ? /\b(?:pon|cita|programa|programar|citar)\b/
+      : /\b(?:pon|agenda|cita|programa|programar|citar|dame\s+cita)\b/
+  ).test(text);
   if (!moving && schedulesAppointment && (dateText || timeText)) {
     actions.push({
       type: "appointment.schedule",
@@ -794,7 +1189,7 @@ export function planLocalVoiceCommand(
   if (budgetIntent) {
     actions.push({ type: "budget.sync", patientRef });
   }
-  if (/\b(?:cobrar|cobro|pago|ha pagado|pagado)\b/.test(text)) {
+  if (/\b(?:cobrar|cobra|cobrale|cobro|pago|paga|ha pagado|pagado|ha abonado|abono)\b/.test(text)) {
     actions.push({
       type: "payment.record",
       patientRef,
