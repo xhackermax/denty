@@ -17,16 +17,14 @@ import {
   Textarea,
 } from "@mantine/core";
 import {
-  IconChevronDown,
+  IconChevronLeft,
   IconChevronRight,
-  IconChevronUp,
   IconDots,
   IconPlus,
   IconSearch,
 } from "@tabler/icons-react";
-import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { dateDMY } from "@/domain/dates";
@@ -35,14 +33,9 @@ import styles from "@/shared/ui/parity.module.css";
 import {
   buildAdmissionPayload,
   dentalMedicalAdmissionOptions,
-  optionLabels,
   suggestedDentitionForBirthDate,
   type PatientAdmissionDraft,
 } from "./patient-admission";
-import {
-  getInfiniteCarouselRecenteringDelta,
-  PATIENT_CAROUSEL_SCROLL_SETTLE_MS,
-} from "./patient-carousel-loop";
 import {
   createPatientPayload,
   parsePatientImportFile,
@@ -86,12 +79,13 @@ const DENTITION_LABELS = {
   permanent: "Dentición permanente",
 } as const;
 
+const PAGE_SIZE = 50;
+
 function formatVisitDate(value?: string | null): string {
   return value ? dateDMY(value) : "xx/xx/xxxx";
 }
 
 export function PatientsPage() {
-  const reducedMotion = useReducedMotion();
   const [query, setQuery] = useState("");
   const [opened, setOpened] = useState(false);
   const [admissionDraft, setAdmissionDraft] =
@@ -100,24 +94,29 @@ export function PatientsPage() {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [admissionCampaignId, setAdmissionCampaignId] = useState("");
+  const [page, setPage] = useState(1);
   const campaignsQuery = useQuery({
     queryKey: dentyQueryKeys.campaigns.all,
     queryFn: () => getBrowserApi().engagement.marketing.campaigns(),
     retry: false,
   });
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const scrollFrameRef = useRef<number | null>(null);
-  const scrollSettleTimerRef = useRef<number | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
   const deferredQuery = useDeferredValue(query);
-  const patientsQuery = usePatientsQuery(true, includeArchived, deferredQuery || undefined);
+  const patientsQuery = usePatientsQuery(true, includeArchived, deferredQuery || undefined, page);
   const createMutation = useCreatePatientMutation();
   const uploadPhotoMutation = useUploadPatientPhotoMutation();
 
-  const filtered = useMemo<readonly PatientCardView[]>(
+  const patients = useMemo<readonly PatientCardView[]>(
     () => (patientsQuery.data?.items ?? []).map(patientCardFromApi),
     [patientsQuery.data],
   );
+
+  const total = patientsQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const handleSearchChange = (value: string) => {
+    setQuery(value);
+    setPage(1);
+  };
 
   const importPatients = async (file: File | null) => {
     if (!file) return;
@@ -186,194 +185,6 @@ export function PatientsPage() {
     setOpened(false);
   };
 
-  const safeActiveIndex = filtered.length ? Math.min(activeIndex, filtered.length - 1) : 0;
-
-  const getCarouselCards = useCallback(() => {
-    const viewport = carouselRef.current;
-    if (!viewport) return [] as HTMLElement[];
-    return Array.from(viewport.querySelectorAll<HTMLElement>("[data-carousel-index]"));
-  }, []);
-
-  const getClosestCarouselCard = useCallback(() => {
-    const viewport = carouselRef.current;
-    if (!viewport) return null;
-    const cards = getCarouselCards();
-    if (!cards.length) return null;
-
-    const viewportRect = viewport.getBoundingClientRect();
-    const viewportCenter = viewportRect.top + viewportRect.height / 2;
-    let closest: HTMLElement | null = null;
-    let distance = Number.POSITIVE_INFINITY;
-
-    for (const card of cards) {
-      const rect = card.getBoundingClientRect();
-      const cardDistance = Math.abs(rect.top + rect.height / 2 - viewportCenter);
-      if (cardDistance < distance) {
-        distance = cardDistance;
-        closest = card;
-      }
-    }
-
-    return closest;
-  }, [getCarouselCards]);
-
-  const scrollCardToCenter = useCallback(
-    (card: HTMLElement, behavior: ScrollBehavior = "smooth") => {
-      const viewport = carouselRef.current;
-      if (!viewport) return;
-      const viewportRect = viewport.getBoundingClientRect();
-      const cardRect = card.getBoundingClientRect();
-      const delta =
-        cardRect.top + cardRect.height / 2 - (viewportRect.top + viewportRect.height / 2);
-      viewport.scrollTo({ top: viewport.scrollTop + delta, behavior });
-    },
-    [],
-  );
-
-  const centerPatient = useCallback(
-    (patientIndex: number, behavior: ScrollBehavior = "smooth") => {
-      const viewport = carouselRef.current;
-      if (!viewport || !filtered.length) return;
-
-      const normalizedIndex =
-        ((patientIndex % filtered.length) + filtered.length) % filtered.length;
-      const candidates = getCarouselCards().filter(
-        (card) => Number(card.dataset.carouselIndex) === normalizedIndex,
-      );
-      if (!candidates.length) return;
-
-      const viewportRect = viewport.getBoundingClientRect();
-      const viewportCenter = viewportRect.top + viewportRect.height / 2;
-      const middleCopy = candidates.find((card) => card.dataset.carouselCopy === "1");
-      const target =
-        candidates.reduce<HTMLElement | null>((best, card) => {
-          if (!best) return card;
-          const cardRect = card.getBoundingClientRect();
-          const bestRect = best.getBoundingClientRect();
-          const cardDistance = Math.abs(cardRect.top + cardRect.height / 2 - viewportCenter);
-          const bestDistance = Math.abs(bestRect.top + bestRect.height / 2 - viewportCenter);
-          return cardDistance < bestDistance ? card : best;
-        }, null) ??
-        middleCopy ??
-        candidates[0];
-
-      if (target) scrollCardToCenter(target, behavior);
-      setActiveIndex(normalizedIndex);
-    },
-    [filtered.length, getCarouselCards, scrollCardToCenter],
-  );
-
-  const moveCarousel = useCallback(
-    (direction: -1 | 1) => {
-      const viewport = carouselRef.current;
-      if (!viewport || filtered.length <= 1) return;
-
-      const cards = getCarouselCards();
-      const current = getClosestCarouselCard();
-      if (!current) {
-        centerPatient(safeActiveIndex + direction);
-        return;
-      }
-
-      const currentPosition = cards.indexOf(current);
-      const target = cards[currentPosition + direction];
-      if (target) {
-        scrollCardToCenter(target);
-        setActiveIndex(Number(target.dataset.carouselIndex ?? safeActiveIndex));
-      } else {
-        centerPatient(safeActiveIndex + direction);
-      }
-    },
-    [
-      centerPatient,
-      filtered.length,
-      getCarouselCards,
-      getClosestCarouselCard,
-      safeActiveIndex,
-      scrollCardToCenter,
-    ],
-  );
-
-  const normalizeCarouselAfterScroll = useCallback(() => {
-    const viewport = carouselRef.current;
-    const closest = getClosestCarouselCard();
-    if (!viewport || !closest || filtered.length <= 1) return;
-
-    const firstCycle = viewport.querySelector<HTMLElement>('[data-carousel-cycle="0"]');
-    const middleCycle = viewport.querySelector<HTMLElement>('[data-carousel-cycle="1"]');
-    if (!firstCycle || !middleCycle) return;
-
-    const copy = Number(closest.dataset.carouselCopy ?? 1);
-    const cycleSpan = middleCycle.offsetTop - firstCycle.offsetTop;
-    const delta = getInfiniteCarouselRecenteringDelta({
-      copy,
-      cycleSpan,
-      settled: true,
-    });
-
-    if (delta !== 0) {
-      viewport.scrollTop += delta;
-    }
-  }, [filtered.length, getClosestCarouselCard]);
-
-  const scheduleCarouselNormalization = useCallback(() => {
-    if (scrollSettleTimerRef.current !== null) {
-      window.clearTimeout(scrollSettleTimerRef.current);
-    }
-
-    scrollSettleTimerRef.current = window.setTimeout(() => {
-      scrollSettleTimerRef.current = null;
-      normalizeCarouselAfterScroll();
-    }, PATIENT_CAROUSEL_SCROLL_SETTLE_MS);
-  }, [normalizeCarouselAfterScroll]);
-
-  const syncCarouselIndex = useCallback(() => {
-    scheduleCarouselNormalization();
-    if (scrollFrameRef.current !== null) return;
-
-    scrollFrameRef.current = window.requestAnimationFrame(() => {
-      scrollFrameRef.current = null;
-      const closest = getClosestCarouselCard();
-      if (!closest) return;
-
-      const nextIndex = Number(closest.dataset.carouselIndex ?? 0);
-      setActiveIndex(nextIndex);
-    });
-  }, [getClosestCarouselCard, scheduleCarouselNormalization]);
-
-  useEffect(() => {
-    if (!filtered.length) {
-      setActiveIndex(0);
-      return;
-    }
-
-    setActiveIndex(0);
-    const frame = window.requestAnimationFrame(() => {
-      const viewport = carouselRef.current;
-      if (!viewport) return;
-      const copy = filtered.length > 1 ? 1 : 0;
-      const target = viewport.querySelector<HTMLElement>(
-        `[data-carousel-copy="${copy}"][data-carousel-index="0"]`,
-      );
-      if (target) scrollCardToCenter(target, "auto");
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [filtered.length, query, scrollCardToCenter]);
-
-  useEffect(
-    () => () => {
-      if (scrollFrameRef.current !== null) {
-        window.cancelAnimationFrame(scrollFrameRef.current);
-      }
-      if (scrollSettleTimerRef.current !== null) {
-        window.clearTimeout(scrollSettleTimerRef.current);
-      }
-    },
-    [],
-  );
-
-  const carouselCopies = filtered.length > 1 ? [0, 1, 2] : [0];
   const suggestedDentition = suggestedDentitionForBirthDate(admissionDraft.birthDate);
   const admissionReady = Boolean(
     admissionDraft.firstName.trim() &&
@@ -435,7 +246,7 @@ export function PatientsPage() {
 
       <TextInput
         value={query}
-        onChange={(event) => setQuery(event.currentTarget.value)}
+        onChange={(event) => handleSearchChange(event.currentTarget.value)}
         leftSection={<IconSearch size={16} />}
         placeholder="Buscar por nombre, ficha o DNI"
       />
@@ -447,179 +258,91 @@ export function PatientsPage() {
             <p className={styles.sectionDescription}>
               {patientsQuery.isLoading
                 ? "Cargando fichas…"
-                : `${filtered.length} ${
-                    filtered.length === 1 ? "ficha encontrada" : "fichas encontradas"
-                  } · desplázate con la rueda o las flechas`}
+                : `${total} ${
+                    total === 1 ? "ficha encontrada" : "fichas encontradas"
+                  }${totalPages > 1 ? ` · página ${page} de ${totalPages}` : ""}`}
             </p>
           </div>
-          <div className={styles.carouselControls}>
-            <ActionIcon
-              variant="default"
-              size="lg"
-              aria-label="Paciente anterior"
-              disabled={filtered.length <= 1}
-              onClick={() => moveCarousel(-1)}
-            >
-              <IconChevronUp size={18} />
-            </ActionIcon>
-            <span className={styles.carouselCounter}>
-              {filtered.length ? `${safeActiveIndex + 1} / ${filtered.length}` : "0 / 0"}
-            </span>
-            <ActionIcon
-              variant="default"
-              size="lg"
-              aria-label="Paciente siguiente"
-              disabled={filtered.length <= 1}
-              onClick={() => moveCarousel(1)}
-            >
-              <IconChevronDown size={18} />
-            </ActionIcon>
-          </div>
+          {totalPages > 1 ? (
+            <div className={styles.carouselControls}>
+              <ActionIcon
+                variant="default"
+                size="lg"
+                aria-label="Página anterior"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <IconChevronLeft size={18} />
+              </ActionIcon>
+              <span className={styles.carouselCounter}>
+                {page} / {totalPages}
+              </span>
+              <ActionIcon
+                variant="default"
+                size="lg"
+                aria-label="Página siguiente"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                <IconChevronRight size={18} />
+              </ActionIcon>
+            </div>
+          ) : null}
         </div>
 
-        {filtered.length ? (
-          <div className={styles.patientCarouselStage}>
-            <div className={styles.patientCarouselFocus} aria-hidden="true" />
-            <div
-              className={styles.patientCarouselViewport}
-              ref={carouselRef}
-              onScroll={syncCarouselIndex}
-              onKeyDown={(event) => {
-                if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  moveCarousel(-1);
-                } else if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  moveCarousel(1);
-                }
-              }}
-              role="listbox"
-              aria-label="Carrusel vertical de pacientes"
-              tabIndex={0}
-            >
-              <div
-                className={styles.patientCarouselTrack}
-                data-single={filtered.length === 1 ? "true" : undefined}
-              >
-                {carouselCopies.map((copy) => (
-                  <div
-                    className={styles.patientCarouselCycle}
-                    data-carousel-cycle={copy}
-                    key={`copy-${copy}`}
-                    aria-hidden={copy !== (filtered.length > 1 ? 1 : 0) ? "true" : undefined}
-                  >
-                    {filtered.map((patient, index) => {
-                      const fullName = `${patient.firstName} ${patient.lastName}`;
-                      const active = safeActiveIndex === index;
-                      const forwardDistance =
-                        (index - safeActiveIndex + filtered.length) % filtered.length;
-                      const backwardDistance =
-                        (safeActiveIndex - index + filtered.length) % filtered.length;
-                      const distance = Math.min(forwardDistance, backwardDistance);
-                      return (
-                        <motion.article
-                          className={styles.patientCarouselCard}
-                          key={`${copy}-${patient.id}`}
-                          data-carousel-index={index}
-                          data-carousel-copy={copy}
-                          data-active={active}
-                          animate={
-                            reducedMotion
-                              ? { scale: 1, opacity: 1, x: 0, rotateY: 0, z: 0 }
-                              : {
-                                  scale: active ? 1.065 : distance === 1 ? 0.93 : 0.84,
-                                  opacity: active ? 1 : distance === 1 ? 0.58 : 0.2,
-                                  x: active ? 0 : Math.min(distance, 2) * 34,
-                                  rotateY: active ? 0 : -Math.min(distance, 2) * 9,
-                                  z: active ? 58 : -Math.min(distance, 2) * 18,
-                                }
-                          }
-                          transition={{ type: "spring", stiffness: 330, damping: 31, mass: 0.72 }}
-                          role="option"
-                          aria-selected={active}
-                        >
-                          <Link
-                            className={styles.patientCarouselCardLink}
-                            href={`/app/patients/${patient.id}`}
-                            aria-label={`Abrir ficha de ${fullName}`}
-                            tabIndex={copy === (filtered.length > 1 ? 1 : 0) ? 0 : -1}
-                          >
-                            <motion.div
-                              className={styles.patientCarouselAvatar}
-                              animate={
-                                reducedMotion
-                                  ? { x: 0, y: 0, scale: 1 }
-                                  : {
-                                      x: active ? 0 : -Math.min(distance, 2) * 8,
-                                      y: active ? 0 : distance === 1 ? 2 : 4,
-                                      scale: active ? 1.14 : 0.9,
-                                    }
-                              }
-                              transition={{ type: "spring", stiffness: 350, damping: 32 }}
-                            >
-                              <PatientAvatar name={fullName} src={patient.photoUrl} size={56} />
-                            </motion.div>
-                            <motion.div
-                              className={styles.patientCarouselInfo}
-                              animate={
-                                reducedMotion
-                                  ? { x: 0 }
-                                  : { x: active ? 0 : Math.min(distance, 2) * 15 }
-                              }
-                              transition={{ type: "spring", stiffness: 350, damping: 32 }}
-                            >
-                              <div className={styles.patientCarouselIdentity}>
-                                <span className={styles.patientCarouselName}>
-                                  {fullName}
-                                  {patient.archivedAt ? (
-                                    <Badge color="gray" size="xs" ml="xs">
-                                      Archivado
-                                    </Badge>
-                                  ) : null}
-                                </span>
-                                <span className={styles.patientCarouselRecord}>
-                                  Ficha {patient.recordNumber}
-                                  {patient.dni ? ` · ${patient.dni}` : ""}
-                                </span>
-                              </div>
-                              <dl className={styles.patientVisitGrid}>
-                                <div className={styles.patientVisitCell}>
-                                  <dt>Última</dt>
-                                  <dd>{formatVisitDate(patient.lastVisitAt)}</dd>
-                                </div>
-                                <div className={styles.patientVisitCell}>
-                                  <dt>Próxima</dt>
-                                  <dd data-empty={patient.nextVisitAt ? undefined : "true"}>
-                                    {formatVisitDate(patient.nextVisitAt)}
-                                  </dd>
-                                </div>
-                              </dl>
-                            </motion.div>
-                            <div className={styles.patientCarouselAside}>
-                              {patient.balanceCents === undefined ? null : patient.balanceCents >
-                                0 ? (
-                                <Badge color="yellow" size="sm">
-                                  {formatEUR(patient.balanceCents)}
-                                </Badge>
-                              ) : (
-                                <Badge color="green" size="sm">
-                                  Al día
-                                </Badge>
-                              )}
-                              <IconChevronRight
-                                className={styles.patientCarouselOpenIcon}
-                                size={18}
-                                aria-hidden="true"
-                              />
-                            </div>
-                          </Link>
-                        </motion.article>
-                      );
-                    })}
+        {patients.length ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {patients.map((patient) => {
+              const fullName = `${patient.firstName} ${patient.lastName}`;
+              return (
+                <Link
+                  key={patient.id}
+                  className={styles.patientCarouselCardLink}
+                  href={`/app/patients/${patient.id}`}
+                  aria-label={`Abrir ficha de ${fullName}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "10px 16px",
+                    borderRadius: 12,
+                    textDecoration: "none",
+                    color: "inherit",
+                    background: "var(--mantine-color-body)",
+                    border: "1px solid var(--mantine-color-default-border)",
+                    transition: "box-shadow 0.15s",
+                  }}
+                >
+                  <PatientAvatar name={fullName} src={patient.photoUrl} size={44} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{fullName}</span>
+                      {patient.archivedAt ? (
+                        <Badge color="gray" size="xs">
+                          Archivado
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <span style={{ fontSize: 12, opacity: 0.6 }}>
+                      Ficha {patient.recordNumber}
+                      {patient.dni ? ` · ${patient.dni}` : ""}
+                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {patient.balanceCents === undefined ? null : patient.balanceCents > 0 ? (
+                      <Badge color="yellow" size="sm">
+                        {formatEUR(patient.balanceCents)}
+                      </Badge>
+                    ) : (
+                      <Badge color="green" size="sm">
+                        Al día
+                      </Badge>
+                    )}
+                    <IconChevronRight size={18} style={{ opacity: 0.4 }} aria-hidden="true" />
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <Text c="dimmed" size="sm">

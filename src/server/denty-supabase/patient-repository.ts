@@ -200,21 +200,15 @@ export class PatientRepository {
       ].join(",");
     }
 
-    if (searchTerm || options.page) {
-      const page = Math.max(1, options.page ?? 1);
-      const pageSize = Math.max(1, Math.min(options.pageSize ?? 50, 200));
-      const offset = (page - 1) * pageSize;
-      const { rows, total } = await this.client.selectPage<PatientRow>("patients", query, {
-        offset,
-        limit: pageSize,
-      });
-      const items = rows.filter((row) => this.canReadPatient(row.id)).map(rowToPatient);
-      return { items, total, page, pageSize };
-    }
-
-    const rows = await this.client.selectAll<PatientRow>("patients", query);
+    const page = Math.max(1, options.page ?? 1);
+    const pageSize = Math.max(1, Math.min(options.pageSize ?? 50, 200));
+    const offset = (page - 1) * pageSize;
+    const { rows, total } = await this.client.selectPage<PatientRow>("patients", query, {
+      offset,
+      limit: pageSize,
+    });
     const items = rows.filter((row) => this.canReadPatient(row.id)).map(rowToPatient);
-    return { items, total: items.length, page: 1, pageSize: items.length || 50 };
+    return { items, total, page, pageSize };
   }
 
   async getPatient(id: string): Promise<Patient | null> {

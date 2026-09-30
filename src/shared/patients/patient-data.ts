@@ -10,13 +10,16 @@ export function usePatientsQuery(
   enabled = true,
   includeArchived = false,
   search?: string,
+  page = 1,
 ) {
   return useQuery({
-    queryKey: [...dentyQueryKeys.patients.list(includeArchived), search ?? ""],
+    queryKey: [...dentyQueryKeys.patients.list(includeArchived), search ?? "", page],
     queryFn: () =>
       getBrowserApi().patients.list({
         includeArchived,
         ...(search ? { search } : {}),
+        page,
+        pageSize: 50,
       }),
     enabled,
   });
