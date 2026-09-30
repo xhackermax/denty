@@ -53,6 +53,7 @@ function makePlan(
     requiresConfirmation: false,
     readback: "",
     confidence: 1,
+    source: "rules",
     ...overrides,
   };
 }
@@ -71,7 +72,7 @@ function makePreview(
 describe("canExecuteVoicePreview", () => {
   it("returns true when actions exist, no ambiguities, no unsupported", () => {
     const preview = makePreview(
-      [{ type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] }],
+      [{ type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] }],
       { contextPatientId: "p1" },
     );
     expect(canExecuteVoicePreview(preview)).toBe(true);
@@ -79,7 +80,7 @@ describe("canExecuteVoicePreview", () => {
 
   it("returns false when there are ambiguities", () => {
     const preview = makePreview(
-      [{ type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] }],
+      [{ type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] }],
       { ambiguities: ["paciente no encontrado"] },
     );
     expect(canExecuteVoicePreview(preview)).toBe(false);
@@ -103,7 +104,7 @@ describe("canExecuteVoicePreview", () => {
 describe("shouldAutoExecuteSpokenPreview", () => {
   it("auto-executes odontogram.set_state on a patient page", () => {
     const preview = makePreview(
-      [{ type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] }],
+      [{ type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] }],
       { contextPatientId: "p1" },
     );
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
@@ -111,7 +112,7 @@ describe("shouldAutoExecuteSpokenPreview", () => {
 
   it("auto-executes clinical.add_item on a patient page", () => {
     const preview = makePreview(
-      [{ type: "clinical.add_item", tooth: 14, treatmentCode: "ENDO", notes: "" }],
+      [{ type: "clinical.add_item", patientRef: "", tooth: "14", treatmentCode: "endodontics", label: "Endodoncia", surfaces: [] }],
       { contextPatientId: "p1" },
     );
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
@@ -119,7 +120,7 @@ describe("shouldAutoExecuteSpokenPreview", () => {
 
   it("auto-executes clinical.complete_item on a patient page", () => {
     const preview = makePreview(
-      [{ type: "clinical.complete_item", tooth: 14, treatmentCode: "ENDO" }],
+      [{ type: "clinical.complete_item", patientRef: "", tooth: "14", treatmentCode: "endodontics", label: "Endodoncia", surfaces: [] }],
       { contextPatientId: "p1" },
     );
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
@@ -127,7 +128,7 @@ describe("shouldAutoExecuteSpokenPreview", () => {
 
   it("auto-executes clinical.note on a patient page", () => {
     const preview = makePreview(
-      [{ type: "clinical.note", text: "nota clínica" }],
+      [{ type: "clinical.note", patientRef: "", text: "nota clínica" }],
       { contextPatientId: "p1" },
     );
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
@@ -135,7 +136,7 @@ describe("shouldAutoExecuteSpokenPreview", () => {
 
   it("does NOT auto-execute without a patient context", () => {
     const preview = makePreview([
-      { type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] },
+      { type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] },
     ]);
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
   });
@@ -150,7 +151,7 @@ describe("shouldAutoExecuteSpokenPreview", () => {
 
   it("does NOT auto-execute when there are ambiguities", () => {
     const preview = makePreview(
-      [{ type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] }],
+      [{ type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] }],
       { contextPatientId: "p1", ambiguities: ["no está claro"] },
     );
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
@@ -172,7 +173,7 @@ describe("shouldAutoExecuteSpokenPreview", () => {
     const preview = makePreview(
       [
         { type: "patient.resolve", query: "García" },
-        { type: "odontogram.set_state", tooth: 14, status: "CARIES", surfaces: ["D"] },
+        { type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] },
       ],
       { contextPatientId: "p1" },
     );

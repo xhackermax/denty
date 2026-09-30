@@ -704,6 +704,10 @@ export function VoiceCommandBar() {
     };
   }, [cleanupRecorder, clearSpeechTimers]);
 
+  useEffect(() => {
+    if (listening) setCommandOpened(true);
+  }, [listening]);
+
   const listeningLabel =
     voiceEngine === "recording"
       ? "Grabando orden… pulsa de nuevo para enviar"
@@ -830,7 +834,13 @@ export function VoiceCommandBar() {
                   }
                 }}
               />
-              {executionError && !preview ? (
+              {listening ? (
+                <Badge color="red" variant="light" size="sm" fullWidth>
+                  {voiceEngine === "recording"
+                    ? "Grabando… pulsa Detener para enviar"
+                    : "Escuchando… di tu orden"}
+                </Badge>
+              ) : executionError && !preview ? (
                 <Text size="xs" c="red">
                   {executionError}
                 </Text>
