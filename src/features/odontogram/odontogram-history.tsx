@@ -16,6 +16,7 @@ interface Props {
 }
 export function OdontogramHistory({ patientId, selectedSnapshotId, onSelectSnapshot }: Props) {
   const [label, setLabel] = useState("");
+  const [feedback, setFeedback] = useState<"saved" | "error" | null>(null);
   const snapshots = useOdontogramSnapshotsQuery(patientId);
   const create = useCreateOdontogramSnapshotMutation(patientId);
   const historical = Boolean(selectedSnapshotId);
@@ -41,11 +42,16 @@ export function OdontogramHistory({ patientId, selectedSnapshotId, onSelectSnaps
           size="sm"
           loading={create.isPending}
           disabled={historical}
-          onClick={() =>
-            void create.mutateAsync(label.trim() ? { label: label.trim() } : {}, {
-              onSuccess: () => setLabel(""),
-            })
-          }
+          onClick={async () => {
+            setFeedback(null);
+            try {
+              await create.mutateAsync(label.trim() ? { label: label.trim() } : {});
+              setLabel("");
+              setFeedback("saved");
+            } catch {
+              setFeedback("error");
+            }
+          }}
         >
           Guardar snapshot
         </Button>
@@ -55,6 +61,16 @@ export function OdontogramHistory({ patientId, selectedSnapshotId, onSelectSnaps
           </Button>
         ) : null}
       </Group>
+      {feedback === "saved" ? (
+        <Alert mt="lg" color="green">
+          Snapshot guardado.
+        </Alert>
+      ) : null}
+      {feedback === "error" ? (
+        <Alert mt="lg" color="red">
+          No se pudo guardar el snapshot.
+        </Alert>
+      ) : null}
       {historical ? (
         <Alert mt="lg" color="yellow">
           El snapshot es solo lectura.
