@@ -19,56 +19,66 @@ function invalidateFinance(queryClient: ReturnType<typeof useQueryClient>) {
   void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.dashboard.root });
 }
 
-export function useFinanceQueries(enabled: boolean) {
+export function useFinanceQueries(enabled: boolean, advancedEnabled = false) {
   const summary = useQuery({
     queryKey: dentyQueryKeys.analytics.summary(),
     queryFn: () => getBrowserApi().analytics.summary(),
     enabled,
+    staleTime: 60_000,
   });
   const invoices = useQuery({
     queryKey: dentyQueryKeys.finance.invoices,
     queryFn: () => getBrowserApi().billing.invoices.list(),
     enabled,
+    staleTime: 30_000,
   });
   const payments = useQuery({
     queryKey: dentyQueryKeys.finance.payments,
     queryFn: () => getBrowserApi().billing.payments.list(),
     enabled,
+    staleTime: 30_000,
   });
   const budgets = useQuery({
     queryKey: dentyQueryKeys.finance.budgets,
     queryFn: () => getBrowserApi().billing.budgets.list(),
-    enabled,
+    enabled: enabled && advancedEnabled,
+    staleTime: 60_000,
   });
   const series = useQuery({
     queryKey: dentyQueryKeys.finance.series,
     queryFn: () => getBrowserApi().billing.invoiceSeries.list(),
-    enabled,
+    enabled: enabled && advancedEnabled,
+    staleTime: 60_000,
   });
   const verifactu = useQuery({
     queryKey: dentyQueryKeys.finance.verifactu,
     queryFn: () => getBrowserApi().billing.verifactu.status(),
     enabled,
+    staleTime: 30_000,
   });
   const treatments = useQuery({
     queryKey: dentyQueryKeys.analytics.treatments(),
     queryFn: () => getBrowserApi().analytics.treatments(),
-    enabled,
+    enabled: enabled && advancedEnabled,
+    staleTime: 60_000,
   });
   const doctors = useQuery({
     queryKey: dentyQueryKeys.analytics.doctors(),
     queryFn: () => getBrowserApi().analytics.doctors(),
-    enabled,
+    enabled: enabled && advancedEnabled,
+    staleTime: 60_000,
   });
   const monthly = useQuery({
     queryKey: dentyQueryKeys.analytics.monthly(),
     queryFn: () => getBrowserApi().analytics.monthly(),
-    enabled,
+    enabled: enabled && advancedEnabled,
+    staleTime: 60_000,
   });
   const profitability = useQuery({
     queryKey: dentyQueryKeys.analytics.profitability(),
     queryFn: () => getBrowserApi().analytics.profitability(),
-    enabled,
+    enabled: enabled && advancedEnabled,
+    staleTime: 60_000,
   });
   return {
     summary,

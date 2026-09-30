@@ -1,4 +1,5 @@
 import type { ToothState } from "@/domain";
+import { useState } from "react";
 
 import styles from "./odontogram.module.css";
 
@@ -178,6 +179,7 @@ export function OdontogramLegend({
   onSelect: (selection: OdontogramLegendSelection) => void;
   disabled?: boolean;
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
   const activeItem = LEGEND_ITEMS.find((item) => selectedItem(item, selection));
   const activeVariant = activeItem?.variants.find((variant) => variant.state === selection.state);
   const primaryItems = LEGEND_ITEMS.filter((item) => PRIMARY_KEYS.has(item.key));
@@ -207,6 +209,7 @@ export function OdontogramLegend({
         onClick={() => {
           const next = isSelected ? nextVariant(item, selection) : item.variants[0]!;
           onSelect({ state: next.state, placement: item.placement });
+          setMoreOpen(false);
         }}
       >
         {item.symbol ? (
@@ -244,7 +247,11 @@ export function OdontogramLegend({
 
       <div className={styles.legendGrid}>{primaryItems.map(renderItem)}</div>
 
-      <details className={styles.legendMore}>
+      <details
+        className={styles.legendMore}
+        open={moreOpen}
+        onToggle={(event) => setMoreOpen(event.currentTarget.open)}
+      >
         <summary>Más tratamientos</summary>
         <div className={styles.legendGrid}>{advancedItems.map(renderItem)}</div>
       </details>

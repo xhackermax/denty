@@ -3,6 +3,7 @@
 import { Alert, Badge, Button, Group, SimpleGrid, Stack, Text } from "@mantine/core";
 
 import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { formatEUR } from "@/domain/money";
 import { MotionNumber } from "@/shared/motion";
@@ -18,13 +19,19 @@ import {
 } from "./finance-data";
 
 export function FinanceModule() {
-  const finance = useFinanceQueries(true);
+  const [advancedEnabled, setAdvancedEnabled] = useState(false);
+  const finance = useFinanceQueries(true, advancedEnabled);
   const issue = useIssueInvoiceMutation();
   const submit = useSubmitVerifactuMutation();
   const hasError = Object.values(finance).some((query) => query.isError);
   // Stage 13: the clinical pipeline links here (?patientId=…&view=budgets[&action=sign]);
   // the sync card shows the patient's budget and the canonical signature action.
   const budgetPatientId = useSearchParams().get("patientId");
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setAdvancedEnabled(true), 900);
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   return (
     <Stack gap="md">
