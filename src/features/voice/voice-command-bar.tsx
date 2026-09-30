@@ -43,6 +43,12 @@ import {
   primaryHrefForVoicePlan,
   type VoicePreview,
 } from "./voice-router";
+import { useRealtimeVoice } from "./use-realtime-voice";
+import {
+  VoiceRealtimeAdapter,
+  selectVoiceEngine,
+  type RealtimeVoiceConfig,
+} from "./voice-realtime-adapter";
 
 interface SpeechRecognitionAlternativeLike {
   transcript: string;
@@ -85,7 +91,7 @@ type WindowWithSpeech = Window & {
   webkitSpeechRecognition?: SpeechRecognitionConstructor;
 };
 
-type VoiceEngine = "web-speech" | "recording" | null;
+type VoiceEngine = "realtime" | "web-speech" | "recording" | null;
 
 function speechErrorMessage(error?: string): string {
   if (error === "not-allowed" || error === "service-not-allowed") {
@@ -152,8 +158,32 @@ export function VoiceCommandBar() {
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [heard, setHeard] = useState<string | null>(null);
   const [interpreting, setInterpreting] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<
+    "connecting" | "listening" | "processing" | "idle" | "error"
+  >("idle");
   // Turned off for the session once the server says Claude isn't configured.
   const claudeAvailableRef = useRef(true);
+  const realtimeAdapterRef = useRef<VoiceRealtimeAdapter | null>(null);
+
+  // Realtime voice integration
+  const {
+    connected: realtimeConnected,
+    listening: realtimeListening,
+    error: realtimeError,
+    connect: connectRealtime,
+    disconnect: disconnectRealtime,
+  } = useRealtimeVoice({
+    onText: () => {
+      setVoiceStatus("processing");
+    },
+    onTranscript: (transcript) => {
+      void processCommand(transcript);
+    },
+    onError: (error) => {
+      setVoiceStatus("error");
+      setExecutionError(error);
+    },
+  });
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const keepListeningRef = useRef(false);
@@ -421,6 +451,12 @@ export function VoiceCommandBar() {
   const stopListening = useCallback(() => {
     keepListeningRef.current = false;
     clearSpeechTimers();
+    setVoiceStatus("idle");
+
+    // Disconnect Realtime if active
+    if (voiceEngine === "realtime") {
+      disconnectRealtime();
+    }
 
     const recorder = recorderRef.current;
     if (recorder?.state === "recording") {
@@ -439,7 +475,7 @@ export function VoiceCommandBar() {
     }
     setListening(false);
     setVoiceEngine(null);
-  }, [clearSpeechTimers]);
+  }, [clearSpeechTimers, voiceEngine, disconnectRealtime]);
 
   const listen = useCallback(async () => {
     if (keepListeningRef.current || listening) {
@@ -463,16 +499,29 @@ export function VoiceCommandBar() {
       return;
     }
 
+    // Try Realtime API first
+    keepListeningRef.current = true;
+    try {
+      await connectRealtime();
+      setVoiceEngine("realtime");
+      setVoiceStatus("listening");
+      return;
+    } catch (realtimeError) {
+      // Fallback to Web Speech API
+      console.debug("Realtime voice unavailable, falling back to Web Speech", realtimeError);
+    }
+
+    // Fallback: Web Speech API
     const speechWindow = window as WindowWithSpeech;
     const Constructor = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
     if (!Constructor) {
+      keepListeningRef.current = false;
       await startRecordedFallback();
       return;
     }
 
     const recognition = new Constructor();
     recognitionRef.current = recognition;
-    keepListeningRef.current = true;
     speechStartedRef.current = false;
     setVoiceEngine("web-speech");
     recognition.lang = "es-ES";
@@ -554,12 +603,20 @@ export function VoiceCommandBar() {
       clearSpeechTimers();
       await startRecordedFallback();
     }
-  }, [clearSpeechTimers, listening, processCommand, startRecordedFallback, stopListening]);
+  }, [
+    clearSpeechTimers,
+    listening,
+    processCommand,
+    startRecordedFallback,
+    stopListening,
+    connectRealtime,
+  ]);
 
   useEffect(() => {
     return () => {
       keepListeningRef.current = false;
       clearSpeechTimers();
+      disconnectRealtime();
       try {
         recognitionRef.current?.abort();
       } catch {
@@ -575,7 +632,7 @@ export function VoiceCommandBar() {
       }
       cleanupRecorder();
     };
-  }, [cleanupRecorder, clearSpeechTimers]);
+  }, [cleanupRecorder, clearSpeechTimers, disconnectRealtime]);
 
   const listeningLabel =
     voiceEngine === "recording"
