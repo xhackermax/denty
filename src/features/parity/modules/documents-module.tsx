@@ -101,18 +101,22 @@ export function DocumentsModule() {
   const searchParams = useSearchParams();
   const initialPatientId = searchParams.get("patientId");
   const consentWorkflow = searchParams.get("workflow") === "consents";
+  const [patientId, setPatientId] = useState<string | null>(initialPatientId);
 
   const patients = usePatientsQuery();
   const documents = useQuery({
-    queryKey: dentyQueryKeys.documents.all,
-    queryFn: () => getBrowserApi().documents.list(),
+    queryKey: patientId
+      ? dentyQueryKeys.documents.patient(patientId)
+      : dentyQueryKeys.documents.all,
+    queryFn: () => getBrowserApi().documents.list(patientId ?? undefined),
+    staleTime: 30_000,
   });
   const templates = useQuery({
     queryKey: [...dentyQueryKeys.documents.templates, "all-versions"],
     queryFn: () => getBrowserApi().documents.templates.list({ includeInactive: true }),
+    staleTime: 60_000,
   });
 
-  const [patientId, setPatientId] = useState<string | null>(initialPatientId);
   const [title, setTitle] = useState("");
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [signing, setSigning] = useState<SignableDocument | null>(null);
@@ -300,9 +304,7 @@ export function DocumentsModule() {
   const signingDoctorId =
     typeof signing?.data?.doctorId === "string" ? signing.data.doctorId : doctorId;
   const hasError = patients.isError || documents.isError || templates.isError;
-  const visibleDocuments = (documents.data?.items ?? []).filter(
-    (document) => !patientId || document.patientId === patientId,
-  );
+  const visibleDocuments = documents.data?.items ?? [];
   const pendingConsents = (consents.data?.items ?? []).filter(
     (item) => item.status !== "SATISFIED",
   );

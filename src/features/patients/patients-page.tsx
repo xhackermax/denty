@@ -112,6 +112,7 @@ export function PatientsPage() {
     () => (patientsQuery.data?.items ?? []).map(patientCardFromApi),
     [patientsQuery.data],
   );
+  const hasSearch = deferredQuery.trim().length > 0;
 
   const total = patientsQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -275,10 +276,14 @@ export function PatientsPage() {
             <h2 className={styles.sectionTitle}>Pacientes</h2>
             <p className={styles.sectionDescription}>
               {patientsQuery.isLoading
-                ? "Cargando fichas…"
-                : `${total} ${
-                    total === 1 ? "ficha encontrada" : "fichas encontradas"
-                  }${totalPages > 1 ? ` · página ${page} de ${totalPages}` : ""}`}
+                ? "Cargando fichas..."
+                : hasSearch
+                  ? `${total} ${total === 1 ? "ficha encontrada" : "fichas encontradas"}${
+                      totalPages > 1 ? ` · página ${page} de ${totalPages}` : ""
+                    }`
+                  : `Últimos ${Math.min(PAGE_SIZE, total)} pacientes de ${total}${
+                      totalPages > 1 ? ` · página ${page} de ${totalPages}` : ""
+                    }`}
             </p>
           </div>
           {totalPages > 1 ? (
@@ -367,7 +372,7 @@ export function PatientsPage() {
           </AnimatePresence>
         ) : (
           <Text c="dimmed" size="sm">
-            {patientsQuery.isLoading ? "Cargando pacientes…" : "Sin resultados."}
+            {patientsQuery.isLoading ? "Cargando pacientes..." : "Sin resultados."}
           </Text>
         )}
       </section>
