@@ -16,37 +16,62 @@ export async function POST(request: Request) {
     // Verify user is authenticated
     const identity = await resolveRequestIdentity(request);
     if (!identity) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+      return Response.json(
+        { error: "Usuario no autenticado" },
+        { status: 401 },
+      );
     }
 
     // Create a new Realtime session with tool support
-    const sessionToken = await createRealtimeSession({
-      model: RealtimeModels.GPT_REALTIME_2,
-      instructions: getDentySystemPrompt(),
-      voice: "nova",
-      maxTokens: 2048,
-      modalities: ["text", "audio"],
-      temperature: 0.7,
-      tools: convertToolsForRealtime(),
-    });
+    try {
+      const sessionToken = await createRealtimeSession({
+        model: RealtimeModels.GPT_REALTIME_2,
+        instructions: getDentySystemPrompt(),
+        voice: "nova",
+        maxTokens: 2048,
+        modalities: ["text", "audio"],
+        temperature: 0.7,
+        tools: convertToolsForRealtime(),
+      });
 
-    // Return only the client secret (the token)
-    return Response.json(
-      {
-        token: sessionToken.client_secret.value,
-        expiresAt: sessionToken.client_secret.expires_at,
-      },
-      {
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate",
+      // Return only the client secret (the token)
+      return Response.json(
+        {
+          token: sessionToken.client_secret.value,
+          expiresAt: sessionToken.client_secret.expires_at,
         },
-      },
-    );
+        {
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+          },
+        },
+      );
+    } catch (gatewayError) {
+      console.error("Vercel AI Gateway error:", gatewayError);
+      // If the error includes rate limit or auth issues, provide specific feedback
+      const errorMsg = gatewayError instanceof Error ? gatewayError.message : "";
+      if (errorMsg.includes("401") || errorMsg.includes("403")) {
+        return Response.json(
+          { error: "Clave de API no configurada correctamente" },
+          { status: 503 },
+        );
+      }
+      if (errorMsg.includes("429")) {
+        return Response.json(
+          { error: "Demasiadas solicitudes. Intenta de nuevo en unos segundos" },
+          { status: 429 },
+        );
+      }
+      throw gatewayError;
+    }
   } catch (error) {
     console.error("Failed to create Realtime session:", error);
     return Response.json(
       {
-        error: error instanceof Error ? error.message : "Failed to create session",
+        error:
+          error instanceof Error
+            ? error.message
+            : "No se pudo crear la sesión de voz",
       },
       { status: 500 },
     );
