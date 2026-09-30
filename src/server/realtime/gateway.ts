@@ -1,16 +1,24 @@
 /**
- * Vercel AI Gateway Realtime session manager
- * Handles secure token generation and session lifecycle for voice interactions
+ * Vercel AI Gateway Realtime session manager.
+ * It uses the official Gateway provider so production deployments can
+ * authenticate with Vercel OIDC without storing a static AI key.
  */
 
-const VERCEL_GATEWAY_BASE = "https://ai.vercel.sh";
+import { createGateway } from "@ai-sdk/gateway";
+import type {
+  Experimental_RealtimeModelV4SessionConfig,
+  Experimental_RealtimeModelV4ToolDefinition,
+} from "@ai-sdk/provider";
+
+import { getServerEnv } from "@/shared/config/env";
+
 const MODELS = {
-  realtime2: "gpt-realtime-2",
-  live: "gpt-live-1",
-  miniRealtime: "gpt-realtime-mini",
+  realtime2: "openai/gpt-realtime-2",
+  live: "openai/gpt-live-1",
+  miniRealtime: "openai/gpt-realtime-mini",
 } as const;
 
-export type RealtimeModel = (typeof MODELS)[keyof typeof MODELS];
+export type RealtimeModel = (typeof MODELS)[keyof typeof MODELS] | (string & {});
 
 interface RealtimeTool {
   type: "function";
@@ -24,7 +32,7 @@ interface RealtimeTool {
 }
 
 interface RealtimeSessionConfig {
-  model: RealtimeModel;
+  model?: RealtimeModel;
   instructions: string;
   voice?: "alloy" | "echo" | "shimmer" | "fable" | "onyx" | "nova" | "sage";
   maxTokens?: number;
@@ -34,77 +42,80 @@ interface RealtimeSessionConfig {
 }
 
 interface RealtimeSessionToken {
-  client_secret: {
-    value: string;
-    expires_at: number;
-  };
+  token: string;
+  url: string;
+  expiresAt?: number;
 }
 
 /**
- * Generates a temporary session token for Vercel AI Gateway Realtime API
- * The token is valid for ~1 hour and scoped to this session only
+ * Generates a temporary session token for Vercel AI Gateway Realtime API.
+ * The browser receives only this short-lived token, never the Gateway credential.
  */
 export async function createRealtimeSession(
   config: RealtimeSessionConfig,
 ): Promise<RealtimeSessionToken> {
-  const apiKey = process.env.AI_GATEWAY_API_KEY;
+  const { AI_GATEWAY_API_KEY, AI_GATEWAY_REALTIME_MODEL, VERCEL_OIDC_TOKEN } = getServerEnv();
+  const apiKey = AI_GATEWAY_API_KEY ?? VERCEL_OIDC_TOKEN;
   if (!apiKey) {
-    throw new Error("AI_GATEWAY_API_KEY not configured");
+    throw new Error("AI Gateway is not configured");
   }
 
-  const body: Record<string, unknown> = {
-    model: config.model,
+  const gateway = createGateway({ apiKey });
+  const sessionConfig: Experimental_RealtimeModelV4SessionConfig = {
     instructions: config.instructions,
     voice: config.voice ?? "nova",
-    max_response_output_tokens: config.maxTokens ?? 2048,
-    modalities: config.modalities ?? ["text", "audio"],
-    temperature: config.temperature ?? 0.7,
+    outputModalities: config.modalities ?? ["text", "audio"],
+    inputAudioTranscription: {
+      model: "openai/gpt-4o-mini-transcribe",
+      language: "es",
+    },
+    outputAudioTranscription: {
+      language: "es",
+    },
+    turnDetection: {
+      type: "server-vad",
+      silenceDurationMs: 650,
+      prefixPaddingMs: 250,
+    },
+    ...(config.tools
+      ? { tools: config.tools as Experimental_RealtimeModelV4ToolDefinition[] }
+      : {}),
+    providerOptions: {
+      openai: {
+        temperature: config.temperature ?? 0.45,
+        max_response_output_tokens: config.maxTokens ?? 2048,
+      },
+    },
   };
 
-  if (config.tools && config.tools.length > 0) {
-    body.tools = config.tools;
-  }
-
-  const response = await fetch(`${VERCEL_GATEWAY_BASE}/openai/realtime/sessions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
+  const { token, url, expiresAt } = await gateway.experimental_realtime.getToken({
+    model: config.model ?? AI_GATEWAY_REALTIME_MODEL,
+    expiresAfterSeconds: 300,
+    sessionConfig,
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to create Realtime session: ${response.status} - ${error}`);
-  }
-
-  return response.json();
+  return { token, url, ...(expiresAt !== undefined ? { expiresAt } : {}) };
 }
 
 /**
- * System prompt for Denty Realtime voice assistant
- * Guides the model to understand dental commands and delegate to tools
+ * System prompt for Denty Realtime voice assistant.
  */
 export function getDentySystemPrompt(): string {
-  return `Eres Oye Denty, un asistente de voz para la clínica dental.
+  return `Eres Oye Denty, un asistente de voz para la clinica dental.
 Tu rol es entender comandos de voz del dentista e interpretarlos como acciones en Denty.
 
-Las acciones que puedes realizar:
-- Abrir fichas de pacientes ("Abre a María García")
-- Marcar hallazgos en el odontograma ("Caries distal en el 36")
-- Registrar tratamientos ("Obturación en el 14")
-- Crear presupuestos ("Presupuesto para obturación de dos piezas")
-- Anotar notas clínicas
-- Crear citas
+Acciones disponibles:
+- Abrir fichas de pacientes.
+- Marcar hallazgos en el odontograma: caries, sano o ausente.
+- Registrar tratamientos: obturacion, endodoncia, corona, implante, extraccion.
+- Anotar notas clinicas.
+- Registrar mediciones periodontales.
 
 Cuando el dentista da una orden:
-1. Entiende el contexto (¿qué paciente?, ¿qué diente?, ¿qué acción?)
-2. Si necesitas clarificación, pregunta de forma concisa
-3. Confirma la acción antes de ejecutarla
-4. Proporciona retroalimentación clara
-
-Siempre en español, tono profesional pero cercano. Mantén respuestas breves (máximo 2 líneas).`;
+1. Si hay datos suficientes, llama una herramienta de Denty.
+2. Si falta un dato imprescindible, pide una aclaracion breve.
+3. No inventes dientes, pacientes ni tratamientos.
+4. Responde siempre en espanol y en maximo dos lineas.`;
 }
 
 export const RealtimeModels = {
