@@ -1,5 +1,4 @@
 import { createGateway } from "@ai-sdk/gateway";
-import { transcribe } from "ai";
 
 import { resolveRequestIdentity } from "@/server/denty-supabase/route-handler";
 import { gatewayTranscriptionModel } from "@/server/voice/transcription-config";
@@ -12,10 +11,6 @@ const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
 
 function apiError(status: number, code: string, message: string): Response {
   return Response.json({ error: { code, message } }, { status });
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString("base64");
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -71,13 +66,15 @@ export async function POST(request: Request): Promise<Response> {
       const gateway = createGateway({ apiKey: gatewayApiKey });
       const audioBytes = new Uint8Array(await audio.arrayBuffer());
       const mediaType = audio.type || "audio/webm";
-      const result = await transcribe({
-        model: gateway.transcription(gatewayTranscriptionModel(OPENAI_TRANSCRIBE_MODEL)),
-        audio: new URL(`data:${mediaType};base64,${bytesToBase64(audioBytes)}`),
+      const model = gateway.transcription(gatewayTranscriptionModel(OPENAI_TRANSCRIBE_MODEL));
+      const result = await model.doGenerate({
+        audio: audioBytes,
+        mediaType,
         providerOptions: {
           openai: { language: "es" },
         },
-        maxRetries: 1,
+        abortSignal: request.signal,
+        headers: {},
       });
       const text = result.text.trim();
       if (!text) {
