@@ -50,6 +50,7 @@ import {
   selectVoiceEngine,
   type RealtimeVoiceConfig,
 } from "./voice-realtime-adapter";
+import { createSpeechCommandBuffer } from "./speech-command-buffer";
 
 interface SpeechRecognitionAlternativeLike {
   transcript: string;
@@ -165,6 +166,7 @@ export function VoiceCommandBar() {
   // Turned off for the session once the server says Claude isn't configured.
   const claudeAvailableRef = useRef(true);
   const realtimeAdapterRef = useRef<VoiceRealtimeAdapter | null>(null);
+  const speechCommandBufferRef = useRef(createSpeechCommandBuffer());
   const submitRealtimeToolResultRef = useRef<
     (toolCallId: string, result: { success: boolean; message?: string; error?: string }) => void
   >(() => undefined);
@@ -355,15 +357,18 @@ export function VoiceCommandBar() {
         setInterpreting(true);
         try {
           const result = await getBrowserApi().voice.interpret({ text: clean, pathname });
-          setPreview(
-            resolvePreview(
-              previewFromClaude(
-                clean,
-                { actions: result.actions as LocalVoiceAction[], ambiguities: result.ambiguities },
-                { pathname },
-              ),
+          const interpreted = resolvePreview(
+            previewFromClaude(
+              clean,
+              { actions: result.actions as LocalVoiceAction[], ambiguities: result.ambiguities },
+              { pathname },
             ),
           );
+          if (shouldAutoExecuteSpokenPreview(interpreted)) {
+            await executeResolvedPreview(interpreted);
+            return;
+          }
+          setPreview(interpreted);
           return;
         } catch (error) {
           if (error instanceof DentyApiError && error.code === "VOICE_CLAUDE_NOT_CONFIGURED") {
@@ -555,6 +560,7 @@ export function VoiceCommandBar() {
 
     setExecutionError(null);
     setHeard(null);
+    speechCommandBufferRef.current.clear();
     try {
       await requestMediaPermission("microphone");
     } catch (error) {
@@ -600,7 +606,8 @@ export function VoiceCommandBar() {
         const result = event.results[index];
         const transcript = result?.[0]?.transcript?.trim();
         if (!transcript || result?.isFinal === false) continue;
-        void processCommand(transcript);
+        const command = speechCommandBufferRef.current.push(transcript);
+        if (command) void processCommand(command);
       }
     };
     recognition.onerror = (event) => {

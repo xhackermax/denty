@@ -85,4 +85,19 @@ describe("local voice NLU parity", () => {
     });
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
   });
+
+  it("understands the dictated distal caries command for a specific tooth", () => {
+    const preview = previewVoiceCommand("Oye Denty apunta una caries en distal del 23", {
+      pathname: "/app/patients/patient-1/odontogram",
+    });
+
+    expect(preview.plan.actions).toContainEqual({
+      type: "odontogram.set_state",
+      patientRef: "",
+      tooth: "23",
+      status: "CARIES",
+      surfaces: ["D"],
+    });
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
+  });
 });
