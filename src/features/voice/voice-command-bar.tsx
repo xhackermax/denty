@@ -580,10 +580,18 @@ export function VoiceCommandBar() {
       return;
     }
 
+    if (
+      typeof navigator.mediaDevices?.getUserMedia === "function" &&
+      typeof MediaRecorder !== "undefined"
+    ) {
+      await startRecordedFallback();
+      return;
+    }
+
     const speechWindow = window as WindowWithSpeech;
     const Constructor = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
     if (!Constructor) {
-      await startRecordedFallback();
+      setExecutionError("Este navegador no admite voz.");
       return;
     }
 

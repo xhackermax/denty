@@ -1,4 +1,8 @@
+import { createGateway } from "@ai-sdk/gateway";
+import { transcribe } from "ai";
+
 import { resolveRequestIdentity } from "@/server/denty-supabase/route-handler";
+import { gatewayTranscriptionModel } from "@/server/voice/transcription-config";
 import { getServerEnv } from "@/shared/config/env";
 
 export const runtime = "nodejs";
@@ -32,12 +36,14 @@ export async function POST(request: Request): Promise<Response> {
     return apiError(401, "UNAUTHENTICATED", "Inicia sesión en Denty para usar el dictado por voz.");
   }
 
-  const { OPENAI_API_KEY, OPENAI_TRANSCRIBE_MODEL } = getServerEnv();
-  if (!OPENAI_API_KEY) {
+  const { AI_GATEWAY_API_KEY, VERCEL_OIDC_TOKEN, OPENAI_API_KEY, OPENAI_TRANSCRIBE_MODEL } =
+    getServerEnv();
+  const gatewayApiKey = AI_GATEWAY_API_KEY ?? VERCEL_OIDC_TOKEN;
+  if (!OPENAI_API_KEY && !gatewayApiKey) {
     return apiError(
       503,
       "VOICE_TRANSCRIPTION_NOT_CONFIGURED",
-      "Configura OPENAI_API_KEY en Vercel para transcribir voz en navegadores sin Web Speech.",
+      "Configura AI_GATEWAY_API_KEY en Vercel para transcribir voz.",
     );
   }
 
@@ -54,6 +60,28 @@ export async function POST(request: Request): Promise<Response> {
   }
   if (audio.size > MAX_AUDIO_BYTES) {
     return apiError(413, "AUDIO_TOO_LARGE", "La grabación supera el límite de 12 MB.");
+  }
+
+  if (gatewayApiKey) {
+    try {
+      const gateway = createGateway({ apiKey: gatewayApiKey });
+      const result = await transcribe({
+        model: gateway.transcription(gatewayTranscriptionModel(OPENAI_TRANSCRIBE_MODEL)),
+        audio: new Uint8Array(await audio.arrayBuffer()),
+        providerOptions: {
+          openai: { language: "es" },
+        },
+        maxRetries: 1,
+      });
+      const text = result.text.trim();
+      if (!text) {
+        return apiError(422, "VOICE_EMPTY_TRANSCRIPT", "No se ha detectado voz inteligible.");
+      }
+      return Response.json({ text }, { headers: { "cache-control": "no-store" } });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "La transcripcion ha fallado.";
+      return apiError(502, "VOICE_TRANSCRIPTION_FAILED", detail);
+    }
   }
 
   const payload = new FormData();
