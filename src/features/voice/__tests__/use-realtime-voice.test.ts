@@ -98,7 +98,11 @@ describe("useRealtimeVoice", () => {
 
       // Act & Assert
       expect(event.type).toBe("server.response.done");
-      expect(event.response.output[0].text).toBe("Complete response");
+      const firstOutput = event.response.output[0];
+      expect(firstOutput).toBeDefined();
+      if (firstOutput) {
+        expect(firstOutput.text).toBe("Complete response");
+      }
     });
 
     it("should parse server.tool_calls.created events", () => {
@@ -119,11 +123,14 @@ describe("useRealtimeVoice", () => {
 
       // Act
       const toolCall = event.tool_calls[0];
-      const args = JSON.parse(toolCall.function.arguments);
+      expect(toolCall).toBeDefined();
+      if (toolCall) {
+        const args = JSON.parse(toolCall.function.arguments);
 
-      // Assert
-      expect(toolCall.function.name).toBe("marcar_hallazgo");
-      expect(args.diente).toBe("36");
+        // Assert
+        expect(toolCall.function.name).toBe("marcar_hallazgo");
+        expect(args.diente).toBe("36");
+      }
     });
   });
 

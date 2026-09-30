@@ -145,10 +145,26 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions = {}) {
       });
 
       if (!tokenResponse.ok) {
-        throw new Error("Failed to get Realtime session token");
+        let errorMsg = "No se pudo iniciar la sesión de voz";
+        try {
+          const errorData = (await tokenResponse.json()) as { error?: string };
+          if (errorData.error) {
+            errorMsg = errorData.error;
+          }
+        } catch {
+          // Fallback to status-based error message
+          if (tokenResponse.status === 401) {
+            errorMsg = "Usuario no autenticado";
+          } else if (tokenResponse.status === 503) {
+            errorMsg = "Servicio de voz no disponible";
+          } else if (tokenResponse.status === 429) {
+            errorMsg = "Demasiadas solicitudes. Intenta de nuevo más tarde";
+          }
+        }
+        throw new Error(errorMsg);
       }
 
-      const { token } = await tokenResponse.json();
+      const { token } = await tokenResponse.json() as { token: string };
 
       // Connect to Realtime API via WebSocket
       const wsUrl = `wss://ai.vercel.sh/openai/realtime?token=${token}`;

@@ -27,8 +27,14 @@ describe("RealtimeTools", () => {
 
       // Assert
       for (let i = 0; i < realtimeTools.length; i++) {
-        expect(realtimeTools[i].name).toBe(claudeTools[i].name);
-        expect(realtimeTools[i].description).toBe(claudeTools[i].description || "");
+        const realtimeTool = realtimeTools[i];
+        const claudeTool = claudeTools[i];
+        expect(realtimeTool).toBeDefined();
+        expect(claudeTool).toBeDefined();
+        if (realtimeTool && claudeTool) {
+          expect(realtimeTool.name).toBe(claudeTool.name);
+          expect(realtimeTool.description).toBe(claudeTool.description || "");
+        }
       }
     });
 
@@ -38,11 +44,14 @@ describe("RealtimeTools", () => {
       const firstTool = realtimeTools[0];
 
       // Assert
-      expect(firstTool.parameters).toEqual({
-        type: "object",
-        properties: expect.any(Object),
-        required: expect.any(Array),
-      });
+      expect(firstTool).toBeDefined();
+      if (firstTool) {
+        expect(firstTool.parameters).toEqual({
+          type: "object",
+          properties: expect.any(Object),
+          required: expect.any(Array),
+        });
+      }
     });
 
     it("should handle empty description by providing empty string", () => {

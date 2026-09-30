@@ -207,8 +207,14 @@ describe("VoiceRealtimeAdapter", () => {
       // Assert
       expect(submitToolResult).toHaveBeenCalled();
       const call = submitToolResult.mock.calls[0];
-      expect(call[0]).toBe("tool_123");
-      expect(call[1].success).toBeDefined();
+      expect(call).toBeDefined();
+      if (call) {
+        expect(call[0]).toBe("tool_123");
+        expect(call[1]).toBeDefined();
+        if (call[1]) {
+          expect(call[1].success).toBeDefined();
+        }
+      }
     });
 
     it("should handle tool call errors gracefully", async () => {
@@ -227,7 +233,10 @@ describe("VoiceRealtimeAdapter", () => {
       // Assert
       expect(submitToolResult).toHaveBeenCalled();
       const call = submitToolResult.mock.calls[0];
-      expect(call[1].success).toBe(false);
+      expect(call).toBeDefined();
+      if (call && call[1]) {
+        expect(call[1].success).toBe(false);
+      }
     });
   });
 });
