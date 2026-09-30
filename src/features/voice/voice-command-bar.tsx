@@ -478,6 +478,7 @@ export function VoiceCommandBar() {
   const startRecordedFallback = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       setExecutionError("Este navegador no admite voz.");
+      setCommandOpened(true);
       return;
     }
 
@@ -502,6 +503,7 @@ export function VoiceCommandBar() {
         setVoiceEngine(null);
         cleanupRecorder();
         setExecutionError("No se pudo grabar el audio del micrófono.");
+        setCommandOpened(true);
       };
       recorder.onstart = () => setListening(true);
       recorder.onstop = () => {
@@ -525,7 +527,9 @@ export function VoiceCommandBar() {
       setListening(false);
       setVoiceEngine(null);
       cleanupRecorder();
-      setExecutionError(error instanceof Error ? error.message : "No se pudo abrir el micrófono.");
+      const msg = error instanceof Error ? error.message : "No se pudo abrir el micrófono.";
+      setExecutionError(msg);
+      setCommandOpened(true);
     }
   }, [cleanupRecorder, transcribeRecordedAudio]);
 
@@ -565,13 +569,14 @@ export function VoiceCommandBar() {
       await requestMediaPermission("microphone");
     } catch (error) {
       const name = error instanceof DOMException ? error.name : "";
-      setExecutionError(
+      const msg =
         name === "NotAllowedError"
           ? speechErrorMessage("not-allowed")
           : error instanceof Error
             ? error.message
-            : "No se pudo acceder al micrófono.",
-      );
+            : "No se pudo acceder al micrófono.";
+      setExecutionError(msg);
+      setCommandOpened(true);
       return;
     }
 
@@ -627,6 +632,7 @@ export function VoiceCommandBar() {
         return;
       }
       setExecutionError(speechErrorMessage(event.error));
+      setCommandOpened(true);
     };
     recognition.onend = () => {
       setListening(false);
@@ -668,6 +674,14 @@ export function VoiceCommandBar() {
       await startRecordedFallback();
     }
   }, [clearSpeechTimers, listening, processCommand, startRecordedFallback, stopListening]);
+
+  const safeListen = useCallback(() => {
+    listen().catch((err) => {
+      const msg = err instanceof Error ? err.message : "Error inesperado al iniciar la voz.";
+      setExecutionError(msg);
+      setCommandOpened(true);
+    });
+  }, [listen]);
 
   useEffect(() => {
     return () => {
@@ -760,7 +774,7 @@ export function VoiceCommandBar() {
                 color={listening || executionError ? "red" : "gray"}
                 variant={listening ? "filled" : "subtle"}
                 aria-label={listening ? "Detener escucha" : "Escuchar comando"}
-                onClick={() => void listen()}
+                onClick={safeListen}
                 loading={interpreting || (executing && voiceEngine === null && !preview)}
               >
                 {listening ? <IconMicrophoneOff size={18} /> : <IconMicrophone size={18} />}
@@ -830,7 +844,7 @@ export function VoiceCommandBar() {
                   variant="subtle"
                   size="xs"
                   leftSection={<IconMicrophone size={15} />}
-                  onClick={() => void listen()}
+                  onClick={safeListen}
                 >
                   {listening ? "Detener" : "Hablar"}
                 </Button>
