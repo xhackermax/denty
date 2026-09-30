@@ -43,6 +43,12 @@ import {
   primaryHrefForVoicePlan,
   type VoicePreview,
 } from "./voice-router";
+import { useRealtimeVoice } from "./use-realtime-voice";
+import {
+  VoiceRealtimeAdapter,
+  selectVoiceEngine,
+  type RealtimeVoiceConfig,
+} from "./voice-realtime-adapter";
 
 interface SpeechRecognitionAlternativeLike {
   transcript: string;
@@ -152,8 +158,43 @@ export function VoiceCommandBar() {
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [heard, setHeard] = useState<string | null>(null);
   const [interpreting, setInterpreting] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<
+    "connecting" | "listening" | "processing" | "idle" | "error"
+  >("idle");
   // Turned off for the session once the server says Claude isn't configured.
   const claudeAvailableRef = useRef(true);
+  const realtimeAdapterRef = useRef<VoiceRealtimeAdapter | null>(null);
+
+  // Realtime voice integration
+  const {
+    connected: realtimeConnected,
+    listening: realtimeListening,
+    error: realtimeError,
+    connect: connectRealtime,
+    disconnect: disconnectRealtime,
+    submitToolResult,
+  } = useRealtimeVoice({
+    onText: () => {
+      setVoiceStatus("processing");
+    },
+    onTranscript: (transcript) => {
+      void processCommand(transcript);
+    },
+    onError: (error) => {
+      setVoiceStatus("error");
+      setExecutionError(error);
+    },
+    onToolCall: (toolCall) => {
+      // Handle tool call from the Realtime model
+      if (realtimeAdapterRef.current) {
+        void realtimeAdapterRef.current.executeToolCall(
+          toolCall.id,
+          toolCall.name,
+          toolCall.arguments,
+        );
+      }
+    },
+  });
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const keepListeningRef = useRef(false);
@@ -282,6 +323,23 @@ export function VoiceCommandBar() {
     if (!text.trim()) return;
     void processCommand(text);
   }, [processCommand, text]);
+
+  // Initialize the adapter with tool calling support
+  useEffect(() => {
+    const config: RealtimeVoiceConfig = {
+      onTranscript: (text) => {
+        void processCommand(text);
+      },
+      onError: (error) => {
+        setExecutionError(error);
+      },
+      onStatusChange: (status) => {
+        setVoiceStatus(status);
+      },
+      submitToolResult: submitToolResult,
+    };
+    realtimeAdapterRef.current = new VoiceRealtimeAdapter(config);
+  }, [processCommand, submitToolResult]);
 
   const execute = async () => {
     if (!preview || !canExecuteVoicePreview(preview)) return;
