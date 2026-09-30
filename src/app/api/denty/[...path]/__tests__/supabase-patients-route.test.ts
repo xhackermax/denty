@@ -228,9 +228,7 @@ describe("Supabase-backed patient API", () => {
       .map(([input]) => new URL(input instanceof Request ? input.url : String(input)))
       .find((url) => url.pathname === "/rest/v1/patients" && !url.searchParams.has("id"));
 
-    expect(patientRequest?.searchParams.get("order")).toBe(
-      "created_at.desc,id.desc",
-    );
+    expect(patientRequest?.searchParams.get("order")).toBe("created_at.desc,id.desc");
   });
 
   test("rejects patient creation when Supabase does not confirm the inserted row on readback", async () => {

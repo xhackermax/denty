@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const DEFAULT_BACKUP_PATH = "C:/Users/isaac pc masterrace/Downloads/BACKUP_CONTACTOS_2026-09-29.csv";
+const DEFAULT_BACKUP_PATH =
+  "C:/Users/isaac pc masterrace/Downloads/BACKUP_CONTACTOS_2026-09-29.csv";
 const env = { ...loadEnv(path.resolve(".env.production.local")), ...process.env };
 const supabaseUrl = requireEnv("SUPABASE_URL");
 const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY;
@@ -9,7 +10,9 @@ const dryRun = !process.argv.includes("--apply");
 const backupPath = process.argv.find((arg) => arg.endsWith(".csv")) ?? DEFAULT_BACKUP_PATH;
 
 if (!supabaseKey) {
-  throw new Error("Falta SUPABASE_SERVICE_ROLE_KEY o SUPABASE_SECRET_KEY en .env.production.local.");
+  throw new Error(
+    "Falta SUPABASE_SERVICE_ROLE_KEY o SUPABASE_SECRET_KEY en .env.production.local.",
+  );
 }
 
 const headers = {
@@ -138,7 +141,8 @@ async function selectAll(table, query) {
       },
       cache: "no-store",
     });
-    if (!response.ok) throw new Error(`Supabase error ${response.status}: ${await response.text()}`);
+    if (!response.ok)
+      throw new Error(`Supabase error ${response.status}: ${await response.text()}`);
     const page = await response.json();
     rows.push(...page);
     if (page.length < pageSize || query.limit) break;
@@ -186,7 +190,9 @@ function parseCsv(text) {
 
   const [header, ...body] = records.filter((record) => record.some((cell) => cell.trim()));
   const keys = header.map(cleanHeader);
-  return body.map((record) => Object.fromEntries(keys.map((key, index) => [key, cleanText(record[index] ?? "")])));
+  return body.map((record) =>
+    Object.fromEntries(keys.map((key, index) => [key, cleanText(record[index] ?? "")])),
+  );
 }
 
 function normalizeContact(row) {
@@ -215,8 +221,10 @@ function normalizeContact(row) {
     email,
     birth_date: birthDate,
     declared_source: mapSource(row.nos_conoce_por || row.nos_contacta_por),
-    declared_source_detail: cleanText(row.mas_informacion || row.motivo || row.nos_conoce_por) || null,
-    archived_at: row.estado && row.estado.toLowerCase() !== "activo" ? new Date().toISOString() : null,
+    declared_source_detail:
+      cleanText(row.mas_informacion || row.motivo || row.nos_conoce_por) || null,
+    archived_at:
+      row.estado && row.estado.toLowerCase() !== "activo" ? new Date().toISOString() : null,
     medical_profile: {
       importedFrom: "GESDEN_CONTACTOS",
       importedAt: new Date().toISOString(),
@@ -264,7 +272,9 @@ function cleanHeader(value) {
 }
 
 function cleanText(value) {
-  return repairEncoding(String(value ?? "")).replace(/\s+/g, " ").trim();
+  return repairEncoding(String(value ?? ""))
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function repairEncoding(value) {
@@ -315,13 +325,19 @@ function mapSource(value) {
   if (!source) return null;
   const normalized = source.toLowerCase();
   if (normalized.includes("google") || normalized.includes("web")) return "web";
-  if (normalized.includes("instagram") || normalized.includes("facebook") || normalized.includes("red")) return "social";
+  if (
+    normalized.includes("instagram") ||
+    normalized.includes("facebook") ||
+    normalized.includes("red")
+  )
+    return "social";
   if (normalized.includes("recomend")) return "referral";
   return "other";
 }
 
 function chunks(items, size) {
   const result = [];
-  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
+  for (let index = 0; index < items.length; index += size)
+    result.push(items.slice(index, index + size));
   return result;
 }

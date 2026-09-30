@@ -362,7 +362,11 @@ export function PatientsPage() {
                             Al día
                           </Badge>
                         )}
-                        <IconChevronRight size={18} className={pageStyles.patientCardChevron} aria-hidden="true" />
+                        <IconChevronRight
+                          size={18}
+                          className={pageStyles.patientCardChevron}
+                          aria-hidden="true"
+                        />
                       </div>
                     </Link>
                   </motion.div>

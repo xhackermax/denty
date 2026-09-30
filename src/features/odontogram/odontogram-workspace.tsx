@@ -94,7 +94,9 @@ function isSurfaceOnlyTool(tool: ToothState): boolean {
 
 function bridgeTeethFromEntity(entity: DentalEntity): string[] {
   const teeth = entity.attributes?.teeth;
-  return Array.isArray(teeth) ? teeth.filter((tooth): tooth is string => typeof tooth === "string") : [];
+  return Array.isArray(teeth)
+    ? teeth.filter((tooth): tooth is string => typeof tooth === "string")
+    : [];
 }
 
 function bridgeEndpointTeethFromEntity(entity: DentalEntity): string[] {
@@ -371,9 +373,7 @@ function OdontogramEditor({
   const persistedBridgeTeeth = useMemo(
     () =>
       new Set(
-        entities
-          .filter((entity) => entity.entityType === "BRIDGE")
-          .flatMap(bridgeTeethFromEntity),
+        entities.filter((entity) => entity.entityType === "BRIDGE").flatMap(bridgeTeethFromEntity),
       ),
     [entities],
   );
