@@ -30,6 +30,7 @@ import { useQuery } from "@tanstack/react-query";
 import { dateDMY } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
 import styles from "@/shared/ui/parity.module.css";
+import pageStyles from "./patients-page.module.css";
 import {
   buildAdmissionPayload,
   dentalMedicalAdmissionOptions,
@@ -291,44 +292,32 @@ export function PatientsPage() {
         </div>
 
         {patients.length ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className={pageStyles.patientCardContainer}>
             {patients.map((patient) => {
               const fullName = `${patient.firstName} ${patient.lastName}`;
               return (
                 <Link
                   key={patient.id}
-                  className={styles.patientCarouselCardLink}
+                  className={pageStyles.patientCardLink}
                   href={`/app/patients/${patient.id}`}
                   aria-label={`Abrir ficha de ${fullName}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "10px 16px",
-                    borderRadius: 12,
-                    textDecoration: "none",
-                    color: "inherit",
-                    background: "var(--mantine-color-body)",
-                    border: "1px solid var(--mantine-color-default-border)",
-                    transition: "box-shadow 0.15s",
-                  }}
                 >
                   <PatientAvatar name={fullName} src={patient.photoUrl} size={44} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{fullName}</span>
+                  <div className={pageStyles.patientCardContent}>
+                    <div className={pageStyles.patientCardHeader}>
+                      <span className={pageStyles.patientCardName}>{fullName}</span>
                       {patient.archivedAt ? (
                         <Badge color="gray" size="xs">
                           Archivado
                         </Badge>
                       ) : null}
                     </div>
-                    <span style={{ fontSize: 12, opacity: 0.6 }}>
+                    <span className={pageStyles.patientCardMeta}>
                       Ficha {patient.recordNumber}
                       {patient.dni ? ` · ${patient.dni}` : ""}
                     </span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div className={pageStyles.patientCardActions}>
                     {patient.balanceCents === undefined ? null : patient.balanceCents > 0 ? (
                       <Badge color="yellow" size="sm">
                         {formatEUR(patient.balanceCents)}
@@ -338,7 +327,7 @@ export function PatientsPage() {
                         Al día
                       </Badge>
                     )}
-                    <IconChevronRight size={18} style={{ opacity: 0.4 }} aria-hidden="true" />
+                    <IconChevronRight size={18} className={pageStyles.patientCardChevron} aria-hidden="true" />
                   </div>
                 </Link>
               );

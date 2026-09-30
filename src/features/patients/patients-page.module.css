@@ -1,0 +1,49 @@
+.patientCardContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.patientCardLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  background: var(--mantine-color-body);
+  border: 1px solid var(--mantine-color-default-border);
+  transition: box-shadow 0.15s;
+}
+
+.patientCardContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.patientCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.patientCardName {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.patientCardMeta {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.patientCardActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.patientCardChevron {
+  opacity: 0.4;
+}
