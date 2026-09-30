@@ -284,6 +284,21 @@ const NOT_NAME_WORDS = new Set([
   "derecha",
   "arriba",
   "abajo",
+  "odontograma",
+  "agenda",
+  "laboratorio",
+  "trabajos",
+  "finanzas",
+  "cobros",
+  "tareas",
+  "pendientes",
+  "pacientes",
+  "ajustes",
+  "configuracion",
+  "administrador",
+  "administracion",
+  "inicio",
+  "hoy",
 ]);
 
 function looksLikePersonName(candidate: string): boolean {
@@ -580,7 +595,7 @@ function periodontalActions(
 }
 
 function navigationAction(text: string): LocalVoiceAction | undefined {
-  if (!/\b(?:abre|ir|ve|muestra|ensena)\b/.test(text)) return undefined;
+  if (!/\b(?:abre|abrir|ir|ve|ver|muestra|ensena)\b/.test(text)) return undefined;
   const targets: readonly [RegExp, string][] = [
     [/\bodontograma\b/, "odontogram"],
     [/\bagenda\b/, "agenda"],

@@ -242,3 +242,35 @@ describe("shouldAutoExecuteSpokenPreview", () => {
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
   });
 });
+
+describe("navigation voice commands", () => {
+  it.each(["abrir odontograma", "abre el odontograma", "oye denty abre odontograma"])(
+    "%s does not look for a patient named after the destination",
+    (command) => {
+      const preview = previewVoiceCommand(command, {
+        pathname: "/app/patients/patient-42",
+      });
+
+      expect(preview.plan.actions.map((action) => action.type)).toEqual(["navigation.open"]);
+      expect(preview.plan.ambiguities).toEqual([]);
+      expect(primaryHrefForVoicePlan(preview.plan)).toBe("/app/patients/patient-42/odontogram");
+    },
+  );
+
+  it("sends odontogram navigation to the patient list when no patient is open", () => {
+    const preview = previewVoiceCommand("abrir odontograma", { pathname: "/app/agenda" });
+
+    expect(primaryHrefForVoicePlan(preview.plan)).toBe("/app/patients");
+  });
+
+  it.each([
+    ["abre agenda", "/app/agenda"],
+    ["abre laboratorio", "/app/laboratory"],
+    ["abre finanzas", "/app/finance"],
+  ])("%s opens %s without a patient lookup", (command, href) => {
+    const preview = previewVoiceCommand(command, { pathname: "/app" });
+
+    expect(preview.plan.actions.map((action) => action.type)).toEqual(["navigation.open"]);
+    expect(primaryHrefForVoicePlan(preview.plan)).toBe(href);
+  });
+});

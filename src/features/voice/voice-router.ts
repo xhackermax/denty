@@ -85,6 +85,11 @@ export function hrefForVoiceAction(
   action: LocalVoiceAction,
   contextPatientId?: string,
 ): string | undefined {
+  if (action.type === "navigation.open" && action.destination === "odontogram") {
+    return contextPatientId
+      ? `/app/patients/${encodeURIComponent(contextPatientId)}/odontogram`
+      : "/app/patients";
+  }
   if (action.type === "navigation.open") return DESTINATIONS[action.destination];
   if (action.type === "navigation.patient") {
     return contextPatientId
@@ -151,7 +156,6 @@ export function shouldAutoExecuteSpokenPreview(preview: VoicePreview): boolean {
   if (!preview.plan.contextPatientId) return false;
   const actionable = preview.plan.actions.filter((action) => action.type !== "patient.resolve");
   return (
-    actionable.length > 0 &&
-    actionable.every((action) => SPOKEN_AUTORUN_ACTIONS.has(action.type))
+    actionable.length > 0 && actionable.every((action) => SPOKEN_AUTORUN_ACTIONS.has(action.type))
   );
 }
