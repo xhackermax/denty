@@ -13,6 +13,19 @@ function apiError(status: number, code: string, message: string): Response {
   return Response.json({ error: { code, message } }, { status });
 }
 
+function normalizeAudioMediaType(mediaType: string): string {
+  const normalized = mediaType.toLowerCase().split(";")[0]?.trim();
+  if (normalized === "audio/webm") return "audio/webm";
+  if (normalized === "audio/ogg") return "audio/ogg";
+  if (normalized === "audio/mpeg") return "audio/mpeg";
+  if (normalized === "audio/mp3") return "audio/mpeg";
+  if (normalized === "audio/mp4") return "audio/mp4";
+  if (normalized === "audio/wav" || normalized === "audio/wave" || normalized === "audio/x-wav") {
+    return "audio/wav";
+  }
+  return normalized || "audio/webm";
+}
+
 export async function POST(request: Request): Promise<Response> {
   const origin = request.headers.get("origin");
   if (origin) {
@@ -65,7 +78,7 @@ export async function POST(request: Request): Promise<Response> {
     try {
       const gateway = createGateway({ apiKey: gatewayApiKey });
       const audioBytes = new Uint8Array(await audio.arrayBuffer());
-      const mediaType = audio.type || "audio/webm";
+      const mediaType = normalizeAudioMediaType(audio.type || "audio/webm");
       const model = gateway.transcription(gatewayTranscriptionModel(OPENAI_TRANSCRIBE_MODEL));
       const result = await model.doGenerate({
         audio: audioBytes,
