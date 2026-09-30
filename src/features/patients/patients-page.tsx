@@ -24,8 +24,9 @@ import {
   IconSearch,
 } from "@tabler/icons-react";
 import Link from "next/link";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "motion/react";
 
 import { dateDMY } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
@@ -96,6 +97,7 @@ export function PatientsPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [admissionCampaignId, setAdmissionCampaignId] = useState("");
   const [page, setPage] = useState(1);
+  const carouselRef = useRef<HTMLDivElement>(null);
   const campaignsQuery = useQuery({
     queryKey: dentyQueryKeys.campaigns.all,
     queryFn: () => getBrowserApi().engagement.marketing.campaigns(),
@@ -117,6 +119,16 @@ export function PatientsPage() {
   const handleSearchChange = (value: string) => {
     setQuery(value);
     setPage(1);
+  };
+
+  // Infinite scroll: auto-load next page when scrolling near bottom
+  const handleScroll = () => {
+    if (!carouselRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = carouselRef.current;
+    const nearBottom = scrollHeight - (scrollTop + clientHeight) < 200;
+    if (nearBottom && page < totalPages && !patientsQuery.isLoading) {
+      setPage((p) => p + 1);
+    }
   };
 
   const importPatients = async (file: File | null) => {
@@ -252,7 +264,12 @@ export function PatientsPage() {
         placeholder="Buscar por nombre, ficha o DNI"
       />
 
-      <section className={styles.section} aria-label="Resultados de pacientes">
+      <section
+        className={styles.section}
+        aria-label="Resultados de pacientes"
+        ref={carouselRef}
+        onScroll={handleScroll}
+      >
         <div className={styles.patientCarouselHeader}>
           <div>
             <h2 className={styles.sectionTitle}>Pacientes</h2>
@@ -292,47 +309,62 @@ export function PatientsPage() {
         </div>
 
         {patients.length ? (
-          <div className={pageStyles.patientCardContainer}>
-            {patients.map((patient) => {
-              const fullName = `${patient.firstName} ${patient.lastName}`;
-              return (
-                <Link
-                  key={patient.id}
-                  className={pageStyles.patientCardLink}
-                  href={`/app/patients/${patient.id}`}
-                  aria-label={`Abrir ficha de ${fullName}`}
-                >
-                  <PatientAvatar name={fullName} src={patient.photoUrl} size={44} />
-                  <div className={pageStyles.patientCardContent}>
-                    <div className={pageStyles.patientCardHeader}>
-                      <span className={pageStyles.patientCardName}>{fullName}</span>
-                      {patient.archivedAt ? (
-                        <Badge color="gray" size="xs">
-                          Archivado
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <span className={pageStyles.patientCardMeta}>
-                      Ficha {patient.recordNumber}
-                      {patient.dni ? ` · ${patient.dni}` : ""}
-                    </span>
-                  </div>
-                  <div className={pageStyles.patientCardActions}>
-                    {patient.balanceCents === undefined ? null : patient.balanceCents > 0 ? (
-                      <Badge color="yellow" size="sm">
-                        {formatEUR(patient.balanceCents)}
-                      </Badge>
-                    ) : (
-                      <Badge color="green" size="sm">
-                        Al día
-                      </Badge>
-                    )}
-                    <IconChevronRight size={18} className={pageStyles.patientCardChevron} aria-hidden="true" />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`page-${page}`}
+              className={pageStyles.patientCardContainer}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {patients.map((patient, index) => {
+                const fullName = `${patient.firstName} ${patient.lastName}`;
+                return (
+                  <motion.div
+                    key={patient.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.02 }}
+                  >
+                    <Link
+                      className={pageStyles.patientCardLink}
+                      href={`/app/patients/${patient.id}`}
+                      aria-label={`Abrir ficha de ${fullName}`}
+                    >
+                      <PatientAvatar name={fullName} src={patient.photoUrl} size={44} />
+                      <div className={pageStyles.patientCardContent}>
+                        <div className={pageStyles.patientCardHeader}>
+                          <span className={pageStyles.patientCardName}>{fullName}</span>
+                          {patient.archivedAt ? (
+                            <Badge color="gray" size="xs">
+                              Archivado
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <span className={pageStyles.patientCardMeta}>
+                          Ficha {patient.recordNumber}
+                          {patient.dni ? ` · ${patient.dni}` : ""}
+                        </span>
+                      </div>
+                      <div className={pageStyles.patientCardActions}>
+                        {patient.balanceCents === undefined ? null : patient.balanceCents > 0 ? (
+                          <Badge color="yellow" size="sm">
+                            {formatEUR(patient.balanceCents)}
+                          </Badge>
+                        ) : (
+                          <Badge color="green" size="sm">
+                            Al día
+                          </Badge>
+                        )}
+                        <IconChevronRight size={18} className={pageStyles.patientCardChevron} aria-hidden="true" />
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
         ) : (
           <Text c="dimmed" size="sm">
             {patientsQuery.isLoading ? "Cargando pacientes…" : "Sin resultados."}
