@@ -17,6 +17,7 @@ import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import styles from "@/shared/ui/parity.module.css";
+import { ActionErrorAlert } from "./action-error-alert";
 
 export function CampaignsModule() {
   const qc = useQueryClient();
@@ -53,6 +54,7 @@ export function CampaignsModule() {
     return <Alert color="red">No se pudieron cargar las campañas reales.</Alert>;
   return (
     <Stack gap="md">
+      <ActionErrorAlert errors={[createCampaign.error, status.error]} />
       {canManageCampaigns ? (
         <section className={styles.section}>
           <Text fw={700}>Nueva campaña</Text>

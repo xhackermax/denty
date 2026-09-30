@@ -5,6 +5,8 @@ import { Alert, Badge, Button, Group, SimpleGrid, Stack, Text } from "@mantine/c
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { ActionErrorAlert } from "./action-error-alert";
+
 import { formatEUR } from "@/domain/money";
 import { MotionNumber } from "@/shared/motion";
 import { PatientChargePanel } from "@/features/payments/patient-charge-panel";
@@ -23,6 +25,11 @@ export function FinanceModule() {
   const finance = useFinanceQueries(true, advancedEnabled);
   const issue = useIssueInvoiceMutation();
   const submit = useSubmitVerifactuMutation();
+  const [exportError, setExportError] = useState<unknown>(null);
+  const runExport = (action: () => Promise<void>) => {
+    setExportError(null);
+    action().catch((error: unknown) => setExportError(error ?? new Error("")));
+  };
   const hasError = Object.values(finance).some((query) => query.isError);
   // Stage 13: the clinical pipeline links here (?patientId=…&view=budgets[&action=sign]);
   // the sync card shows the patient's budget and the canonical signature action.
@@ -36,12 +43,13 @@ export function FinanceModule() {
   return (
     <Stack gap="md">
       {hasError ? <Alert color="red">Hay datos financieros no disponibles.</Alert> : null}
+      <ActionErrorAlert errors={[exportError, issue.error, submit.error]} />
       {budgetPatientId ? <ClinicalSyncCard patientId={budgetPatientId} /> : null}
       {budgetPatientId ? <PatientChargePanel patientId={budgetPatientId} /> : null}
 
       <Group justify="space-between">
         <Badge variant="light">Ledger real</Badge>
-        <Button size="xs" variant="light" onClick={() => void downloadAccountingCsv()}>
+        <Button size="xs" variant="light" onClick={() => runExport(downloadAccountingCsv)}>
           Exportar CSV
         </Button>
       </Group>
@@ -124,7 +132,11 @@ export function FinanceModule() {
               </div>
               <div className={styles.rowActions}>
                 <Badge>{invoice.status}</Badge>
-                <Button size="xs" variant="light" onClick={() => void openInvoicePdf(invoice.id)}>
+                <Button
+                  size="xs"
+                  variant="light"
+                  onClick={() => runExport(() => openInvoicePdf(invoice.id))}
+                >
                   PDF
                 </Button>
                 {invoice.status === "DRAFT" ? (

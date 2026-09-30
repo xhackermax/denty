@@ -18,6 +18,7 @@ import { useMemo, useState } from "react";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
+import { ActionErrorAlert } from "./action-error-alert";
 
 function asText(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
@@ -89,6 +90,7 @@ export function CommunicationsModule() {
 
   return (
     <Stack gap="md">
+      <ActionErrorAlert errors={[send.error, setConsent.error]} />
       <section className={styles.section}>
         <Text fw={700}>Nueva comunicación</Text>
         <Group mt="sm" align="end" grow>

@@ -8,6 +8,7 @@ import { useState } from "react";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
+import { ActionErrorAlert } from "./modules/action-error-alert";
 
 const QUICK_ACTIONS = [
   ["Crear paciente", "Alta y ficha clínica", "/app/patients"],
@@ -47,6 +48,7 @@ export function TasksPage() {
 
   return (
     <Stack gap="md">
+      <ActionErrorAlert errors={[create.error, update.error, tasks.error]} />
       <section className={styles.section}>
         <Text fw={700}>Acciones rápidas</Text>
         <div className={styles.rowList}>
