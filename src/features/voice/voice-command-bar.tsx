@@ -26,6 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
+import { useOptionalAssistantContext } from "@/features/assistant/assistant-context";
 import { getBrowserApi } from "@/shared/api/browser";
 import { DentyApiError } from "@/shared/api/errors";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
@@ -147,6 +148,7 @@ function describeAction(action: LocalVoiceAction): string {
 export function VoiceCommandBar() {
   const router = useRouter();
   const pathname = usePathname();
+  const assistantContext = useOptionalAssistantContext();
   const queryClient = useQueryClient();
   const reducedMotion = useReducedMotion();
   const patientsQuery = usePatientsQuery();
@@ -328,8 +330,14 @@ export function VoiceCommandBar() {
   );
 
   const preparePreview = useCallback(
-    (command: string) => resolvePreview(previewVoiceCommand(command, { pathname })),
-    [pathname, resolvePreview],
+    (command: string) =>
+      resolvePreview(
+        previewVoiceCommand(command, {
+          pathname,
+          ...assistantContext,
+        }),
+      ),
+    [assistantContext, pathname, resolvePreview],
   );
 
   const processCommand = useCallback(
@@ -361,7 +369,10 @@ export function VoiceCommandBar() {
             previewFromClaude(
               clean,
               { actions: result.actions as LocalVoiceAction[], ambiguities: result.ambiguities },
-              { pathname },
+              {
+                pathname,
+                ...assistantContext,
+              },
             ),
           );
           if (shouldAutoExecuteSpokenPreview(interpreted)) {
@@ -384,7 +395,7 @@ export function VoiceCommandBar() {
       }
       setPreview(next);
     },
-    [executeResolvedPreview, pathname, preparePreview, resolvePreview, router],
+    [assistantContext, executeResolvedPreview, pathname, preparePreview, resolvePreview, router],
   );
 
   const interpret = useCallback(() => {
