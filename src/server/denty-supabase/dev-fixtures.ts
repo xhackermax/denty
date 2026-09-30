@@ -3,8 +3,6 @@
  * Used to enable local development without needing Supabase credentials.
  */
 
-import { randomUUID } from "crypto";
-
 export interface MockPatient {
   id: string;
   clinicId: string;
@@ -27,7 +25,7 @@ export interface MockPatient {
   updatedAt: string;
 }
 
-const CLINIC_ID = "clinic-dev-" + randomUUID();
+const CLINIC_ID = "clinic-dev-00000000-0000-0000-0000-000000000000";
 
 const mockPatients: MockPatient[] = [
   {
