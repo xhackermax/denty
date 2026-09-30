@@ -41,6 +41,7 @@ import {
   previewFromClaude,
   previewVoiceCommand,
   primaryHrefForVoicePlan,
+  shouldAutoExecuteSpokenPreview,
   type VoicePreview,
 } from "./voice-router";
 import { useRealtimeVoice } from "./use-realtime-voice";
@@ -164,6 +165,34 @@ export function VoiceCommandBar() {
   // Turned off for the session once the server says Claude isn't configured.
   const claudeAvailableRef = useRef(true);
   const realtimeAdapterRef = useRef<VoiceRealtimeAdapter | null>(null);
+  const submitRealtimeToolResultRef = useRef<
+    (toolCallId: string, result: { success: boolean; message?: string; error?: string }) => void
+  >(() => undefined);
+
+  const executeResolvedPreview = useCallback(
+    async (next: VoicePreview) => {
+      if (!canExecuteVoicePreview(next)) return false;
+      setExecuting(true);
+      setExecutionError(null);
+      try {
+        await executeVoicePlan(next.plan);
+        await queryClient.invalidateQueries();
+        const href = primaryHrefForVoicePlan(next.plan);
+        if (href) router.push(href);
+        setPreview(null);
+        setText("");
+        return true;
+      } catch (error) {
+        setExecutionError(
+          error instanceof Error ? error.message : "No se pudo ejecutar el plan de voz.",
+        );
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [queryClient, router],
+  );
 
   // Realtime voice integration
   const {
@@ -185,14 +214,44 @@ export function VoiceCommandBar() {
       setExecutionError(error);
     },
     onToolCall: (toolCall) => {
-      // Handle tool call from the Realtime model
-      if (realtimeAdapterRef.current) {
-        void realtimeAdapterRef.current.executeToolCall(
-          toolCall.id,
-          toolCall.name,
-          toolCall.arguments,
-        );
-      }
+      void (async () => {
+        try {
+          const { processRealtimeToolCall } = await import("./realtime-tools");
+          const interpretation = processRealtimeToolCall(toolCall);
+          const next = resolvePreview(
+            previewFromClaude(
+              "Orden de voz en tiempo real",
+              {
+                actions: interpretation.actions,
+                ambiguities: interpretation.ambiguities,
+              },
+              { pathname },
+            ),
+          );
+          if (shouldAutoExecuteSpokenPreview(next)) {
+            const executed = await executeResolvedPreview(next);
+            submitRealtimeToolResultRef.current(
+              toolCall.id,
+              executed
+                ? { success: true, message: "Accion guardada en Denty" }
+                : { success: false, error: "No se pudo guardar la accion en Denty" },
+            );
+            return;
+          }
+          setPreview(next);
+          submitRealtimeToolResultRef.current(toolCall.id, {
+            success: false,
+            error: next.plan.ambiguities.length
+              ? next.plan.ambiguities.join("; ")
+              : "La accion necesita confirmacion",
+          });
+        } catch (error) {
+          submitRealtimeToolResultRef.current(toolCall.id, {
+            success: false,
+            error: error instanceof Error ? error.message : "No se pudo procesar la voz",
+          });
+        }
+      })();
     },
   });
 
@@ -314,9 +373,13 @@ export function VoiceCommandBar() {
           setInterpreting(false);
         }
       }
+      if (shouldAutoExecuteSpokenPreview(next)) {
+        await executeResolvedPreview(next);
+        return;
+      }
       setPreview(next);
     },
-    [pathname, preparePreview, resolvePreview, router],
+    [executeResolvedPreview, pathname, preparePreview, resolvePreview, router],
   );
 
   const interpret = useCallback(() => {
@@ -326,6 +389,7 @@ export function VoiceCommandBar() {
 
   // Initialize the adapter with tool calling support
   useEffect(() => {
+    submitRealtimeToolResultRef.current = submitToolResult;
     const config: RealtimeVoiceConfig = {
       onTranscript: (text) => {
         void processCommand(text);
@@ -343,23 +407,7 @@ export function VoiceCommandBar() {
 
   const execute = async () => {
     if (!preview || !canExecuteVoicePreview(preview)) return;
-    setExecuting(true);
-    setExecutionError(null);
-    try {
-      await executeVoicePlan(preview.plan);
-      // Whatever screen is open (odontogram, plan, notes) shows the change now.
-      await queryClient.invalidateQueries();
-      const href = primaryHrefForVoicePlan(preview.plan);
-      if (href) router.push(href);
-      setPreview(null);
-      setText("");
-    } catch (error) {
-      setExecutionError(
-        error instanceof Error ? error.message : "No se pudo ejecutar el plan de voz.",
-      );
-    } finally {
-      setExecuting(false);
-    }
+    await executeResolvedPreview(preview);
   };
 
   const clearSpeechTimers = useCallback(() => {

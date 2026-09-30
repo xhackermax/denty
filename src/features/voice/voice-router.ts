@@ -134,3 +134,20 @@ export function canExecuteVoicePreview(preview: VoicePreview): boolean {
     preview.unsupportedActions.length === 0
   );
 }
+
+const SPOKEN_AUTORUN_ACTIONS = new Set<LocalVoiceAction["type"]>([
+  "odontogram.set_state",
+  "odontogram.bridge",
+  "odontogram.removable",
+  "periodontal.update",
+]);
+
+export function shouldAutoExecuteSpokenPreview(preview: VoicePreview): boolean {
+  if (!canExecuteVoicePreview(preview)) return false;
+  if (!preview.plan.contextPatientId) return false;
+  const actionable = preview.plan.actions.filter((action) => action.type !== "patient.resolve");
+  return (
+    actionable.length > 0 &&
+    actionable.every((action) => SPOKEN_AUTORUN_ACTIONS.has(action.type))
+  );
+}
