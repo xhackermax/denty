@@ -31,16 +31,19 @@ export interface ToolCall {
  * The Realtime API expects tools in a simplified format without strict mode
  */
 export function convertToolsForRealtime(): RealtimeTool[] {
-  return CLAUDE_VOICE_TOOLS.map((tool) => ({
-    type: "function",
-    name: tool.name,
-    description: tool.description || "",
-    parameters: {
-      type: "object",
-      properties: (tool.input_schema as any).properties || {},
-      required: (tool.input_schema as any).required || [],
-    },
-  }));
+  return CLAUDE_VOICE_TOOLS.map((tool) => {
+    const schema = tool.input_schema as Record<string, unknown>;
+    return {
+      type: "function",
+      name: tool.name,
+      description: tool.description || "",
+      parameters: {
+        type: "object",
+        properties: (schema.properties as Record<string, unknown>) || {},
+        required: (schema.required as string[]) || [],
+      },
+    };
+  });
 }
 
 /**
