@@ -72,7 +72,15 @@ function makePreview(
 describe("canExecuteVoicePreview", () => {
   it("returns true when actions exist, no ambiguities, no unsupported", () => {
     const preview = makePreview(
-      [{ type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] }],
+      [
+        {
+          type: "odontogram.set_state",
+          patientRef: "",
+          tooth: "14",
+          status: "CARIES",
+          surfaces: ["D"],
+        },
+      ],
       { contextPatientId: "p1" },
     );
     expect(canExecuteVoicePreview(preview)).toBe(true);
@@ -80,7 +88,15 @@ describe("canExecuteVoicePreview", () => {
 
   it("returns false when there are ambiguities", () => {
     const preview = makePreview(
-      [{ type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] }],
+      [
+        {
+          type: "odontogram.set_state",
+          patientRef: "",
+          tooth: "14",
+          status: "CARIES",
+          surfaces: ["D"],
+        },
+      ],
       { ambiguities: ["paciente no encontrado"] },
     );
     expect(canExecuteVoicePreview(preview)).toBe(false);
@@ -89,7 +105,9 @@ describe("canExecuteVoicePreview", () => {
   it("returns false when there are unsupported actions", () => {
     const preview: VoicePreview = {
       planToken: "test",
-      plan: makePlan([{ type: "clinical.alert", patientRef: "", text: "alerta", severity: "HIGH" }]),
+      plan: makePlan([
+        { type: "clinical.alert", patientRef: "", text: "alerta", severity: "HIGH" },
+      ]),
       unsupportedActions: ["clinical.alert"],
     };
     expect(canExecuteVoicePreview(preview)).toBe(false);
@@ -104,7 +122,15 @@ describe("canExecuteVoicePreview", () => {
 describe("shouldAutoExecuteSpokenPreview", () => {
   it("auto-executes odontogram.set_state on a patient page", () => {
     const preview = makePreview(
-      [{ type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] }],
+      [
+        {
+          type: "odontogram.set_state",
+          patientRef: "",
+          tooth: "14",
+          status: "CARIES",
+          surfaces: ["D"],
+        },
+      ],
       { contextPatientId: "p1" },
     );
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
@@ -112,7 +138,16 @@ describe("shouldAutoExecuteSpokenPreview", () => {
 
   it("auto-executes clinical.add_item on a patient page", () => {
     const preview = makePreview(
-      [{ type: "clinical.add_item", patientRef: "", tooth: "14", treatmentCode: "endodontics", label: "Endodoncia", surfaces: [] }],
+      [
+        {
+          type: "clinical.add_item",
+          patientRef: "",
+          tooth: "14",
+          treatmentCode: "endodontics",
+          label: "Endodoncia",
+          surfaces: [],
+        },
+      ],
       { contextPatientId: "p1" },
     );
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
@@ -120,38 +155,59 @@ describe("shouldAutoExecuteSpokenPreview", () => {
 
   it("auto-executes clinical.complete_item on a patient page", () => {
     const preview = makePreview(
-      [{ type: "clinical.complete_item", patientRef: "", tooth: "14", treatmentCode: "endodontics", label: "Endodoncia", surfaces: [] }],
+      [
+        {
+          type: "clinical.complete_item",
+          patientRef: "",
+          tooth: "14",
+          treatmentCode: "endodontics",
+          label: "Endodoncia",
+          surfaces: [],
+        },
+      ],
       { contextPatientId: "p1" },
     );
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
   });
 
   it("auto-executes clinical.note on a patient page", () => {
-    const preview = makePreview(
-      [{ type: "clinical.note", patientRef: "", text: "nota clínica" }],
-      { contextPatientId: "p1" },
-    );
+    const preview = makePreview([{ type: "clinical.note", patientRef: "", text: "nota clínica" }], {
+      contextPatientId: "p1",
+    });
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
   });
 
   it("does NOT auto-execute without a patient context", () => {
     const preview = makePreview([
-      { type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] },
+      {
+        type: "odontogram.set_state",
+        patientRef: "",
+        tooth: "14",
+        status: "CARIES",
+        surfaces: ["D"],
+      },
     ]);
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
   });
 
   it("does NOT auto-execute navigation actions", () => {
-    const preview = makePreview(
-      [{ type: "navigation.open", destination: "agenda" }],
-      { contextPatientId: "p1" },
-    );
+    const preview = makePreview([{ type: "navigation.open", destination: "agenda" }], {
+      contextPatientId: "p1",
+    });
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
   });
 
   it("does NOT auto-execute when there are ambiguities", () => {
     const preview = makePreview(
-      [{ type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] }],
+      [
+        {
+          type: "odontogram.set_state",
+          patientRef: "",
+          tooth: "14",
+          status: "CARIES",
+          surfaces: ["D"],
+        },
+      ],
       { contextPatientId: "p1", ambiguities: ["no está claro"] },
     );
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
@@ -173,7 +229,13 @@ describe("shouldAutoExecuteSpokenPreview", () => {
     const preview = makePreview(
       [
         { type: "patient.resolve", query: "García" },
-        { type: "odontogram.set_state", patientRef: "", tooth: "14", status: "CARIES", surfaces: ["D"] },
+        {
+          type: "odontogram.set_state",
+          patientRef: "",
+          tooth: "14",
+          status: "CARIES",
+          surfaces: ["D"],
+        },
       ],
       { contextPatientId: "p1" },
     );
