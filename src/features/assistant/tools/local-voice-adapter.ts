@@ -20,6 +20,16 @@ function toArgs(action: LocalVoiceAction, plan: LocalVoicePlan): unknown | undef
   const patientId = patientIdFor(plan);
 
   switch (action.type) {
+    case "appointment.arrive":
+    case "appointment.schedule":
+    case "lab.transition":
+    case "clinical.add_item":
+    case "clinical.complete_item":
+    case "clinical.mark_unsatisfactory":
+    case "clinical.add_dependency":
+    case "clinical.alert":
+    case "clinical.prosthesis_options":
+      return undefined;
     case "navigation.open":
       return { destination: action.destination };
     case "navigation.patient":
@@ -73,6 +83,18 @@ function toArgs(action: LocalVoiceAction, plan: LocalVoicePlan): unknown | undef
       return patientId && action.amountCents !== undefined && action.method
         ? { patientId, amountCents: action.amountCents, method: action.method }
         : undefined;
+    case "appointment.reschedule":
+      return patientId
+        ? {
+            patientId,
+            dateText: action.dateText,
+            ...(action.timeText !== undefined ? { timeText: action.timeText } : {}),
+            ...(action.durationMin !== undefined ? { durationMin: action.durationMin } : {}),
+            ...(action.staffRef !== undefined ? { staffRef: action.staffRef } : {}),
+          }
+        : undefined;
+    case "appointment.no_show":
+      return patientId ? { patientId } : undefined;
     default:
       return undefined;
   }
@@ -84,13 +106,14 @@ export function localVoicePlanToToolCalls(plan: LocalVoicePlan): LocalVoiceAdapt
 
   plan.actions.forEach((action, index) => {
     if (action.type === "patient.resolve") return;
-    const definition = getAssistantToolDefinition(action.type);
+    const name = action.type === "appointment.no_show" ? "appointment.mark_no_show" : action.type;
+    const definition = getAssistantToolDefinition(name);
     const args = toArgs(action, plan);
     if (!definition || args === undefined) {
       unsupported.push(action.type);
       return;
     }
-    calls.push({ id: callId(index, action), name: action.type, args, source: "LOCAL_NLU" });
+    calls.push({ id: callId(index, action), name, args, source: "LOCAL_NLU" });
   });
 
   return { calls, unsupported };

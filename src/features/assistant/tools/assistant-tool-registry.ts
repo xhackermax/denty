@@ -5,6 +5,7 @@ export interface AssistantToolDefinition {
   risk: AssistantRisk;
   description: string;
   requiresPatient: boolean;
+  roles?: readonly string[];
 }
 
 const definitions: AssistantToolDefinition[] = [

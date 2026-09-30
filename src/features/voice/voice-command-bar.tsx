@@ -26,16 +26,30 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
-import { useOptionalAssistantContext } from "@/features/assistant/assistant-context";
+import {
+  useOptionalAssistantContext,
+  useOptionalAssistantContextPatch,
+} from "@/features/assistant/assistant-context";
+import type { AssistantToolCall } from "@/features/assistant/assistant-types";
+import {
+  executeAssistantCalls,
+  type AssistantExecutionEffect,
+} from "@/features/assistant/tools/assistant-tool-executor";
+import {
+  evaluateAssistantCall,
+  isInternalVoiceRole,
+  type AssistantPolicyResult,
+} from "@/features/assistant/tools/assistant-policy";
+import { localVoicePlanToToolCalls } from "@/features/assistant/tools/local-voice-adapter";
 import { getBrowserApi } from "@/shared/api/browser";
 import { DentyApiError } from "@/shared/api/errors";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
+import { useActiveTenant } from "@/shared/tenancy/active-context";
 import { requestMediaPermission } from "@/shared/ui/device-permissions";
 
 import motionStyles from "./voice-command-bar.module.css";
 
 import { voiceReadback, type LocalVoiceAction } from "./local-nlu";
-import { executeVoicePlan } from "./voice-executor";
 import { resolveVoicePatient, type VoicePatientCandidate } from "./voice-patient-resolver";
 import {
   canExecuteVoicePreview,
@@ -145,10 +159,43 @@ function describeAction(action: LocalVoiceAction): string {
   return sentence === "No he detectado una acción concreta" ? action.type : sentence;
 }
 
+function policyMessage(result: AssistantPolicyResult, call?: AssistantToolCall): string {
+  if (result.reason === "ROLE_NOT_ALLOWED") {
+    return "La voz de Denty solo está disponible para administración y equipo de clínica.";
+  }
+  if (result.reason === "PATIENT_REQUIRED") {
+    return "Necesito saber sobre qué paciente trabajar antes de ejecutar esta orden.";
+  }
+  if (result.reason === "UNKNOWN_TOOL") {
+    return "Denty ha entendido la orden, pero esta acción todavía no está conectada.";
+  }
+  if (result.reason === "CONSEQUENTIAL_ACTION") {
+    return "Esta acción modifica datos sensibles. Revisa y confirma antes de ejecutarla.";
+  }
+  return call ? `No puedo ejecutar ${call.name} todavía.` : "No se pudo ejecutar la orden.";
+}
+
+export function shouldRenderVoiceControls(role: string | null | undefined, loading: boolean) {
+  return !loading && isInternalVoiceRole(role);
+}
+
 export function VoiceCommandBar() {
+  const { role, permissions, loading } = useActiveTenant();
+  if (!shouldRenderVoiceControls(role, loading)) return null;
+  return <VoiceCommandBarInner permissions={permissions} role={role} />;
+}
+
+function VoiceCommandBarInner({
+  permissions,
+  role,
+}: {
+  permissions: readonly string[];
+  role: string | null;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const assistantContext = useOptionalAssistantContext();
+  const patchAssistantContext = useOptionalAssistantContextPatch();
   const queryClient = useQueryClient();
   const reducedMotion = useReducedMotion();
   const patientsQuery = usePatientsQuery();
@@ -173,16 +220,69 @@ export function VoiceCommandBar() {
     (toolCallId: string, result: { success: boolean; message?: string; error?: string }) => void
   >(() => undefined);
 
+  const applyAssistantEffect = useCallback(
+    (effect: AssistantExecutionEffect) => {
+      if (effect.type === "NAVIGATE") router.push(effect.href);
+      if (effect.type === "SELECT_TOOTH") patchAssistantContext({ selectedTooth: effect.tooth });
+    },
+    [patchAssistantContext, router],
+  );
+
   const executeResolvedPreview = useCallback(
-    async (next: VoicePreview) => {
+    async (next: VoicePreview, options: { confirmed?: boolean } = {}) => {
       if (!canExecuteVoicePreview(next)) return false;
+      const adaptation = localVoicePlanToToolCalls(next.plan);
+      if (adaptation.unsupported.length) {
+        setPreview(next);
+        setExecutionError(
+          `Denty ha entendido la orden, pero todavía no puede ejecutar: ${adaptation.unsupported.join(
+            ", ",
+          )}.`,
+        );
+        return false;
+      }
+
+      const policyContext = {
+        ...(next.plan.contextPatientId ? { patientId: next.plan.contextPatientId } : {}),
+        role,
+        permissions,
+      };
+      const policyResults = adaptation.calls.map((call) => ({
+        call,
+        result: evaluateAssistantCall(call, policyContext),
+      }));
+      const blocked = policyResults.find(({ result }) => result.decision === "BLOCK");
+      if (blocked) {
+        setPreview(next);
+        setExecutionError(policyMessage(blocked.result, blocked.call));
+        return false;
+      }
+      const confirmationCalls = policyResults
+        .filter(({ result }) => result.decision === "CONFIRM")
+        .map(({ call }) => call);
+      if (confirmationCalls.length && !options.confirmed) {
+        setPreview(next);
+        setExecutionError(
+          policyMessage({ decision: "CONFIRM", reason: "CONSEQUENTIAL_ACTION", risk: "RED" }),
+        );
+        return false;
+      }
+
       setExecuting(true);
       setExecutionError(null);
       try {
-        await executeVoicePlan(next.plan);
+        const result = await executeAssistantCalls(adaptation.calls, {
+          confirmedCallIds: new Set(
+            options.confirmed ? confirmationCalls.map((call) => call.id) : [],
+          ),
+        });
+        if (result.pendingConfirmation) {
+          setPreview(next);
+          setExecutionError("Esta acción necesita confirmación explícita.");
+          return false;
+        }
+        for (const effect of result.effects) applyAssistantEffect(effect);
         await queryClient.invalidateQueries();
-        const href = primaryHrefForVoicePlan(next.plan);
-        if (href) router.push(href);
         setPreview(null);
         setText("");
         return true;
@@ -195,7 +295,7 @@ export function VoiceCommandBar() {
         setExecuting(false);
       }
     },
-    [queryClient, router],
+    [applyAssistantEffect, permissions, queryClient, role],
   );
 
   // Realtime voice integration
@@ -423,7 +523,7 @@ export function VoiceCommandBar() {
 
   const execute = async () => {
     if (!preview || !canExecuteVoicePreview(preview)) return;
-    await executeResolvedPreview(preview);
+    await executeResolvedPreview(preview, { confirmed: true });
   };
 
   const clearSpeechTimers = useCallback(() => {

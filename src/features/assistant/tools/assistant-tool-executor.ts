@@ -1,6 +1,11 @@
 import { archForTooth, createBridgeEntities, createRemovable, type DentalEntity } from "@/domain";
 import { getBrowserApi } from "@/shared/api/browser";
-import { createStateEntity, domainEntityToApiInput } from "@/shared/odontogram/odontogram-wire";
+import {
+  createStateEntity,
+  domainEntityToApiInput,
+  persistedEntityToDomain,
+} from "@/shared/odontogram/odontogram-wire";
+import { mergeVoiceEntities } from "@/features/voice/voice-odontogram";
 
 import type { AssistantToolCall } from "../assistant-types";
 import { assistantToolNeedsConfirmation } from "./assistant-policy";
@@ -18,10 +23,36 @@ export interface AssistantExecutionBatchResult {
 async function saveOdontogramEntities(patientId: string, entities: readonly DentalEntity[]) {
   const api = getBrowserApi();
   const current = await api.clinical.odontogram.get(patientId);
+  const merged = mergeVoiceEntities(current.entities.map(persistedEntityToDomain), entities);
   await api.clinical.odontogram.batch(patientId, {
     expectedVersion: current.version,
-    entities: entities.map(domainEntityToApiInput),
+    entities: merged.map(domainEntityToApiInput),
   });
+}
+
+function hrefForDestination(destination: unknown): string {
+  const key = String(destination ?? "home").toLowerCase();
+  const destinations: Record<string, string> = {
+    home: "/app",
+    inicio: "/app",
+    dashboard: "/app",
+    patients: "/app/patients",
+    pacientes: "/app/patients",
+    agenda: "/app/agenda",
+    calendar: "/app/agenda",
+    laboratory: "/app/laboratory",
+    laboratorio: "/app/laboratory",
+    finance: "/app/finance",
+    finanzas: "/app/finance",
+    documents: "/app/documents",
+    documentos: "/app/documents",
+    tasks: "/app/tasks",
+    tareas: "/app/tasks",
+    settings: "/app/settings",
+    ajustes: "/app/settings",
+    admin: "/app/admin",
+  };
+  return destinations[key] ?? "/app";
 }
 
 export async function executeAssistantTool(
@@ -31,7 +62,7 @@ export async function executeAssistantTool(
   const args = call.args as Record<string, unknown>;
 
   if (call.name === "navigation.open") {
-    return { type: "NAVIGATE", href: String(args.destination ?? "/app") };
+    return { type: "NAVIGATE", href: hrefForDestination(args.destination) };
   }
   if (call.name === "navigation.patient") {
     return { type: "NAVIGATE", href: `/app/patients/${String(args.patientId)}` };
