@@ -50,12 +50,17 @@ import { requestMediaPermission } from "@/shared/ui/device-permissions";
 import motionStyles from "./voice-command-bar.module.css";
 
 import { voiceReadback, type LocalVoiceAction } from "./local-nlu";
-import { resolveVoicePatient, type VoicePatientCandidate } from "./voice-patient-resolver";
+import {
+  pickPatientOverride,
+  resolveVoicePatient,
+  type VoicePatientCandidate,
+} from "./voice-patient-resolver";
 import {
   canExecuteVoicePreview,
   previewFromClaude,
   previewVoiceCommand,
   primaryHrefForVoicePlan,
+  isLiteralNoteFallback,
   shouldAutoExecuteSpokenPreview,
   type VoicePreview,
 } from "./voice-router";
@@ -66,6 +71,7 @@ import {
   type RealtimeVoiceConfig,
 } from "./voice-realtime-adapter";
 import { createSpeechCommandBuffer } from "./speech-command-buffer";
+import { VoiceTimeoutError, withTimeout } from "./with-timeout";
 
 interface SpeechRecognitionAlternativeLike {
   transcript: string;
@@ -135,6 +141,8 @@ function isNavigationOnly(preview: VoicePreview): boolean {
     )
   );
 }
+
+const CLAUDE_INTERPRET_TIMEOUT_MS = 12_000;
 
 function patientQueryFromPreview(preview: VoicePreview): string | undefined {
   for (const action of preview.plan.actions) {
@@ -209,6 +217,7 @@ function VoiceCommandBarInner({
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [heard, setHeard] = useState<string | null>(null);
   const [interpreting, setInterpreting] = useState(false);
+  const [lastDone, setLastDone] = useState<string | null>(null);
   const [voiceStatus, setVoiceStatus] = useState<
     "connecting" | "listening" | "processing" | "idle" | "error"
   >("idle");
@@ -216,6 +225,8 @@ function VoiceCommandBarInner({
   const claudeAvailableRef = useRef(true);
   const realtimeAdapterRef = useRef<VoiceRealtimeAdapter | null>(null);
   const speechCommandBufferRef = useRef(createSpeechCommandBuffer());
+  // Commands run one at a time: overlapping speech must not interleave or execute twice.
+  const commandQueueRef = useRef<Promise<void>>(Promise.resolve());
   const submitRealtimeToolResultRef = useRef<
     (toolCallId: string, result: { success: boolean; message?: string; error?: string }) => void
   >(() => undefined);
@@ -285,6 +296,7 @@ function VoiceCommandBarInner({
         await queryClient.invalidateQueries();
         setPreview(null);
         setText("");
+        setLastDone(next.plan.readback);
         return true;
       } catch (error) {
         setExecutionError(
@@ -382,7 +394,12 @@ function VoiceCommandBarInner({
   const resolvePreview = useCallback(
     (base: VoicePreview): VoicePreview => {
       const query = patientQueryFromPreview(base);
-      if (!query || base.plan.contextPatientId) return base;
+      if (!query) return base;
+      if (base.plan.contextPatientId) {
+        const other = pickPatientOverride(query, base.plan.contextPatientId, patients);
+        if (!other) return base;
+        return { ...base, plan: { ...base.plan, contextPatientId: other.id } };
+      }
 
       const matches = resolveVoicePatient(query, patients);
       const best = matches[0];
@@ -440,13 +457,14 @@ function VoiceCommandBarInner({
     [assistantContext, pathname, resolvePreview],
   );
 
-  const processCommand = useCallback(
+  const runCommand = useCallback(
     async (command: string) => {
       const clean = command.trim();
       if (!clean) return;
       setText(clean);
       setHeard(clean);
       setExecutionError(null);
+      setLastDone(null);
 
       const next = preparePreview(clean);
       if (canExecuteVoicePreview(next) && isNavigationOnly(next)) {
@@ -461,10 +479,16 @@ function VoiceCommandBarInner({
       // The local rules are free: when they fully understood the order, Claude
       // isn't called. Claude (paid per call) handles only what they can't, and
       // the rules stay as the fallback when it isn't configured or doesn't answer.
-      if (claudeAvailableRef.current && !canExecuteVoicePreview(next)) {
+      if (
+        claudeAvailableRef.current &&
+        (!canExecuteVoicePreview(next) || isLiteralNoteFallback(next))
+      ) {
         setInterpreting(true);
         try {
-          const result = await getBrowserApi().voice.interpret({ text: clean, pathname });
+          const result = await withTimeout(
+            getBrowserApi().voice.interpret({ text: clean, pathname }),
+            CLAUDE_INTERPRET_TIMEOUT_MS,
+          );
           const interpreted = resolvePreview(
             previewFromClaude(
               clean,
@@ -482,8 +506,12 @@ function VoiceCommandBarInner({
           setPreview(interpreted);
           return;
         } catch (error) {
-          if (error instanceof DentyApiError && error.code === "VOICE_CLAUDE_NOT_CONFIGURED") {
+          if (error instanceof DentyApiError && error.code === "VOICE_AI_NOT_CONFIGURED") {
             claudeAvailableRef.current = false;
+          } else if (error instanceof VoiceTimeoutError) {
+            setExecutionError("La IA tardó demasiado; te muestro lo que entendí en local.");
+          } else if (error instanceof DentyApiError && error.code === "VOICE_AI_DECLINED") {
+            setExecutionError(error.message);
           }
         } finally {
           setInterpreting(false);
@@ -496,6 +524,18 @@ function VoiceCommandBarInner({
       setPreview(next);
     },
     [assistantContext, executeResolvedPreview, pathname, preparePreview, resolvePreview, router],
+  );
+
+  const processCommand = useCallback(
+    (command: string): Promise<void> => {
+      const run = commandQueueRef.current.then(
+        () => runCommand(command),
+        () => runCommand(command),
+      );
+      commandQueueRef.current = run.catch(() => undefined);
+      return run;
+    },
+    [runCommand],
   );
 
   const interpret = useCallback(() => {
@@ -954,6 +994,10 @@ function VoiceCommandBarInner({
               ) : executionError && !preview ? (
                 <Text size="xs" c="red">
                   {executionError}
+                </Text>
+              ) : lastDone ? (
+                <Text size="xs" c="teal" lineClamp={3}>
+                  Hecho: {lastDone}
                 </Text>
               ) : heard ? (
                 <Text size="xs" c="dimmed" lineClamp={2}>

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { LocalVoiceAction, LocalVoicePlan } from "../local-nlu";
 import {
   canExecuteVoicePreview,
+  isLiteralNoteFallback,
   patientIdFromPathname,
   previewVoiceCommand,
   primaryHrefForVoicePlan,
@@ -272,5 +273,44 @@ describe("navigation voice commands", () => {
 
     expect(preview.plan.actions.map((action) => action.type)).toEqual(["navigation.open"]);
     expect(primaryHrefForVoicePlan(preview.plan)).toBe(href);
+  });
+});
+
+describe("safety of spoken auto-execution", () => {
+  const note = (extra: Partial<Extract<LocalVoiceAction, { type: "clinical.note" }>> = {}) =>
+    ({ type: "clinical.note", patientRef: "", text: "x", ...extra }) as LocalVoiceAction;
+
+  it("never auto-executes a literal fallback note (unrecognized speech)", () => {
+    const preview = makePreview([note({ literalFallback: true })], { contextPatientId: "p1" });
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
+    expect(isLiteralNoteFallback(preview)).toBe(true);
+  });
+
+  it("still auto-executes an explicit dictated note", () => {
+    const preview = makePreview([note()], { contextPatientId: "p1" });
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
+    expect(isLiteralNoteFallback(preview)).toBe(false);
+  });
+
+  it.each([
+    { type: "payment.record", patientRef: "", amountCents: 5000, method: "CASH" },
+    { type: "appointment.no_show", patientRef: "" },
+    { type: "appointment.arrive", patientRef: "" },
+    { type: "appointment.schedule", patientRef: "" },
+    { type: "clinical.alert", patientRef: "", text: "a", severity: "HIGH" },
+    { type: "budget.sync", patientRef: "" },
+    { type: "lab.transition", patientRef: "", status: "RECEIVED" },
+  ] as unknown as LocalVoiceAction[])("never auto-executes $type", (action) => {
+    expect(shouldAutoExecuteSpokenPreview(makePreview([action], { contextPatientId: "p1" }))).toBe(
+      false,
+    );
+  });
+
+  it("does not auto-execute when a safe action is mixed with a sensitive one", () => {
+    const preview = makePreview(
+      [note(), { type: "payment.record", patientRef: "" } as LocalVoiceAction],
+      { contextPatientId: "p1" },
+    );
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
   });
 });

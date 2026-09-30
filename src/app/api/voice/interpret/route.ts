@@ -103,6 +103,9 @@ export async function POST(request: Request): Promise<Response> {
         "La IA de voz esta saturada; intentalo en un momento.",
       );
     }
+    if (caught instanceof Anthropic.APIConnectionTimeoutError) {
+      return apiError(504, "VOICE_AI_TIMEOUT", "La IA de voz ha tardado demasiado en responder.");
+    }
     if (caught instanceof Anthropic.APIError) {
       return apiError(502, "VOICE_AI_FAILED", "La IA de voz no ha respondido correctamente.");
     }

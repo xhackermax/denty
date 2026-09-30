@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { CLAUDE_VOICE_TOOLS, actionsFromToolCalls } from "./claude-voice-tools";
+import {
+  CLAUDE_VOICE_SYSTEM,
+  CLAUDE_VOICE_TOOLS,
+  actionsFromToolCalls,
+} from "./claude-voice-tools";
 
 describe("Claude voice tools", () => {
   it("declares strict schemas", () => {
@@ -100,5 +104,13 @@ describe("Claude voice tools", () => {
       "no he entendido bien parte de la orden",
       "el número de diente",
     ]);
+  });
+});
+
+describe("CLAUDE_VOICE_SYSTEM scope", () => {
+  it("tells Claude that agenda, payments and absences are not available and must be clarified", () => {
+    expect(CLAUDE_VOICE_SYSTEM).toMatch(/citas/i);
+    expect(CLAUDE_VOICE_SYSTEM).toMatch(/cobros/i);
+    expect(CLAUDE_VOICE_SYSTEM).toMatch(/pedir_aclaracion/);
   });
 });

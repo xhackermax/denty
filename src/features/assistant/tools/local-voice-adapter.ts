@@ -21,13 +21,34 @@ function toArgs(action: LocalVoiceAction, plan: LocalVoicePlan): unknown | undef
   const patientId = patientIdFor(plan);
 
   switch (action.type) {
-    case "appointment.arrive":
-    case "appointment.schedule":
-    case "lab.transition":
-    case "clinical.add_dependency":
     case "clinical.alert":
-    case "clinical.prosthesis_options":
+      // Denty has no patient medical-alert endpoint; admin alerts are system-wide.
       return undefined;
+    case "appointment.arrive":
+      return patientId ? { patientId } : undefined;
+    case "appointment.schedule":
+      return patientId
+        ? {
+            patientId,
+            dateText: action.dateText,
+            ...(action.timeText !== undefined ? { timeText: action.timeText } : {}),
+            ...(action.durationMin !== undefined ? { durationMin: action.durationMin } : {}),
+            ...(action.staffRef !== undefined ? { staffRef: action.staffRef } : {}),
+          }
+        : undefined;
+    case "lab.transition":
+      return patientId ? { patientId, status: action.status } : undefined;
+    case "clinical.add_dependency":
+      return patientId && action.tooth
+        ? {
+            patientId,
+            tooth: action.tooth,
+            beforeCode: action.beforeCode,
+            afterCode: action.afterCode,
+          }
+        : undefined;
+    case "clinical.prosthesis_options":
+      return patientId && action.teeth.length ? { patientId, teeth: action.teeth } : undefined;
     case "clinical.add_item":
     case "clinical.complete_item":
     case "clinical.mark_unsatisfactory":
@@ -40,7 +61,7 @@ function toArgs(action: LocalVoiceAction, plan: LocalVoicePlan): unknown | undef
           }
         : undefined;
     case "navigation.open":
-      return { destination: action.destination };
+      return { destination: action.destination, ...(patientId ? { patientId } : {}) };
     case "navigation.patient":
       return patientId ? { patientId } : undefined;
     case "patient.create":

@@ -68,20 +68,12 @@ it("maps appointment reschedule and no-show to registered assistant tools", () =
   ]);
 });
 
-it("reports unsupported local actions explicitly instead of dropping them", () => {
+it("adapts agenda, lab and plan actions to registered tools", () => {
   const result = localVoicePlanToToolCalls(
     plan([
-      {
-        type: "appointment.schedule",
-        patientRef: "actual",
-        dateText: "lunes",
-        timeText: "12:00",
-      },
-      {
-        type: "lab.transition",
-        patientRef: "actual",
-        status: "RECEIVED",
-      },
+      { type: "appointment.arrive", patientRef: "actual" },
+      { type: "appointment.schedule", patientRef: "actual", dateText: "lunes", timeText: "12:00" },
+      { type: "lab.transition", patientRef: "actual", status: "RECEIVED" },
       {
         type: "clinical.add_dependency",
         patientRef: "actual",
@@ -89,15 +81,41 @@ it("reports unsupported local actions explicitly instead of dropping them", () =
         beforeCode: "endodontics",
         afterCode: "crown",
       },
+      { type: "clinical.prosthesis_options", patientRef: "actual", teeth: ["14", "15"] },
+    ]),
+  );
+
+  expect(result.unsupported).toEqual([]);
+  expect(result.calls.map((call) => call.name)).toEqual([
+    "appointment.arrive",
+    "appointment.schedule",
+    "lab.transition",
+    "clinical.add_dependency",
+    "clinical.prosthesis_options",
+  ]);
+});
+
+it("reports unsupported local actions explicitly instead of dropping them", () => {
+  const result = localVoicePlanToToolCalls(
+    plan([
+      {
+        type: "clinical.alert",
+        patientRef: "actual",
+        text: "Alergia a penicilina",
+        severity: "HIGH",
+      },
     ]),
   );
 
   expect(result.calls).toEqual([]);
-  expect(result.unsupported).toEqual([
-    "appointment.schedule",
-    "lab.transition",
-    "clinical.add_dependency",
-  ]);
+  expect(result.unsupported).toEqual(["clinical.alert"]);
+});
+
+it("passes the open patient to navigation.open so the odontogram can be reached", () => {
+  const result = localVoicePlanToToolCalls(
+    plan([{ type: "navigation.open", destination: "odontogram" }]),
+  );
+  expect(result.calls[0]?.args).toEqual({ destination: "odontogram", patientId: "p1" });
 });
 
 const treatment = (

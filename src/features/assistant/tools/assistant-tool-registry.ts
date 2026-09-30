@@ -96,6 +96,36 @@ const definitions: AssistantToolDefinition[] = [
     requiresPatient: true,
   },
   {
+    name: "appointment.arrive",
+    risk: "RED",
+    description: "Marcar la llegada de un paciente",
+    requiresPatient: true,
+  },
+  {
+    name: "appointment.schedule",
+    risk: "RED",
+    description: "Agendar una cita",
+    requiresPatient: true,
+  },
+  {
+    name: "lab.transition",
+    risk: "YELLOW",
+    description: "Actualizar el estado de un trabajo de laboratorio",
+    requiresPatient: true,
+  },
+  {
+    name: "clinical.add_dependency",
+    risk: "YELLOW",
+    description: "Ordenar dos tratamientos del plan de un diente",
+    requiresPatient: true,
+  },
+  {
+    name: "clinical.prosthesis_options",
+    risk: "RED",
+    description: "Crear opciones de prótesis para dientes ausentes",
+    requiresPatient: true,
+  },
+  {
     name: "documents.export",
     risk: "RED",
     description: "Exportar documentación del paciente",

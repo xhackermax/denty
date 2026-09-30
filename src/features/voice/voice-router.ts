@@ -151,8 +151,19 @@ const SPOKEN_AUTORUN_ACTIONS = new Set<LocalVoiceAction["type"]>([
   "clinical.note",
 ]);
 
+/**
+ * True when the local rules understood nothing and only kept the raw speech as a
+ * note. That isn't an interpretation: Claude gets a chance first and a human confirms.
+ */
+export function isLiteralNoteFallback(preview: VoicePreview): boolean {
+  return preview.plan.actions.some(
+    (action) => action.type === "clinical.note" && action.literalFallback === true,
+  );
+}
+
 export function shouldAutoExecuteSpokenPreview(preview: VoicePreview): boolean {
   if (!canExecuteVoicePreview(preview)) return false;
+  if (isLiteralNoteFallback(preview)) return false;
   if (!preview.plan.contextPatientId) return false;
   const actionable = preview.plan.actions.filter((action) => action.type !== "patient.resolve");
   return (
