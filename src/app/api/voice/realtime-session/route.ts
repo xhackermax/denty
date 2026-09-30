@@ -5,6 +5,11 @@ import {
 } from "@/server/realtime/gateway";
 import { resolveRequestIdentity } from "@/server/denty-supabase/route-handler";
 import { convertToolsForRealtime } from "@/features/voice/realtime-tools";
+import {
+  resolveSupabaseAuthCredentials,
+  resolveSupabasePublicCredentials,
+} from "@/server/supabase/credentials";
+import { getServerEnv } from "@/shared/config/env";
 
 /**
  * POST /api/voice/realtime-session
@@ -13,6 +18,21 @@ import { convertToolsForRealtime } from "@/features/voice/realtime-tools";
  */
 export async function POST(request: Request) {
   try {
+    // Check if Supabase is configured
+    const env = getServerEnv();
+    const publicCreds = resolveSupabasePublicCredentials(env);
+    if (!publicCreds) {
+      return Response.json({ error: "Supabase no está configurado" }, { status: 503 });
+    }
+
+    const authCreds = resolveSupabaseAuthCredentials(env);
+    if (!authCreds) {
+      return Response.json(
+        { error: "Supabase no está listo para validar la sesión" },
+        { status: 503 },
+      );
+    }
+
     // Verify user is authenticated
     const identity = await resolveRequestIdentity(request);
     if (!identity) {
