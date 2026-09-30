@@ -24,6 +24,7 @@ import { getBrowserApi } from "@/shared/api/browser";
 import { useClinicalPlanQuery, useConsentRequirementsQuery } from "@/shared/clinical/clinical-data";
 import { documentValues, useDocumentContext } from "@/shared/documents/document-context";
 import { printClinicalDocument } from "@/shared/documents/print-document";
+import { PrintNotice, usePrintNotice } from "@/shared/print/print-notice";
 import { TemplateText } from "@/shared/documents/template-text";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { dentyQueryKeys } from "@/shared/query";
@@ -133,6 +134,7 @@ export function DocumentsModule() {
   const [companionDni, setCompanionDni] = useState("");
 
   const context = useDocumentContext();
+  const printNotice = usePrintNotice();
   const doctorId = doctorChoice ?? context.defaultDoctorId;
   const consents = useConsentRequirementsQuery(patientId ?? "", Boolean(patientId));
   const plan = useClinicalPlanQuery(patientId ?? "", Boolean(patientId));
@@ -251,13 +253,17 @@ export function DocumentsModule() {
   });
 
   const downloadFile = async (id: string, fileName?: string | null) => {
-    const blob = await getBrowserApi().documents.download(id);
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = fileName || "documento";
-    anchor.click();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = await getBrowserApi().documents.download(id);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileName || "documento";
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch {
+      printNotice.fail("No se pudo descargar el archivo.");
+    }
   };
 
   const templateRows = (templates.data?.items ?? []) as TemplateRow[];
@@ -281,24 +287,26 @@ export function DocumentsModule() {
       data?: Record<string, unknown> | undefined;
     },
     template: TemplateRow | undefined,
-  ) => {
-    const patient = patientById.get(document.patientId);
-    if (!patient || !template?.body) return;
-    printClinicalDocument({
-      title: document.title,
-      templateCode: template.code,
-      templateBody: template.body,
-      patient,
-      context,
-      data: document.data,
-      signed:
-        document.signedAt && document.signerName
-          ? { signerName: document.signerName, signedAt: document.signedAt }
-          : null,
-      createdAt: document.createdAt,
-      reference: document.id?.slice(0, 8),
+  ) =>
+    printNotice.run(async () => {
+      const patient = patientById.get(document.patientId);
+      if (!patient) throw new Error("No se encontró al paciente de este documento.");
+      if (!template?.body) throw new Error("Este documento no tiene una plantilla imprimible.");
+      await printClinicalDocument({
+        title: document.title,
+        templateCode: template.code,
+        templateBody: template.body,
+        patient,
+        context,
+        data: document.data,
+        signed:
+          document.signedAt && document.signerName
+            ? { signerName: document.signerName, signedAt: document.signedAt }
+            : null,
+        createdAt: document.createdAt,
+        reference: document.id?.slice(0, 8),
+      });
     });
-  };
   const signingTemplate = signing?.templateId ? templateById.get(signing.templateId) : undefined;
   const signingPatient = signing ? patientById.get(signing.patientId) : undefined;
   const signingDoctorId =
@@ -327,6 +335,10 @@ export function DocumentsModule() {
   return (
     <Stack gap="md">
       {hasError ? <Alert color="red">No se pudieron cargar todos los documentos.</Alert> : null}
+      <PrintNotice error={printNotice.error} onClose={printNotice.clear} />
+      {create.isError ? <Alert color="red">No se pudo crear el documento.</Alert> : null}
+      {finalize.isError ? <Alert color="red">No se pudo finalizar el documento.</Alert> : null}
+      {uploadFile.isError ? <Alert color="red">No se pudo adjuntar el archivo.</Alert> : null}
 
       {patientId ? (
         <section className={styles.section} aria-label="Consentimientos del plan">
