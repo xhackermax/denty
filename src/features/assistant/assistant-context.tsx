@@ -58,10 +58,13 @@ export function AssistantContextProvider({ children }: { children: ReactNode }) 
   const [patch, setPatch] = useState<AssistantContextPatch>({});
   const value = useMemo<AssistantContext>(() => {
     const inferredPatientId = patientIdFromPath(pathname);
-    return applyContextPatch({
-      pathname,
-      ...(inferredPatientId ? { patientId: inferredPatientId } : {}),
-    }, patch);
+    return applyContextPatch(
+      {
+        pathname,
+        ...(inferredPatientId ? { patientId: inferredPatientId } : {}),
+      },
+      patch,
+    );
   }, [pathname, patch]);
 
   return (

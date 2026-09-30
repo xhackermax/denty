@@ -1,4 +1,5 @@
 import type { LocalVoiceAction, LocalVoicePlan } from "@/features/voice/local-nlu";
+import { isOdontogramTreatmentCode } from "@/features/voice/voice-odontogram";
 
 import type { AssistantToolCall } from "../assistant-types";
 import { getAssistantToolDefinition } from "./assistant-tool-registry";
@@ -23,13 +24,21 @@ function toArgs(action: LocalVoiceAction, plan: LocalVoicePlan): unknown | undef
     case "appointment.arrive":
     case "appointment.schedule":
     case "lab.transition":
-    case "clinical.add_item":
-    case "clinical.complete_item":
-    case "clinical.mark_unsatisfactory":
     case "clinical.add_dependency":
     case "clinical.alert":
     case "clinical.prosthesis_options":
       return undefined;
+    case "clinical.add_item":
+    case "clinical.complete_item":
+    case "clinical.mark_unsatisfactory":
+      return patientId && action.tooth && isOdontogramTreatmentCode(action.treatmentCode)
+        ? {
+            patientId,
+            tooth: action.tooth,
+            treatmentCode: action.treatmentCode,
+            surfaces: action.surfaces,
+          }
+        : undefined;
     case "navigation.open":
       return { destination: action.destination };
     case "navigation.patient":

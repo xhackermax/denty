@@ -83,12 +83,11 @@ it("reports unsupported local actions explicitly instead of dropping them", () =
         status: "RECEIVED",
       },
       {
-        type: "clinical.add_item",
+        type: "clinical.add_dependency",
         patientRef: "actual",
         tooth: "14",
-        treatmentCode: "endodontics",
-        label: "Endodoncia",
-        surfaces: [],
+        beforeCode: "endodontics",
+        afterCode: "crown",
       },
     ]),
   );
@@ -97,6 +96,48 @@ it("reports unsupported local actions explicitly instead of dropping them", () =
   expect(result.unsupported).toEqual([
     "appointment.schedule",
     "lab.transition",
-    "clinical.add_item",
+    "clinical.add_dependency",
   ]);
+});
+
+const treatment = (
+  type: "clinical.add_item" | "clinical.complete_item" | "clinical.mark_unsatisfactory",
+  overrides: Partial<{ tooth: string; treatmentCode: string }> = {},
+): LocalVoiceAction => ({
+  type,
+  patientRef: "actual",
+  tooth: "27",
+  treatmentCode: "extraction",
+  label: "Extracción",
+  surfaces: [],
+  ...overrides,
+});
+
+it.each(["clinical.add_item", "clinical.complete_item", "clinical.mark_unsatisfactory"] as const)(
+  "maps %s on the open patient to a registered tool",
+  (type) => {
+    const result = localVoicePlanToToolCalls(plan([treatment(type)]));
+
+    expect(result.unsupported).toEqual([]);
+    expect(result.calls[0]).toMatchObject({
+      name: type,
+      args: { patientId: "p1", tooth: "27", treatmentCode: "extraction", surfaces: [] },
+    });
+  },
+);
+
+it("keeps treatments unsupported without a tooth or a drawable treatment", () => {
+  const noTooth: LocalVoiceAction = {
+    type: "clinical.add_item",
+    patientRef: "actual",
+    treatmentCode: "extraction",
+    label: "Extracción",
+    surfaces: [],
+  };
+  const result = localVoicePlanToToolCalls(
+    plan([noTooth, treatment("clinical.add_item", { treatmentCode: "prophylaxis" })]),
+  );
+
+  expect(result.calls).toEqual([]);
+  expect(result.unsupported).toEqual(["clinical.add_item", "clinical.add_item"]);
 });

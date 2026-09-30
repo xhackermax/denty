@@ -1,11 +1,17 @@
-import { archForTooth, createBridgeEntities, createRemovable, type DentalEntity } from "@/domain";
+import {
+  archForTooth,
+  createBridgeEntities,
+  createRemovable,
+  type DentalEntity,
+  type ToothSurface,
+} from "@/domain";
 import { getBrowserApi } from "@/shared/api/browser";
 import {
   createStateEntity,
   domainEntityToApiInput,
   persistedEntityToDomain,
 } from "@/shared/odontogram/odontogram-wire";
-import { mergeVoiceEntities } from "@/features/voice/voice-odontogram";
+import { entityForVoiceAction, mergeVoiceEntities } from "@/features/voice/voice-odontogram";
 
 import type { AssistantToolCall } from "../assistant-types";
 import { assistantToolNeedsConfirmation } from "./assistant-policy";
@@ -142,6 +148,28 @@ export async function executeAssistantTool(
     const arch =
       archValue === "UPPER" ? "upper" : archValue === "LOWER" ? "lower" : archForTooth(first);
     await saveOdontogramEntities(String(args.patientId), [createRemovable(arch, teeth)]);
+    return { type: "NONE" };
+  }
+  if (
+    call.name === "clinical.add_item" ||
+    call.name === "clinical.complete_item" ||
+    call.name === "clinical.mark_unsatisfactory"
+  ) {
+    const patientId = String(args.patientId);
+    const entity = entityForVoiceAction({
+      type: call.name,
+      patientRef: "",
+      tooth: String(args.tooth),
+      treatmentCode: String(args.treatmentCode),
+      label: "",
+      surfaces: (args.surfaces as ToothSurface[] | undefined) ?? [],
+    });
+    if (!entity) throw new Error("Este tratamiento no se puede dibujar en el odontograma.");
+    await saveOdontogramEntities(patientId, [entity]);
+    if (call.name === "clinical.add_item") {
+      // The odontogram is already saved; the UI flags an outdated plan and can re-sync it.
+      await api.clinical.sync.plan(patientId).catch(() => undefined);
+    }
     return { type: "NONE" };
   }
   throw new Error(`Herramienta de Denty no implementada: ${call.name}`);

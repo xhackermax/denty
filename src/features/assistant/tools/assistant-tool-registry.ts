@@ -52,6 +52,24 @@ const definitions: AssistantToolDefinition[] = [
     requiresPatient: true,
   },
   {
+    name: "clinical.add_item",
+    risk: "YELLOW",
+    description: "Planificar un tratamiento en un diente",
+    requiresPatient: true,
+  },
+  {
+    name: "clinical.mark_unsatisfactory",
+    risk: "YELLOW",
+    description: "Marcar un tratamiento como insatisfactorio",
+    requiresPatient: true,
+  },
+  {
+    name: "clinical.complete_item",
+    risk: "RED",
+    description: "Registrar un tratamiento como realizado",
+    requiresPatient: true,
+  },
+  {
     name: "clinical.note",
     risk: "YELLOW",
     description: "Añadir una nota clínica",
