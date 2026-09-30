@@ -98,10 +98,20 @@ export function createCoreResource(client: ApiClient) {
       logout: () => client.mutation("/api/auth/logout", okSchema, {}),
     },
     patients: {
-      list: (options: { includeArchived?: boolean } = {}) =>
+      list: (
+        options: {
+          includeArchived?: boolean;
+          search?: string;
+          page?: number;
+          pageSize?: number;
+        } = {},
+      ) =>
         client.request(
           withQuery("/api/patients", {
             includeArchived: options.includeArchived ? "true" : undefined,
+            search: options.search || undefined,
+            page: options.page ? String(options.page) : undefined,
+            pageSize: options.pageSize ? String(options.pageSize) : undefined,
           }),
           pageSchema(patientSchema),
         ),

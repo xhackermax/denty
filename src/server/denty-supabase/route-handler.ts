@@ -2376,8 +2376,21 @@ export async function handleSupabaseDentyRoute(
     }
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "patients") {
       if (method === "GET") {
-        const includeArchived = new URL(request.url).searchParams.get("includeArchived") === "true";
-        return json(200, await repo.listPatients({ includeArchived }), headers);
+        const url = new URL(request.url);
+        const includeArchived = url.searchParams.get("includeArchived") === "true";
+        const search = url.searchParams.get("search");
+        const pageParam = url.searchParams.get("page");
+        const pageSizeParam = url.searchParams.get("pageSize");
+        return json(
+          200,
+          await repo.listPatients({
+            includeArchived,
+            ...(search ? { search } : {}),
+            ...(pageParam ? { page: Number(pageParam) } : {}),
+            ...(pageSizeParam ? { pageSize: Number(pageSizeParam) } : {}),
+          }),
+          headers,
+        );
       }
       if (method === "POST") {
         if (identity.actor.role === "PATIENT")

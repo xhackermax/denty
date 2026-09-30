@@ -6,10 +6,18 @@ import type { CreatePatient, UpdatePatient } from "@/shared/api";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 
-export function usePatientsQuery(enabled = true, includeArchived = false) {
+export function usePatientsQuery(
+  enabled = true,
+  includeArchived = false,
+  search?: string,
+) {
   return useQuery({
-    queryKey: dentyQueryKeys.patients.list(includeArchived),
-    queryFn: () => getBrowserApi().patients.list({ includeArchived }),
+    queryKey: [...dentyQueryKeys.patients.list(includeArchived), search ?? ""],
+    queryFn: () =>
+      getBrowserApi().patients.list({
+        includeArchived,
+        ...(search ? { search } : {}),
+      }),
     enabled,
   });
 }

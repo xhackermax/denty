@@ -26,7 +26,7 @@ import {
 } from "@tabler/icons-react";
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { dateDMY } from "@/domain/dates";
@@ -109,30 +109,15 @@ export function PatientsPage() {
   const scrollFrameRef = useRef<number | null>(null);
   const scrollSettleTimerRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const patientsQuery = usePatientsQuery(true, includeArchived);
+  const deferredQuery = useDeferredValue(query);
+  const patientsQuery = usePatientsQuery(true, includeArchived, deferredQuery || undefined);
   const createMutation = useCreatePatientMutation();
   const uploadPhotoMutation = useUploadPatientPhotoMutation();
 
-  const patients = useMemo<readonly PatientCardView[]>(
+  const filtered = useMemo<readonly PatientCardView[]>(
     () => (patientsQuery.data?.items ?? []).map(patientCardFromApi),
     [patientsQuery.data],
   );
-
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase("es");
-    if (!normalized) return patients;
-    return patients.filter((patient) => {
-      const haystack = [
-        patient.firstName,
-        patient.lastName,
-        patient.recordNumber,
-        patient.dni ?? "",
-      ]
-        .join(" ")
-        .toLocaleLowerCase("es");
-      return haystack.includes(normalized);
-    });
-  }, [patients, query]);
 
   const importPatients = async (file: File | null) => {
     if (!file) return;

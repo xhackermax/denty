@@ -30,6 +30,47 @@ export class SupabaseRestClient {
     return this.parseJson<T[]>(response);
   }
 
+  async selectPage<T>(
+    table: string,
+    query: Record<string, string | number | undefined> = {},
+    options: { offset: number; limit: number } = { offset: 0, limit: 1000 },
+  ): Promise<{ rows: T[]; total: number }> {
+    const url = this.url(table, query);
+    const end = options.offset + options.limit - 1;
+    const response = await this.fetchImpl(url, {
+      method: "GET",
+      headers: this.headers({
+        prefer: "count=exact",
+        range: `${options.offset}-${end}`,
+        "range-unit": "items",
+      }),
+      cache: "no-store",
+    });
+    const contentRange = response.headers.get("content-range");
+    const total = contentRange ? Number(contentRange.split("/")[1]) : 0;
+    const rows = await this.parseJson<T[]>(response);
+    return { rows, total: Number.isFinite(total) ? total : rows.length };
+  }
+
+  async selectAll<T>(
+    table: string,
+    query: Record<string, string | number | undefined> = {},
+    pageSize = 1000,
+  ): Promise<T[]> {
+    const all: T[] = [];
+    let offset = 0;
+    for (;;) {
+      const { rows, total } = await this.selectPage<T>(table, query, {
+        offset,
+        limit: pageSize,
+      });
+      all.push(...rows);
+      offset += rows.length;
+      if (rows.length < pageSize || offset >= total) break;
+    }
+    return all;
+  }
+
   async insert<T>(table: string, body: Record<string, unknown>) {
     const response = await this.fetchImpl(this.url(table), {
       method: "POST",

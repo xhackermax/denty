@@ -173,14 +173,46 @@ export class PatientRepository {
     this.allowedPatientIds = options.allowedPatientIds;
   }
 
-  async listPatients(options: { includeArchived?: boolean } = {}) {
+  async listPatients(
+    options: {
+      includeArchived?: boolean;
+      search?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) {
     const query: Record<string, string | number | undefined> = {
       select: "*",
       order: "created_at.desc",
       ...(options.includeArchived ? {} : { archived_at: "is.null" }),
     };
     if (this.clinicId) query.clinic_id = `eq.${this.clinicId}`;
-    const rows = await this.client.select<PatientRow>("patients", query);
+
+    const searchTerm = options.search?.trim();
+    if (searchTerm) {
+      const escaped = searchTerm.replace(/[%_]/g, (ch) => `\\${ch}`);
+      const pattern = `*${escaped}*`;
+      query.or = [
+        `first_name.ilike.${pattern}`,
+        `last_name.ilike.${pattern}`,
+        `record_number.ilike.${pattern}`,
+        `dni.ilike.${pattern}`,
+      ].join(",");
+    }
+
+    if (searchTerm || options.page) {
+      const page = Math.max(1, options.page ?? 1);
+      const pageSize = Math.max(1, Math.min(options.pageSize ?? 50, 200));
+      const offset = (page - 1) * pageSize;
+      const { rows, total } = await this.client.selectPage<PatientRow>("patients", query, {
+        offset,
+        limit: pageSize,
+      });
+      const items = rows.filter((row) => this.canReadPatient(row.id)).map(rowToPatient);
+      return { items, total, page, pageSize };
+    }
+
+    const rows = await this.client.selectAll<PatientRow>("patients", query);
     const items = rows.filter((row) => this.canReadPatient(row.id)).map(rowToPatient);
     return { items, total: items.length, page: 1, pageSize: items.length || 50 };
   }
