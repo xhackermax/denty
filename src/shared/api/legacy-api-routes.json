@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
-  "routeCount": 225,
+  "routeCount": 226,
   "routes": [
     {
       "method": "GET",
@@ -1391,6 +1391,12 @@
     {
       "method": "POST",
       "path": "/api/tasks",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tasks/reorder",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },

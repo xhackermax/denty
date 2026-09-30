@@ -58,6 +58,7 @@ import {
   createAbsenceSchema,
   createLaboratorySchema,
   createTaskSchema,
+  reorderTasksSchema,
   recordSupplierInvoiceSchema,
   recordSupplierPaymentSchema,
   updateLaboratorySchema,
@@ -111,7 +112,7 @@ import { LaboratoryRepository } from "./laboratory-repository";
 import { AlertsRepository } from "./alerts-repository";
 import { StaffPrivacyRepository } from "./staff-privacy-repository";
 import { EngagementRepository } from "./engagement-repository";
-import { TaskRepository } from "./task-repository";
+import { TaskRepository, mapTaskRpcError } from "./task-repository";
 import { PrescriptionRepository } from "./prescription-repository";
 import { buildPrescriptionPdf } from "./prescription-pdf";
 import { buildInvoicePdf } from "./invoice-pdf";
@@ -872,17 +873,57 @@ export async function handleSupabaseDentyRoute(
       if (method === "POST")
         return json(201, await tasks.create(await parseJson(request, createTaskSchema)), headers);
     }
+    if (
+      parts.length === 3 &&
+      parts[0] === "api" &&
+      parts[1] === "tasks" &&
+      parts[2] === "reorder" &&
+      method === "POST"
+    ) {
+      if (identity.actor.role === "PATIENT")
+        return error(403, "FORBIDDEN", "El portal no gestiona tareas internas.");
+      const payload = await parseJson(request, reorderTasksSchema);
+      try {
+        return json(200, await tasks.reorder(payload.orderedIds), headers);
+      } catch (caught) {
+        const mapped = mapTaskRpcError(caught);
+        if (mapped) return error(mapped.status, mapped.code, mapped.message);
+        throw caught;
+      }
+    }
     if (parts.length === 3 && parts[0] === "api" && parts[1] === "tasks" && method === "PATCH") {
       if (identity.actor.role === "PATIENT")
         return error(403, "FORBIDDEN", "El portal no gestiona tareas internas.");
-      return json(
-        200,
-        await tasks.updateStatus(
-          decodeURIComponent(parts[2] ?? ""),
-          await parseJson(request, updateTaskSchema),
-        ),
-        headers,
-      );
+      const taskId = decodeURIComponent(parts[2] ?? "");
+      const payload = await parseJson(request, updateTaskSchema);
+      const { status } = payload;
+      const isLegacyStatusUpdate =
+        status !== undefined &&
+        payload.title === undefined &&
+        payload.priority === undefined &&
+        payload.durationMin === undefined &&
+        payload.archived === undefined &&
+        payload.dueAt !== null;
+      try {
+        // Legacy {status, expectedVersion} callers keep hitting update_task_status.
+        const updated = isLegacyStatusUpdate
+          ? await tasks.updateStatus(taskId, {
+              status,
+              ...(payload.expectedVersion !== undefined && {
+                expectedVersion: payload.expectedVersion,
+              }),
+              ...(payload.assigneeStaffId !== undefined && {
+                assigneeStaffId: payload.assigneeStaffId,
+              }),
+              ...(payload.dueAt ? { dueAt: payload.dueAt } : {}),
+            })
+          : await tasks.update(taskId, payload);
+        return json(200, updated, headers);
+      } catch (caught) {
+        const mapped = mapTaskRpcError(caught);
+        if (mapped) return error(mapped.status, mapped.code, mapped.message);
+        throw caught;
+      }
     }
     // Stage 12: prescriptions are canonical Supabase records with immutable signature evidence.
     if (

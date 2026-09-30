@@ -252,6 +252,7 @@ export type CreateAbsence = z.input<typeof createAbsenceSchema>;
 
 export const taskStatusSchema = z.enum(["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"]);
 export const taskPrioritySchema = z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]);
+const taskDurationSchema = z.number().int().min(1).max(1440);
 export const taskSchema = z
   .object({
     id: idSchema,
@@ -265,6 +266,9 @@ export const taskSchema = z
     dueAt: isoDateTimeSchema.nullable().optional(),
     sourceType: z.string().nullable().optional(),
     sourceId: z.string().nullable().optional(),
+    position: z.number().int(),
+    durationMin: z.number().int().min(1).max(1440),
+    archivedAt: isoDateTimeSchema.nullable().optional(),
     version: z.number().int().positive(),
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema,
@@ -281,10 +285,22 @@ export const createTaskSchema = z.object({
   dueAt: isoDateTimeSchema.optional(),
   sourceType: z.string().max(80).optional(),
   sourceId: z.string().max(200).optional(),
+  durationMin: taskDurationSchema.optional(),
 });
 export const updateTaskSchema = z.object({
-  status: taskStatusSchema,
+  status: taskStatusSchema.optional(),
+  title: z.string().trim().min(1).max(200).optional(),
+  priority: taskPrioritySchema.optional(),
+  durationMin: taskDurationSchema.optional(),
+  dueAt: isoDateTimeSchema.nullable().optional(),
+  archived: z.boolean().optional(),
   expectedVersion: z.number().int().positive().optional(),
   assigneeStaffId: idSchema.optional(),
-  dueAt: isoDateTimeSchema.optional(),
+});
+export const reorderTasksSchema = z.object({
+  orderedIds: z
+    .array(idSchema)
+    .min(1)
+    .max(500)
+    .refine((ids) => new Set(ids).size === ids.length, "orderedIds must not repeat ids"),
 });
