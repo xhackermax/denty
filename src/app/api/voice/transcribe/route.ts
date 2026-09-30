@@ -14,6 +14,10 @@ function apiError(status: number, code: string, message: string): Response {
   return Response.json({ error: { code, message } }, { status });
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  return Buffer.from(bytes).toString("base64");
+}
+
 export async function POST(request: Request): Promise<Response> {
   const origin = request.headers.get("origin");
   if (origin) {
@@ -65,9 +69,11 @@ export async function POST(request: Request): Promise<Response> {
   if (gatewayApiKey) {
     try {
       const gateway = createGateway({ apiKey: gatewayApiKey });
+      const audioBytes = new Uint8Array(await audio.arrayBuffer());
+      const mediaType = audio.type || "audio/webm";
       const result = await transcribe({
         model: gateway.transcription(gatewayTranscriptionModel(OPENAI_TRANSCRIBE_MODEL)),
-        audio: new Uint8Array(await audio.arrayBuffer()),
+        audio: new URL(`data:${mediaType};base64,${bytesToBase64(audioBytes)}`),
         providerOptions: {
           openai: { language: "es" },
         },
