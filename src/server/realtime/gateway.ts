@@ -12,6 +12,17 @@ const MODELS = {
 
 export type RealtimeModel = (typeof MODELS)[keyof typeof MODELS];
 
+interface RealtimeTool {
+  type: "function";
+  name: string;
+  description: string;
+  parameters: {
+    type: "object";
+    properties: Record<string, unknown>;
+    required: string[];
+  };
+}
+
 interface RealtimeSessionConfig {
   model: RealtimeModel;
   instructions: string;
@@ -19,6 +30,7 @@ interface RealtimeSessionConfig {
   maxTokens?: number;
   modalities?: ("text" | "audio")[];
   temperature?: number;
+  tools?: RealtimeTool[];
 }
 
 interface RealtimeSessionToken {
@@ -40,20 +52,26 @@ export async function createRealtimeSession(
     throw new Error("AI_GATEWAY_API_KEY not configured");
   }
 
+  const body: Record<string, unknown> = {
+    model: config.model,
+    instructions: config.instructions,
+    voice: config.voice ?? "nova",
+    max_response_output_tokens: config.maxTokens ?? 2048,
+    modalities: config.modalities ?? ["text", "audio"],
+    temperature: config.temperature ?? 0.7,
+  };
+
+  if (config.tools && config.tools.length > 0) {
+    body.tools = config.tools;
+  }
+
   const response = await fetch(`${VERCEL_GATEWAY_BASE}/openai/realtime/sessions`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: config.model,
-      instructions: config.instructions,
-      voice: config.voice ?? "nova",
-      max_response_output_tokens: config.maxTokens ?? 2048,
-      modalities: config.modalities ?? ["text", "audio"],
-      temperature: config.temperature ?? 0.7,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

@@ -4,6 +4,7 @@ import {
   RealtimeModels,
 } from "@/server/realtime/gateway";
 import { resolveRequestIdentity } from "@/server/denty-supabase/route-handler";
+import { convertToolsForRealtime } from "@/features/voice/realtime-tools";
 
 /**
  * POST /api/voice/realtime-session
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Create a new Realtime session
+    // Create a new Realtime session with tool support
     const sessionToken = await createRealtimeSession({
       model: RealtimeModels.GPT_REALTIME_2,
       instructions: getDentySystemPrompt(),
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
       maxTokens: 2048,
       modalities: ["text", "audio"],
       temperature: 0.7,
+      tools: convertToolsForRealtime(),
     });
 
     // Return only the client secret (the token)

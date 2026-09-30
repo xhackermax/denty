@@ -31,13 +31,27 @@ interface RealtimeResponseDone {
   };
 }
 
-type RealtimeEvent = RealtimeAudioDelta | RealtimeTextDelta | RealtimeResponseDone;
+interface RealtimeToolCallCreated {
+  type: "server.tool_calls.created";
+  tool_calls: Array<{
+    id: string;
+    type: "function";
+    function: {
+      name: string;
+      arguments: string; // JSON string
+    };
+  }>;
+}
+
+type RealtimeEvent =
+  RealtimeAudioDelta | RealtimeTextDelta | RealtimeResponseDone | RealtimeToolCallCreated;
 
 export interface UseRealtimeVoiceOptions {
   onText?: (text: string) => void;
   onTranscript?: (transcript: string) => void;
   onAudio?: (audioBase64: string) => void;
   onError?: (error: string) => void;
+  onToolCall?: (toolCall: { id: string; name: string; arguments: Record<string, unknown> }) => void;
 }
 
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions = {}) {
@@ -153,6 +167,16 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions = {}) {
           options.onText?.(message.text);
         } else if (message.type === "server.audio.delta") {
           options.onAudio?.(message.audio);
+        } else if (message.type === "server.tool_calls.created") {
+          // Handle tool calls from the model
+          for (const toolCall of message.tool_calls) {
+            const args = JSON.parse(toolCall.function.arguments) as Record<string, unknown>;
+            options.onToolCall?.({
+              id: toolCall.id,
+              name: toolCall.function.name,
+              arguments: args,
+            });
+          }
         } else if (message.type === "server.response.done") {
           // Response complete - process accumulated text
           const fullResponse = responseBufferRef.current;
@@ -182,6 +206,22 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions = {}) {
     }
   }, [startAudio, stopAudio, options]);
 
+  // Send tool result back to the model
+  const submitToolResult = useCallback(
+    (toolCallId: string, result: { success: boolean; message?: string; error?: string }) => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(
+          JSON.stringify({
+            type: "client.tool.result",
+            tool_call_id: toolCallId,
+            result: JSON.stringify(result),
+          }),
+        );
+      }
+    },
+    [],
+  );
+
   // Disconnect and cleanup
   const disconnect = useCallback(() => {
     if (wsRef.current) {
@@ -205,5 +245,6 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions = {}) {
     error,
     connect,
     disconnect,
+    submitToolResult,
   };
 }
