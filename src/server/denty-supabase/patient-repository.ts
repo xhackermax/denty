@@ -183,7 +183,7 @@ export class PatientRepository {
   ) {
     const query: Record<string, string | number | undefined> = {
       select: "*",
-      order: "created_at.desc,legacy_id.desc.nullslast,record_number.desc,id.desc",
+      order: "created_at.desc,id.desc",
       ...(options.includeArchived ? {} : { archived_at: "is.null" }),
     };
     if (this.clinicId) query.clinic_id = `eq.${this.clinicId}`;

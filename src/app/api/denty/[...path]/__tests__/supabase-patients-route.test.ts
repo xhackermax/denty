@@ -229,7 +229,7 @@ describe("Supabase-backed patient API", () => {
       .find((url) => url.pathname === "/rest/v1/patients" && !url.searchParams.has("id"));
 
     expect(patientRequest?.searchParams.get("order")).toBe(
-      "created_at.desc,legacy_id.desc.nullslast,record_number.desc,id.desc",
+      "created_at.desc,id.desc",
     );
   });
 
