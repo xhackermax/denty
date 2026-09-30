@@ -71,6 +71,7 @@ import {
   type RealtimeVoiceConfig,
 } from "./voice-realtime-adapter";
 import { createSpeechCommandBuffer } from "./speech-command-buffer";
+import { useLatestHandler } from "./use-latest-handler";
 import { VoiceTimeoutError, withTimeout } from "./with-timeout";
 
 interface SpeechRecognitionAlternativeLike {
@@ -227,6 +228,8 @@ function VoiceCommandBarInner({
   const speechCommandBufferRef = useRef(createSpeechCommandBuffer());
   // Commands run one at a time: overlapping speech must not interleave or execute twice.
   const commandQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const commandHandler = useLatestHandler<[string], Promise<void>>();
+  const dispatchCommand = commandHandler.dispatch;
   const submitRealtimeToolResultRef = useRef<
     (toolCallId: string, result: { success: boolean; message?: string; error?: string }) => void
   >(() => undefined);
@@ -323,7 +326,7 @@ function VoiceCommandBarInner({
       setVoiceStatus("processing");
     },
     onTranscript: (transcript) => {
-      void processCommand(transcript);
+      void dispatchCommand(transcript);
     },
     onError: (error) => {
       setVoiceStatus("error");
@@ -538,6 +541,11 @@ function VoiceCommandBarInner({
     [runCommand],
   );
 
+  const bindCommandHandler = commandHandler.bind;
+  useEffect(() => {
+    bindCommandHandler(processCommand);
+  }, [bindCommandHandler, processCommand]);
+
   const interpret = useCallback(() => {
     if (!text.trim()) return;
     void processCommand(text);
@@ -548,7 +556,7 @@ function VoiceCommandBarInner({
     submitRealtimeToolResultRef.current = submitToolResult;
     const config: RealtimeVoiceConfig = {
       onTranscript: (text) => {
-        void processCommand(text);
+        void dispatchCommand(text);
       },
       onError: (error) => {
         setExecutionError(error);
@@ -559,7 +567,7 @@ function VoiceCommandBarInner({
       submitToolResult: submitToolResult,
     };
     realtimeAdapterRef.current = new VoiceRealtimeAdapter(config);
-  }, [processCommand, submitToolResult]);
+  }, [dispatchCommand, submitToolResult]);
 
   const execute = async () => {
     if (!preview || !canExecuteVoicePreview(preview)) return;
@@ -614,7 +622,7 @@ function VoiceCommandBarInner({
         }
         const transcript = typeof payload?.text === "string" ? payload.text.trim() : "";
         if (!transcript) throw new Error("No se ha detectado una orden de voz.");
-        void processCommand(transcript);
+        void dispatchCommand(transcript);
       } catch (error) {
         setExecutionError(
           error instanceof Error ? error.message : "No se pudo transcribir la grabación.",
@@ -623,7 +631,7 @@ function VoiceCommandBarInner({
         setExecuting(false);
       }
     },
-    [processCommand],
+    [dispatchCommand],
   );
 
   const startRecordedFallback = useCallback(async () => {
@@ -763,7 +771,7 @@ function VoiceCommandBarInner({
         const transcript = result?.[0]?.transcript?.trim();
         if (!transcript || result?.isFinal === false) continue;
         const command = speechCommandBufferRef.current.push(transcript);
-        if (command) void processCommand(command);
+        if (command) void dispatchCommand(command);
       }
     };
     recognition.onerror = (event) => {
@@ -824,7 +832,7 @@ function VoiceCommandBarInner({
       clearSpeechTimers();
       await startRecordedFallback();
     }
-  }, [clearSpeechTimers, listening, processCommand, startRecordedFallback, stopListening]);
+  }, [clearSpeechTimers, dispatchCommand, listening, startRecordedFallback, stopListening]);
 
   const safeListen = useCallback(() => {
     listen().catch((err) => {

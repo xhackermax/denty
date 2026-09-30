@@ -18,10 +18,8 @@ function patientIdFromPath(pathname: string): string | undefined {
 function applyContextPatch(base: AssistantContext, patch: AssistantContextPatch): AssistantContext {
   const next = { ...base };
   if (patch.pathname !== undefined) next.pathname = patch.pathname;
-  if ("patientId" in patch) {
-    if (patch.patientId === undefined) delete next.patientId;
-    else next.patientId = patch.patientId;
-  }
+  // Clearing a screen's own patient returns to the one in the URL instead of dropping it.
+  if (patch.patientId !== undefined) next.patientId = patch.patientId;
   if ("patientName" in patch) {
     if (patch.patientName === undefined) delete next.patientName;
     else next.patientName = patch.patientName;
