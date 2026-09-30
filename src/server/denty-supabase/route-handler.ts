@@ -94,6 +94,7 @@ import {
   IdentityConfigurationError,
   type AuthenticatedActor,
 } from "../auth/auth-repository";
+import { getDevMockPatients, getDevMockPatient } from "./dev-fixtures";
 import {
   appendAuthSessionCookies,
   appendClearedAuthCookies,
@@ -328,6 +329,31 @@ export async function handleSupabaseDentyRoute(
   const method = request.method.toUpperCase();
   const env = getServerEnv();
   const authClient = makeAuthClient();
+
+  // Development-only: provide mock data for patients endpoint when Supabase is not configured
+  if (!authClient && env.NODE_ENV !== "production") {
+    if (parts.length === 2 && parts[0] === "api" && parts[1] === "patients" && method === "GET") {
+      const url = new URL(request.url);
+      const includeArchived = url.searchParams.get("includeArchived") === "true";
+      const search = url.searchParams.get("search");
+      const pageParam = url.searchParams.get("page");
+      const pageSizeParam = url.searchParams.get("pageSize");
+      const result = getDevMockPatients({
+        includeArchived,
+        ...(search ? { search } : {}),
+        ...(pageParam ? { page: Number(pageParam) } : {}),
+        ...(pageSizeParam ? { pageSize: Number(pageSizeParam) } : {}),
+      });
+      return json(200, result);
+    }
+    if (parts.length === 3 && parts[0] === "api" && parts[1] === "patients" && method === "GET") {
+      const patientId = decodeURIComponent(parts[2] ?? "");
+      const patient = getDevMockPatient(patientId);
+      if (patient) return json(200, patient);
+      return error(404, "PATIENT_NOT_FOUND", "Ficha no encontrada.");
+    }
+  }
+
   if (!authClient) return null;
   try {
     if (parts.length === 3 && parts[0] === "api" && parts[1] === "auth") {
