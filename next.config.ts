@@ -40,7 +40,7 @@ const COMMON_SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false,
   poweredByHeader: false,
   serverExternalPackages: ["stripe"],
   async headers() {
