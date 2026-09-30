@@ -1,7 +1,7 @@
 "use client";
 import { Alert, Badge, Button, Group, Select, SimpleGrid, Text } from "@mantine/core";
 import { IconArrowBackUp, IconArrowForwardUp, IconArrowRight } from "@tabler/icons-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ENDODONTIC_VISUAL_MARKS,
@@ -86,6 +86,26 @@ function cycleTreatmentState(state: string | undefined): ToothState | null {
   const family = triStateFamily(state);
   if (!family || !state) return null;
   return cycleClinicalState(family, state as ToothState);
+}
+
+function isSurfaceOnlyTool(tool: ToothState): boolean {
+  return ["caries", "filling", "filling_bad", "filling_pending"].includes(tool);
+}
+
+function bridgeTeethFromEntity(entity: DentalEntity): string[] {
+  const teeth = entity.attributes?.teeth;
+  return Array.isArray(teeth)
+    ? teeth.filter((tooth): tooth is string => typeof tooth === "string")
+    : [];
+}
+
+function bridgeEndpointTeethFromEntity(entity: DentalEntity): string[] {
+  const pillars = entity.attributes?.pillars;
+  if (Array.isArray(pillars)) {
+    return pillars.filter((tooth): tooth is string => typeof tooth === "string");
+  }
+  const teeth = bridgeTeethFromEntity(entity);
+  return [teeth[0], teeth.at(-1)].filter((tooth): tooth is string => Boolean(tooth));
 }
 function wholeEntity(
   state: OdontogramEntityState,
@@ -337,6 +357,7 @@ function OdontogramEditor({
   const [bridgeTo, setBridgeTo] = useState<string | null>(null);
   const [bridgePick, setBridgePick] = useState<"from" | "to">("from");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
+  const [advancedToolsOpen, setAdvancedToolsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ClinicalTab>(
     initialAction === "implant-surgery"
       ? "surgery"
@@ -348,6 +369,22 @@ function OdontogramEditor({
   const entities = useMemo(
     () => Object.values(history.present.entitiesById).filter((entity) => entity.active),
     [history.present.entitiesById],
+  );
+  const persistedBridgeTeeth = useMemo(
+    () =>
+      new Set(
+        entities.filter((entity) => entity.entityType === "BRIDGE").flatMap(bridgeTeethFromEntity),
+      ),
+    [entities],
+  );
+  const persistedBridgeEndpoints = useMemo(
+    () =>
+      new Set(
+        entities
+          .filter((entity) => entity.entityType === "BRIDGE")
+          .flatMap(bridgeEndpointTeethFromEntity),
+      ),
+    [entities],
   );
   const bridgePreviewTeeth = useMemo(() => {
     if (placementMode !== "bridge" || !bridgeFrom) return [] as string[];
@@ -361,6 +398,10 @@ function OdontogramEditor({
   const bridgeReady = bridgePreviewTeeth.length >= 2 && Boolean(bridgeFrom && bridgeTo);
   const legendSelection: OdontogramLegendSelection = { state: tool, placement: placementMode };
   const dirty = history.present.revision !== 0;
+
+  useEffect(() => {
+    setAdvancedToolsOpen(false);
+  }, [activeTab]);
   const commit = (entity: DentalEntity) => {
     if (historical) return;
     setHistory((current) => {
@@ -420,7 +461,7 @@ function OdontogramEditor({
       pickBridgeTooth(tooth);
       return;
     }
-    if (!["caries", "filling", "filling_bad", "filling_pending"].includes(tool)) {
+    if (!isSurfaceOnlyTool(tool)) {
       applyWhole(tooth);
       return;
     }
@@ -485,12 +526,19 @@ function OdontogramEditor({
           tooth={tooth}
           state={history.present}
           selected={selectedTooth === tooth}
-          prosthesisRange={bridgePreviewTeeth.includes(tooth)}
-          prosthesisEndpoint={tooth === bridgeFrom || tooth === bridgeTo}
-          readOnly={historical}
-          onSelect={() =>
-            placementMode === "bridge" ? pickBridgeTooth(tooth) : setSelectedTooth(tooth)
+          prosthesisRange={bridgePreviewTeeth.includes(tooth) || persistedBridgeTeeth.has(tooth)}
+          prosthesisEndpoint={
+            tooth === bridgeFrom || tooth === bridgeTo || persistedBridgeEndpoints.has(tooth)
           }
+          readOnly={historical}
+          onSelect={() => {
+            if (placementMode === "bridge") {
+              pickBridgeTooth(tooth);
+              return;
+            }
+            setSelectedTooth(tooth);
+            if (!isSurfaceOnlyTool(tool)) applyWhole(tooth);
+          }}
           onWholeAction={() =>
             placementMode === "bridge" ? undefined : cycleWholeTreatment(tooth)
           }
@@ -596,7 +644,11 @@ function OdontogramEditor({
 
       {activeTab === "general" ? (
         <>
-          <details className={styles.advancedTools}>
+          <details
+            className={styles.advancedTools}
+            open={advancedToolsOpen}
+            onToggle={(event) => setAdvancedToolsOpen(event.currentTarget.open)}
+          >
             <summary>
               <span>
                 <strong>Más herramientas</strong>

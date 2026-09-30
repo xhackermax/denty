@@ -69,6 +69,7 @@
 }
 
 .toothButton {
+  position: relative;
   display: flex;
   min-width: 56px;
   min-height: 132px;
@@ -87,6 +88,32 @@
     border-color 150ms ease,
     transform 150ms ease,
     box-shadow 150ms ease;
+}
+
+.toothButton[data-prosthesis-range="true"]::before {
+  position: absolute;
+  z-index: 0;
+  right: -7px;
+  left: -7px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--denty-violet) 74%, var(--denty-card-solid));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--denty-violet) 28%, transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.toothButton[data-arch="upper"][data-prosthesis-range="true"]::before {
+  top: 78px;
+}
+
+.toothButton[data-arch="lower"][data-prosthesis-range="true"]::before {
+  top: 54px;
+}
+
+.toothButton > * {
+  position: relative;
+  z-index: 1;
 }
 
 .toothButton:nth-child(8) {

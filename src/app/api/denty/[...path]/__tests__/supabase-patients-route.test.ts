@@ -210,6 +210,27 @@ describe("Supabase-backed patient API", () => {
     });
   });
 
+  test("lists patients with a stable latest-first order", async () => {
+    const fetchMock = vi.fn(
+      withAuthenticatedStaff(createSupabaseFetch(), { clinicId: "clinic-1" }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await GET(
+      new Request("https://denty.test/api/denty/api/patients?page=1&pageSize=50", {
+        headers: authenticatedHeaders(),
+      }),
+      { params: Promise.resolve({ path: ["api", "patients"] }) },
+    );
+
+    expect(response.status).toBe(200);
+    const patientRequest = fetchMock.mock.calls
+      .map(([input]) => new URL(input instanceof Request ? input.url : String(input)))
+      .find((url) => url.pathname === "/rest/v1/patients" && !url.searchParams.has("id"));
+
+    expect(patientRequest?.searchParams.get("order")).toBe("created_at.desc,id.desc");
+  });
+
   test("rejects patient creation when Supabase does not confirm the inserted row on readback", async () => {
     vi.stubGlobal(
       "fetch",
