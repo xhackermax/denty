@@ -50,13 +50,18 @@ type View = "agenda" | "inbox" | "archive";
 const UNDO_MS = 8000;
 const TICK_MS = 60_000;
 
-function defaultApi(): TasksApi {
-  return getBrowserApi().tasks;
-}
+// The browser client only exists on the client, and Next prerenders this page on the
+// server, so it is looked up when an operation runs, never while rendering.
+const browserTasksApi: TasksApi = {
+  list: () => getBrowserApi().tasks.list(),
+  create: (input) => getBrowserApi().tasks.create(input),
+  update: (id, input) => getBrowserApi().tasks.update(id, input),
+  reorder: (orderedIds) => getBrowserApi().tasks.reorder(orderedIds),
+};
 
 export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimelineProps) {
   const qc = useQueryClient();
-  const resolvedApi = useMemo(() => api ?? defaultApi(), [api]);
+  const resolvedApi = api ?? browserTasksApi;
   const actions = useTaskActions(resolvedApi);
   const reduceMotion = useReducedMotion();
 
