@@ -58,6 +58,12 @@ const definitions: AssistantToolDefinition[] = [
     requiresPatient: true,
   },
   {
+    name: "clinical.plan_item",
+    risk: "YELLOW",
+    description: "Añadir un tratamiento al plan clínico",
+    requiresPatient: true,
+  },
+  {
     name: "clinical.mark_unsatisfactory",
     risk: "YELLOW",
     description: "Marcar un tratamiento como insatisfactorio",

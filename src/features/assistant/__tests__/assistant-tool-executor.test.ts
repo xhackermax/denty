@@ -11,7 +11,12 @@ const api = vi.hoisted(() => ({
   agenda: { context: vi.fn() },
   laboratory: { list: vi.fn(), transition: vi.fn() },
   clinical: {
-    plan: { get: vi.fn(), addDependency: vi.fn(), createMissingToothAlternatives: vi.fn() },
+    plan: {
+      get: vi.fn(),
+      addItem: vi.fn(),
+      addDependency: vi.fn(),
+      createMissingToothAlternatives: vi.fn(),
+    },
   },
 }));
 
@@ -228,6 +233,44 @@ describe("clinical plan tools", () => {
     expect(api.clinical.plan.createMissingToothAlternatives).toHaveBeenCalledWith("p1", {
       toothOrZone: "14-15",
       availableData: [],
+    });
+  });
+});
+
+describe("clinical.plan_item", () => {
+  it("adds a catalog treatment to the plan without a tooth", async () => {
+    await executeAssistantTool(
+      call("clinical.plan_item", {
+        patientId: "p1",
+        treatmentCode: "WHITENING",
+        label: "Blanqueamiento",
+        adHoc: false,
+      }),
+    );
+
+    expect(api.clinical.plan.addItem).toHaveBeenCalledWith("p1", {
+      treatmentCode: "WHITENING",
+      label: "Blanqueamiento",
+      adHoc: false,
+    });
+  });
+
+  it("adds an ad hoc treatment on a tooth", async () => {
+    await executeAssistantTool(
+      call("clinical.plan_item", {
+        patientId: "p1",
+        tooth: "11",
+        treatmentCode: "VENEER",
+        label: "Carilla 11",
+        adHoc: true,
+      }),
+    );
+
+    expect(api.clinical.plan.addItem).toHaveBeenCalledWith("p1", {
+      tooth: "11",
+      treatmentCode: "VENEER",
+      label: "Carilla 11",
+      adHoc: true,
     });
   });
 });

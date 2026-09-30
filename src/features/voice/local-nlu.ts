@@ -46,6 +46,14 @@ export type LocalVoiceAction =
       beforeCode: string;
       afterCode: string;
     }
+  | {
+      type: "clinical.plan_item";
+      patientRef: string;
+      tooth?: string;
+      treatmentCode: string;
+      label: string;
+      adHoc: boolean;
+    }
   | { type: "clinical.note"; patientRef: string; text: string; literalFallback?: boolean }
   | { type: "clinical.alert"; patientRef: string; text: string; severity: "HIGH" }
   | { type: "clinical.prosthesis_options"; patientRef: string; teeth: string[] }
@@ -110,7 +118,7 @@ const TREATMENTS: readonly [RegExp, string, string][] = [
   [/endodon|tratamiento\s+de\s+conductos?/, "endodontics", "Endodoncia"],
   [/reconstru|munon|muñon/, "reconstruction", "Reconstrucción"],
   [/perno|poste/, "post", "Perno / poste"],
-  [/corona/, "crown", "Corona"],
+  [/corona|funda/, "crown", "Corona"],
   [/revis(?:ar|ion).*implante|control.*implante/, "implant_review", "Revisión de implante"],
   [/implante/, "implant", "Implante"],
   [/extracci|exodon|extraer|extraid/, "extraction", "Extracción"],
@@ -120,10 +128,88 @@ const TREATMENTS: readonly [RegExp, string, string][] = [
   [/limpieza|profilaxis|higiene|tartrect|destartraje/, "prophylaxis", "Profilaxis"],
 ];
 
+// Treatments the odontogram can't draw: they go to the plan as items (catalog code or ad hoc).
+interface PlanItemTreatment {
+  pattern: RegExp;
+  group: string;
+  code: string;
+  label: string;
+  adHoc: boolean;
+  tooth: boolean;
+}
+
+const PLAN_ITEM_TREATMENTS: readonly PlanItemTreatment[] = [
+  {
+    pattern: /carilla/,
+    group: "veneer",
+    code: "VENEER",
+    label: "Carilla",
+    adHoc: true,
+    tooth: true,
+  },
+  {
+    pattern: /blanque/,
+    group: "whitening",
+    code: "WHITENING",
+    label: "Blanqueamiento",
+    adHoc: false,
+    tooth: false,
+  },
+  {
+    pattern: /alineador|invisalign|ortodoncia\s+invisible/,
+    group: "ortho",
+    code: "ALINEADOR_ORTODONCIA_INVISIBLE",
+    label: "Alineadores invisibles",
+    adHoc: false,
+    tooth: false,
+  },
+  {
+    pattern: /ortodon|bracket/,
+    group: "ortho",
+    code: "ORTHODONTICS",
+    label: "Ortodoncia",
+    adHoc: true,
+    tooth: false,
+  },
+  {
+    pattern: /sellador|sellante/,
+    group: "sealant",
+    code: "SELLANTE",
+    label: "Sellante",
+    adHoc: false,
+    tooth: true,
+  },
+  {
+    pattern: /fluor/,
+    group: "fluoride",
+    code: "FLUORIDE",
+    label: "Aplicación de flúor",
+    adHoc: true,
+    tooth: false,
+  },
+  {
+    pattern: /ferula.*(?:descarga|essix)|(?:descarga|essix).*ferula/,
+    group: "splint",
+    code: "FERULA_RIGIDA_DESCARGA_ESSIX",
+    label: "Férula de descarga",
+    adHoc: false,
+    tooth: false,
+  },
+  {
+    pattern: /ferula/,
+    group: "splint",
+    code: "SPLINT",
+    label: "Férula",
+    adHoc: false,
+    tooth: false,
+  },
+];
+
 const TREATMENT_CUE = new RegExp(
   [
     "apicectom|reendodon|retratamiento|endodon|conductos?",
-    "reconstru|munon|muñon|perno|poste|corona|implante",
+    "reconstru|munon|muñon|perno|poste|corona|funda|implante",
+    "carilla|blanque|ortodon|alineador|invisalign|sellador|sellante|fl[uú]or|f[eé]rula",
     "extracci|exodon|extraer|extraid|incrust|onlay|overlay|inlay",
     "empaste|obtur|restaur|raspado|alisado|periodontal",
     "limpieza|profilaxis|higiene|tartrect|destartraje",
@@ -330,7 +416,7 @@ function extractPatient(raw: string): string {
   const patterns = [
     new RegExp(
       `\\b(?:paciente|ficha|de|a)\\s+${NAME}\\s+` +
-        "(?:ha llegado|llego|llegó|no vino|no ha venido|ausente|hay que|necesita|" +
+        "(?:ha llegado|llego|llegó|no vino|no ha venido|ausente|hay que|necesita|lleva|porta|" +
         "hacer|realiz|program|pon|mueve|cambia|presupuesto|ha pagado|pago|receta|tiene)",
       "i",
     ),
@@ -711,7 +797,7 @@ function treatmentState(text: string, code: string): ClinicalTreatmentState {
     return "UNSATISFACTORY";
   }
   if (
-    /\b(?:realizad|hech|terminad|completad|finalizad|colocad|puest|cementad|instalad|rematad|acabad|extraid)\w*\b/.test(
+    /\b(?:realizad|hech|terminad|completad|finalizad|colocad|puest|cementad|instalad|rematad|acabad|extraid)\w*\b|\b(?:lleva|llevan|porta|ya\s+tiene)\b/.test(
       text,
     )
   ) {
@@ -750,6 +836,23 @@ function treatmentActions(
       label: `${label}${tooth ? ` ${tooth}` : ""}`,
       surfaces: ["restoration", "inlay"].includes(code) ? surfaces : [],
     });
+  }
+
+  if (treatmentState(text, "plan_item") === "PLANNED") {
+    const matchedGroups = new Set<string>();
+    for (const treatment of PLAN_ITEM_TREATMENTS) {
+      if (matchedGroups.has(treatment.group) || !treatment.pattern.test(text)) continue;
+      matchedGroups.add(treatment.group);
+      const itemTooth = treatment.tooth ? tooth : undefined;
+      actions.push({
+        type: "clinical.plan_item",
+        patientRef,
+        ...(itemTooth !== undefined ? { tooth: itemTooth } : {}),
+        treatmentCode: treatment.code,
+        label: `${treatment.label}${itemTooth ? ` ${itemTooth}` : ""}`,
+        adHoc: treatment.adHoc,
+      });
+    }
   }
 
   return actions;
@@ -809,7 +912,9 @@ function odontogramActions(
         patientRef,
         teeth: range,
         missingTeeth: extractTeeth(`${missing} ausente`),
-        status: /realizad|colocad|hech/.test(text) ? "COMPLETED" : "PLANNED",
+        status: /realizad|colocad|hech|\b(?:lleva|llevan|porta|ya tiene)\b/.test(text)
+          ? "COMPLETED"
+          : "PLANNED",
       },
     ];
   }
@@ -910,7 +1015,8 @@ const CLAUSE_CUE = new RegExp(
   `caries|sano|sana|sanos|sanas|ausentes?|${TREATMENT_CUE.source}|` +
     "sondaje|bolsa|sangrado|sangra\\b|movilidad|recesion|supuracion|bop",
 );
-const TOOTHLESS_TREATMENT = /limpieza|profilaxis|higiene|tartrect|destartraje|raspado|alisado/;
+const TOOTHLESS_TREATMENT =
+  /limpieza|profilaxis|higiene|tartrect|destartraje|raspado|alisado|blanque|ortodon|alineador|invisalign|fl[uú]or|f[eé]rula/;
 
 // "caries en 14 y 15, endodoncia en 26" -> ["caries en 14 15", "endodoncia en 26"]:
 // pieces without a finding of their own ("15", "mesial") join the clause before them.
@@ -976,13 +1082,22 @@ function perClauseActions(
     ];
   }
   const measured = /(?:bolsa|sondaje|profundidad|recesion|movilidad)/.test(normalize(clause));
-  return teeth.flatMap((tooth) => [
+  const seenPlanItems = new Set<string>();
+  const perTooth = teeth.flatMap((tooth) => [
     ...odontogramActions(patientRef, clause, context, tooth),
     ...(measured && tooth !== teeth[0]
       ? []
       : periodontalActions(patientRef, clause, context, tooth)),
     ...treatmentActions(patientRef, clause, context, tooth),
   ]);
+  // A patient-level treatment ("blanqueamiento") is the same item for every tooth named.
+  return perTooth.filter((action) => {
+    if (action.type !== "clinical.plan_item") return true;
+    const key = `${action.treatmentCode}:${action.tooth ?? ""}`;
+    if (seenPlanItems.has(key)) return false;
+    seenPlanItems.add(key);
+    return true;
+  });
 }
 
 export function voiceReadback(
@@ -998,6 +1113,7 @@ export function voiceReadback(
     if (action.type === "appointment.arrive") parts.push("marcar llegada");
     if (action.type === "appointment.no_show") parts.push("marcar ausencia");
     if (action.type === "clinical.add_item") parts.push(`añadir ${action.label}`);
+    if (action.type === "clinical.plan_item") parts.push(`planificar ${action.label}`);
     if (action.type === "clinical.complete_item") {
       parts.push(`registrar ${action.label} como realizado`);
     }

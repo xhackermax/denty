@@ -5,7 +5,7 @@ import {
   type LocalVoiceContext,
   type LocalVoicePlan,
 } from "./local-nlu";
-import { isExecutableVoiceAction } from "./voice-executor";
+import { localVoicePlanToToolCalls } from "@/features/assistant/tools/local-voice-adapter";
 
 export interface VoicePreview {
   planToken: string;
@@ -30,19 +30,23 @@ export function patientIdFromPathname(pathname?: string): string | undefined {
   return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }
 
+// The assistant tools decide what can run. The patient may still be unresolved here, so the
+// probe assumes one: argument problems that need the real patient are re-checked at execution.
+function unsupportedActionTypes(plan: LocalVoicePlan): LocalVoiceAction["type"][] {
+  const probe = { ...plan, contextPatientId: plan.contextPatientId ?? "pending-patient" };
+  return localVoicePlanToToolCalls(probe).unsupported as LocalVoiceAction["type"][];
+}
+
 export function previewVoiceCommand(input: string, context: LocalVoiceContext = {}): VoicePreview {
   const patientId = context.patientId ?? patientIdFromPathname(context.pathname);
   const plan = planLocalVoiceCommand(input, {
     ...context,
     ...(patientId ? { patientId } : {}),
   });
-  const unsupportedActions = plan.actions
-    .filter((action) => !isExecutableVoiceAction(action))
-    .map((action) => action.type);
   return {
     planToken: crypto.randomUUID(),
     plan,
-    unsupportedActions,
+    unsupportedActions: unsupportedActionTypes(plan),
   };
 }
 
@@ -75,9 +79,7 @@ export function previewFromClaude(
   return {
     planToken: crypto.randomUUID(),
     plan,
-    unsupportedActions: actions
-      .filter((action) => !isExecutableVoiceAction(action))
-      .map((action) => action.type),
+    unsupportedActions: unsupportedActionTypes(plan),
   };
 }
 
@@ -148,6 +150,7 @@ const SPOKEN_AUTORUN_ACTIONS = new Set<LocalVoiceAction["type"]>([
   "clinical.add_item",
   "clinical.complete_item",
   "clinical.mark_unsatisfactory",
+  "clinical.plan_item",
   "clinical.note",
 ]);
 

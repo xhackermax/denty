@@ -314,3 +314,21 @@ describe("safety of spoken auto-execution", () => {
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
   });
 });
+
+describe("supported actions follow the assistant tools", () => {
+  it.each(["ha llegado Marta", "marca que Juan no vino"])(
+    "%s is executable through the assistant tools",
+    (command) => {
+      const preview = previewVoiceCommand(command, { pathname: "/app/patients/p1" });
+
+      expect(preview.unsupportedActions).toEqual([]);
+      expect(canExecuteVoicePreview(preview)).toBe(true);
+    },
+  );
+
+  it("keeps a payment without method as unsupported", () => {
+    const preview = previewVoiceCommand("cobra ochenta euros", { pathname: "/app/patients/p1" });
+
+    expect(preview.unsupportedActions).toEqual(["payment.record"]);
+  });
+});

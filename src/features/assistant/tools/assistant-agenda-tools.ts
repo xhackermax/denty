@@ -152,6 +152,15 @@ const prosthesisOptions: AssistantToolHandler = async (args) => {
   });
 };
 
+const planItem: AssistantToolHandler = async (args) => {
+  await getBrowserApi().clinical.plan.addItem(String(args.patientId), {
+    ...(args.tooth ? { tooth: String(args.tooth) } : {}),
+    treatmentCode: String(args.treatmentCode),
+    label: String(args.label),
+    adHoc: Boolean(args.adHoc),
+  });
+};
+
 export const agendaToolHandlers: Record<string, AssistantToolHandler> = {
   "appointment.arrive": arrive,
   "appointment.mark_no_show": markNoShow,
@@ -160,4 +169,5 @@ export const agendaToolHandlers: Record<string, AssistantToolHandler> = {
   "lab.transition": labTransition,
   "clinical.add_dependency": addDependency,
   "clinical.prosthesis_options": prosthesisOptions,
+  "clinical.plan_item": planItem,
 };

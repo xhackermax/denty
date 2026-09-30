@@ -60,6 +60,16 @@ function toArgs(action: LocalVoiceAction, plan: LocalVoicePlan): unknown | undef
             surfaces: action.surfaces,
           }
         : undefined;
+    case "clinical.plan_item":
+      return patientId
+        ? {
+            patientId,
+            ...(action.tooth ? { tooth: action.tooth } : {}),
+            treatmentCode: action.treatmentCode,
+            label: action.label,
+            adHoc: action.adHoc,
+          }
+        : undefined;
     case "navigation.open":
       return { destination: action.destination, ...(patientId ? { patientId } : {}) };
     case "navigation.patient":

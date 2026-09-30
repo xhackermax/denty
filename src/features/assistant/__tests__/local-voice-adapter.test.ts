@@ -159,3 +159,23 @@ it("keeps treatments unsupported without a tooth or a drawable treatment", () =>
   expect(result.calls).toEqual([]);
   expect(result.unsupported).toEqual(["clinical.add_item", "clinical.add_item"]);
 });
+
+it("maps plan items with their catalog or ad hoc flag and needs an open patient", () => {
+  const item: LocalVoiceAction = {
+    type: "clinical.plan_item",
+    patientRef: "actual",
+    tooth: "11",
+    treatmentCode: "VENEER",
+    label: "Carilla 11",
+    adHoc: true,
+  };
+
+  expect(localVoicePlanToToolCalls(plan([item])).calls[0]).toMatchObject({
+    name: "clinical.plan_item",
+    args: { patientId: "p1", tooth: "11", treatmentCode: "VENEER", adHoc: true },
+  });
+  expect(
+    localVoicePlanToToolCalls({ ...plan([item]), contextPatientId: undefined as never })
+      .unsupported,
+  ).toEqual(["clinical.plan_item"]);
+});
