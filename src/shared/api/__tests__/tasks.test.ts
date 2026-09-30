@@ -68,6 +68,31 @@ describe("task schemas", () => {
     expect(updateTaskSchema.safeParse({ title: "  " }).success).toBe(false);
   });
 
+  it("accepts scheduledOn as a real YYYY-MM-DD date (or null) on task, create and update", () => {
+    expect(taskSchema.safeParse({ ...baseTask, scheduledOn: "2026-10-01" }).success).toBe(true);
+    expect(taskSchema.safeParse({ ...baseTask, scheduledOn: null }).success).toBe(true);
+    expect(createTaskSchema.safeParse({ title: "x", scheduledOn: "2026-10-01" }).success).toBe(
+      true,
+    );
+    expect(updateTaskSchema.safeParse({ scheduledOn: "2024-02-29" }).success).toBe(true);
+    expect(updateTaskSchema.safeParse({ scheduledOn: null }).success).toBe(true);
+  });
+
+  it("rejects malformed or impossible scheduledOn dates", () => {
+    for (const bad of [
+      "2026-02-31",
+      "2026-13-01",
+      "2025-02-29",
+      "01/10/2026",
+      "2026-10-01T10:00:00Z",
+      "",
+    ]) {
+      expect(createTaskSchema.safeParse({ title: "x", scheduledOn: bad }).success).toBe(false);
+      expect(updateTaskSchema.safeParse({ scheduledOn: bad }).success).toBe(false);
+    }
+    expect(createTaskSchema.safeParse({ title: "x", scheduledOn: null }).success).toBe(false);
+  });
+
   it("validates reorder ids: 1..500 and no duplicates", () => {
     expect(reorderTasksSchema.safeParse({ orderedIds: ["a", "b"] }).success).toBe(true);
     expect(reorderTasksSchema.safeParse({ orderedIds: [] }).success).toBe(false);
@@ -91,6 +116,19 @@ describe("api.tasks client", () => {
       dueAt: null,
       expectedVersion: 2,
     });
+  });
+
+  it("sends scheduledOn on create and update, null clears", async () => {
+    const { api, fetchImpl } = makeApi();
+    await api.tasks.create({ title: "x", scheduledOn: "2026-10-01" }).catch(() => undefined);
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toEqual({
+      title: "x",
+      scheduledOn: "2026-10-01",
+    });
+    await api.tasks.update("t1", { scheduledOn: null }).catch(() => undefined);
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ scheduledOn: null });
+    expect(() => api.tasks.update("t1", { scheduledOn: "2026-02-31" })).toThrow();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
   it("posts reorder with orderedIds", async () => {

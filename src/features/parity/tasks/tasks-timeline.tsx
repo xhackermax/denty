@@ -11,16 +11,23 @@ import { dentyQueryKeys } from "@/shared/query";
 import { ActionErrorAlert } from "../modules/action-error-alert";
 import { ArchivedList } from "./archived-list";
 import { DayStrip } from "./day-strip";
+import { InboxList } from "./inbox-list";
 import { TaskEditorModal, type TaskFormValues } from "./task-editor-modal";
 import { TaskNode } from "./task-node";
 import {
+  buildDayMarkers,
   buildSchedule,
+  dayPatchFor,
+  describeDay,
+  getWeekDays,
+  inboxTasks,
   mergeVisibleOrder,
   moveId,
   moveIdToIndex,
   planReplan,
+  resolveTaskSchedule,
   sortByPriority,
-  timeInputToDueAt,
+  undoDayPatch,
   zonedDayKey,
 } from "./task-timeline";
 import type { TasksApi, TimelineTask } from "./task-types";
@@ -38,6 +45,8 @@ interface UndoState {
   run: () => void;
 }
 
+type View = "agenda" | "inbox" | "archive";
+
 const UNDO_MS = 8000;
 const TICK_MS = 60_000;
 
@@ -54,7 +63,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
   const [now, setNow] = useState(nowFn);
   const today = zonedDayKey(now);
   const [selectedDay, setSelectedDay] = useState(() => zonedDayKey(nowFn()));
-  const [view, setView] = useState<"active" | "archive">("active");
+  const [view, setView] = useState<View>("agenda");
   const [editing, setEditing] = useState<TimelineTask | null>(null);
   const [creating, setCreating] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -83,10 +92,21 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
     [allTasks, selectedDay, now],
   );
 
+  const inbox = useMemo(() => inboxTasks(allTasks), [allTasks]);
+  const weekDays = useMemo(() => getWeekDays(selectedDay), [selectedDay]);
+  const markers = useMemo(
+    () => buildDayMarkers(allTasks, weekDays, { now }),
+    [allTasks, weekDays, now],
+  );
+
   const allIds = useMemo(() => allTasks.map((t) => t.id), [allTasks]);
-  const visibleIds = useMemo(() => schedule.entries.map((e) => e.task.id), [schedule]);
+  const viewTasks = useMemo(
+    () => (view === "inbox" ? inbox : schedule.entries.map((e) => e.task)),
+    [view, inbox, schedule],
+  );
+  const visibleIds = useMemo(() => viewTasks.map((t) => t.id), [viewTasks]);
   const overdueCount = schedule.entries.filter((e) => e.overdue).length;
-  const doneEntries = schedule.entries.filter((e) => e.task.status === "DONE");
+  const doneTasks = viewTasks.filter((t) => t.status === "DONE");
 
   // El deshacer lee la versión vigente del caché: tras la mutación el refetch ya la subió.
   function currentVersion(task: TimelineTask): number {
@@ -141,7 +161,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
   }
 
   function archiveDone() {
-    const tasks = doneEntries.map((e) => e.task);
+    const tasks = doneTasks;
     if (tasks.length === 0) return;
     actions.patchMany.mutate(
       tasks.map((t) => ({ id: t.id, version: t.version, patch: { archived: true } })),
@@ -167,7 +187,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
   }
 
   function submit(values: TaskFormValues) {
-    const dueAt = timeInputToDueAt(selectedDay, values.time);
+    const { scheduledOn, dueAt } = resolveTaskSchedule(values.day, values.time);
     if (editing) {
       actions.patch.mutate(
         {
@@ -177,8 +197,8 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
             title: values.title,
             priority: values.priority,
             durationMin: values.durationMin,
-            // Editar sin hora devuelve la tarea a la secuencia calculada.
-            dueAt: values.time ? (dueAt ?? editing.dueAt ?? null) : null,
+            scheduledOn,
+            dueAt,
           },
         },
         { onSuccess: () => setEditing(null) },
@@ -190,14 +210,45 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
         title: values.title,
         priority: values.priority,
         durationMin: values.durationMin,
+        ...(scheduledOn ? { scheduledOn } : {}),
         ...(dueAt ? { dueAt } : {}),
       },
       { onSuccess: () => setCreating(false) },
     );
   }
 
+  function moveToDay(task: TimelineTask, day: string | null) {
+    const patch = dayPatchFor(task, day);
+    const revert = undoDayPatch(task, patch);
+    actions.patch.mutate(
+      { id: task.id, version: task.version, patch },
+      {
+        onSuccess: () =>
+          setUndo({
+            label:
+              day === null
+                ? `«${task.title}» enviada a la Bandeja`
+                : `«${task.title}» movida a ${describeDay(day, today)}`,
+            run: () =>
+              actions.patch.mutate({
+                id: task.id,
+                version: currentVersion(task),
+                patch: revert,
+              }),
+          }),
+      },
+    );
+  }
+
+  function dropOnDay(day: string) {
+    const task = allTasks.find((t) => t.id === dragId);
+    setDragId(null);
+    setOverId(null);
+    if (task) moveToDay(task, day);
+  }
+
   function drop(targetId: string) {
-    if (dragId && dragId !== targetId) {
+    if (dragId && dragId !== targetId && view === "agenda") {
       applyOrder(moveIdToIndex(visibleIds, dragId, visibleIds.indexOf(targetId)));
     }
     setDragId(null);
@@ -239,9 +290,10 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
         <SegmentedControl
           size="xs"
           value={view}
-          onChange={(value) => setView(value as typeof view)}
+          onChange={(value) => setView(value as View)}
           data={[
-            { value: "active", label: "Activas" },
+            { value: "agenda", label: "Agenda" },
+            { value: "inbox", label: `Bandeja${inbox.length ? ` (${inbox.length})` : ""}` },
             { value: "archive", label: `Archivo${archived.length ? ` (${archived.length})` : ""}` },
           ]}
         />
@@ -257,16 +309,21 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
         )
       ) : (
         <>
-          <DayStrip selectedDay={selectedDay} today={today} onSelect={setSelectedDay} />
+          <DayStrip
+            selectedDay={selectedDay}
+            today={today}
+            onSelect={setSelectedDay}
+            markers={markers}
+            dragActive={dragId !== null}
+            onDropTask={dropOnDay}
+          />
           <div className={styles.toolbar}>
             <Button
               size="xs"
               variant="light"
               leftSection={<IconSortDescending size={14} />}
-              disabled={schedule.entries.length < 2}
-              onClick={() =>
-                applyOrder(sortByPriority(schedule.entries.map((e) => e.task)).map((t) => t.id))
-              }
+              disabled={viewTasks.length < 2}
+              onClick={() => applyOrder(sortByPriority(viewTasks).map((t) => t.id))}
             >
               Ordenar por prioridad
             </Button>
@@ -275,7 +332,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
               variant="light"
               color="gray"
               leftSection={<IconArchive size={14} />}
-              disabled={doneEntries.length === 0}
+              disabled={doneTasks.length === 0}
               loading={actions.patchMany.isPending}
               onClick={archiveDone}
             >
@@ -287,8 +344,26 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
             <p className={styles.state} role="status">
               Cargando tareas…
             </p>
+          ) : view === "inbox" ? (
+            <InboxList
+              tasks={inbox}
+              today={today}
+              selectedDay={selectedDay}
+              onSchedule={moveToDay}
+              onToggleDone={toggleDone}
+              onArchive={archiveOne}
+              onEdit={setEditing}
+              onMove={(taskId, dir) => applyOrder(moveId(visibleIds, taskId, dir))}
+              onDragStart={setDragId}
+              onDragEnd={() => {
+                setDragId(null);
+                setOverId(null);
+              }}
+            />
           ) : schedule.rows.length === 0 ? (
-            <p className={styles.state}>No hay tareas para este día. Crea una con el botón «+».</p>
+            <p className={styles.state}>
+              Nada programado este día. Crea una tarea o trae alguna de la Bandeja.
+            </p>
           ) : (
             <ol className={styles.list} aria-label="Tareas del día">
               {schedule.rows.map((row) => {
@@ -299,6 +374,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
                   <TaskNode
                     key={row.key}
                     entry={row.entry}
+                    today={today}
                     isFirst={index === 0}
                     isLast={index === visibleIds.length - 1}
                     dragging={dragId === id}
@@ -307,6 +383,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
                     onArchive={(e) => archiveOne(e.task)}
                     onEdit={(e) => setEditing(e.task)}
                     onMove={(taskId, dir) => applyOrder(moveId(visibleIds, taskId, dir))}
+                    onMoveToDay={(e, day) => moveToDay(e.task, day)}
                     onDragStart={setDragId}
                     onDragOver={setOverId}
                     onDrop={drop}
@@ -340,7 +417,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
             </AnimatePresence>
             <div className={styles.dockRow}>
               <AnimatePresence>
-                {overdueCount > 0 ? (
+                {view === "agenda" && overdueCount > 0 ? (
                   <motion.div key="replan" className={styles.replan} {...motionProps}>
                     <Button
                       fullWidth
@@ -372,6 +449,8 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
       <TaskEditorModal
         opened={creating || editing !== null}
         task={editing}
+        today={today}
+        initialDay={view === "inbox" ? null : selectedDay}
         pending={actions.create.isPending || actions.patch.isPending}
         onClose={() => {
           setCreating(false);

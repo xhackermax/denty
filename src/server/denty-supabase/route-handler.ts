@@ -903,6 +903,7 @@ export async function handleSupabaseDentyRoute(
         payload.priority === undefined &&
         payload.durationMin === undefined &&
         payload.archived === undefined &&
+        payload.scheduledOn === undefined &&
         payload.dueAt !== null;
       try {
         // Legacy {status, expectedVersion} callers keep hitting update_task_status.

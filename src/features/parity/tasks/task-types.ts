@@ -13,6 +13,8 @@ export interface TimelineTask {
   position: number;
   durationMin?: number | null | undefined;
   archivedAt?: string | null | undefined;
+  // 'YYYY-MM-DD' sin hora; null/ausente = sin día programado (Bandeja) salvo que dueAt lo fije.
+  scheduledOn?: string | null | undefined;
 }
 
 export interface TaskCreateInput {
@@ -21,6 +23,7 @@ export interface TaskCreateInput {
   durationMin?: number;
   dueAt?: string;
   description?: string;
+  scheduledOn?: string;
 }
 
 export interface TaskUpdateInput {
@@ -29,6 +32,7 @@ export interface TaskUpdateInput {
   priority?: TaskPriority;
   durationMin?: number;
   dueAt?: string | null;
+  scheduledOn?: string | null;
   archived?: boolean;
   expectedVersion?: number;
 }

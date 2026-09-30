@@ -32,6 +32,7 @@ function mkRow(id: string, position: number, clinic = CLINIC): Row {
     position,
     duration_min: 15,
     archived_at: null,
+    scheduled_on: null,
     version: 1,
     created_at: now,
     updated_at: now,
@@ -75,11 +76,18 @@ function createFetch(rows: Row[]) {
       if (body.p_expected_version != null && body.p_expected_version !== r.version)
         return pgError("VERSION_CONFLICT", 409);
       if (body.p_archived === true) r.archived_at = now;
+      if (body.p_clear_scheduled_on === true) r.scheduled_on = null;
+      else if (body.p_scheduled_on != null) r.scheduled_on = body.p_scheduled_on;
       r.version += 1;
       return Response.json(r);
     }
     if (url.pathname === "/rest/v1/rpc/update_task_status") {
       return Response.json({ ...rows[0], status: body.p_status });
+    }
+    if (url.pathname === "/rest/v1/rpc/create_task") {
+      const r = mkRow("new", 99);
+      r.scheduled_on = body.p_scheduled_on ?? null;
+      return Response.json(r);
     }
     return Response.json({ message: `Unhandled ${url.pathname}` }, { status: 500 });
   });
@@ -194,5 +202,61 @@ describe("Supabase-backed tasks API", () => {
     expect(res.status).toBe(200);
     expect(rpcCalls("update_task_status")).toHaveLength(1);
     expect(rpcCalls("update_task")).toHaveLength(0);
+  });
+
+  test("PATCH with scheduledOn goes through update_task, even with only status", async () => {
+    const res = await call(PATCH, ["api", "tasks", "a"], {
+      method: "PATCH",
+      body: { status: "OPEN", scheduledOn: "2026-10-01" },
+    });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as Record<string, unknown>).scheduledOn).toBe("2026-10-01");
+    expect(rpcCalls("update_task")).toHaveLength(1);
+    expect(rpcCalls("update_task_status")).toHaveLength(0);
+    expect(JSON.parse(String(rpcCalls("update_task")[0]?.[1]?.body))).toMatchObject({
+      p_scheduled_on: "2026-10-01",
+      p_clear_scheduled_on: false,
+    });
+  });
+
+  test("PATCH scheduledOn null clears the day back to the inbox", async () => {
+    rows[0]!.scheduled_on = "2026-10-01";
+    const res = await call(PATCH, ["api", "tasks", "a"], {
+      method: "PATCH",
+      body: { scheduledOn: null },
+    });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as Record<string, unknown>).scheduledOn).toBeNull();
+    expect(JSON.parse(String(rpcCalls("update_task")[0]?.[1]?.body))).toMatchObject({
+      p_scheduled_on: null,
+      p_clear_scheduled_on: true,
+    });
+  });
+
+  test("PATCH rejects an impossible scheduledOn without calling the rpc", async () => {
+    const res = await call(PATCH, ["api", "tasks", "a"], {
+      method: "PATCH",
+      body: { scheduledOn: "2026-02-31" },
+    });
+    expect(res.status).toBe(400);
+    expect(rpcCalls("update_task")).toHaveLength(0);
+  });
+
+  test("POST /api/tasks forwards scheduledOn to create_task", async () => {
+    const res = await call(POST, ["api", "tasks"], {
+      method: "POST",
+      body: { title: "Nueva", scheduledOn: "2026-10-03" },
+    });
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as Record<string, unknown>).scheduledOn).toBe("2026-10-03");
+    expect(JSON.parse(String(rpcCalls("create_task")[0]?.[1]?.body))).toMatchObject({
+      p_scheduled_on: "2026-10-03",
+    });
+  });
+
+  test("POST without scheduledOn keeps working (inbox)", async () => {
+    const res = await call(POST, ["api", "tasks"], { method: "POST", body: { title: "Vieja" } });
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as Record<string, unknown>).scheduledOn).toBeNull();
   });
 });

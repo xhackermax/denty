@@ -114,6 +114,189 @@
   color: rgb(255 255 255 / 80%);
 }
 
+.dayDrop {
+  border-color: var(--denty-blue);
+  background: var(--denty-glow);
+  border-style: dashed;
+}
+
+.day[data-alert] .dayName {
+  color: var(--denty-amber);
+}
+
+.daySelected[data-alert] .dayName {
+  color: rgb(255 255 255 / 80%);
+}
+
+/* Marcadores de tareas bajo cada día */
+.markers {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-width: 0;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+}
+
+.day[data-alert] .markers {
+  background: color-mix(in srgb, var(--denty-amber) 20%, transparent);
+}
+
+.daySelected .markers[role="img"] {
+  background: rgb(255 255 255 / 92%);
+}
+
+.dot {
+  --dot-color: var(--denty-blue);
+
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dot-color);
+}
+
+.dot[data-priority="URGENT"] {
+  --dot-color: var(--denty-danger);
+}
+
+.dot[data-priority="HIGH"] {
+  --dot-color: var(--denty-amber);
+}
+
+.dot[data-priority="NORMAL"] {
+  --dot-color: var(--denty-blue);
+}
+
+.dot[data-priority="LOW"] {
+  --dot-color: var(--denty-green);
+}
+
+.dot[data-done="true"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--dot-color);
+  opacity: 0.5;
+}
+
+.markerExtra {
+  color: var(--denty-muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.daySelected .markerExtra {
+  color: #1a1a1a;
+}
+
+/* Selector de día (programar / mover) */
+.chooser {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding-top: 6px;
+}
+
+.dateInput {
+  min-height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--denty-line-strong);
+  border-radius: 8px;
+  background: var(--denty-card-solid);
+  color: var(--denty-text);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.nodeChooser {
+  grid-column: 1 / -1;
+}
+
+.fieldLabel {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.fieldHint {
+  margin: 4px 0 0;
+  color: var(--denty-muted);
+  font-size: 0.78rem;
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.choice {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--denty-line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--denty-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.choice:focus-visible {
+  outline: 2px solid var(--denty-blue);
+  outline-offset: 2px;
+}
+
+.choiceOn {
+  border-color: var(--denty-blue);
+  background: var(--denty-blue);
+  color: #fff;
+}
+
+/* Bandeja */
+.inboxList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inboxItem {
+  display: grid;
+  gap: 6px 10px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 16px;
+  background: var(--denty-card);
+  cursor: grab;
+}
+
+.inboxBody {
+  min-width: 0;
+}
+
+.inboxActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  grid-column: 1 / -1;
+}
+
+.inboxChooser {
+  grid-column: 1 / -1;
+}
+
 /* Línea de tiempo */
 .list {
   display: flex;
@@ -199,6 +382,10 @@
 
 .node[data-priority="LOW"] {
   --node-color: var(--denty-green);
+}
+
+.inboxItem .node {
+  margin-top: 0;
 }
 
 .card {

@@ -69,9 +69,16 @@ export function useTaskActions(api: TasksApi) {
     mutationFn: async (input: { plan: ReplanPlan; allIds: string[]; tasks: TimelineTask[] }) => {
       const byId = new Map(input.tasks.map((t) => [t.id, t]));
       await Promise.all(
-        input.plan.clearDueAtIds.flatMap((id) => {
+        input.plan.moves.flatMap(({ id, scheduledOn, clearDueAt }) => {
           const task = byId.get(id);
-          return task ? [api.update(id, { dueAt: null, expectedVersion: task.version })] : [];
+          if (!task) return [];
+          return [
+            api.update(id, {
+              scheduledOn,
+              ...(clearDueAt ? { dueAt: null } : {}),
+              expectedVersion: task.version,
+            }),
+          ];
         }),
       );
       await api.reorder(input.allIds);

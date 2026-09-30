@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import type { TimelineTask } from "../task-types";
 import {
+  buildDayMarkers,
   buildSchedule,
+  dayPatchFor,
+  dayShortcuts,
+  undoDayPatch,
+  describeDay,
+  inboxTasks,
+  resolveTaskSchedule,
+  taskDay,
   dayStartMinute,
   dueAtToTimeInput,
   formatClock,
@@ -33,6 +41,7 @@ function task(over: Partial<TimelineTask> = {}): TimelineTask {
     durationMin: 15,
     dueAt: null,
     archivedAt: null,
+    scheduledOn: over.dueAt ? null : "2026-09-30",
     ...over,
   };
 }
@@ -141,7 +150,10 @@ describe("buildSchedule", () => {
   });
 
   it("otro día empieza a las 09:00", () => {
-    const s = buildSchedule([task({ position: 1 })], { dayKey: "2026-10-01", now: at("10:12") });
+    const s = buildSchedule([task({ position: 1, scheduledOn: "2026-10-01" })], {
+      dayKey: "2026-10-01",
+      now: at("10:12"),
+    });
     expect(s.entries[0]?.startMin).toBe(540);
   });
 
@@ -235,13 +247,6 @@ describe("buildSchedule", () => {
     expect(today.entries).toEqual([]);
     const tomorrow = buildSchedule([t], { dayKey: "2026-10-01", now: at("08:00") });
     expect(tomorrow.entries[0]).toMatchObject({ startMin: 30, explicit: true });
-  });
-
-  it("las tareas con dueAt de otro día no aparecen; sin dueAt aparecen siempre", () => {
-    const fut = task({ id: "f", position: 1, dueAt: "2026-10-05T10:00:00+02:00" });
-    const free = task({ id: "x", position: 2 });
-    const s = buildSchedule([fut, free], { dayKey: TODAY, now: at("08:00") });
-    expect(s.entries.map((e) => e.task.id)).toEqual(["x"]);
   });
 
   it("vencidas: con hora ya pasada y sin hacer", () => {
@@ -339,12 +344,15 @@ describe("planReplan", () => {
     const s = buildSchedule(list, { dayKey: TODAY, now: at("12:00") });
     const plan = planReplan(s);
     expect(plan.orderedIds).toEqual(["d", "o1", "o2", "p", "q"]);
-    expect(plan.clearDueAtIds).toEqual(["o1", "o2"]);
+    expect(plan.moves).toEqual([
+      { id: "o1", scheduledOn: TODAY, clearDueAt: true },
+      { id: "o2", scheduledOn: TODAY, clearDueAt: true },
+    ]);
   });
 
   it("sin vencidas no cambia nada", () => {
     const s = buildSchedule([task({ id: "a", position: 1 })], { dayKey: TODAY, now: at("08:00") });
-    expect(planReplan(s)).toEqual({ orderedIds: ["a"], clearDueAtIds: [] });
+    expect(planReplan(s)).toEqual({ orderedIds: ["a"], moves: [] });
   });
 
   it("si todo lo demás está hecho las vencidas van al final", () => {
@@ -366,7 +374,7 @@ describe("planReplan", () => {
     const replanned = plan.orderedIds.map((id, i) => ({
       ...(list.find((t) => t.id === id) as TimelineTask),
       position: i,
-      dueAt: plan.clearDueAtIds.includes(id) ? null : list.find((t) => t.id === id)?.dueAt,
+      ...(plan.moves.some((m) => m.id === id) ? { dueAt: null, scheduledOn: TODAY } : {}),
     }));
     const again = buildSchedule(replanned, { dayKey: TODAY, now: at("12:00") });
     expect(again.entries.some((e) => e.overdue)).toBe(false);
@@ -384,5 +392,282 @@ describe("hora de los formularios", () => {
     expect(timeInputToDueAt("2026-09-30", "10:05")).toBe("2026-09-30T08:05:00.000Z");
     expect(timeInputToDueAt("2026-09-30", "")).toBeNull();
     expect(timeInputToDueAt("2026-09-30", "xx")).toBeNull();
+  });
+});
+
+describe("taskDay", () => {
+  it("scheduledOn manda sobre dueAt", () => {
+    expect(taskDay(task({ scheduledOn: "2026-10-02", dueAt: "2026-09-30T10:00:00+02:00" }))).toBe(
+      "2026-10-02",
+    );
+  });
+  it("sin scheduledOn usa la fecha de dueAt en Madrid", () => {
+    expect(taskDay(task({ dueAt: "2026-09-30T22:30:00Z" }))).toBe("2026-10-01");
+    expect(taskDay(task({ dueAt: "2026-10-25T23:30:00Z" }))).toBe("2026-10-26");
+  });
+  it("sin nada es null (Bandeja); dueAt inválido también", () => {
+    expect(taskDay(task({ scheduledOn: null, dueAt: null }))).toBeNull();
+    expect(taskDay(task({ scheduledOn: undefined, dueAt: undefined }))).toBeNull();
+    expect(taskDay(task({ scheduledOn: null, dueAt: "basura" }))).toBeNull();
+  });
+});
+
+describe("buildSchedule por día programado", () => {
+  const opts = (dayKey: string, now = at("08:00")) => ({ dayKey, now });
+
+  it("solo muestra las tareas de ese día", () => {
+    const list = [
+      task({ id: "hoy", position: 1 }),
+      task({ id: "jue", position: 2, scheduledOn: "2026-10-01" }),
+      task({ id: "bandeja", position: 3, scheduledOn: null }),
+    ];
+    expect(buildSchedule(list, opts(TODAY)).entries.map((e) => e.task.id)).toEqual(["hoy"]);
+    expect(buildSchedule(list, opts("2026-10-01")).entries.map((e) => e.task.id)).toEqual(["jue"]);
+    expect(buildSchedule(list, opts("2026-10-02")).entries).toEqual([]);
+  });
+
+  it("la Bandeja no aparece en ningún día", () => {
+    const list = [task({ position: 1, scheduledOn: null })];
+    for (const d of ["2026-09-29", TODAY, "2026-10-01"]) {
+      expect(buildSchedule(list, opts(d)).entries).toEqual([]);
+    }
+  });
+
+  it("scheduledOn sin hora apila en secuencia y no es 'hora fija'", () => {
+    const s = buildSchedule([task({ position: 1, scheduledOn: "2026-10-01" })], opts("2026-10-01"));
+    expect(s.entries[0]).toMatchObject({ startMin: 540, explicit: false });
+  });
+
+  it("dueAt con la misma fecha que scheduledOn es hora fija", () => {
+    const t = task({ scheduledOn: "2026-10-01", dueAt: "2026-10-01T12:00:00+02:00", position: 1 });
+    const s = buildSchedule([t], opts("2026-10-01"));
+    expect(s.entries[0]).toMatchObject({ startMin: 720, explicit: true });
+  });
+
+  it("si scheduledOn y dueAt discrepan, gana scheduledOn y la hora no es fija", () => {
+    const t = task({ scheduledOn: "2026-10-02", dueAt: "2026-10-01T12:00:00+02:00", position: 1 });
+    expect(buildSchedule([t], opts("2026-10-01")).entries).toEqual([]);
+    const s = buildSchedule([t], opts("2026-10-02"));
+    expect(s.entries[0]).toMatchObject({ startMin: 540, explicit: false });
+  });
+
+  it("dueAt sin scheduledOn sigue fijando el día (datos antiguos)", () => {
+    const t = task({ dueAt: "2026-10-01T09:30:00+02:00", position: 1 });
+    expect(buildSchedule([t], opts("2026-10-01")).entries[0]).toMatchObject({
+      startMin: 570,
+      explicit: true,
+    });
+  });
+
+  it("arrastra a hoy las no hechas con scheduledOn anterior, como vencidas", () => {
+    const old = task({ id: "o", position: 1, scheduledOn: "2026-09-27" });
+    const oldDone = task({ id: "od", position: 2, scheduledOn: "2026-09-27", status: "DONE" });
+    const s = buildSchedule([old, oldDone], opts(TODAY));
+    expect(s.entries.map((e) => [e.task.id, e.overdue])).toEqual([["o", true]]);
+    expect(buildSchedule([old], opts("2026-10-01")).entries).toEqual([]);
+  });
+
+  it("al ver un día pasado, sus tareas salen sin vencer", () => {
+    const old = task({ id: "o", position: 1, scheduledOn: "2026-09-27" });
+    const s = buildSchedule([old], opts("2026-09-27"));
+    expect(s.entries.map((e) => [e.task.id, e.overdue])).toEqual([["o", false]]);
+  });
+
+  it("una tarea de hoy sin hora no está vencida", () => {
+    const s = buildSchedule([task({ position: 1 })], opts(TODAY, at("20:00")));
+    expect(s.entries[0]?.overdue).toBe(false);
+  });
+
+  it("las archivadas y canceladas no se arrastran", () => {
+    const list = [
+      task({ scheduledOn: "2026-09-20", archivedAt: "2026-09-21T00:00:00Z" }),
+      task({ scheduledOn: "2026-09-20", status: "CANCELLED" }),
+    ];
+    expect(buildSchedule(list, opts(TODAY)).entries).toEqual([]);
+  });
+
+  it("cambio de hora: una tarea el día del cambio a horario de invierno mantiene su hora", () => {
+    const t = task({ dueAt: "2026-10-25T10:00:00Z", position: 1 });
+    const s = buildSchedule([t], { dayKey: "2026-10-25", now: at("08:00") });
+    expect(s.entries[0]).toMatchObject({ startMin: 11 * 60, explicit: true });
+    expect(taskDay(t)).toBe("2026-10-25");
+  });
+});
+
+describe("inboxTasks", () => {
+  it("devuelve las tareas sin día ordenadas por position, sin archivadas ni canceladas", () => {
+    const list = [
+      task({ id: "b", position: 2, scheduledOn: null }),
+      task({ id: "a", position: 1, scheduledOn: null }),
+      task({ id: "hoy", position: 0 }),
+      task({ id: "arch", position: 3, scheduledOn: null, archivedAt: "2026-09-01T00:00:00Z" }),
+      task({ id: "can", position: 4, scheduledOn: null, status: "CANCELLED" }),
+      task({ id: "due", position: 5, dueAt: "2026-10-01T10:00:00Z" }),
+    ];
+    expect(inboxTasks(list).map((t) => t.id)).toEqual(["a", "b"]);
+  });
+  it("lista vacía", () => {
+    expect(inboxTasks([])).toEqual([]);
+  });
+});
+
+describe("buildDayMarkers", () => {
+  const days = getWeekDays(TODAY);
+  const build = (list: TimelineTask[], now = at("08:00")) => buildDayMarkers(list, days, { now });
+
+  it("días sin tareas tienen marcador vacío", () => {
+    const m = build([]);
+    expect(m["2026-10-01"]).toMatchObject({ total: 0, done: 0, dots: [], extra: 0 });
+    expect(Object.keys(m)).toEqual(days);
+  });
+
+  it("cuenta tareas y hechas por día, y la bandeja no cuenta", () => {
+    const m = build([
+      task({ scheduledOn: "2026-10-01" }),
+      task({ scheduledOn: "2026-10-01", status: "DONE" }),
+      task({ scheduledOn: "2026-10-01", status: "DONE" }),
+      task({ scheduledOn: null }),
+    ]);
+    expect(m["2026-10-01"]).toMatchObject({ total: 3, done: 2, pending: 1 });
+    expect(Object.values(m).reduce((n, x) => n + x.total, 0)).toBe(3);
+  });
+
+  it("puntos: pendientes por prioridad primero, hechos atenuados al final", () => {
+    const m = build([
+      task({ scheduledOn: "2026-10-01", priority: "LOW" }),
+      task({ scheduledOn: "2026-10-01", priority: "URGENT", status: "DONE" }),
+      task({ scheduledOn: "2026-10-01", priority: "URGENT" }),
+    ]);
+    expect(m["2026-10-01"]?.dots).toEqual([
+      { priority: "URGENT", done: false },
+      { priority: "LOW", done: false },
+      { priority: "URGENT", done: true },
+    ]);
+  });
+
+  it("limita a 4 puntos y resume el resto", () => {
+    const list = Array.from({ length: 7 }, () => task({ scheduledOn: "2026-10-01" }));
+    const marker = build(list)["2026-10-01"];
+    expect(marker?.dots).toHaveLength(4);
+    expect(marker?.extra).toBe(3);
+    expect(marker?.total).toBe(7);
+  });
+
+  it("excluye archivadas y canceladas", () => {
+    const m = build([
+      task({ scheduledOn: "2026-10-01", archivedAt: "2026-09-01T00:00:00Z" }),
+      task({ scheduledOn: "2026-10-01", status: "CANCELLED" }),
+    ]);
+    expect(m["2026-10-01"]?.total).toBe(0);
+  });
+
+  it("las vencidas arrastradas cuentan en hoy y lo resaltan", () => {
+    const m = build([task({ scheduledOn: "2026-09-28" })]);
+    expect(m[TODAY]).toMatchObject({ total: 1, hasOverdue: true });
+    expect(m["2026-09-28"]).toMatchObject({ total: 1, hasOverdue: false });
+  });
+
+  it("marca conflictos", () => {
+    const m = build([
+      task({ dueAt: "2026-10-01T10:00:00+02:00", durationMin: 30 }),
+      task({ dueAt: "2026-10-01T10:15:00+02:00" }),
+    ]);
+    expect(m["2026-10-01"]?.hasConflict).toBe(true);
+    expect(m[TODAY]?.hasConflict).toBe(false);
+  });
+
+  it("usa el día de Madrid para dueAt", () => {
+    const m = build([task({ dueAt: "2026-09-30T22:30:00Z" })]);
+    expect(m["2026-10-01"]?.total).toBe(1);
+    expect(m[TODAY]?.total).toBe(0);
+  });
+});
+
+describe("dayPatchFor", () => {
+  it("tarea sin hora: solo cambia scheduledOn", () => {
+    expect(dayPatchFor(task({ scheduledOn: TODAY }), "2026-10-01")).toEqual({
+      scheduledOn: "2026-10-01",
+    });
+  });
+  it("tarea con hora: conserva la hora en el nuevo día (Madrid)", () => {
+    const t = task({ dueAt: "2026-09-30T08:05:00Z" });
+    expect(dayPatchFor(t, "2026-10-01")).toEqual({
+      scheduledOn: "2026-10-01",
+      dueAt: "2026-10-01T08:05:00.000Z",
+    });
+  });
+  it("respeta el cambio de hora al mover la tarea entre semanas de verano e invierno", () => {
+    const t = task({ dueAt: "2026-10-24T08:00:00Z" });
+    expect(dayPatchFor(t, "2026-10-26")).toEqual({
+      scheduledOn: "2026-10-26",
+      dueAt: "2026-10-26T09:00:00.000Z",
+    });
+  });
+  it("a la Bandeja: scheduledOn null y se quita la hora", () => {
+    expect(dayPatchFor(task({ dueAt: "2026-09-30T08:05:00Z" }), null)).toEqual({
+      scheduledOn: null,
+      dueAt: null,
+    });
+    expect(dayPatchFor(task({ scheduledOn: TODAY }), null)).toEqual({ scheduledOn: null });
+  });
+  it("mover a un día que ya coincide con la hora no la reescribe", () => {
+    const t = task({ dueAt: "2026-09-30T08:05:00Z" });
+    expect(dayPatchFor(t, TODAY)).toEqual({ scheduledOn: TODAY });
+  });
+});
+
+describe("resolveTaskSchedule", () => {
+  it("día sin hora", () => {
+    expect(resolveTaskSchedule("2026-10-01", "")).toEqual({
+      scheduledOn: "2026-10-01",
+      dueAt: null,
+    });
+  });
+  it("con hora fija su fecha manda y scheduledOn se alinea", () => {
+    expect(resolveTaskSchedule("2026-10-01", "10:05")).toEqual({
+      scheduledOn: "2026-10-01",
+      dueAt: "2026-10-01T08:05:00.000Z",
+    });
+  });
+  it("hora inválida se ignora", () => {
+    expect(resolveTaskSchedule("2026-10-01", "xx")).toEqual({
+      scheduledOn: "2026-10-01",
+      dueAt: null,
+    });
+  });
+  it("sin día (Bandeja) no hay hora ni fecha", () => {
+    expect(resolveTaskSchedule(null, "10:05")).toEqual({ scheduledOn: null, dueAt: null });
+  });
+});
+
+describe("describeDay", () => {
+  it("hoy, mañana, ayer y fecha corta", () => {
+    expect(describeDay(TODAY, TODAY)).toBe("hoy");
+    expect(describeDay("2026-10-01", TODAY)).toBe("mañana");
+    expect(describeDay("2026-09-29", TODAY)).toBe("ayer");
+    expect(describeDay("2026-10-08", TODAY)).toMatch(/jue.* 8 oct/);
+  });
+});
+
+describe("undoDayPatch", () => {
+  it("restaura scheduledOn y solo toca dueAt si el cambio lo tocó", () => {
+    const t = task({ scheduledOn: TODAY });
+    expect(undoDayPatch(t, { scheduledOn: "2026-10-01" })).toEqual({ scheduledOn: TODAY });
+    const timed = task({ dueAt: "2026-09-30T08:05:00Z" });
+    expect(undoDayPatch(timed, { scheduledOn: "2026-10-01", dueAt: "x" })).toEqual({
+      scheduledOn: null,
+      dueAt: "2026-09-30T08:05:00Z",
+    });
+  });
+});
+
+describe("dayShortcuts", () => {
+  it("hoy y mañana siempre; el día visto solo si es otro", () => {
+    expect(dayShortcuts(TODAY).map((s) => s.day)).toEqual([TODAY, "2026-10-01"]);
+    expect(dayShortcuts(TODAY, TODAY).map((s) => s.key)).toEqual(["today", "tomorrow"]);
+    expect(dayShortcuts(TODAY, "2026-10-01")).toHaveLength(2);
+    const extra = dayShortcuts(TODAY, "2026-10-03")[2];
+    expect(extra).toMatchObject({ key: "selected", day: "2026-10-03" });
+    expect(extra?.label).toMatch(/^Día seleccionado · .*3 oct/);
   });
 });

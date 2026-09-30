@@ -3,15 +3,18 @@
 import { ActionIcon } from "@mantine/core";
 import {
   IconArchive,
+  IconCalendarEvent,
+  IconCalendarPlus,
   IconCheck,
   IconChevronDown,
   IconChevronUp,
   IconPencil,
 } from "@tabler/icons-react";
-import type { DragEvent } from "react";
+import { useState, type DragEvent } from "react";
 
 import { PRIORITY_META } from "./priority";
-import { formatClock, formatRange, type ScheduleEntry } from "./task-timeline";
+import { ScheduleChooser } from "./schedule-chooser";
+import { formatClock, formatRange, shiftDay, taskDay, type ScheduleEntry } from "./task-timeline";
 import styles from "./tasks-timeline.module.css";
 
 export interface TaskNodeHandlers {
@@ -19,6 +22,7 @@ export interface TaskNodeHandlers {
   onArchive: (entry: ScheduleEntry) => void;
   onEdit: (entry: ScheduleEntry) => void;
   onMove: (id: string, direction: -1 | 1) => void;
+  onMoveToDay: (entry: ScheduleEntry, day: string | null) => void;
   onDragStart: (id: string) => void;
   onDragOver: (id: string) => void;
   onDrop: (id: string) => void;
@@ -27,6 +31,7 @@ export interface TaskNodeHandlers {
 
 interface TaskNodeProps extends TaskNodeHandlers {
   entry: ScheduleEntry;
+  today: string;
   isFirst: boolean;
   isLast: boolean;
   dragging: boolean;
@@ -35,6 +40,7 @@ interface TaskNodeProps extends TaskNodeHandlers {
 
 export function TaskNode({
   entry,
+  today,
   isFirst,
   isLast,
   dragging,
@@ -42,6 +48,8 @@ export function TaskNode({
   ...handlers
 }: TaskNodeProps) {
   const { task } = entry;
+  const [choosing, setChoosing] = useState(false);
+  const tomorrow = shiftDay(today, 1);
   const done = task.status === "DONE";
   const conflict = entry.conflictsWith.length > 0;
   const meta = PRIORITY_META[task.priority];
@@ -149,6 +157,28 @@ export function TaskNode({
             variant="subtle"
             color="gray"
             size="md"
+            aria-label={`Mover a mañana: ${task.title}`}
+            title="Mover a mañana"
+            disabled={taskDay(task) === tomorrow}
+            onClick={() => handlers.onMoveToDay(entry, tomorrow)}
+          >
+            <IconCalendarPlus size={18} />
+          </ActionIcon>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="md"
+            aria-label={`Mover al día: ${task.title}`}
+            title="Mover al día…"
+            aria-expanded={choosing}
+            onClick={() => setChoosing((open) => !open)}
+          >
+            <IconCalendarEvent size={18} />
+          </ActionIcon>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="md"
             aria-label={`Editar: ${task.title}`}
             onClick={() => handlers.onEdit(entry)}
           >
@@ -164,6 +194,19 @@ export function TaskNode({
             <IconArchive size={18} />
           </ActionIcon>
         </div>
+        {choosing ? (
+          <div className={styles.nodeChooser}>
+            <ScheduleChooser
+              taskTitle={task.title}
+              today={today}
+              allowNone
+              onPick={(day) => {
+                setChoosing(false);
+                handlers.onMoveToDay(entry, day);
+              }}
+            />
+          </div>
+        ) : null}
       </div>
     </li>
   );

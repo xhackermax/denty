@@ -19,6 +19,7 @@ const row = {
   position: 3,
   duration_min: 20,
   archived_at: null,
+  scheduled_on: null,
   version: 2,
   created_at: "2026-09-30T10:00:00.000Z",
   updated_at: "2026-09-30T10:00:00.000Z",
@@ -71,6 +72,8 @@ describe("TaskRepository", () => {
       p_archived: true,
       p_expected_version: 2,
       p_assignee_staff_id: null,
+      p_scheduled_on: null,
+      p_clear_scheduled_on: false,
     });
     await repo.update("t1", { dueAt: null });
     expect(rpc.mock.calls[1]?.[1]).toMatchObject({ p_due_at: null, p_clear_due_at: true });
@@ -79,6 +82,38 @@ describe("TaskRepository", () => {
       p_due_at: "2026-10-01T10:00:00.000Z",
       p_clear_due_at: false,
       p_status: "DONE",
+    });
+  });
+
+  it("maps scheduled_on to scheduledOn", async () => {
+    const { client, rpc } = fakeClient();
+    const repo = new TaskRepository(client, "c1");
+    expect((await repo.list()).items[0]).toMatchObject({ scheduledOn: null });
+    rpc.mockResolvedValueOnce({ ...row, scheduled_on: "2026-10-01" });
+    expect(await repo.create({ title: "A" })).toMatchObject({ scheduledOn: "2026-10-01" });
+  });
+
+  it("create passes scheduledOn (null when absent)", async () => {
+    const { client, rpc } = fakeClient();
+    const repo = new TaskRepository(client, "c1");
+    await repo.create({ title: "A", scheduledOn: "2026-10-01" });
+    expect(rpc.mock.calls[0]?.[1]).toMatchObject({ p_scheduled_on: "2026-10-01" });
+    await repo.create({ title: "A" });
+    expect(rpc.mock.calls[1]?.[1]).toMatchObject({ p_scheduled_on: null });
+  });
+
+  it("update sets or clears scheduledOn", async () => {
+    const { client, rpc } = fakeClient();
+    const repo = new TaskRepository(client, "c1");
+    await repo.update("t1", { scheduledOn: "2026-10-02" });
+    expect(rpc.mock.calls[0]?.[1]).toMatchObject({
+      p_scheduled_on: "2026-10-02",
+      p_clear_scheduled_on: false,
+    });
+    await repo.update("t1", { scheduledOn: null });
+    expect(rpc.mock.calls[1]?.[1]).toMatchObject({
+      p_scheduled_on: null,
+      p_clear_scheduled_on: true,
     });
   });
 

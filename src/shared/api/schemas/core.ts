@@ -252,6 +252,13 @@ export type CreateAbsence = z.input<typeof createAbsenceSchema>;
 
 export const taskStatusSchema = z.enum(["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"]);
 export const taskPrioritySchema = z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]);
+const scheduledOnSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  }, "Fecha inválida");
 const taskDurationSchema = z.number().int().min(1).max(1440);
 export const taskSchema = z
   .object({
@@ -269,6 +276,7 @@ export const taskSchema = z
     position: z.number().int(),
     durationMin: z.number().int().min(1).max(1440),
     archivedAt: isoDateTimeSchema.nullable().optional(),
+    scheduledOn: scheduledOnSchema.nullable().optional(),
     version: z.number().int().positive(),
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema,
@@ -286,6 +294,7 @@ export const createTaskSchema = z.object({
   sourceType: z.string().max(80).optional(),
   sourceId: z.string().max(200).optional(),
   durationMin: taskDurationSchema.optional(),
+  scheduledOn: scheduledOnSchema.optional(),
 });
 export const updateTaskSchema = z.object({
   status: taskStatusSchema.optional(),
@@ -296,6 +305,7 @@ export const updateTaskSchema = z.object({
   archived: z.boolean().optional(),
   expectedVersion: z.number().int().positive().optional(),
   assigneeStaffId: idSchema.optional(),
+  scheduledOn: scheduledOnSchema.nullable().optional(),
 });
 export const reorderTasksSchema = z.object({
   orderedIds: z

@@ -12,31 +12,43 @@ import {
 } from "@mantine/core";
 import { useState } from "react";
 
+import { DayPicker } from "./day-picker";
 import { PRIORITY_OPTIONS } from "./priority";
-import { DEFAULT_DURATION_MIN, dueAtToTimeInput } from "./task-timeline";
+import { DEFAULT_DURATION_MIN, dueAtToTimeInput, taskDay } from "./task-timeline";
 import type { TaskPriority, TimelineTask } from "./task-types";
 
 export interface TaskFormValues {
   title: string;
   priority: TaskPriority;
   durationMin: number;
+  day: string | null;
   time: string;
 }
 
 interface TaskEditorModalProps {
   opened: boolean;
   task: TimelineTask | null;
+  today: string;
+  initialDay: string | null;
   pending?: boolean;
   onClose: () => void;
   onSubmit: (values: TaskFormValues) => void;
 }
 
-function TaskForm({ task, pending, onClose, onSubmit }: Omit<TaskEditorModalProps, "opened">) {
+function TaskForm({
+  task,
+  today,
+  initialDay,
+  pending,
+  onClose,
+  onSubmit,
+}: Omit<TaskEditorModalProps, "opened">) {
   const [title, setTitle] = useState(task?.title ?? "");
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? "NORMAL");
   const [duration, setDuration] = useState<number | string>(
     task?.durationMin ?? DEFAULT_DURATION_MIN,
   );
+  const [day, setDay] = useState<string | null>(task ? taskDay(task) : initialDay);
   const [time, setTime] = useState(dueAtToTimeInput(task?.dueAt));
 
   const durationMin = typeof duration === "number" ? duration : Number(duration);
@@ -47,7 +59,13 @@ function TaskForm({ task, pending, onClose, onSubmit }: Omit<TaskEditorModalProp
       onSubmit={(event) => {
         event.preventDefault();
         if (!valid) return;
-        onSubmit({ title: title.trim(), priority, durationMin: Math.round(durationMin), time });
+        onSubmit({
+          title: title.trim(),
+          priority,
+          durationMin: Math.round(durationMin),
+          day,
+          time,
+        });
       }}
     >
       <Stack gap="sm">
@@ -70,6 +88,7 @@ function TaskForm({ task, pending, onClose, onSubmit }: Omit<TaskEditorModalProp
             onChange={(value) => setPriority(value as TaskPriority)}
           />
         </div>
+        <DayPicker value={day} today={today} onChange={setDay} />
         <Group grow align="flex-start">
           <NumberInput
             label="Duración (min)"
@@ -84,7 +103,10 @@ function TaskForm({ task, pending, onClose, onSubmit }: Omit<TaskEditorModalProp
           <TextInput
             label="Hora (opcional)"
             type="time"
-            description="Vacía: se calcula en secuencia"
+            description={
+              day === null ? "Elige un día para fijar hora" : "Vacía: se calcula en secuencia"
+            }
+            disabled={day === null}
             value={time}
             onChange={(event) => setTime(event.currentTarget.value)}
           />

@@ -1,81 +1,16 @@
 // @vitest-environment jsdom
 
-import { MantineProvider } from "@mantine/core";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { TasksTimeline } from "../tasks-timeline";
-import type { TaskUpdateInput, TasksApi, TimelineTask } from "../task-types";
-
-const NOW = new Date("2026-09-30T08:00:00+02:00");
-
-function mk(over: Partial<TimelineTask> & { id: string }): TimelineTask {
-  return {
-    title: over.id.toUpperCase(),
-    status: "OPEN",
-    priority: "NORMAL",
-    version: 1,
-    position: 0,
-    durationMin: 15,
-    dueAt: null,
-    archivedAt: null,
-    ...over,
-  };
-}
-
-function makeApi(initial: TimelineTask[]) {
-  let items = initial.map((t) => ({ ...t }));
-  const api = {
-    list: vi.fn(async () => ({ items: items.map((t) => ({ ...t })) })),
-    create: vi.fn(async () => ({})),
-    update: vi.fn(async (id: string, input: TaskUpdateInput) => {
-      items = items.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              ...(input.status ? { status: input.status } : {}),
-              ...(input.archived !== undefined
-                ? { archivedAt: input.archived ? "2026-09-30T00:00:00Z" : null }
-                : {}),
-              version: t.version + 1,
-            }
-          : t,
-      );
-      return {};
-    }),
-    reorder: vi.fn(async (ids: string[]) => {
-      items = ids.map((id, i) => ({
-        ...(items.find((t) => t.id === id) as TimelineTask),
-        position: i,
-      }));
-      return {};
-    }),
-  };
-  return api satisfies TasksApi;
-}
-
-function renderTimeline(api: TasksApi) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={client}>
-      <MantineProvider>
-        <TasksTimeline api={api} now={() => NOW} />
-      </MantineProvider>
-    </QueryClientProvider>,
-  );
-}
-
-function titlesInOrder() {
-  return screen.getAllByTestId("task-title").map((el) => el.textContent);
-}
+import { makeApi, mk, renderTimeline, titlesInOrder } from "./agenda-fixture";
 
 describe("TasksTimeline", () => {
   afterEach(cleanup);
 
   it("muestra estado vacío", async () => {
     renderTimeline(makeApi([]));
-    expect(await screen.findByText(/No hay tareas para este día/)).toBeTruthy();
+    expect(await screen.findByText(/Nada programado este día/)).toBeTruthy();
   });
 
   it("muestra error de carga", async () => {
@@ -227,7 +162,11 @@ describe("TasksTimeline", () => {
     const button = await screen.findByRole("button", { name: "Volver a planificar 1 tarea" });
     fireEvent.click(button);
     await waitFor(() =>
-      expect(api.update).toHaveBeenCalledWith("b", { dueAt: null, expectedVersion: 3 }),
+      expect(api.update).toHaveBeenCalledWith("b", {
+        scheduledOn: "2026-09-30",
+        dueAt: null,
+        expectedVersion: 3,
+      }),
     );
     await waitFor(() => expect(api.reorder).toHaveBeenCalledWith(["b", "a"]));
   });
@@ -251,6 +190,7 @@ describe("TasksTimeline", () => {
         title: "Llamar",
         priority: "NORMAL",
         durationMin: 30,
+        scheduledOn: "2026-09-30",
       }),
     );
   });

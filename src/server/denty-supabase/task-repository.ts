@@ -15,6 +15,7 @@ interface TaskRow {
   position: number;
   duration_min: number;
   archived_at: string | null;
+  scheduled_on?: string | null;
   version: number;
   created_at: string;
   updated_at: string;
@@ -34,6 +35,7 @@ const task = (r: TaskRow) => ({
   position: r.position,
   durationMin: r.duration_min,
   archivedAt: r.archived_at,
+  scheduledOn: r.scheduled_on ?? null,
   version: r.version,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -62,6 +64,7 @@ export class TaskRepository {
     sourceType?: string;
     sourceId?: string;
     durationMin?: number;
+    scheduledOn?: string;
   }) {
     return task(
       await this.client.rpc<TaskRow>("create_task", {
@@ -76,6 +79,7 @@ export class TaskRepository {
         p_source_type: input.sourceType ?? null,
         p_source_id: input.sourceId ?? null,
         p_duration_min: input.durationMin ?? null,
+        p_scheduled_on: input.scheduledOn ?? null,
       }),
     );
   }
@@ -104,6 +108,7 @@ export class TaskRepository {
       archived?: boolean;
       expectedVersion?: number;
       assigneeStaffId?: string;
+      scheduledOn?: string | null;
     },
   ) {
     return task(
@@ -118,6 +123,8 @@ export class TaskRepository {
         p_archived: input.archived ?? null,
         p_expected_version: input.expectedVersion ?? null,
         p_assignee_staff_id: input.assigneeStaffId ?? null,
+        p_scheduled_on: input.scheduledOn ?? null,
+        p_clear_scheduled_on: input.scheduledOn === null,
       }),
     );
   }

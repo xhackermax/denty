@@ -149,6 +149,34 @@ function overlaps(a: ScheduleEntry, b: ScheduleEntry): boolean {
   return a.startMin < b.endMin && b.startMin < a.endMin;
 }
 
+function validDueAt(task: TimelineTask): Date | null {
+  if (!task.dueAt) return null;
+  const due = new Date(task.dueAt);
+  return Number.isNaN(due.getTime()) ? null : due;
+}
+
+// El día de una tarea: scheduledOn si existe, si no la fecha local de dueAt, si no null (Bandeja).
+export function taskDay(task: TimelineTask, timeZone = DEFAULT_TIMEZONE): string | null {
+  if (task.scheduledOn) return task.scheduledOn;
+  const due = validDueAt(task);
+  return due ? zonedDayKey(due, timeZone) : null;
+}
+
+function isActive(task: TimelineTask): boolean {
+  return !task.archivedAt && task.status !== "CANCELLED";
+}
+
+export function inboxTasks(
+  tasks: readonly TimelineTask[],
+  timeZone = DEFAULT_TIMEZONE,
+): TimelineTask[] {
+  return tasks
+    .map((task, index) => ({ task, index }))
+    .filter(({ task }) => isActive(task) && taskDay(task, timeZone) === null)
+    .sort((a, b) => a.task.position - b.task.position || a.index - b.index)
+    .map(({ task }) => task);
+}
+
 export function buildSchedule(tasks: readonly TimelineTask[], options: ScheduleOptions): Schedule {
   const tz = options.timeZone ?? DEFAULT_TIMEZONE;
   const fallback = options.defaultDurationMin ?? DEFAULT_DURATION_MIN;
@@ -157,7 +185,7 @@ export function buildSchedule(tasks: readonly TimelineTask[], options: ScheduleO
 
   const ordered = tasks
     .map((task, index) => ({ task, index }))
-    .filter(({ task }) => !task.archivedAt && task.status !== "CANCELLED")
+    .filter(({ task }) => isActive(task))
     .sort((a, b) => a.task.position - b.task.position || a.index - b.index)
     .map(({ task }) => task);
 
@@ -165,20 +193,17 @@ export function buildSchedule(tasks: readonly TimelineTask[], options: ScheduleO
   const entries: ScheduleEntry[] = [];
 
   for (const task of ordered) {
-    const due = task.dueAt ? new Date(task.dueAt) : null;
-    const dueKey = due && !Number.isNaN(due.getTime()) ? zonedDayKey(due, tz) : null;
+    const day = taskDay(task, tz);
+    if (day === null) continue;
     const done = task.status === "DONE";
-    let explicit = false;
     let carried = false;
-
-    if (dueKey !== null) {
-      if (dueKey === dayKey) explicit = true;
-      else if (dueKey < dayKey || !isToday) {
-        // Solo "hoy" arrastra atrasadas; en otros días una tarea con otra fecha no pertenece.
-        if (isToday && dueKey < dayKey && !done) carried = true;
-        else continue;
-      } else continue;
+    if (day !== dayKey) {
+      // Solo "hoy" arrastra las atrasadas sin hacer; en otros días una tarea de otra fecha no pertenece.
+      if (isToday && day < dayKey && !done) carried = true;
+      else continue;
     }
+    const due = validDueAt(task);
+    const explicit = !carried && due !== null && zonedDayKey(due, tz) === dayKey;
 
     const durationMin = resolveDuration(task, fallback);
     const startMin = explicit && due ? minuteOfDay(due, tz) : cursor;
@@ -265,11 +290,18 @@ export function mergeVisibleOrder(
   return allIds.map((id) => (visible.has(id) ? (queue.shift() as string) : id));
 }
 
-export interface ReplanPlan {
-  orderedIds: string[];
-  clearDueAtIds: string[];
+export interface ReplanMove {
+  id: string;
+  scheduledOn: string;
+  clearDueAt: boolean;
 }
 
+export interface ReplanPlan {
+  orderedIds: string[];
+  moves: ReplanMove[];
+}
+
+// Las vencidas se reprograman para el día del horario (hoy) y pasan delante de lo pendiente.
 export function planReplan(schedule: Schedule): ReplanPlan {
   const overdue = schedule.entries.filter((e) => e.overdue);
   const overdueIds = new Set(overdue.map((e) => e.task.id));
@@ -280,8 +312,148 @@ export function planReplan(schedule: Schedule): ReplanPlan {
   ordered.splice(insertAt, 0, ...overdue.map((e) => e.task.id));
   return {
     orderedIds: ordered,
-    clearDueAtIds: overdue.filter((e) => e.task.dueAt).map((e) => e.task.id),
+    moves: overdue.map((e) => ({
+      id: e.task.id,
+      scheduledOn: schedule.dayKey,
+      clearDueAt: Boolean(e.task.dueAt),
+    })),
   };
+}
+
+export const MAX_MARKER_DOTS = 4;
+
+export interface MarkerDot {
+  priority: TaskPriority;
+  done: boolean;
+}
+
+export interface DayMarker {
+  total: number;
+  done: number;
+  pending: number;
+  dots: MarkerDot[];
+  extra: number;
+  hasOverdue: boolean;
+  hasConflict: boolean;
+}
+
+export function buildDayMarkers(
+  tasks: readonly TimelineTask[],
+  days: readonly string[],
+  options: { now: Date; timeZone?: string },
+): Record<string, DayMarker> {
+  const result: Record<string, DayMarker> = {};
+  for (const dayKey of days) {
+    const { entries } = buildSchedule(tasks, { dayKey, ...options });
+    const pendingEntries = sortByPriority(
+      entries.filter((e) => e.task.status !== "DONE").map((e) => e.task),
+    );
+    const doneEntries = sortByPriority(
+      entries.filter((e) => e.task.status === "DONE").map((e) => e.task),
+    );
+    const dots: MarkerDot[] = [
+      ...pendingEntries.map((t) => ({ priority: t.priority, done: false })),
+      ...doneEntries.map((t) => ({ priority: t.priority, done: true })),
+    ];
+    result[dayKey] = {
+      total: entries.length,
+      done: doneEntries.length,
+      pending: pendingEntries.length,
+      dots: dots.slice(0, MAX_MARKER_DOTS),
+      extra: Math.max(0, dots.length - MAX_MARKER_DOTS),
+      hasOverdue: entries.some((e) => e.overdue),
+      hasConflict: entries.some((e) => e.conflictsWith.length > 0),
+    };
+  }
+  return result;
+}
+
+export function markerLabel(marker: DayMarker): string {
+  if (marker.total === 0) return "Sin tareas";
+  const total = `${marker.total} ${marker.total === 1 ? "tarea" : "tareas"}`;
+  if (marker.done === 0) return total;
+  return `${total}, ${marker.done} ${marker.done === 1 ? "hecha" : "hechas"}`;
+}
+
+export interface TaskDayPatch {
+  scheduledOn: string | null;
+  dueAt?: string | null;
+}
+
+// Mover de día conserva la hora fija (en Madrid); a la Bandeja se pierde porque dueAt fijaría el día.
+export function dayPatchFor(
+  task: TimelineTask,
+  day: string | null,
+  timeZone = DEFAULT_TIMEZONE,
+): TaskDayPatch {
+  if (day === null) return task.dueAt ? { scheduledOn: null, dueAt: null } : { scheduledOn: null };
+  const due = validDueAt(task);
+  if (!due || zonedDayKey(due, timeZone) === day) return { scheduledOn: day };
+  return {
+    scheduledOn: day,
+    dueAt: zonedToUtc(day, minuteOfDay(due, timeZone), timeZone).toISOString(),
+  };
+}
+
+// Revierte un cambio de día restaurando solo los campos que el cambio tocó.
+export function undoDayPatch(task: TimelineTask, patch: TaskDayPatch): TaskDayPatch {
+  return {
+    scheduledOn: task.scheduledOn ?? null,
+    ...("dueAt" in patch ? { dueAt: task.dueAt ?? null } : {}),
+  };
+}
+
+export interface DayShortcut {
+  key: "today" | "tomorrow" | "selected";
+  label: string;
+  day: string;
+}
+
+// Atajos para programar: hoy, mañana y, si difiere, el día que se está viendo.
+export function dayShortcuts(today: string, selectedDay?: string): DayShortcut[] {
+  const tomorrow = shiftDay(today, 1);
+  const shortcuts: DayShortcut[] = [
+    { key: "today", label: "Hoy", day: today },
+    { key: "tomorrow", label: "Mañana", day: tomorrow },
+  ];
+  if (selectedDay && selectedDay !== today && selectedDay !== tomorrow) {
+    shortcuts.push({
+      key: "selected",
+      label: `Día seleccionado · ${describeDay(selectedDay, today)}`,
+      day: selectedDay,
+    });
+  }
+  return shortcuts;
+}
+
+export interface TaskSchedule {
+  scheduledOn: string | null;
+  dueAt: string | null;
+}
+
+// Con hora fija su fecha manda; scheduledOn se alinea con ella.
+export function resolveTaskSchedule(
+  day: string | null,
+  time: string,
+  timeZone = DEFAULT_TIMEZONE,
+): TaskSchedule {
+  if (day === null) return { scheduledOn: null, dueAt: null };
+  const dueAt = timeInputToDueAt(day, time, timeZone);
+  return { scheduledOn: dueAt ? zonedDayKey(new Date(dueAt), timeZone) : day, dueAt };
+}
+
+const shortDayFmt = new Intl.DateTimeFormat("es-ES", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+export function describeDay(dayKey: string, today: string): string {
+  if (dayKey === today) return "hoy";
+  if (dayKey === shiftDay(today, 1)) return "mañana";
+  if (dayKey === shiftDay(today, -1)) return "ayer";
+  return shortDayFmt.format(new Date(`${dayKey}T12:00:00Z`)).replace(/\./g, "");
 }
 
 export function dueAtToTimeInput(
