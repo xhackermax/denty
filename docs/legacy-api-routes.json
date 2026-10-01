@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
-  "routeCount": 225,
+  "routeCount": 245,
   "routes": [
     {
       "method": "GET",
@@ -1465,6 +1465,18 @@
       "path": "/health/db",
       "source": "apps/api/src/server.ts",
       "kind": "server_only"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/export/:entity",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/export/overview",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
     }
   ]
 }

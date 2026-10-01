@@ -27,8 +27,6 @@ describe("clinic contacts build regression", () => {
     withoutSupabaseConfig();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 503 }));
     render(<ClinicContactsPage />);
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "No se pudo validar la sesión.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo validar la sesión.");
   });
 });

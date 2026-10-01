@@ -163,13 +163,16 @@ export function createAdminResource(client: ApiClient) {
       ),
     export: {
       overview: () =>
-        client.request("/api/admin/export/overview", z.object({
-          patientCount: z.number(),
-          appointmentCount: z.number(),
-          treatmentCount: z.number(),
-        })),
+        client.request(
+          "/api/admin/export/overview",
+          z.object({
+            patientCount: z.number(),
+            appointmentCount: z.number(),
+            treatmentCount: z.number(),
+          }),
+        ),
       execute: (entity: "patients" | "appointments" | "treatments", format: "csv" | "xlsx") =>
-        client.requestBlob(`/api/admin/export/${entity}?format=${format}`),
+        client.requestBlob(withQuery(`/api/admin/export/${entity}`, { format })),
     },
   } as const;
 }
