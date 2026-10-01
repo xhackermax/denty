@@ -72,11 +72,13 @@
     {
       "method": "GET",
       "path": "/api/admin/export/overview",
+      "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
     {
       "method": "GET",
       "path": "/api/admin/export/:entity",
+      "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
     {
