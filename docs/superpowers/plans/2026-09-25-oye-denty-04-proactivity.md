@@ -1,14 +1,8 @@
 # Oye Denty Proactivity Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Make Denty proactively surface useful, silent, actionable notifications from deterministic local/business rules without keeping an AI session or microphone active.
 
-**Architecture:** A small event-driven `ProactiveEngine` evaluates a fixed first set of rules when relevant Denty data changes. Rules return normalized `AssistantSuggestion` objects with `Ver`, `Preparar`, and `Descartar` actions. The notification layer is shared with Denty’s existing alerts/notifications surfaces. Realtime is not opened merely to scan for conditions; semantic AI enrichment is deferred unless a user explicitly opens a suggestion that needs interpretation.
-
-**Tech Stack:** Existing Denty APIs, React Query, Zod, Mantine, Vitest. No additional AI dependency.
-
-**Spec:** `docs/superpowers/specs/2026-09-25-oye-denty-assistant-design.md`
+**Spec:** [Design](../specs/2026-09-25-oye-denty-assistant-design.md). This is the original implementation scope; consult [current checkpoint](../../../CHECKPOINT-STATUS.md) before reopening completed work.
 
 ## Global Constraints
 
@@ -28,231 +22,59 @@
 - A caries-without-plan rule must distinguish missing treatment from a deliberately dismissed/alternative plan state.
 - Duplicate rule triggers from multiple React Query refreshes must coalesce into one suggestion.
 
----
-
-## File Structure
-
-- Create `src/features/assistant/proactive/proactive-types.ts`.
-- Create `src/features/assistant/proactive/proactive-engine.ts`.
-- Create `src/features/assistant/proactive/proactive-rules.ts`.
-- Create `src/features/assistant/proactive/proactive-store.tsx`.
-- Create `src/features/assistant/proactive/proactive-notification-card.tsx`.
-- Modify `src/features/parity/modules/alerts-module.tsx` to include assistant suggestions.
-- Modify relevant patient/agenda/document/budget query adapters to publish normalized rule input.
-- Add tests under `src/features/assistant/__tests__/`.
+## Tasks
 
 ### Task 1: Suggestion contracts and deduplication
 
-**Files:**
-- Create: `src/features/assistant/proactive/proactive-types.ts`
-- Create: `src/features/assistant/proactive/proactive-engine.ts`
-- Test: `src/features/assistant/__tests__/proactive-engine.test.ts`
+Files: `src/features/assistant/proactive/proactive-types.ts`, `src/features/assistant/proactive/proactive-engine.ts`, `src/features/assistant/__tests__/proactive-engine.test.ts`.
 
-**Interfaces:**
-
-```ts
-export type ProactiveRuleId =
-  | "BUDGET_UNSIGNED"
-  | "MEDICAL_HISTORY_INCOMPLETE"
-  | "WAITING_TOO_LONG"
-  | "NEXT_PLAN_STEP_PENDING"
-  | "DIAGNOSIS_WITHOUT_PLAN"
-  | "DOCUMENT_UNSIGNED";
-
-export interface AssistantSuggestion {
-  id: string;
-  ruleId: ProactiveRuleId;
-  entityKey: string;
-  versionKey: string;
-  patientId?: string;
-  title: string;
-  message: string;
-  priority: "HIGH" | "MEDIUM" | "LOW";
-  href: string;
-  prepareTool?: { name: string; args: unknown };
-  createdAt: string;
-}
-```
-
-- [ ] **Step 1: Write dedupe/dismissal tests**
-
-Evaluate the same input twice → one suggestion. Dismiss `{ ruleId, entityKey, versionKey }` → hidden. Change `versionKey` → suggestion is eligible again.
-
-- [ ] **Step 2: Verify RED**
-
-```bash
-npx vitest run src/features/assistant/__tests__/proactive-engine.test.ts
-```
-
-- [ ] **Step 3: Implement pure engine**
-
-`evaluateProactiveRules(snapshot, dismissed)` returns a stable array sorted HIGH → MEDIUM → LOW then created timestamp. Dedup key is `${ruleId}:${entityKey}:${versionKey}`.
-
-- [ ] **Step 4: Verify GREEN and commit**
-
-```bash
-npx vitest run src/features/assistant/__tests__/proactive-engine.test.ts
-git add src/features/assistant/proactive src/features/assistant/__tests__/proactive-engine.test.ts
-git commit -m "feat: add deterministic proactive suggestion engine"
-```
+`evaluateProactiveRules(snapshot, dismissed)` returns stable suggestions sorted HIGH→MEDIUM→LOW then timestamp. Key `${ruleId}:${entityKey}:${versionKey}`; duplicate triggers coalesce, dismissal suppresses that version and material version change restores eligibility. Suggestion includes id/rule/entity/version, optional patient, title/message/priority/href/prepareTool/createdAt.
 
 ### Task 2: Budget and document signature rules
 
-**Files:**
-- Create/Modify: `src/features/assistant/proactive/proactive-rules.ts`
-- Test: `src/features/assistant/__tests__/proactive-signature-rules.test.ts`
-- Modify: `src/features/parity/modules/finance-module.tsx` and `src/features/parity/modules/documents-module.tsx` to expose normalized budget/document status and version to the rule snapshot.
+Files: `src/features/assistant/proactive/proactive-rules.ts`, `src/features/assistant/__tests__/proactive-signature-rules.test.ts`, `src/features/parity/modules/finance-module.tsx`, `src/features/parity/modules/documents-module.tsx`.
 
-- [ ] **Step 1: Write signature-rule tests**
-
-Budget rule fires only when budget is generated/final and current signature fingerprint is absent/stale. Document rule fires only for documents in a signable pending state. Signed/archived versions do not fire.
-
-- [ ] **Step 2: Implement rule outputs**
-
-Budget suggestion:
-
-```ts
-{
-  ruleId: "BUDGET_UNSIGNED",
-  title: "Presupuesto pendiente de firma",
-  message: "El presupuesto actual está preparado pero todavía no tiene la firma del paciente.",
-  href: `/app/patients/${patientId}?tab=budget`,
-  prepareTool: { name: "budget.prepare_signature", args: { patientId, budgetId } },
-  priority: "MEDIUM",
-}
-```
-
-Document suggestion links to `/app/documents` with patient/document identifiers in the existing navigation mechanism.
-
-- [ ] **Step 3: Verify and commit**
-
-Run targeted tests, typecheck, commit.
+Budget reminder only for generated/final budget with absent/stale signature fingerprint; document reminder only for a signable pending document. Signed/archived versions do not fire. Link to underlying patient/budget/document.
 
 ### Task 3: Medical-history completeness rule
 
-**Files:**
-- Modify: `src/features/assistant/proactive/proactive-rules.ts`
-- Test: `src/features/assistant/__tests__/proactive-medical-history.test.ts`
+Files: `src/features/assistant/proactive/proactive-rules.ts`, `src/features/assistant/__tests__/proactive-medical-history.test.ts`.
 
-- [ ] **Step 1: Define completeness explicitly**
-
-For v1, “complete” means the patient has a medical profile object and each of the four groups `allergies`, `medications`, `conditions`, `dentalRisks` exists as an array, plus medical `notes` may be empty. The rule is informational; it does not infer whether the values themselves are medically sufficient.
-
-- [ ] **Step 2: Test incomplete/complete cases**
-
-No profile → HIGH before a clinical workflow screen; profile with all arrays (including empty/“none” selections) → no suggestion.
-
-- [ ] **Step 3: Implement and commit**
-
-Suggestion href points to patient Clinical tab and has no auto-executing clinical tool.
+Medical profile completeness requires arrays `allergies`, `medications`, `conditions`, `dentalRisks`; empty arrays and empty notes are valid. Missing profile before clinical workflow is HIGH; informational only, with patient Clinical-tab link and no automatic tool.
 
 ### Task 4: Waiting-room threshold rule
 
-**Files:**
-- Modify: `src/features/assistant/proactive/proactive-rules.ts`
-- Create: `src/features/assistant/proactive/proactive-time.ts`
-- Test: `src/features/assistant/__tests__/proactive-waiting.test.ts`
+Files: `src/features/assistant/proactive/proactive-rules.ts`, `src/features/assistant/proactive/proactive-time.ts`, `src/features/assistant/__tests__/proactive-waiting.test.ts`.
 
-- [ ] **Step 1: Write clock-safe tests**
-
-Inject `now` into the pure rule. Appointment waiting 19 min with threshold 20 → no suggestion; 20 min → suggestion; appointment moved to chair/completed → no suggestion.
-
-- [ ] **Step 2: Implement default threshold**
-
-Default `20` minutes. V1 uses the named constant `DEFAULT_WAITING_ALERT_MINUTES = 20`; changing the threshold is outside this plan.
-
-- [ ] **Step 3: Verify and commit**
-
-Use domain date helpers/Europe-Madrid rules instead of raw `new Date()` inside `src/domain`.
+Inject now and use domain dates/Europe/Madrid/server timestamps. `DEFAULT_WAITING_ALERT_MINUTES = 20`: 19 minutes no alert, 20 alert; in-chair/completed no alert. Threshold changes are outside v1.
 
 ### Task 5: Next-plan-step and diagnosis-without-plan rules
 
-**Files:**
-- Modify: `src/features/assistant/proactive/proactive-rules.ts`
-- Test: `src/features/assistant/__tests__/proactive-clinical-plan.test.ts`
+Files: `src/features/assistant/proactive/proactive-rules.ts`, `src/features/assistant/__tests__/proactive-clinical-plan.test.ts`.
 
-- [ ] **Step 1: Write plan consistency tests**
-
-Cases:
-- completed endodontic item with an explicit dependent planned crown → `NEXT_PLAN_STEP_PENDING`;
-- caries entity on tooth 16 and no open/approved clinical-plan item for tooth 16 → `DIAGNOSIS_WITHOUT_PLAN`;
-- an approved alternative or existing planned restoration for tooth 16 → no diagnosis-without-plan suggestion.
-
-- [ ] **Step 2: Implement data-only rules**
-
-Do not invent a treatment. `DIAGNOSIS_WITHOUT_PLAN` says only that a diagnosis has no associated plan item and offers `Ver plan`, not “add crown/filling”.
-
-`NEXT_PLAN_STEP_PENDING` names the already-existing next plan item and may offer `Ver`/`Preparar` if preparation is a safe existing tool.
-
-- [ ] **Step 3: Verify and commit**
-
-Run targeted tests and clinical-plan regressions.
+`NEXT_PLAN_STEP_PENDING` follows explicit existing dependencies after completion. `DIAGNOSIS_WITHOUT_PLAN` reports diagnosis without an open/approved matching tooth plan; approved alternative/planned restoration suppresses it. Offer Ver plan, never invent a filling/crown.
 
 ### Task 6: Store, notification UI, and quick actions
 
-**Files:**
-- Create: `src/features/assistant/proactive/proactive-store.tsx`
-- Create: `src/features/assistant/proactive/proactive-notification-card.tsx`
-- Modify: `src/features/parity/modules/alerts-module.tsx`
-- Modify: `src/features/assistant/assistant-provider.tsx`
-- Test: `src/features/assistant/__tests__/proactive-notification-card.test.tsx`
+Files: `src/features/assistant/proactive/proactive-store.tsx`, `src/features/assistant/proactive/proactive-notification-card.tsx`, `src/features/parity/modules/alerts-module.tsx`, `src/features/assistant/assistant-provider.tsx`, `src/features/assistant/__tests__/proactive-notification-card.test.tsx`.
 
-- [ ] **Step 1: Write UI tests**
-
-`Ver` navigates to `href`; `Preparar` routes through assistant tool policy; `Descartar` removes only current version; no audio API or Realtime start is called when suggestions appear.
-
-- [ ] **Step 2: Implement in-memory test dismissal**
-
-Dismissals live in provider memory only in isolated tests. Runtime treats dismissals as session-scoped; durable dismissal preferences are outside this plan. Do not use browser storage.
-
-- [ ] **Step 3: Merge into AlertsModule**
-
-Render a `Denty AI` subsection above existing alert rows when assistant suggestions exist. Preserve existing alert workflow unchanged.
-
-- [ ] **Step 4: Verify and commit**
-
-```bash
-npx vitest run src/features/assistant/__tests__/proactive-notification-card.test.tsx --environment jsdom
-npm run architecture:check
-git add src/features/assistant/proactive src/features/parity/modules/alerts-module.tsx src/features/assistant/assistant-provider.tsx src/features/assistant/__tests__/proactive-notification-card.test.tsx
-git commit -m "feat: surface proactive Denty notifications"
-```
+Denty AI section integrates existing alerts. Ver navigates; Preparar uses assistant policy; Descartar hides current version. Dismissal is session-scoped; memory only in isolated tests, no browser storage/durable preferences in v1. No mic/audio/Realtime activation.
 
 ### Task 7: Proactivity regression gate
 
-**Files:**
-- Create: `scripts/tests/assistant-proactive-regression.mjs`
+Files: `scripts/tests/assistant-proactive-regression.mjs`.
 
-- [ ] **Step 1: Lock no-background-AI invariant**
+Gate that proactive modules import no Realtime client, microphone API or OpenAI URL. Test all six rule families, dedupe/version dismissal, thresholds and quick actions; release checks below.
 
-Script fails if proactive modules import Realtime client, microphone APIs, `navigator.mediaDevices`, or OpenAI URLs.
+## Verification
 
-- [ ] **Step 2: Full verification**
+Use TDD for implementation changes; run tests beside the affected modules under `src/features/assistant/__tests__/`, Voice or Domain as applicable.
 
 ```bash
-node scripts/tests/assistant-proactive-regression.mjs
 npm run typecheck
-npm run test -- --run
 npm run architecture:check
-npm run vercel:regressions
+npm test
 npm run build
 ```
 
-- [ ] **Step 3: Commit**
-
-```bash
-git add scripts/tests/assistant-proactive-regression.mjs
-git commit -m "test: lock silent proactive assistant behavior"
-```
-
-## Proactivity Acceptance Gate
-
-Proactivity is complete only when:
-1. all six approved rule families are deterministic;
-2. duplicate suggestions coalesce;
-3. dismissed entity versions stay dismissed;
-4. changed versions can surface again;
-5. no proactive rule starts audio or Realtime;
-6. suggestions never invent a clinical treatment;
-7. `Ver`, `Preparar`, `Descartar` behave through existing navigation/tool policy;
-8. production build passes.
+A production build and any required authenticated LIVE checks must pass before claiming release readiness.
