@@ -1,3 +1,5 @@
+import { parseDiagnosisDictation } from "./diagnosis-dictation";
+import type { DiagnosisInput } from "@/domain/diagnosis";
 import type { ToothSurface } from "@/domain";
 
 import { canonicalizeDentalSpeech, hasSelfCorrection } from "./dental-normalizer";
@@ -15,6 +17,7 @@ type ClinicalTreatmentAction = {
 };
 
 export type LocalVoiceAction =
+  | { type: "clinical.diagnosis"; patientRef: string; diagnosis: DiagnosisInput }
   | { type: "patient.create"; firstName: string; lastName: string; phone?: string; dni?: string }
   | { type: "patient.resolve"; query: string }
   | { type: "navigation.patient"; patientRef: string }
@@ -1198,6 +1201,34 @@ export function planLocalVoiceCommand(
     }
   }
 
+  const diagnosis = parseDiagnosisDictation(raw);
+  if (diagnosis) {
+    const missing =
+      "error" in diagnosis
+        ? [diagnosis.error]
+        : !context.patientId && !patientRef
+          ? ["paciente"]
+          : [];
+    return {
+      raw: input,
+      actions:
+        "input" in diagnosis
+          ? [
+              ...(patientRef ? [{ type: "patient.resolve" as const, query: patientRef }] : []),
+              { type: "clinical.diagnosis", patientRef, diagnosis: diagnosis.input },
+            ]
+          : [],
+      ambiguities: missing,
+      requiresConfirmation: true,
+      readback:
+        "input" in diagnosis
+          ? `Confirmar diagnóstico ${diagnosis.input.value}. ${diagnosis.input.justification}`
+          : diagnosis.error,
+      confidence: missing.length ? 0.72 : 0.98,
+      ...(context.patientId ? { contextPatientId: context.patientId } : {}),
+      source: "rules",
+    };
+  }
   if (patientRef) actions.push({ type: "patient.resolve", query: patientRef });
   const navigation = navigationAction(text);
   if (navigation) actions.push(navigation);

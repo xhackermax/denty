@@ -1,4 +1,5 @@
 "use client";
+import { QuickDiagnosisBar } from "@/features/diagnosis/quick-diagnosis-bar";
 import { deriveMouthState } from "@/domain/odontogram/mouth-state";
 import { MouthStateProvider } from "./mouth-state-context";
 import { MouthMiniMap } from "./mouth-mini-map";
@@ -673,6 +674,11 @@ function OdontogramEditor({
       ) : null}
 
       <MouthStateProvider state={mouthState}>
+        <QuickDiagnosisBar
+          patientId={patientId}
+          readings={initialPeriodontal}
+          readOnly={historical}
+        />
         <MouthMiniMap selectedTooth={selectedTooth} onSelect={setSelectedTooth} />
         <ClinicalTabs
           active={activeTab}

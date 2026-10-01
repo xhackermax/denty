@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
-  "routeCount": 245,
+  "routeCount": 249,
   "routes": [
     {
       "method": "GET",
@@ -1475,6 +1475,30 @@
     {
       "method": "GET",
       "path": "/api/admin/export/overview",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:id/diagnoses",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/diagnoses",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/diagnoses/:diagnosisId/resolve",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/diagnoses/:diagnosisId/plan",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     }

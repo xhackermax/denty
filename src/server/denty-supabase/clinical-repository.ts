@@ -46,6 +46,7 @@ interface PlanRow {
 }
 
 interface PlanItemRow {
+  diagnosis_id?: string | null;
   id: string;
   plan_id: string;
   tooth: string | null;
@@ -673,6 +674,7 @@ function mapPlanItem(row: PlanItemRow) {
     label: row.label_snapshot ?? row.label,
     patientLabel: row.patient_label,
     clinicalReason: row.clinical_reason,
+    diagnosisId: row.diagnosis_id ?? null,
     phase: row.phase,
     priority: row.priority,
     status: row.status,

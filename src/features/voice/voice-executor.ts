@@ -22,6 +22,7 @@ export interface VoiceExecutionResult {
 export const EXECUTABLE_VOICE_ACTION_TYPES = new Set<LocalVoiceAction["type"]>([
   "patient.create",
   "clinical.note",
+  "clinical.diagnosis",
   "periodontal.update",
   "budget.sync",
   "payment.record",
@@ -92,6 +93,11 @@ async function executeAction(action: LocalVoiceAction, plan: LocalVoicePlan): Pr
       ...(action.phone ? { phone: action.phone } : {}),
       ...(action.dni ? { dni: action.dni } : {}),
     });
+    return true;
+  }
+
+  if (action.type === "clinical.diagnosis") {
+    await api.diagnoses.create(requirePatientId(plan), action.diagnosis);
     return true;
   }
 

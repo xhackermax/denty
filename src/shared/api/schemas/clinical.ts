@@ -26,6 +26,7 @@ export const clinicalPlanItemSchema = z
     label: z.string().min(1),
     patientLabel: z.string().nullable().optional(),
     clinicalReason: z.string().nullable().optional(),
+    diagnosisId: idSchema.nullable().optional(),
     phase: z.number().int().min(1).max(5),
     priority: z.number().int(),
     status: z.string().min(1),

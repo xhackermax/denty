@@ -1,3 +1,4 @@
+import { handleDiagnosesRoute } from "./diagnoses-route";
 import { ExportRepository } from "./export-repository";
 import { exportFile } from "./export-file";
 import { z } from "zod";
@@ -2638,6 +2639,9 @@ export async function handleSupabaseDentyRoute(
         await clinical.listConsentRequirements(decodeURIComponent(parts[2] ?? "")),
         headers,
       );
+    }
+    if (parts[0] === "api" && parts[1] === "patients" && parts[3] === "diagnoses") {
+      return await handleDiagnosesRoute(request, parts, identity, headers);
     }
     if (
       parts.length === 4 &&
