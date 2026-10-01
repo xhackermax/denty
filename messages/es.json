@@ -28,7 +28,8 @@
     "settings": "Ajustes",
     "moreTools": "Más herramientas",
     "tasks": "Tareas",
-    "admin": "Administración"
+    "admin": "Administración",
+    "clinic-contacts": "Contactos especiales"
   },
   "Shell": {
     "brandSubtitle": "Clínica dental",

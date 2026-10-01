@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { getSupabaseBrowserClient } from "@/shared/supabase-browser";
+import { useState, useCallback, useMemo } from "react";
 import {
-  createClinicContactsAPI,
-  type ClinicContact,
+  createClinicContactsHttpAPI,
+  type ClinicContactsAPI,
   type ClinicContactInsert,
   type ClinicContactUpdate,
 } from "@/shared/api/resources/clinic-contacts";
@@ -13,12 +12,7 @@ export function useClinicContacts(clinicId: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getApi = () => {
-    const supabase = getSupabaseBrowserClient();
-    return createClinicContactsAPI(supabase);
-  };
-
-  const api = getApi();
+  const api = useMemo(() => createClinicContactsHttpAPI(), []);
 
   const create = useCallback(
     async (data: ClinicContactInsert) => {
@@ -35,11 +29,11 @@ export function useClinicContacts(clinicId: string) {
         setIsLoading(false);
       }
     },
-    [api, clinicId]
+    [api, clinicId],
   );
 
   const list = useCallback(
-    async (options?: Parameters<typeof api.list>[1]) => {
+    async (options?: Parameters<ClinicContactsAPI["list"]>[1]) => {
       setIsLoading(true);
       setError(null);
       try {
@@ -53,7 +47,7 @@ export function useClinicContacts(clinicId: string) {
         setIsLoading(false);
       }
     },
-    [api, clinicId]
+    [api, clinicId],
   );
 
   const update = useCallback(
@@ -71,7 +65,7 @@ export function useClinicContacts(clinicId: string) {
         setIsLoading(false);
       }
     },
-    [api]
+    [api],
   );
 
   const delete_ = useCallback(
@@ -88,7 +82,7 @@ export function useClinicContacts(clinicId: string) {
         setIsLoading(false);
       }
     },
-    [api]
+    [api],
   );
 
   const listCategories = useCallback(async () => {

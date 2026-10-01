@@ -111,7 +111,13 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
 function readCookie(header: string, name: string): string | null {
   for (const part of header.split(";")) {
     const [rawName, ...rest] = part.trim().split("=");
-    if (rawName === name) return decodeURIComponent(rest.join("="));
+    if (rawName === name) {
+      try {
+        return decodeURIComponent(rest.join("="));
+      } catch {
+        return null;
+      }
+    }
   }
   return null;
 }

@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ClinicContact } from "@/shared/api/resources/clinic-contacts";
+import type {
+  ClinicContact,
+  ClinicContactInsert,
+  ClinicContactUpdate,
+  PhoneEntry,
+} from "@/shared/api/resources/clinic-contacts";
 import { useClinicContacts } from "./use-clinic-contacts";
 
 interface ClinicContactsListProps {
@@ -16,21 +21,22 @@ export function ClinicContactsList({
   initialContacts,
   initialTotalCount,
 }: ClinicContactsListProps) {
-  const { create, list, update, delete: deleteContact, isLoading: apiLoading } = useClinicContacts(clinicId);
+  const {
+    create,
+    list,
+    update,
+    delete: deleteContact,
+    isLoading: apiLoading,
+  } = useClinicContacts(clinicId);
   const [contacts, setContacts] = useState(initialContacts);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
-  const [editingContact, setEditingContact] = useState<ClinicContact | null>(
-    null
-  );
+  const [editingContact, setEditingContact] = useState<ClinicContact | null>(null);
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
 
-  const categories = useMemo(
-    () => [...new Set(contacts.map((c) => c.category))],
-    [contacts]
-  );
+  const categories = useMemo(() => [...new Set(contacts.map((c) => c.category))], [contacts]);
 
   const filteredContacts = useMemo(() => {
     return contacts.filter((contact) => {
@@ -47,7 +53,7 @@ export function ClinicContactsList({
 
   const handleLoadContacts = async () => {
     try {
-      const options: any = { limit: 100, offset: 0 };
+      const options: NonNullable<Parameters<typeof list>[0]> = { limit: 100, offset: 0 };
       if (search) options.search = search;
       if (selectedCategory) options.category = selectedCategory;
 
@@ -78,7 +84,7 @@ export function ClinicContactsList({
     setShowForm(true);
   };
 
-  const formatPhones = (phones: any[]) => {
+  const formatPhones = (phones: ClinicContact["phones"]) => {
     if (!phones || phones.length === 0) return null;
     return phones.map((p) => (typeof p === "string" ? p : p.number)).join(", ");
   };
@@ -105,9 +111,7 @@ export function ClinicContactsList({
           onSuccess={(contact) => {
             setShowForm(false);
             if (editingContact) {
-              setContacts(
-                contacts.map((c) => (c.id === contact.id ? contact : c))
-              );
+              setContacts(contacts.map((c) => (c.id === contact.id ? contact : c)));
             } else {
               setContacts([contact, ...contacts]);
               setTotalCount(totalCount + 1);
@@ -124,7 +128,10 @@ export function ClinicContactsList({
           onCreate={(clinicId, data) => create(data)}
           onUpdate={(contactId, data) => {
             const { expectedVersion, ...rest } = data;
-            return update(contactId, { ...rest, expectedVersion });
+            return update(contactId, {
+              ...rest,
+              ...(expectedVersion !== undefined ? { expectedVersion } : {}),
+            });
           }}
         />
       )}
@@ -202,9 +209,7 @@ export function ClinicContactsList({
                   <div className="flex items-center gap-2 text-sm">
                     <span>📧</span>
                     <a href={`mailto:${contact.emails.join(", ")}`}>
-                      {Array.isArray(contact.emails)
-                        ? contact.emails.join(", ")
-                        : contact.emails}
+                      {Array.isArray(contact.emails) ? contact.emails.join(", ") : contact.emails}
                     </a>
                   </div>
                 )}
@@ -216,17 +221,13 @@ export function ClinicContactsList({
                 )}
               </div>
 
-              {contact.notes && (
-                <p className="text-sm text-gray-600 mt-3">{contact.notes}</p>
-              )}
+              {contact.notes && <p className="text-sm text-gray-600 mt-3">{contact.notes}</p>}
             </div>
           ))
         )}
       </div>
 
-      <p className="text-sm text-gray-500 text-center">
-        Total: {totalCount} contacts
-      </p>
+      <p className="text-sm text-gray-500 text-center">Total: {totalCount} contacts</p>
     </div>
   );
 }
@@ -236,8 +237,11 @@ interface ClinicContactFormProps {
   editingContact: ClinicContact | null;
   onSuccess: (contact: ClinicContact) => void;
   onCancel: () => void;
-  onCreate: (clinicId: string, data: any) => Promise<ClinicContact>;
-  onUpdate: (contactId: string, data: any) => Promise<ClinicContact>;
+  onCreate: (clinicId: string, data: ClinicContactInsert) => Promise<ClinicContact>;
+  onUpdate: (
+    contactId: string,
+    data: ClinicContactUpdate & { expectedVersion?: number },
+  ) => Promise<ClinicContact>;
 }
 
 function ClinicContactForm({
@@ -252,7 +256,7 @@ function ClinicContactForm({
   const [formData, setFormData] = useState({
     name: editingContact?.name || "",
     category: editingContact?.category || "",
-    phones: (editingContact?.phones || []) as Array<{ number: string; type?: string }>,
+    phones: (editingContact?.phones || []) as PhoneEntry[],
     emails: (editingContact?.emails || []) as string[],
     notes: editingContact?.notes || "",
     hours: editingContact?.hours || "",
@@ -277,9 +281,9 @@ function ClinicContactForm({
       }
 
       onSuccess(result);
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      alert(error.message || "Error saving contact");
+      alert(error instanceof Error ? error.message : "Error saving contact");
     } finally {
       setIsLoading(false);
     }
@@ -298,9 +302,7 @@ function ClinicContactForm({
             type="text"
             required
             value={formData.name}
-            onChange={(e) =>
-              setFormData({ ...formData, name: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             className="w-full px-3 py-2 border rounded-lg"
             placeholder="e.g., Plumber Juan"
           />
@@ -312,9 +314,7 @@ function ClinicContactForm({
             type="text"
             required
             value={formData.category}
-            onChange={(e) =>
-              setFormData({ ...formData, category: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             className="w-full px-3 py-2 border rounded-lg"
             placeholder="e.g., Plumber, Electrician, Delivery"
           />
@@ -337,9 +337,7 @@ function ClinicContactForm({
                   setFormData({
                     ...formData,
                     phones: [
-                      ...(Array.isArray(formData.phones)
-                        ? formData.phones
-                        : []),
+                      ...(Array.isArray(formData.phones) ? formData.phones : []),
                       { number: newPhone, type: "mobile" },
                     ],
                   });
@@ -391,12 +389,7 @@ function ClinicContactForm({
                 if (newEmail) {
                   setFormData({
                     ...formData,
-                    emails: [
-                      ...(Array.isArray(formData.emails)
-                        ? formData.emails
-                        : []),
-                      newEmail,
-                    ],
+                    emails: [...(Array.isArray(formData.emails) ? formData.emails : []), newEmail],
                   });
                   setNewEmail("");
                 }
@@ -433,9 +426,7 @@ function ClinicContactForm({
           <input
             type="text"
             value={formData.hours}
-            onChange={(e) =>
-              setFormData({ ...formData, hours: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, hours: e.target.value })}
             className="w-full px-3 py-2 border rounded-lg"
             placeholder="e.g., 9:00-17:00 (Mon-Fri)"
           />
@@ -445,9 +436,7 @@ function ClinicContactForm({
           <label className="block text-sm font-medium mb-1">Notes</label>
           <textarea
             value={formData.notes}
-            onChange={(e) =>
-              setFormData({ ...formData, notes: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             className="w-full px-3 py-2 border rounded-lg"
             placeholder="Additional notes..."
             rows={3}
@@ -461,11 +450,7 @@ function ClinicContactForm({
           disabled={isLoading}
           className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
-          {isLoading
-            ? "Saving..."
-            : editingContact
-              ? "Update"
-              : "Create"}
+          {isLoading ? "Saving..." : editingContact ? "Update" : "Create"}
         </button>
         <button
           type="button"
