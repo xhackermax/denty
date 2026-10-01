@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
 import { MantineProvider } from "@mantine/core";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ClinicContact } from "@/shared/api/resources/clinic-contacts";
 import { dentyTheme } from "@/styles/theme";
 import { ClinicContactForm } from "./clinic-contact-form";
 import { ClinicContactsList } from "./clinic-contacts-list";
+
+// jsdom does not implement the CSS Font Loading API used by Mantine autosize.
+beforeAll(() => {
+  Object.defineProperty(document, "fonts", { configurable: true, value: new EventTarget() });
+});
 
 afterEach(() => {
   cleanup();
