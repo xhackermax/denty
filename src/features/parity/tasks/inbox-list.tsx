@@ -23,6 +23,8 @@ export interface InboxHandlers {
   onEdit: (task: TimelineTask) => void;
   onMove: (id: string, direction: -1 | 1) => void;
   onDragStart: (id: string) => void;
+  onDrop?: (id: string) => void;
+  ordering?: boolean;
   onDragEnd: () => void;
 }
 
@@ -56,7 +58,12 @@ function InboxItem({ task, today, selectedDay, isFirst, isLast, ...handlers }: I
     <li
       className={`${styles.inboxItem} ${done ? styles.doneCard : ""}`}
       data-testid="inbox-item"
-      draggable
+      draggable={!handlers.ordering}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        event.preventDefault();
+        if (!handlers.ordering) handlers.onDrop?.(task.id);
+      }}
       onDragStart={onDragStart}
       onDragEnd={handlers.onDragEnd}
     >
@@ -95,7 +102,7 @@ function InboxItem({ task, today, selectedDay, isFirst, isLast, ...handlers }: I
           variant="subtle"
           color="gray"
           aria-label={`Subir: ${task.title}`}
-          disabled={isFirst}
+          disabled={isFirst || Boolean(handlers.ordering)}
           onClick={() => handlers.onMove(task.id, -1)}
         >
           <IconChevronUp size={18} />
@@ -104,7 +111,7 @@ function InboxItem({ task, today, selectedDay, isFirst, isLast, ...handlers }: I
           variant="subtle"
           color="gray"
           aria-label={`Bajar: ${task.title}`}
-          disabled={isLast}
+          disabled={isLast || Boolean(handlers.ordering)}
           onClick={() => handlers.onMove(task.id, 1)}
         >
           <IconChevronDown size={18} />

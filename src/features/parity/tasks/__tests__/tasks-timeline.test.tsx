@@ -218,3 +218,22 @@ describe("TasksTimeline", () => {
     expect(await screen.findByRole("button", { name: /7 de octubre/ })).toBeTruthy();
   });
 });
+
+it("reorders inbox by dragging and restores the order after server failure", async () => {
+  const api = makeApi([
+    mk({ id: "a", position: 1, scheduledOn: null, dueAt: null }),
+    mk({ id: "b", position: 2, scheduledOn: null, dueAt: null }),
+  ]);
+  api.reorder.mockRejectedValueOnce(new Error("Orden no guardado"));
+  renderTimeline(api);
+  await screen.findByText(/Nada programado este día/);
+  fireEvent.click(screen.getByRole("radio", { name: /Bandeja/ }));
+  const cards = await screen.findAllByTestId("inbox-item");
+  fireEvent.dragStart(cards[0]!);
+  fireEvent.dragOver(cards[1]!);
+  fireEvent.drop(cards[1]!);
+  await waitFor(() => expect(api.reorder).toHaveBeenCalledWith(["b", "a"]));
+  await screen.findByText(/Orden no guardado/);
+  expect(screen.getAllByTestId("inbox-title").map((e) => e.textContent)).toEqual(["A", "B"]);
+  cleanup();
+});

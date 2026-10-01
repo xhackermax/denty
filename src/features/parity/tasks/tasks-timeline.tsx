@@ -4,7 +4,7 @@ import { Button, SegmentedControl } from "@mantine/core";
 import { IconArchive, IconCalendarRepeat, IconPlus, IconSortDescending } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
@@ -121,9 +121,16 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
     return fresh?.version ?? task.version;
   }
 
+  const orderPending = useRef(false);
   function applyOrder(visibleOrder: string[]) {
+    if (orderPending.current || actions.reorder.isPending) return;
     if (visibleOrder.join() === visibleIds.join()) return;
-    actions.reorder.mutate(mergeVisibleOrder(allIds, visibleOrder));
+    orderPending.current = true;
+    actions.reorder.mutate(mergeVisibleOrder(allIds, visibleOrder), {
+      onSettled: () => {
+        orderPending.current = false;
+      },
+    });
   }
 
   function toggleDone(task: TimelineTask) {
@@ -255,7 +262,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
   }
 
   function drop(targetId: string) {
-    if (dragId && dragId !== targetId && view === "agenda") {
+    if (dragId && dragId !== targetId && view !== "archive") {
       applyOrder(moveIdToIndex(visibleIds, dragId, visibleIds.indexOf(targetId)));
     }
     setDragId(null);
@@ -361,6 +368,8 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
               onArchive={archiveOne}
               onEdit={setEditing}
               onMove={(taskId, dir) => applyOrder(moveId(visibleIds, taskId, dir))}
+              ordering={actions.reorder.isPending}
+              onDrop={drop}
               onDragStart={setDragId}
               onDragEnd={() => {
                 setDragId(null);
@@ -384,6 +393,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
                     today={today}
                     isFirst={index === 0}
                     isLast={index === visibleIds.length - 1}
+                    ordering={actions.reorder.isPending}
                     dragging={dragId === id}
                     dropTarget={overId === id && dragId !== null && dragId !== id}
                     onToggleDone={(e) => toggleDone(e.task)}

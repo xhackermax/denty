@@ -22,6 +22,7 @@ export interface TaskNodeHandlers {
   onArchive: (entry: ScheduleEntry) => void;
   onEdit: (entry: ScheduleEntry) => void;
   onMove: (id: string, direction: -1 | 1) => void;
+  ordering?: boolean;
   onMoveToDay: (entry: ScheduleEntry, day: string | null) => void;
   onDragStart: (id: string) => void;
   onDragOver: (id: string) => void;
@@ -138,7 +139,7 @@ export function TaskNode({
             color="gray"
             size="md"
             aria-label={`Subir: ${task.title}`}
-            disabled={isFirst}
+            disabled={isFirst || Boolean(handlers.ordering)}
             onClick={() => handlers.onMove(task.id, -1)}
           >
             <IconChevronUp size={18} />
@@ -148,7 +149,7 @@ export function TaskNode({
             color="gray"
             size="md"
             aria-label={`Bajar: ${task.title}`}
-            disabled={isLast}
+            disabled={isLast || Boolean(handlers.ordering)}
             onClick={() => handlers.onMove(task.id, 1)}
           >
             <IconChevronDown size={18} />
