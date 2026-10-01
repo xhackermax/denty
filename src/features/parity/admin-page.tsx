@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import styles from "@/shared/ui/parity.module.css";
 import { PageHeader } from "@/shared/ui";
+import { AdminExportPanel } from "./admin-export-panel";
 import { AdminUsersPanel } from "./admin-users-panel";
 import { AdminPaymentTerminalsPanel } from "./admin-payment-terminals-panel";
 import { AdminSitesPanel } from "./admin-sites-panel";
@@ -11,7 +12,7 @@ import { AdminTreatmentCatalogPanel } from "./admin-treatment-catalog-panel";
 export function AdminPage({
   section = "home",
 }: {
-  section?: "home" | "users" | "catalog" | "sites" | "payments";
+  section?: "home" | "users" | "catalog" | "sites" | "payments" | "export";
 }) {
   return (
     <div className={styles.grid}>
@@ -26,7 +27,9 @@ export function AdminPage({
                 ? "Sedes y doctores"
                 : section === "payments"
                   ? "Cobros y datáfonos"
-                  : "Catálogo"
+                  : section === "export"
+                    ? "Exportar datos"
+                    : "Catálogo"
         }
         description="Usuarios, sedes y configuración."
       />
@@ -60,6 +63,10 @@ export function AdminPage({
             <span className={styles.cardLinkTitle}>Catálogo clínico</span>
             <span className={styles.cardLinkDescription}>Tratamientos, costes y precios</span>
           </Link>
+          <Link className={styles.cardLink} href="/app/admin/export">
+            <span className={styles.cardLinkTitle}>Exportar datos</span>
+            <span className={styles.cardLinkDescription}>Pacientes, citas y tratamientos</span>
+          </Link>
           <Link className={styles.cardLink} href="/app/settings">
             <span className={styles.cardLinkTitle}>Seguridad y privacidad</span>
             <span className={styles.cardLinkDescription}>Sesiones, RGPD, copias y receta</span>
@@ -70,6 +77,7 @@ export function AdminPage({
       {section === "catalog" ? <AdminTreatmentCatalogPanel /> : null}
       {section === "sites" ? <AdminSitesPanel /> : null}
       {section === "payments" ? <AdminPaymentTerminalsPanel /> : null}
+      {section === "export" ? <AdminExportPanel /> : null}
     </div>
   );
 }
