@@ -71,10 +71,12 @@ Las etapas posteriores de firma/consentimientos/recetas deben reutilizar esta es
 
 La pantalla de Ajustes consulta el estado real de Supabase Managed Backups mediante la Management API cuando están configurados:
 
-- `SUPABASE_PROJECT_REF`
+- `SUPABASE_URL` (el proyecto se obtiene automáticamente) o `SUPABASE_PROJECT_REF` para dominios propios
 - `SUPABASE_MANAGEMENT_ACCESS_TOKEN`
 
-Si faltan, el sistema devuelve `configured: false` y la UI lo muestra explícitamente.
+El token se configura solo en el servidor de Vercel; después hay que desplegar. Si faltan variables, se muestra configuración pendiente. `connected` confirma una respuesta válida de Supabase; una credencial presente pero rechazada nunca se muestra como conexión correcta.
+
+Ajustes permite actualizar el estado y abrir la configuración real del proyecto. La programación, retención y PITR se ajustan en Supabase según su plan; Denty no almacena preferencias que el proveedor no vaya a ejecutar. Las fechas se muestran en Europe/Madrid.
 
 **Importante:** el backup de base de datos de Supabase cubre Postgres/metadata, pero no restaura los objetos borrados de Storage. Por eso Denty evita sobrescribir/borrar documentos clínicos referenciados y requiere una política operativa adicional para resiliencia de objetos (retención/off-site/export según el despliegue de cada clínica).
 

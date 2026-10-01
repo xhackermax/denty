@@ -2390,6 +2390,7 @@ export async function handleSupabaseDentyRoute(
         await readSupabaseBackupStatus(
           withoutUndefined({
             projectRef: env.SUPABASE_PROJECT_REF,
+            supabaseUrl: env.SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL,
             accessToken: env.SUPABASE_MANAGEMENT_ACCESS_TOKEN,
           }),
         ),

@@ -24,6 +24,10 @@ export const backupStatusItemSchema = z.object({
 export const backupsSchema = z.object({
   provider: z.literal("SUPABASE_MANAGED"),
   configured: z.boolean(),
+  connected: z.boolean().optional(),
+  projectRef: z.string().nullable().optional(),
+  dashboardUrl: z.string().url().nullable().optional(),
+  checkedAt: z.string().optional(),
   pitrEnabled: z.boolean().nullable(),
   backups: z.array(backupStatusItemSchema),
   message: z.string().nullable(),

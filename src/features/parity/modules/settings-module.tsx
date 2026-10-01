@@ -18,6 +18,7 @@ import { ChangePasswordForm } from "@/features/auth";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
+import { ManagedBackupsPanel } from "./managed-backups-panel";
 import { BillingSettingsSection } from "./billing-settings-section";
 
 export function SettingsModule() {
@@ -25,10 +26,6 @@ export function SettingsModule() {
   const sessions = useQuery({
     queryKey: dentyQueryKeys.security.sessions,
     queryFn: () => getBrowserApi().security.sessions.list(),
-  });
-  const backups = useQuery({
-    queryKey: dentyQueryKeys.security.backups,
-    queryFn: () => getBrowserApi().security.backups.list(),
   });
   const privacy = useQuery({
     queryKey: dentyQueryKeys.security.privacy,
@@ -83,11 +80,7 @@ export function SettingsModule() {
       void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.security.sessions }),
   });
   const hasError =
-    sessions.isError ||
-    backups.isError ||
-    privacy.isError ||
-    patients.isError ||
-    agendaSettings.isError;
+    sessions.isError || privacy.isError || patients.isError || agendaSettings.isError;
 
   return (
     <Stack gap="md">
@@ -162,53 +155,7 @@ export function SettingsModule() {
         </div>
       </section>
 
-      <section className={styles.section}>
-        <Group justify="space-between">
-          <div>
-            <h3 className={styles.sectionTitle}>Copias de seguridad</h3>
-            <p className={styles.sectionDescription}>
-              Estado real de Supabase Managed Backups. Los objetos de Storage requieren su propia
-              estrategia de retención.
-            </p>
-          </div>
-          <Badge color={backups.data?.configured ? "green" : "yellow"}>
-            {backups.data?.configured ? "Supabase conectado" : "No conectado"}
-          </Badge>
-        </Group>
-        {backups.data?.message ? (
-          <Alert mt="md" color="yellow">
-            {backups.data.message}
-          </Alert>
-        ) : null}
-        <Text mt="md" size="sm">
-          PITR:{" "}
-          {backups.data?.pitrEnabled === true
-            ? "activo"
-            : backups.data?.pitrEnabled === false
-              ? "inactivo"
-              : "sin confirmar"}
-        </Text>
-        <div className={styles.rowList}>
-          {(backups.data?.backups ?? []).map((backup) => (
-            <div className={styles.row} key={backup.id}>
-              <div className={styles.rowMain}>
-                <span className={styles.rowTitle}>{backup.type ?? "Backup"}</span>
-                <span className={styles.rowMeta}>
-                  {backup.createdAt
-                    ? new Date(backup.createdAt).toLocaleString("es-ES")
-                    : "Fecha no disponible"}
-                  {backup.status ? ` · ${backup.status}` : ""}
-                </span>
-              </div>
-            </div>
-          ))}
-          {backups.data?.configured &&
-          !backups.isLoading &&
-          (backups.data?.backups.length ?? 0) === 0 ? (
-            <Text c="dimmed">Supabase no devolvió backups disponibles.</Text>
-          ) : null}
-        </div>
-      </section>
+      <ManagedBackupsPanel />
 
       <BillingSettingsSection />
 
