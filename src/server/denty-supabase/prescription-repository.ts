@@ -1,3 +1,4 @@
+import { prescriptionAllergyConflicts } from "@/domain/prescriptions/nsaid-allergy";
 import type { z } from "zod";
 
 import type {
@@ -286,7 +287,31 @@ export class PrescriptionRepository {
     };
   }
 
+  private async assertAllergySafety(
+    patientId: string,
+    items: readonly { activeIngredient?: string | undefined; brandName?: string | undefined }[],
+  ) {
+    const patients = await this.client.select<{ medical_profile: unknown }>("patients", {
+      select: "medical_profile",
+      id: `eq.${patientId}`,
+      clinic_id: `eq.${this.clinicId}`,
+      limit: 1,
+    });
+    if (!patients[0]) throw new SupabaseRestError("Paciente no encontrado.", 404, {});
+    const conflicts = prescriptionAllergyConflicts(
+      patients[0].medical_profile,
+      items.flatMap((item) => [item.activeIngredient ?? "", item.brandName ?? ""]),
+    );
+    if (conflicts.length)
+      throw new SupabaseRestError(
+        "Alergia a AINEs: no se puede añadir ni emitir este medicamento.",
+        422,
+        { code: "NSAID_ALLERGY", medications: conflicts },
+      );
+  }
+
   async create(input: CreatePrescription) {
+    await this.assertAllergySafety(input.patientId, input.items ?? []);
     const row = await this.client.rpc<PrescriptionRow>("create_prescription_draft", {
       p_clinic_id: this.clinicId,
       p_patient_id: input.patientId,
@@ -301,6 +326,7 @@ export class PrescriptionRepository {
 
   async update(id: string, input: UpdatePrescription) {
     const current = await this.get(id);
+    await this.assertAllergySafety(current.patientId, input.items ?? current.items);
     const row = await this.client.rpc<PrescriptionRow>("update_prescription_draft", {
       p_prescription_id: id,
       p_expected_version: current.version ?? 1,
@@ -314,6 +340,8 @@ export class PrescriptionRepository {
   }
 
   async validate(id: string) {
+    const current = await this.get(id);
+    await this.assertAllergySafety(current.patientId, current.items);
     const row = await this.client.rpc<PrescriptionRow>("validate_prescription", {
       p_prescription_id: id,
     });
@@ -341,6 +369,8 @@ export class PrescriptionRepository {
   }
 
   async issue(id: string) {
+    const current = await this.get(id);
+    await this.assertAllergySafety(current.patientId, current.items);
     const row = await this.client.rpc<PrescriptionRow>("issue_prescription", {
       p_prescription_id: id,
     });

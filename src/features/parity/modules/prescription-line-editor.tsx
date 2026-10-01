@@ -1,6 +1,21 @@
 "use client";
 
-import { ActionIcon, Autocomplete, Button, Group, SimpleGrid, Stack, Text } from "@mantine/core";
+import {
+  hasNsaidAllergy,
+  isNsaidMedication,
+  prescriptionAllergyConflicts,
+} from "@/domain/prescriptions/nsaid-allergy";
+
+import {
+  Alert,
+  ActionIcon,
+  Autocomplete,
+  Button,
+  Group,
+  SimpleGrid,
+  Stack,
+  Text,
+} from "@mantine/core";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 
 import {
@@ -35,10 +50,17 @@ const MEDICATION_OPTIONS = Object.entries(
 export function PrescriptionLinesEditor({
   lines,
   onChange,
+  medicalProfile,
 }: {
+  medicalProfile?: unknown;
   lines: PrescriptionLine[];
   onChange: (lines: PrescriptionLine[]) => void;
 }) {
+  const allergic = hasNsaidAllergy(medicalProfile);
+  const conflicts = prescriptionAllergyConflicts(
+    medicalProfile,
+    lines.map((l) => l.activeIngredient),
+  );
   const update = (index: number, patch: Partial<PrescriptionLine>) =>
     onChange(lines.map((line, position) => (position === index ? { ...line, ...patch } : line)));
   const remove = (index: number) => {
@@ -46,6 +68,7 @@ export function PrescriptionLinesEditor({
     onChange(next.length ? next : [emptyPrescriptionLine()]);
   };
   const addProtocol = (medications: readonly string[]) => {
+    if (allergic && medications.some(isNsaidMedication)) return;
     const presets = medications
       .map((name) => findMedicationPreset(name))
       .filter((preset) => preset !== undefined)
@@ -60,20 +83,28 @@ export function PrescriptionLinesEditor({
 
   return (
     <Stack gap="sm">
+      {conflicts.length ? (
+        <Alert color="red">Alergia a AINEs: retira {conflicts.join(", ")} antes de guardar.</Alert>
+      ) : null}
       <Group gap="xs">
         <Text size="sm" fw={600}>
           Pautas rápidas:
         </Text>
-        {PRESCRIPTION_PROTOCOLS.map((protocol) => (
-          <Button
-            key={protocol.label}
-            size="compact-sm"
-            variant="light"
-            onClick={() => addProtocol(protocol.medications)}
-          >
-            {protocol.label}
-          </Button>
-        ))}
+        {[...PRESCRIPTION_PROTOCOLS]
+          .sort((a, b) =>
+            allergic ? Number(b.label.includes("AINEs")) - Number(a.label.includes("AINEs")) : 0,
+          )
+          .map((protocol) => (
+            <Button
+              key={protocol.label}
+              disabled={allergic && protocol.medications.some(isNsaidMedication)}
+              size="compact-sm"
+              variant="light"
+              onClick={() => addProtocol(protocol.medications)}
+            >
+              {protocol.label}
+            </Button>
+          ))}
       </Group>
 
       {lines.map((line, index) => {
@@ -86,12 +117,19 @@ export function PrescriptionLinesEditor({
                   className={styles.flexField}
                   label={`${index + 1}. Medicamento`}
                   placeholder="Escribe o elige"
-                  data={MEDICATION_OPTIONS}
+                  data={MEDICATION_OPTIONS.map((group) => ({
+                    ...group,
+                    items: group.items.filter((name) => !allergic || !isNsaidMedication(name)),
+                  }))}
                   value={line.activeIngredient}
-                  onChange={(value) => update(index, { activeIngredient: value })}
+                  onChange={(value) => {
+                    if (!allergic || !isNsaidMedication(value))
+                      update(index, { activeIngredient: value });
+                  }}
                   onOptionSubmit={(value) => {
                     const chosen = findMedicationPreset(value);
-                    if (chosen) update(index, lineFromPreset(chosen));
+                    if (chosen && (!allergic || !isNsaidMedication(value)))
+                      update(index, lineFromPreset(chosen));
                   }}
                   limit={20}
                 />

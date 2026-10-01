@@ -1,5 +1,7 @@
 "use client";
 
+import { prescriptionAllergyConflicts } from "@/domain/prescriptions/nsaid-allergy";
+
 import {
   Alert,
   Badge,
@@ -25,7 +27,7 @@ import {
 import type { Patient, Prescription } from "@/shared/api";
 import { getBrowserApi } from "@/shared/api/browser";
 import { DentyApiError } from "@/shared/api/errors";
-import { usePatientsQuery } from "@/shared/patients/patient-data";
+import { usePatientsQuery, usePatientQuery } from "@/shared/patients/patient-data";
 import { PrintNotice, usePrintNotice } from "@/shared/print/print-notice";
 import { dentyQueryKeys } from "@/shared/query";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
@@ -160,6 +162,8 @@ export function PrescriptionsModule() {
 
   // Existing prescriptions.
   const [editing, setEditing] = useState<Prescription | null>(null);
+  const selectedPatient = usePatientQuery(patientId ?? "");
+  const editedPatient = usePatientQuery(editing?.patientId ?? "");
   const [editLines, setEditLines] = useState<PrescriptionLine[]>([]);
   const [signing, setSigning] = useState<Prescription | null>(null);
   const [cancelling, setCancelling] = useState<Prescription | null>(null);
@@ -188,7 +192,17 @@ export function PrescriptionsModule() {
   const siteId = siteChoice ?? activeSiteId ?? sites[0]?.id ?? null;
   const items = toItems(lines);
   const incomplete = lines.some((line) => line.activeIngredient.trim() && !isCompleteLine(line));
-  const canSave = Boolean(patientId && prescriberId && items.length && !incomplete);
+  const canSave = Boolean(
+    patientId &&
+    prescriberId &&
+    items.length &&
+    !incomplete &&
+    selectedPatient.isSuccess &&
+    !prescriptionAllergyConflicts(
+      selectedPatient.data?.medicalProfile,
+      lines.map((l) => l.activeIngredient),
+    ).length,
+  );
 
   const resetComposer = () => {
     setPatientId(null);
@@ -197,7 +211,7 @@ export function PrescriptionsModule() {
   };
 
   const saveComposer = async (andPrint: boolean) => {
-    if (!patientId || !prescriberId) return;
+    if (!patientId || !prescriberId || !canSave) return;
     setSaving(true);
     setComposerError(null);
     try {
@@ -299,7 +313,11 @@ export function PrescriptionsModule() {
               onChange={(event) => setDate(event.currentTarget.value || todayMadrid())}
             />
           </Group>
-          <PrescriptionLinesEditor lines={lines} onChange={setLines} />
+          <PrescriptionLinesEditor
+            medicalProfile={selectedPatient.data?.medicalProfile}
+            lines={lines}
+            onChange={setLines}
+          />
           {incomplete ? (
             <Text size="sm" c="orange">
               Completa dosis, forma, toma, posología y duración de cada medicamento.
@@ -441,7 +459,11 @@ export function PrescriptionsModule() {
         centered
       >
         <Stack gap="sm">
-          <PrescriptionLinesEditor lines={editLines} onChange={setEditLines} />
+          <PrescriptionLinesEditor
+            medicalProfile={editedPatient.data?.medicalProfile}
+            lines={editLines}
+            onChange={setEditLines}
+          />
           {update.isError ? <Alert color="red">{errorText(update.error)}</Alert> : null}
           <Group justify="flex-end">
             <Button variant="default" onClick={() => setEditing(null)}>
@@ -449,6 +471,11 @@ export function PrescriptionsModule() {
             </Button>
             <Button
               disabled={
+                !editedPatient.isSuccess ||
+                prescriptionAllergyConflicts(
+                  editedPatient.data?.medicalProfile,
+                  editLines.map((l) => l.activeIngredient),
+                ).length > 0 ||
                 !toItems(editLines).length ||
                 editLines.some((line) => line.activeIngredient.trim() && !isCompleteLine(line))
               }

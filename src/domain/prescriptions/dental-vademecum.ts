@@ -223,6 +223,14 @@ export const PRESCRIPTION_PROTOCOLS: readonly {
   label: string;
   medications: readonly string[];
 }[] = [
+  { label: "Dolor · alergia a AINEs", medications: ["Paracetamol"] },
+  { label: "Dolor intenso · alergia a AINEs", medications: ["Tramadol / paracetamol"] },
+  { label: "Infección · alergia a AINEs", medications: ["Amoxicilina", "Paracetamol"] },
+  {
+    label: "Post-extracción · alergia a AINEs",
+    medications: ["Amoxicilina", "Paracetamol", "Clorhexidina"],
+  },
+  { label: "Alergia a penicilina y AINEs", medications: ["Clindamicina", "Paracetamol"] },
   { label: "Dolor", medications: ["Ibuprofeno", "Paracetamol"] },
   { label: "Infección", medications: ["Amoxicilina", "Ibuprofeno"] },
   { label: "Alérgico a penicilina", medications: ["Clindamicina", "Ibuprofeno"] },
