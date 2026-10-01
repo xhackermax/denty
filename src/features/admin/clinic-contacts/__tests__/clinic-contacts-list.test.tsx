@@ -103,3 +103,16 @@ test("copies contact data and allows editing", async () => {
     else Reflect.deleteProperty(navigator, "clipboard");
   }
 });
+
+test.each(["constructor", "toString", "__proto__"])("renders persisted category %s", (category) => {
+  render(
+    <MantineProvider>
+      <ClinicContactsList
+        clinicId="clinic"
+        initialContacts={[contact("special", "Contacto", category)]}
+        initialTotalCount={1}
+      />
+    </MantineProvider>,
+  );
+  expect(screen.getByRole("heading", { name: category })).toBeInTheDocument();
+});

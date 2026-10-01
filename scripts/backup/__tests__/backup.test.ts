@@ -29,7 +29,7 @@ async function fixture(fail = false) {
     throw new Error(command);
   };
   const fetchImpl = async (input: string | URL, options?: RequestInit) => {
-    const url = String(input);
+    const url = new Request(input, options).url;
     if (url.endsWith("/bucket")) return Response.json([{ id: "documents", name: "documents" }]);
     if (url.includes("/list/")) {
       const body = JSON.parse(String(options?.body));
@@ -39,6 +39,9 @@ async function fixture(fail = false) {
           : [{ id: "object", name: "../document.pdf", metadata: { mimetype: "application/pdf" } }],
       );
     }
+    expect(decodeURIComponent(new URL(url).pathname.split("/authenticated/documents/")[1]!)).toBe(
+      "../document.pdf",
+    );
     return new Response("document content");
   };
   const config = {

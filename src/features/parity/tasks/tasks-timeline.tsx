@@ -123,7 +123,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
 
   const orderPending = useRef(false);
   function applyOrder(visibleOrder: string[]) {
-    if (orderPending.current || actions.reorder.isPending) return;
+    if (orderPending.current || actions.reorder.isPending || actions.replan.isPending) return;
     if (visibleOrder.join() === visibleIds.join()) return;
     orderPending.current = true;
     actions.reorder.mutate(mergeVisibleOrder(allIds, visibleOrder), {
@@ -270,12 +270,21 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
   }
 
   function replan() {
+    if (orderPending.current || actions.reorder.isPending || actions.replan.isPending) return;
+    orderPending.current = true;
     const plan = planReplan(schedule);
-    actions.replan.mutate({
-      plan,
-      allIds: mergeVisibleOrder(allIds, plan.orderedIds),
-      tasks: allTasks,
-    });
+    actions.replan.mutate(
+      {
+        plan,
+        allIds: mergeVisibleOrder(allIds, plan.orderedIds),
+        tasks: allTasks,
+      },
+      {
+        onSettled: () => {
+          orderPending.current = false;
+        },
+      },
+    );
   }
 
   const motionProps = reduceMotion
@@ -368,7 +377,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
               onArchive={archiveOne}
               onEdit={setEditing}
               onMove={(taskId, dir) => applyOrder(moveId(visibleIds, taskId, dir))}
-              ordering={actions.reorder.isPending}
+              ordering={actions.reorder.isPending || actions.replan.isPending}
               onDrop={drop}
               onDragStart={setDragId}
               onDragEnd={() => {
@@ -393,7 +402,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
                     today={today}
                     isFirst={index === 0}
                     isLast={index === visibleIds.length - 1}
-                    ordering={actions.reorder.isPending}
+                    ordering={actions.reorder.isPending || actions.replan.isPending}
                     dragging={dragId === id}
                     dropTarget={overId === id && dragId !== null && dragId !== id}
                     onToggleDone={(e) => toggleDone(e.task)}
@@ -442,6 +451,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
                       color="orange"
                       leftSection={<IconCalendarRepeat size={16} />}
                       loading={actions.replan.isPending}
+                      disabled={actions.reorder.isPending}
                       onClick={replan}
                     >
                       Volver a planificar {overdueCount} {overdueCount === 1 ? "tarea" : "tareas"}

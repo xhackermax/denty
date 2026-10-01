@@ -237,3 +237,26 @@ it("reorders inbox by dragging and restores the order after server failure", asy
   expect(screen.getAllByTestId("inbox-title").map((e) => e.textContent)).toEqual(["A", "B"]);
   cleanup();
 });
+
+it("blocks manual reorder while replanning and waiting for refresh", async () => {
+  const api = makeApi([
+    mk({ id: "a", position: 1 }),
+    mk({ id: "b", position: 2, dueAt: "2026-09-30T07:00:00+02:00" }),
+  ]);
+  let release!: () => void;
+  api.reorder.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = () => resolve({});
+      }),
+  );
+  renderTimeline(api);
+  fireEvent.click(await screen.findByRole("button", { name: "Volver a planificar 1 tarea" }));
+  await waitFor(() => expect(api.reorder).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole("button", { name: "Bajar: A" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Bajar: A" }));
+  expect(api.reorder).toHaveBeenCalledTimes(1);
+  release();
+  await waitFor(() => expect(screen.getByRole("button", { name: "Bajar: A" })).not.toBeDisabled());
+  cleanup();
+});

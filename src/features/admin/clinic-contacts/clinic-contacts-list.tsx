@@ -14,6 +14,7 @@ import {
   Title,
 } from "@mantine/core";
 import { IconPlus, IconSearch } from "@tabler/icons-react";
+import styles from "@/shared/ui/parity.module.css";
 import { ContactCard } from "./contact-card";
 import type {
   ClinicContact,
@@ -97,11 +98,14 @@ export function ClinicContactsList({
     setShowForm(true);
   };
 
-  const groups = filteredContacts.reduce<Record<string, ClinicContact[]>>((result, contact) => {
-    const category = contact.category.trim() || "General";
-    (result[category] ??= []).push(contact);
-    return result;
-  }, {});
+  const groups = filteredContacts.reduce<Record<string, ClinicContact[]>>(
+    (result, contact) => {
+      const category = contact.category.trim() || "General";
+      (result[category] ??= []).push(contact);
+      return result;
+    },
+    Object.create(null) as Record<string, ClinicContact[]>,
+  );
   return (
     <Stack gap="lg">
       <Group justify="space-between">
@@ -132,7 +136,7 @@ export function ClinicContactsList({
           leftSection={<IconSearch size={17} />}
           value={search}
           onChange={(e) => setSearch(e.currentTarget.value)}
-          style={{ flex: 1 }}
+          className={styles.flexField}
         />
         <Select
           label="Categoría"

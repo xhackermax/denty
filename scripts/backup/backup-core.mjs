@@ -134,7 +134,7 @@ export async function runBackup(config, { run, fetchImpl = fetch, now = () => ne
               await visit(path);
               continue;
             }
-            const encoded = path.split("/").map(encodeURIComponent).join("/");
+            const encoded = encodeURIComponent(path);
             const response = await request(
               `/object/authenticated/${encodeURIComponent(bucketId)}/${encoded}`,
             );

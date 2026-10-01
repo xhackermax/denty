@@ -55,6 +55,8 @@ import {
   type TreatmentFlowStep,
 } from "./treatment-flow-steps";
 
+import { RetainedFlowStep } from "./retained-flow-step";
+
 const STEP_LABELS: Record<TreatmentFlowStep, { label: string; description: string }> = {
   plan: { label: "Plan", description: "Del odontograma" },
   consents: { label: "Consentimientos", description: "Firma del paciente" },
@@ -150,7 +152,7 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
       </Alert>
     );
   }
-  if (!ready || step === null) {
+  if (step === null) {
     return (
       <Group gap="sm" py="xl" justify="center">
         <Loader size="sm" />
@@ -202,15 +204,15 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
         ))}
       </Stepper>
 
-      {step === "plan" ? (
+      <RetainedFlowStep active={step === "plan"}>
         <PlanStep
           patientId={patientId}
           items={openItems}
           added={summary?.added ?? 0}
           linked={summary?.linked ?? 0}
         />
-      ) : null}
-      {step === "consents" ? (
+      </RetainedFlowStep>
+      <RetainedFlowStep active={step === "consents"}>
         <ConsentsStep
           patientId={patientId}
           patientName={patientName}
@@ -218,7 +220,7 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
           items={openItems}
           requirements={consentsQuery.data?.items ?? []}
         />
-      ) : null}
+      </RetainedFlowStep>
       {step === "budget" ? (
         <BudgetStep
           loading={budgetSync.isPending}
@@ -228,13 +230,15 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
           onRetry={() => budgetSync.mutate()}
         />
       ) : null}
-      {step === "signature" && budget ? (
-        <SignatureStep
-          patientId={patientId}
-          patientName={patientName}
-          budget={budget}
-          onSigned={() => setStep("appointments")}
-        />
+      {budget ? (
+        <RetainedFlowStep key={`${budget.id}-${budget.version ?? 0}`} active={step === "signature"}>
+          <SignatureStep
+            patientId={patientId}
+            patientName={patientName}
+            budget={budget}
+            onSigned={() => setStep("appointments")}
+          />
+        </RetainedFlowStep>
       ) : null}
       {step === "appointments" ? (
         <AppointmentsStep patientId={patientId} items={openItems} />
@@ -261,7 +265,7 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
           ) : step === "signature" ? null : (
             <Button
               rightSection={<IconArrowRight size={16} />}
-              disabled={Boolean(blocker)}
+              disabled={!ready || Boolean(blocker)}
               onClick={goNext}
             >
               Siguiente

@@ -1,5 +1,5 @@
 begin;
-create or replace function private.odontogram_procedure_code(p_entity_type text, p_status text, p_attributes jsonb)
+create or replace function private.odontogram_procedure_treatment_code(p_entity_type text, p_status text, p_attributes jsonb)
 returns text language sql immutable set search_path = '' as $$
   select case coalesce(p_attributes ->> 'procedure', p_status)
     when 'gingivectomy' then 'GINGIVECTOMY'
@@ -17,6 +17,13 @@ from public.clinics c cross join (values
  ('GUIDED_SURGERY_SPLINT', 'Férula quirúrgica guiada'), ('TITANIUM_MESH', 'Malla de titanio')
 ) as seed(code,name) on conflict (clinic_id,code) do nothing;
 
+create or replace function private.odontogram_procedure_code(p_entity_type text, p_status text, p_attributes jsonb)
+returns text language sql immutable set search_path = '' as $$
+  select case when p_attributes ->> 'procedure' in ('gingivectomy','bone_regularization','guided_surgery_splint','titanium_mesh')
+    then case when private.odontogram_entity_is_planned(p_status,p_attributes)
+      then private.odontogram_procedure_treatment_code(p_entity_type,p_status,p_attributes) end
+    else private.odontogram_plan_code(p_entity_type,p_status,p_attributes) end
+$$;
 create or replace function public.sync_clinical_plan(p_patient_id uuid)
 returns jsonb
 language plpgsql
@@ -59,17 +66,31 @@ begin
 
   -- Planned findings on the current odontogram → plan items.
   for v_entity in
-    select de.id, de.tooth, de.surfaces_json,
-           private.odontogram_procedure_code(de.entity_type, de.status, de.attributes_json) as code,
-           coalesce(de.tooth, 'arch:' || de.arch) || ':' || private.odontogram_procedure_code(de.entity_type, de.status, de.attributes_json) || ':' ||
-             private.odontogram_surfaces_key(de.surfaces_json) as key
+    select de.id, de.tooth, de.surfaces_json, t.code, t.reason,
+           coalesce(de.tooth, 'arch:' || de.arch) || ':' || t.code || ':' || private.odontogram_surfaces_key(de.surfaces_json) as key
     from public.dental_entities de
+    cross join lateral (
+      select private.odontogram_procedure_code(de.entity_type, de.status, de.attributes_json) as code,
+             private.odontogram_plan_reason(de.entity_type, de.status, de.surfaces_json) as reason
+    ) t
     where de.patient_id = p_patient_id
       and de.active
-      and (de.tooth is not null or (de.arch in ('upper', 'lower') and de.attributes_json ->> 'procedure' = 'guided_surgery_splint'))
-      and private.odontogram_procedure_code(de.entity_type, de.status, de.attributes_json) is not null
-      and private.odontogram_entity_is_planned(de.status, de.attributes_json)
-    order by de.tooth, de.created_at
+      and (de.tooth is not null or (de.arch in ('upper','lower') and de.attributes_json ->> 'procedure' = 'guided_surgery_splint'))
+      and t.code is not null
+      and (
+        (private.odontogram_procedure_treatment_code(de.entity_type, de.status, de.attributes_json) is not null and private.odontogram_entity_is_planned(de.status,de.attributes_json))
+        -- A finding (caries, defective work) implies its usual treatment, unless the
+        -- dentist already chose a treatment for that tooth.
+        or not exists (
+          select 1 from public.dental_entities o
+          where o.patient_id = p_patient_id and o.active and o.tooth = de.tooth and o.id <> de.id
+            and (private.odontogram_procedure_treatment_code(o.entity_type, o.status, o.attributes_json) is not null and private.odontogram_entity_is_planned(o.status,o.attributes_json))
+        )
+      )
+    -- Explicit treatments first, so they win over a finding with the same key.
+    order by de.tooth,
+      (private.odontogram_procedure_treatment_code(de.entity_type, de.status, de.attributes_json) is not null and private.odontogram_entity_is_planned(de.status,de.attributes_json)) desc,
+      de.created_at
   loop
     if v_entity.key = any(v_keys) then continue; end if;
     v_keys := v_keys || v_entity.key;
@@ -98,8 +119,7 @@ begin
     if v_item_id is not null then
       update public.clinical_plan_items
       set dental_entity_id = v_entity.id,
-          clinical_reason = coalesce(clinical_reason, case when private.odontogram_surfaces_key(v_entity.surfaces_json) <> ''
-            then 'Caras ' || private.odontogram_surfaces_key(v_entity.surfaces_json) end),
+          clinical_reason = coalesce(clinical_reason, v_entity.reason),
           attributes_json = attributes_json || jsonb_build_object('odontogram_key', v_entity.key, 'surfaces', coalesce(v_entity.surfaces_json, '[]'::jsonb))
       where id = v_item_id;
       v_linked := v_linked + 1;
@@ -116,8 +136,7 @@ begin
     ) values (
       v_clinic_id, v_plan.id, v_entity.id, v_entity.tooth, v_entity.code,
       coalesce(v_catalog.name, initcap(lower(v_entity.code))),
-      case when private.odontogram_surfaces_key(v_entity.surfaces_json) <> ''
-        then 'Caras ' || private.odontogram_surfaces_key(v_entity.surfaces_json) end,
+      v_entity.reason,
       1, 0, 'PLANNED', coalesce(v_catalog.default_price_cents, 0),
       jsonb_build_object('odontogram_key', v_entity.key, 'surfaces', coalesce(v_entity.surfaces_json, '[]'::jsonb)),
       v_catalog.id, v_entity.code, coalesce(v_catalog.name, initcap(lower(v_entity.code))),
@@ -134,8 +153,9 @@ begin
              select 1 from public.dental_entities de
              where de.patient_id = p_patient_id and de.active
                and de.tooth is not distinct from i.tooth
-               and (de.tooth is not null or de.id = i.dental_entity_id)
-               and private.odontogram_procedure_code(de.entity_type, de.status, de.attributes_json) = upper(coalesce(i.treatment_code_snapshot, i.treatment_code))
+               and (de.tooth is not null or i.attributes_json ->> 'odontogram_key' =
+                 'arch:' || de.arch || ':' || private.odontogram_procedure_treatment_code(de.entity_type,de.status,de.attributes_json) || ':' || private.odontogram_surfaces_key(de.surfaces_json))
+               and private.odontogram_procedure_treatment_code(de.entity_type,de.status,de.attributes_json) = upper(coalesce(i.treatment_code_snapshot, i.treatment_code))
                and private.odontogram_entity_is_completed(de.status, de.attributes_json)
            ) as done
     from public.clinical_plan_items i
@@ -168,6 +188,9 @@ begin
     'added', v_added, 'linked', v_linked, 'superseded', v_superseded, 'completed', v_completed));
 end;
 $$;
-revoke execute on function private.odontogram_procedure_code(text,text,jsonb) from public, anon;
-grant execute on function private.odontogram_procedure_code(text,text,jsonb) to authenticated;
+
+grant execute on function public.sync_clinical_plan(uuid) to authenticated;
+
+revoke execute on function private.odontogram_procedure_code(text,text,jsonb), private.odontogram_procedure_treatment_code(text,text,jsonb) from public, anon;
+grant execute on function private.odontogram_procedure_code(text,text,jsonb), private.odontogram_procedure_treatment_code(text,text,jsonb) to authenticated;
 commit;

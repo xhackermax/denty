@@ -308,6 +308,8 @@ function Tooth({
   );
 }
 interface OdontogramEditorProps {
+  activeTab: ClinicalTab;
+  setActiveTab: (tab: ClinicalTab) => void;
   patientId: string;
   initialSection?: "odontogram" | "diagnosis" | "plan";
   initialAction?: "implant-surgery";
@@ -325,6 +327,8 @@ interface OdontogramEditorProps {
   onOpenTreatmentFlow: () => void;
 }
 function OdontogramEditor({
+  activeTab,
+  setActiveTab,
   patientId,
   initialSection = "odontogram",
   initialAction,
@@ -360,13 +364,6 @@ function OdontogramEditor({
   const [bridgePick, setBridgePick] = useState<"from" | "to">("from");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
   const [advancedToolsOpen, setAdvancedToolsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<ClinicalTab>(
-    initialAction === "implant-surgery"
-      ? "surgery"
-      : initialSection === "diagnosis"
-        ? "endodontic"
-        : "general",
-  );
   const patchAssistantContext = useOptionalAssistantContextPatch();
   const [clinicalRuleMessage, setClinicalRuleMessage] = useState<string | null>(null);
   const entities = useMemo(
@@ -980,6 +977,22 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   const initialSection =
     sectionParam === "diagnosis" || sectionParam === "plan" ? sectionParam : "odontogram";
   const initialAction = actionParam === "implant-surgery" ? "implant-surgery" : undefined;
+  const [activeTab, setActiveTab] = useState<ClinicalTab>(
+    initialAction === "implant-surgery"
+      ? "surgery"
+      : initialSection === "diagnosis"
+        ? "endodontic"
+        : "general",
+  );
+  useEffect(() => {
+    setActiveTab(
+      initialAction === "implant-surgery"
+        ? "surgery"
+        : initialSection === "diagnosis"
+          ? "endodontic"
+          : "general",
+    );
+  }, [initialAction, initialSection]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string>();
   const query = useOdontogramQuery(patientId);
   const patientQuery = usePatientQuery(patientId);
@@ -1036,6 +1049,8 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
         onClose={() => setTreatmentFlowOpen(false)}
       />
       <OdontogramEditor
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         key={`${editorKey}-${initialSection}-${initialAction ?? "default"}`}
         patientId={patientId}
         initialSection={initialSection}
