@@ -30,7 +30,7 @@ export function AdminExportPanel() {
   const [entity, setEntity] = useState<ExportEntity | null>(null);
 
   const overview = useQuery({
-    queryKey: dentyQueryKeys.settings.exportOverview,
+    queryKey: ["admin", "export", "overview"],
     queryFn: () => getBrowserApi().admin.export.overview(),
   });
 
