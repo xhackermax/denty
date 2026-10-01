@@ -1,7 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import {
+  Alert,
+  Button,
+  Group,
+  Modal,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from "@mantine/core";
+import { IconPlus, IconSearch } from "@tabler/icons-react";
+import { ContactCard } from "./contact-card";
 import type {
   ClinicContact,
   ClinicContactInsert,
@@ -61,18 +74,18 @@ export function ClinicContactsList({
       setContacts(result.data);
       setTotalCount(result.totalCount);
     } catch (error) {
-      setToast({ type: "error", message: "Error loading contacts" });
+      setToast({ type: "error", message: "No se pudieron cargar los contactos" });
       console.error(error);
     }
   };
 
   const handleDelete = async (contactId: string) => {
-    if (!confirm("Are you sure you want to delete this contact?")) return;
+    if (!confirm("¿Eliminar este contacto?")) return;
 
     try {
       await deleteContact(contactId);
       setContacts(contacts.filter((c) => c.id !== contactId));
-      setToast({ type: "success", message: "Contact deleted" });
+      setToast({ type: "success", message: "Contacto eliminado" });
     } catch (error) {
       setToast({ type: "error", message: "Error deleting contact" });
       console.error(error);
@@ -84,151 +97,127 @@ export function ClinicContactsList({
     setShowForm(true);
   };
 
-  const formatPhones = (phones: ClinicContact["phones"]) => {
-    if (!phones || phones.length === 0) return null;
-    return phones.map((p) => (typeof p === "string" ? p : p.number)).join(", ");
-  };
-
+  const groups = filteredContacts.reduce<Record<string, ClinicContact[]>>((result, contact) => {
+    const category = contact.category.trim() || "General";
+    (result[category] ??= []).push(contact);
+    return result;
+  }, {});
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Contactos especiales</h2>
-        <button
+    <Stack gap="lg">
+      <Group justify="space-between">
+        <Title order={1}>Contactos especiales</Title>
+        <Button
+          leftSection={<IconPlus size={17} />}
           onClick={() => {
             setEditingContact(null);
-            setShowForm(!showForm);
+            setShowForm(true);
           }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
         >
-          ➕ Nuevo contacto
-        </button>
-      </div>
-
-      {showForm && (
-        <ClinicContactForm
-          clinicId={clinicId}
-          editingContact={editingContact}
-          onSuccess={(contact) => {
-            setShowForm(false);
-            if (editingContact) {
-              setContacts(contacts.map((c) => (c.id === contact.id ? contact : c)));
-            } else {
-              setContacts([contact, ...contacts]);
-              setTotalCount(totalCount + 1);
-            }
-            setToast({
-              type: "success",
-              message: editingContact ? "Contact updated" : "Contact created",
-            });
-          }}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingContact(null);
-          }}
-          onCreate={(clinicId, data) => create(data)}
-          onUpdate={(contactId, data) => {
-            const { expectedVersion, ...rest } = data;
-            return update(contactId, {
-              ...rest,
-              ...(expectedVersion !== undefined ? { expectedVersion } : {}),
-            });
-          }}
+          Añadir contacto
+        </Button>
+      </Group>
+      {toast ? (
+        <Alert
+          color={toast.type === "error" ? "red" : "teal"}
+          onClose={() => setToast(null)}
+          withCloseButton
+        >
+          {toast.message}
+        </Alert>
+      ) : null}
+      <Group align="end">
+        <TextInput
+          label="Buscar"
+          placeholder="Buscar contactos"
+          leftSection={<IconSearch size={17} />}
+          value={search}
+          onChange={(e) => setSearch(e.currentTarget.value)}
+          style={{ flex: 1 }}
         />
-      )}
-
-      <div className="flex gap-4 items-end">
-        <div className="flex-1">
-          <label className="block text-sm font-medium mb-1">Search</label>
-          <input
-            type="text"
-            placeholder="Search contacts..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Category</label>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 border rounded-lg"
+        <Select
+          label="Categoría"
+          placeholder="Todas las categorías"
+          value={selectedCategory || null}
+          onChange={(value) => setSelectedCategory(value ?? "")}
+          data={categories.filter(Boolean)}
+          clearable
+        />
+        <Button variant="light" loading={apiLoading} onClick={() => void handleLoadContacts()}>
+          Actualizar
+        </Button>
+      </Group>
+      {!filteredContacts.length ? (
+        <Stack align="center" py="xl">
+          <Text c="dimmed">No hay contactos que coincidan</Text>
+          <Button
+            variant="light"
+            onClick={() => {
+              setEditingContact(null);
+              setShowForm(true);
+            }}
           >
-            <option value="">All categories</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid gap-4">
-        {filteredContacts.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No contacts found</p>
-        ) : (
-          filteredContacts.map((contact) => (
-            <div
-              key={contact.id}
-              className="border rounded-lg p-4 bg-white hover:shadow-md transition"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{contact.name}</h3>
-                  <p className="text-sm text-gray-600">{contact.category}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(contact)}
-                    className="p-2 hover:bg-gray-100 rounded-lg text-blue-600 text-xl"
-                    title="Edit"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => handleDelete(contact.id)}
-                    className="p-2 hover:bg-gray-100 rounded-lg text-red-600 text-xl"
-                    title="Delete"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                {formatPhones(contact.phones) && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>📞</span>
-                    <a href={`tel:${formatPhones(contact.phones)}`}>
-                      {formatPhones(contact.phones)}
-                    </a>
-                  </div>
-                )}
-                {contact.emails && contact.emails.length > 0 && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>📧</span>
-                    <a href={`mailto:${contact.emails.join(", ")}`}>
-                      {Array.isArray(contact.emails) ? contact.emails.join(", ") : contact.emails}
-                    </a>
-                  </div>
-                )}
-                {contact.hours && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>⏰</span>
-                    <span>{contact.hours}</span>
-                  </div>
-                )}
-              </div>
-
-              {contact.notes && <p className="text-sm text-gray-600 mt-3">{contact.notes}</p>}
-            </div>
-          ))
-        )}
-      </div>
-
-      <p className="text-sm text-gray-500 text-center">Total: {totalCount} contacts</p>
-    </div>
+            Añadir contacto
+          </Button>
+        </Stack>
+      ) : (
+        Object.entries(groups).map(([category, items]) => (
+          <section key={category} aria-label={category}>
+            <Title order={2} size="h4" mb="sm">
+              {category}
+            </Title>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
+              {items?.map((contact) => (
+                <ContactCard
+                  key={contact.id}
+                  contact={contact}
+                  onEdit={() => handleEdit(contact)}
+                  onDelete={() => void handleDelete(contact.id)}
+                  onMessage={(message, error = false) =>
+                    setToast({ type: error ? "error" : "success", message })
+                  }
+                />
+              ))}
+            </SimpleGrid>
+          </section>
+        ))
+      )}
+      <Text c="dimmed" size="sm">
+        {totalCount} contactos
+      </Text>
+      <Modal
+        opened={showForm}
+        onClose={() => {
+          setShowForm(false);
+          setEditingContact(null);
+        }}
+        title={editingContact ? "Editar contacto" : "Añadir contacto"}
+        size="lg"
+      >
+        {showForm ? (
+          <ClinicContactForm
+            clinicId={clinicId}
+            editingContact={editingContact}
+            onCreate={(_clinic, data) => create(data)}
+            onUpdate={(id, data) => update(id, data)}
+            onCancel={() => {
+              setShowForm(false);
+              setEditingContact(null);
+            }}
+            onSuccess={(contact) => {
+              setContacts((current) =>
+                editingContact
+                  ? current.map((c) => (c.id === contact.id ? contact : c))
+                  : [contact, ...current],
+              );
+              if (!editingContact) setTotalCount((current) => current + 1);
+              setShowForm(false);
+              setEditingContact(null);
+              setToast({ type: "success", message: "Contacto guardado" });
+            }}
+          />
+        ) : null}
+      </Modal>
+    </Stack>
   );
 }
 
