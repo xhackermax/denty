@@ -3,6 +3,7 @@ import { Alert, Badge, Button, Group, Select, SimpleGrid, Text } from "@mantine/
 import { IconArrowBackUp, IconArrowForwardUp, IconArrowRight } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useOptionalAssistantContextPatch } from "@/features/assistant/assistant-context";
 import {
   ENDODONTIC_VISUAL_MARKS,
   PERMANENT_LOWER,
@@ -365,6 +366,7 @@ function OdontogramEditor({
         ? "endodontic"
         : "general",
   );
+  const patchAssistantContext = useOptionalAssistantContextPatch();
   const [clinicalRuleMessage, setClinicalRuleMessage] = useState<string | null>(null);
   const entities = useMemo(
     () => Object.values(history.present.entitiesById).filter((entity) => entity.active),
@@ -402,6 +404,11 @@ function OdontogramEditor({
   useEffect(() => {
     setAdvancedToolsOpen(false);
   }, [activeTab]);
+
+  useEffect(() => {
+    patchAssistantContext({ patientId, selectedTooth });
+    return () => patchAssistantContext({ patientId: undefined, selectedTooth: undefined });
+  }, [patientId, patchAssistantContext, selectedTooth]);
   const commit = (entity: DentalEntity) => {
     if (historical) return;
     setHistory((current) => {

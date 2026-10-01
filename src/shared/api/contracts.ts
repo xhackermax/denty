@@ -130,6 +130,8 @@ export const appointmentStatusSchema = z.enum([
 
 /** Read-only clinical context resolved from the linked plan item (never stored twice). */
 export const appointmentClinicalSchema = z.object({
+  planStatus: z.string().nullable().optional(),
+  clinicalStatus: z.string().nullable().optional(),
   tooth: z.string().nullable().optional(),
   treatmentCode: z.string().nullable().optional(),
   label: z.string().nullable().optional(),

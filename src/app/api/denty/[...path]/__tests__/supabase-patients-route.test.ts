@@ -231,6 +231,91 @@ describe("Supabase-backed patient API", () => {
     expect(patientRequest?.searchParams.get("order")).toBe("created_at.desc,id.desc");
   });
 
+  test("normalizes blank optional patient fields so imported rows do not break the client", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+      if (url.pathname === "/rest/v1/patients" && method === "GET") {
+        return json([
+          {
+            id: "patient-imported",
+            clinic_id: "clinic-1",
+            legacy_id: null,
+            record_number: "",
+            first_name: "",
+            last_name: "",
+            dni: "",
+            phone: "",
+            email: "sin-email",
+            birth_date: "2010-04-03T00:00:00.000Z",
+            declared_source: "FUERA_DE_CATALOGO",
+            declared_source_detail: "",
+            photo_url: "",
+            medical_profile: {},
+            archived_at: null,
+            archived_reason: "",
+            version: 1,
+            created_at: "2026-09-26T18:00:00.000Z",
+            updated_at: "2026-09-26T18:00:00.000Z",
+          },
+        ]);
+      }
+      return createSupabaseFetch()(input, init);
+    });
+    vi.stubGlobal("fetch", withAuthenticatedStaff(fetchMock, { clinicId: "clinic-1" }));
+
+    const response = await GET(
+      new Request("https://denty.test/api/denty/api/patients?page=1&pageSize=50", {
+        headers: authenticatedHeaders(),
+      }),
+      { params: Promise.resolve({ path: ["api", "patients"] }) },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      items: [
+        {
+          id: "patient-imported",
+          recordNumber: "DNT-PATIENT-",
+          firstName: "Paciente",
+          lastName: "Sin nombre",
+          dni: null,
+          phone: null,
+          email: null,
+          birthDate: "2010-04-03",
+          declaredSource: null,
+          declaredSourceDetail: null,
+          photoUrl: null,
+          archivedReason: null,
+        },
+      ],
+    });
+  });
+
+  test("wraps patient search OR filters and sanitizes reserved characters", async () => {
+    const fetchMock = vi.fn(
+      withAuthenticatedStaff(createSupabaseFetch(), { clinicId: "clinic-1" }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await GET(
+      new Request(
+        "https://denty.test/api/denty/api/patients?page=x&pageSize=bad&search=Garcia,%20Ana%20(test)",
+        { headers: authenticatedHeaders() },
+      ),
+      { params: Promise.resolve({ path: ["api", "patients"] }) },
+    );
+
+    expect(response.status).toBe(200);
+    const patientRequest = fetchMock.mock.calls
+      .map(([input]) => new URL(input instanceof Request ? input.url : String(input)))
+      .find((url) => url.pathname === "/rest/v1/patients" && !url.searchParams.has("id"));
+
+    expect(patientRequest?.searchParams.get("or")).toBe(
+      "(first_name.ilike.*Garcia Ana test*,last_name.ilike.*Garcia Ana test*,record_number.ilike.*Garcia Ana test*,dni.ilike.*Garcia Ana test*)",
+    );
+  });
+
   test("rejects patient creation when Supabase does not confirm the inserted row on readback", async () => {
     vi.stubGlobal(
       "fetch",

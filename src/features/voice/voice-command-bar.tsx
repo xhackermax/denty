@@ -26,21 +26,42 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
+import {
+  useOptionalAssistantContext,
+  useOptionalAssistantContextPatch,
+} from "@/features/assistant/assistant-context";
+import type { AssistantToolCall } from "@/features/assistant/assistant-types";
+import {
+  executeAssistantCalls,
+  type AssistantExecutionEffect,
+} from "@/features/assistant/tools/assistant-tool-executor";
+import {
+  evaluateAssistantCall,
+  isInternalVoiceRole,
+  type AssistantPolicyResult,
+} from "@/features/assistant/tools/assistant-policy";
+import { localVoicePlanToToolCalls } from "@/features/assistant/tools/local-voice-adapter";
 import { getBrowserApi } from "@/shared/api/browser";
 import { DentyApiError } from "@/shared/api/errors";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
+import { useActiveTenant } from "@/shared/tenancy/active-context";
 import { requestMediaPermission } from "@/shared/ui/device-permissions";
 
 import motionStyles from "./voice-command-bar.module.css";
 
 import { voiceReadback, type LocalVoiceAction } from "./local-nlu";
-import { executeVoicePlan } from "./voice-executor";
-import { resolveVoicePatient, type VoicePatientCandidate } from "./voice-patient-resolver";
+import {
+  pickPatientOverride,
+  resolveVoicePatient,
+  type VoicePatientCandidate,
+} from "./voice-patient-resolver";
 import {
   canExecuteVoicePreview,
   previewFromClaude,
   previewVoiceCommand,
   primaryHrefForVoicePlan,
+  isLiteralNoteFallback,
+  shouldAutoExecuteSpokenPreview,
   type VoicePreview,
 } from "./voice-router";
 import { useRealtimeVoice } from "./use-realtime-voice";
@@ -49,6 +70,9 @@ import {
   selectVoiceEngine,
   type RealtimeVoiceConfig,
 } from "./voice-realtime-adapter";
+import { createSpeechCommandBuffer } from "./speech-command-buffer";
+import { useLatestHandler } from "./use-latest-handler";
+import { VoiceTimeoutError, withTimeout } from "./with-timeout";
 
 interface SpeechRecognitionAlternativeLike {
   transcript: string;
@@ -119,6 +143,8 @@ function isNavigationOnly(preview: VoicePreview): boolean {
   );
 }
 
+const CLAUDE_INTERPRET_TIMEOUT_MS = 12_000;
+
 function patientQueryFromPreview(preview: VoicePreview): string | undefined {
   for (const action of preview.plan.actions) {
     if (action.type === "patient.resolve" && action.query.trim()) return action.query.trim();
@@ -142,9 +168,43 @@ function describeAction(action: LocalVoiceAction): string {
   return sentence === "No he detectado una acción concreta" ? action.type : sentence;
 }
 
+function policyMessage(result: AssistantPolicyResult, call?: AssistantToolCall): string {
+  if (result.reason === "ROLE_NOT_ALLOWED") {
+    return "La voz de Denty solo está disponible para administración y equipo de clínica.";
+  }
+  if (result.reason === "PATIENT_REQUIRED") {
+    return "Necesito saber sobre qué paciente trabajar antes de ejecutar esta orden.";
+  }
+  if (result.reason === "UNKNOWN_TOOL") {
+    return "Denty ha entendido la orden, pero esta acción todavía no está conectada.";
+  }
+  if (result.reason === "CONSEQUENTIAL_ACTION") {
+    return "Esta acción modifica datos sensibles. Revisa y confirma antes de ejecutarla.";
+  }
+  return call ? `No puedo ejecutar ${call.name} todavía.` : "No se pudo ejecutar la orden.";
+}
+
+export function shouldRenderVoiceControls(role: string | null | undefined, loading: boolean) {
+  return !loading && isInternalVoiceRole(role);
+}
+
 export function VoiceCommandBar() {
+  const { role, permissions, loading } = useActiveTenant();
+  if (!shouldRenderVoiceControls(role, loading)) return null;
+  return <VoiceCommandBarInner permissions={permissions} role={role} />;
+}
+
+function VoiceCommandBarInner({
+  permissions,
+  role,
+}: {
+  permissions: readonly string[];
+  role: string | null;
+}) {
   const router = useRouter();
   const pathname = usePathname();
+  const assistantContext = useOptionalAssistantContext();
+  const patchAssistantContext = useOptionalAssistantContextPatch();
   const queryClient = useQueryClient();
   const reducedMotion = useReducedMotion();
   const patientsQuery = usePatientsQuery();
@@ -158,12 +218,100 @@ export function VoiceCommandBar() {
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [heard, setHeard] = useState<string | null>(null);
   const [interpreting, setInterpreting] = useState(false);
+  const [lastDone, setLastDone] = useState<string | null>(null);
   const [voiceStatus, setVoiceStatus] = useState<
     "connecting" | "listening" | "processing" | "idle" | "error"
   >("idle");
   // Turned off for the session once the server says Claude isn't configured.
   const claudeAvailableRef = useRef(true);
   const realtimeAdapterRef = useRef<VoiceRealtimeAdapter | null>(null);
+  const speechCommandBufferRef = useRef(createSpeechCommandBuffer());
+  // Commands run one at a time: overlapping speech must not interleave or execute twice.
+  const commandQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const commandHandler = useLatestHandler<[string], Promise<void>>();
+  const dispatchCommand = commandHandler.dispatch;
+  const submitRealtimeToolResultRef = useRef<
+    (toolCallId: string, result: { success: boolean; message?: string; error?: string }) => void
+  >(() => undefined);
+
+  const applyAssistantEffect = useCallback(
+    (effect: AssistantExecutionEffect) => {
+      if (effect.type === "NAVIGATE") router.push(effect.href);
+      if (effect.type === "SELECT_TOOTH") patchAssistantContext({ selectedTooth: effect.tooth });
+    },
+    [patchAssistantContext, router],
+  );
+
+  const executeResolvedPreview = useCallback(
+    async (next: VoicePreview, options: { confirmed?: boolean } = {}) => {
+      if (!canExecuteVoicePreview(next)) return false;
+      const adaptation = localVoicePlanToToolCalls(next.plan);
+      if (adaptation.unsupported.length) {
+        setPreview(next);
+        setExecutionError(
+          `Denty ha entendido la orden, pero todavía no puede ejecutar: ${adaptation.unsupported.join(
+            ", ",
+          )}.`,
+        );
+        return false;
+      }
+
+      const policyContext = {
+        ...(next.plan.contextPatientId ? { patientId: next.plan.contextPatientId } : {}),
+        role,
+        permissions,
+      };
+      const policyResults = adaptation.calls.map((call) => ({
+        call,
+        result: evaluateAssistantCall(call, policyContext),
+      }));
+      const blocked = policyResults.find(({ result }) => result.decision === "BLOCK");
+      if (blocked) {
+        setPreview(next);
+        setExecutionError(policyMessage(blocked.result, blocked.call));
+        return false;
+      }
+      const confirmationCalls = policyResults
+        .filter(({ result }) => result.decision === "CONFIRM")
+        .map(({ call }) => call);
+      if (confirmationCalls.length && !options.confirmed) {
+        setPreview(next);
+        setExecutionError(
+          policyMessage({ decision: "CONFIRM", reason: "CONSEQUENTIAL_ACTION", risk: "RED" }),
+        );
+        return false;
+      }
+
+      setExecuting(true);
+      setExecutionError(null);
+      try {
+        const result = await executeAssistantCalls(adaptation.calls, {
+          confirmedCallIds: new Set(
+            options.confirmed ? confirmationCalls.map((call) => call.id) : [],
+          ),
+        });
+        if (result.pendingConfirmation) {
+          setPreview(next);
+          setExecutionError("Esta acción necesita confirmación explícita.");
+          return false;
+        }
+        for (const effect of result.effects) applyAssistantEffect(effect);
+        await queryClient.invalidateQueries();
+        setPreview(null);
+        setText("");
+        setLastDone(next.plan.readback);
+        return true;
+      } catch (error) {
+        setExecutionError(
+          error instanceof Error ? error.message : "No se pudo ejecutar el plan de voz.",
+        );
+        return false;
+      } finally {
+        setExecuting(false);
+      }
+    },
+    [applyAssistantEffect, permissions, queryClient, role],
+  );
 
   // Realtime voice integration
   const {
@@ -178,21 +326,51 @@ export function VoiceCommandBar() {
       setVoiceStatus("processing");
     },
     onTranscript: (transcript) => {
-      void processCommand(transcript);
+      void dispatchCommand(transcript);
     },
     onError: (error) => {
       setVoiceStatus("error");
       setExecutionError(error);
     },
     onToolCall: (toolCall) => {
-      // Handle tool call from the Realtime model
-      if (realtimeAdapterRef.current) {
-        void realtimeAdapterRef.current.executeToolCall(
-          toolCall.id,
-          toolCall.name,
-          toolCall.arguments,
-        );
-      }
+      void (async () => {
+        try {
+          const { processRealtimeToolCall } = await import("./realtime-tools");
+          const interpretation = processRealtimeToolCall(toolCall);
+          const next = resolvePreview(
+            previewFromClaude(
+              "Orden de voz en tiempo real",
+              {
+                actions: interpretation.actions,
+                ambiguities: interpretation.ambiguities,
+              },
+              { pathname },
+            ),
+          );
+          if (shouldAutoExecuteSpokenPreview(next)) {
+            const executed = await executeResolvedPreview(next);
+            submitRealtimeToolResultRef.current(
+              toolCall.id,
+              executed
+                ? { success: true, message: "Accion guardada en Denty" }
+                : { success: false, error: "No se pudo guardar la accion en Denty" },
+            );
+            return;
+          }
+          setPreview(next);
+          submitRealtimeToolResultRef.current(toolCall.id, {
+            success: false,
+            error: next.plan.ambiguities.length
+              ? next.plan.ambiguities.join("; ")
+              : "La accion necesita confirmacion",
+          });
+        } catch (error) {
+          submitRealtimeToolResultRef.current(toolCall.id, {
+            success: false,
+            error: error instanceof Error ? error.message : "No se pudo procesar la voz",
+          });
+        }
+      })();
     },
   });
 
@@ -219,7 +397,12 @@ export function VoiceCommandBar() {
   const resolvePreview = useCallback(
     (base: VoicePreview): VoicePreview => {
       const query = patientQueryFromPreview(base);
-      if (!query || base.plan.contextPatientId) return base;
+      if (!query) return base;
+      if (base.plan.contextPatientId) {
+        const other = pickPatientOverride(query, base.plan.contextPatientId, patients);
+        if (!other) return base;
+        return { ...base, plan: { ...base.plan, contextPatientId: other.id } };
+      }
 
       const matches = resolveVoicePatient(query, patients);
       const best = matches[0];
@@ -267,17 +450,24 @@ export function VoiceCommandBar() {
   );
 
   const preparePreview = useCallback(
-    (command: string) => resolvePreview(previewVoiceCommand(command, { pathname })),
-    [pathname, resolvePreview],
+    (command: string) =>
+      resolvePreview(
+        previewVoiceCommand(command, {
+          pathname,
+          ...assistantContext,
+        }),
+      ),
+    [assistantContext, pathname, resolvePreview],
   );
 
-  const processCommand = useCallback(
+  const runCommand = useCallback(
     async (command: string) => {
       const clean = command.trim();
       if (!clean) return;
       setText(clean);
       setHeard(clean);
       setExecutionError(null);
+      setLastDone(null);
 
       const next = preparePreview(clean);
       if (canExecuteVoicePreview(next) && isNavigationOnly(next)) {
@@ -292,32 +482,69 @@ export function VoiceCommandBar() {
       // The local rules are free: when they fully understood the order, Claude
       // isn't called. Claude (paid per call) handles only what they can't, and
       // the rules stay as the fallback when it isn't configured or doesn't answer.
-      if (claudeAvailableRef.current && !canExecuteVoicePreview(next)) {
+      if (
+        claudeAvailableRef.current &&
+        (!canExecuteVoicePreview(next) || isLiteralNoteFallback(next))
+      ) {
         setInterpreting(true);
         try {
-          const result = await getBrowserApi().voice.interpret({ text: clean, pathname });
-          setPreview(
-            resolvePreview(
-              previewFromClaude(
-                clean,
-                { actions: result.actions as LocalVoiceAction[], ambiguities: result.ambiguities },
-                { pathname },
-              ),
+          const result = await withTimeout(
+            getBrowserApi().voice.interpret({ text: clean, pathname }),
+            CLAUDE_INTERPRET_TIMEOUT_MS,
+          );
+          const interpreted = resolvePreview(
+            previewFromClaude(
+              clean,
+              { actions: result.actions as LocalVoiceAction[], ambiguities: result.ambiguities },
+              {
+                pathname,
+                ...assistantContext,
+              },
             ),
           );
+          if (shouldAutoExecuteSpokenPreview(interpreted)) {
+            await executeResolvedPreview(interpreted);
+            return;
+          }
+          setPreview(interpreted);
           return;
         } catch (error) {
-          if (error instanceof DentyApiError && error.code === "VOICE_CLAUDE_NOT_CONFIGURED") {
+          if (error instanceof DentyApiError && error.code === "VOICE_AI_NOT_CONFIGURED") {
             claudeAvailableRef.current = false;
+          } else if (error instanceof VoiceTimeoutError) {
+            setExecutionError("La IA tardó demasiado; te muestro lo que entendí en local.");
+          } else if (error instanceof DentyApiError && error.code === "VOICE_AI_DECLINED") {
+            setExecutionError(error.message);
           }
         } finally {
           setInterpreting(false);
         }
       }
+      if (shouldAutoExecuteSpokenPreview(next)) {
+        await executeResolvedPreview(next);
+        return;
+      }
       setPreview(next);
     },
-    [pathname, preparePreview, resolvePreview, router],
+    [assistantContext, executeResolvedPreview, pathname, preparePreview, resolvePreview, router],
   );
+
+  const processCommand = useCallback(
+    (command: string): Promise<void> => {
+      const run = commandQueueRef.current.then(
+        () => runCommand(command),
+        () => runCommand(command),
+      );
+      commandQueueRef.current = run.catch(() => undefined);
+      return run;
+    },
+    [runCommand],
+  );
+
+  const bindCommandHandler = commandHandler.bind;
+  useEffect(() => {
+    bindCommandHandler(processCommand);
+  }, [bindCommandHandler, processCommand]);
 
   const interpret = useCallback(() => {
     if (!text.trim()) return;
@@ -326,9 +553,10 @@ export function VoiceCommandBar() {
 
   // Initialize the adapter with tool calling support
   useEffect(() => {
+    submitRealtimeToolResultRef.current = submitToolResult;
     const config: RealtimeVoiceConfig = {
       onTranscript: (text) => {
-        void processCommand(text);
+        void dispatchCommand(text);
       },
       onError: (error) => {
         setExecutionError(error);
@@ -339,27 +567,11 @@ export function VoiceCommandBar() {
       submitToolResult: submitToolResult,
     };
     realtimeAdapterRef.current = new VoiceRealtimeAdapter(config);
-  }, [processCommand, submitToolResult]);
+  }, [dispatchCommand, submitToolResult]);
 
   const execute = async () => {
     if (!preview || !canExecuteVoicePreview(preview)) return;
-    setExecuting(true);
-    setExecutionError(null);
-    try {
-      await executeVoicePlan(preview.plan);
-      // Whatever screen is open (odontogram, plan, notes) shows the change now.
-      await queryClient.invalidateQueries();
-      const href = primaryHrefForVoicePlan(preview.plan);
-      if (href) router.push(href);
-      setPreview(null);
-      setText("");
-    } catch (error) {
-      setExecutionError(
-        error instanceof Error ? error.message : "No se pudo ejecutar el plan de voz.",
-      );
-    } finally {
-      setExecuting(false);
-    }
+    await executeResolvedPreview(preview, { confirmed: true });
   };
 
   const clearSpeechTimers = useCallback(() => {
@@ -410,7 +622,7 @@ export function VoiceCommandBar() {
         }
         const transcript = typeof payload?.text === "string" ? payload.text.trim() : "";
         if (!transcript) throw new Error("No se ha detectado una orden de voz.");
-        void processCommand(transcript);
+        void dispatchCommand(transcript);
       } catch (error) {
         setExecutionError(
           error instanceof Error ? error.message : "No se pudo transcribir la grabación.",
@@ -419,12 +631,13 @@ export function VoiceCommandBar() {
         setExecuting(false);
       }
     },
-    [processCommand],
+    [dispatchCommand],
   );
 
   const startRecordedFallback = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       setExecutionError("Este navegador no admite voz.");
+      setCommandOpened(true);
       return;
     }
 
@@ -449,6 +662,7 @@ export function VoiceCommandBar() {
         setVoiceEngine(null);
         cleanupRecorder();
         setExecutionError("No se pudo grabar el audio del micrófono.");
+        setCommandOpened(true);
       };
       recorder.onstart = () => setListening(true);
       recorder.onstop = () => {
@@ -472,7 +686,9 @@ export function VoiceCommandBar() {
       setListening(false);
       setVoiceEngine(null);
       cleanupRecorder();
-      setExecutionError(error instanceof Error ? error.message : "No se pudo abrir el micrófono.");
+      const msg = error instanceof Error ? error.message : "No se pudo abrir el micrófono.";
+      setExecutionError(msg);
+      setCommandOpened(true);
     }
   }, [cleanupRecorder, transcribeRecordedAudio]);
 
@@ -507,17 +723,19 @@ export function VoiceCommandBar() {
 
     setExecutionError(null);
     setHeard(null);
+    speechCommandBufferRef.current.clear();
     try {
       await requestMediaPermission("microphone");
     } catch (error) {
       const name = error instanceof DOMException ? error.name : "";
-      setExecutionError(
+      const msg =
         name === "NotAllowedError"
           ? speechErrorMessage("not-allowed")
           : error instanceof Error
             ? error.message
-            : "No se pudo acceder al micrófono.",
-      );
+            : "No se pudo acceder al micrófono.";
+      setExecutionError(msg);
+      setCommandOpened(true);
       return;
     }
 
@@ -552,7 +770,8 @@ export function VoiceCommandBar() {
         const result = event.results[index];
         const transcript = result?.[0]?.transcript?.trim();
         if (!transcript || result?.isFinal === false) continue;
-        void processCommand(transcript);
+        const command = speechCommandBufferRef.current.push(transcript);
+        if (command) void dispatchCommand(command);
       }
     };
     recognition.onerror = (event) => {
@@ -572,6 +791,7 @@ export function VoiceCommandBar() {
         return;
       }
       setExecutionError(speechErrorMessage(event.error));
+      setCommandOpened(true);
     };
     recognition.onend = () => {
       setListening(false);
@@ -612,7 +832,15 @@ export function VoiceCommandBar() {
       clearSpeechTimers();
       await startRecordedFallback();
     }
-  }, [clearSpeechTimers, listening, processCommand, startRecordedFallback, stopListening]);
+  }, [clearSpeechTimers, dispatchCommand, listening, startRecordedFallback, stopListening]);
+
+  const safeListen = useCallback(() => {
+    listen().catch((err) => {
+      const msg = err instanceof Error ? err.message : "Error inesperado al iniciar la voz.";
+      setExecutionError(msg);
+      setCommandOpened(true);
+    });
+  }, [listen]);
 
   useEffect(() => {
     return () => {
@@ -634,6 +862,10 @@ export function VoiceCommandBar() {
       cleanupRecorder();
     };
   }, [cleanupRecorder, clearSpeechTimers]);
+
+  useEffect(() => {
+    if (listening) setCommandOpened(true);
+  }, [listening]);
 
   const listeningLabel =
     voiceEngine === "recording"
@@ -705,7 +937,7 @@ export function VoiceCommandBar() {
                 color={listening || executionError ? "red" : "gray"}
                 variant={listening ? "filled" : "subtle"}
                 aria-label={listening ? "Detener escucha" : "Escuchar comando"}
-                onClick={() => void listen()}
+                onClick={safeListen}
                 loading={interpreting || (executing && voiceEngine === null && !preview)}
               >
                 {listening ? <IconMicrophoneOff size={18} /> : <IconMicrophone size={18} />}
@@ -761,9 +993,19 @@ export function VoiceCommandBar() {
                   }
                 }}
               />
-              {executionError && !preview ? (
+              {listening ? (
+                <Badge color="red" variant="light" size="sm" fullWidth>
+                  {voiceEngine === "recording"
+                    ? "Grabando… pulsa Detener para enviar"
+                    : "Escuchando… di tu orden"}
+                </Badge>
+              ) : executionError && !preview ? (
                 <Text size="xs" c="red">
                   {executionError}
+                </Text>
+              ) : lastDone ? (
+                <Text size="xs" c="teal" lineClamp={3}>
+                  Hecho: {lastDone}
                 </Text>
               ) : heard ? (
                 <Text size="xs" c="dimmed" lineClamp={2}>
@@ -775,7 +1017,7 @@ export function VoiceCommandBar() {
                   variant="subtle"
                   size="xs"
                   leftSection={<IconMicrophone size={15} />}
-                  onClick={() => void listen()}
+                  onClick={safeListen}
                 >
                   {listening ? "Detener" : "Hablar"}
                 </Button>

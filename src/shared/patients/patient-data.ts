@@ -13,7 +13,7 @@ export function usePatientsQuery(
   page = 1,
 ) {
   return useQuery({
-    queryKey: [...dentyQueryKeys.patients.list(includeArchived), search ?? "", page],
+    queryKey: dentyQueryKeys.patients.page(includeArchived, search ?? "", page),
     queryFn: () =>
       getBrowserApi().patients.list({
         includeArchived,

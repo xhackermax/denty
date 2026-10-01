@@ -1,5 +1,6 @@
 import {
   medicalProfileSchema,
+  patientAcquisitionSourceSchema,
   type CreatePatient,
   type Patient,
   type UpdatePatient,
@@ -188,20 +189,26 @@ export class PatientRepository {
     };
     if (this.clinicId) query.clinic_id = `eq.${this.clinicId}`;
 
-    const searchTerm = options.search?.trim();
+    const searchTerm = options.search?.trim().slice(0, 80);
     if (searchTerm) {
-      const escaped = searchTerm.replace(/[%_]/g, (ch) => `\\${ch}`);
+      const escaped = searchTerm
+        .replace(/[(),"]/g, " ")
+        .replace(/[%_]/g, (ch) => `\\${ch}`)
+        .replace(/\s+/g, " ")
+        .trim();
       const pattern = `*${escaped}*`;
-      query.or = [
+      query.or = `(${[
         `first_name.ilike.${pattern}`,
         `last_name.ilike.${pattern}`,
         `record_number.ilike.${pattern}`,
         `dni.ilike.${pattern}`,
-      ].join(",");
+      ].join(",")})`;
     }
 
-    const page = Math.max(1, options.page ?? 1);
-    const pageSize = Math.max(1, Math.min(options.pageSize ?? 50, 200));
+    const requestedPage = Number.isFinite(options.page) ? Number(options.page) : 1;
+    const requestedPageSize = Number.isFinite(options.pageSize) ? Number(options.pageSize) : 50;
+    const page = Math.max(1, Math.trunc(requestedPage));
+    const pageSize = Math.max(1, Math.min(Math.trunc(requestedPageSize), 200));
     const offset = (page - 1) * pageSize;
     const { rows, total } = await this.client.selectPage<PatientRow>("patients", query, {
       offset,
@@ -529,22 +536,32 @@ function rowToProjectionAppointment(row: AppointmentProjectionRow) {
 
 function rowToPatient(row: PatientRow): Patient {
   const parsedMedicalProfile = medicalProfileSchema.safeParse(row.medical_profile);
+  const nullableText = (value: string | null | undefined) => {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+  };
+  const dateOnly = (value: string | null | undefined) => {
+    const text = nullableText(value);
+    return text && /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : null;
+  };
+  const email = nullableText(row.email);
+  const declaredSource = patientAcquisitionSourceSchema.safeParse(nullableText(row.declared_source));
   const patient: Patient = {
     id: row.id,
     clinicId: row.clinic_id,
     legacyId: row.legacy_id,
-    recordNumber: row.record_number,
-    firstName: row.first_name,
-    lastName: row.last_name,
-    dni: row.dni,
-    phone: row.phone,
-    email: row.email,
-    birthDate: row.birth_date,
-    declaredSource: row.declared_source as Patient["declaredSource"],
-    declaredSourceDetail: row.declared_source_detail,
-    photoUrl: row.photo_url,
-    archivedAt: row.archived_at,
-    archivedReason: row.archived_reason,
+    recordNumber: nullableText(row.record_number) ?? `DNT-${row.id.slice(0, 8).toUpperCase()}`,
+    firstName: nullableText(row.first_name) ?? "Paciente",
+    lastName: nullableText(row.last_name) ?? "Sin nombre",
+    dni: nullableText(row.dni),
+    phone: nullableText(row.phone),
+    email: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null,
+    birthDate: dateOnly(row.birth_date),
+    declaredSource: declaredSource.success ? declaredSource.data : null,
+    declaredSourceDetail: nullableText(row.declared_source_detail),
+    photoUrl: nullableText(row.photo_url),
+    archivedAt: nullableText(row.archived_at),
+    archivedReason: nullableText(row.archived_reason),
     version: row.version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

@@ -8,6 +8,7 @@ import { madridLocalDateTime, todayMadrid, toMadridISO } from "@/domain/dates";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
+import { ActionErrorAlert } from "./action-error-alert";
 
 const ABSENCE_TYPES = [
   { value: "VACATION", label: "Vacaciones" },
@@ -81,6 +82,7 @@ export function AttendanceModule() {
 
   return (
     <Stack gap="md">
+      <ActionErrorAlert errors={[punch.error, createAbsence.error, cancelAbsence.error]} />
       <Group justify="space-between">
         <div>
           <Text fw={700}>Mi jornada</Text>

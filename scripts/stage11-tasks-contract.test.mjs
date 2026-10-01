@@ -30,7 +30,14 @@ for (const href of [
   "/app/laboratory",
 ])
   assert.ok(tasks.includes(href), `Quick action missing real destination ${href}`);
-assert.ok(tasks.includes("getBrowserApi().tasks"), "Tasks page must use persistent task API");
+assert.match(tasks, /<TasksTimeline/, "Tasks page must render the persistent timeline");
+const timeline = fs.readFileSync("src/features/parity/tasks/tasks-timeline.tsx", "utf8");
+assert.match(timeline, /getBrowserApi\(\)\.tasks/, "Timeline must use persistent task API");
+assert.match(
+  timeline,
+  /useTaskActions\(resolvedApi\)/,
+  "Timeline must persist mutations through task actions",
+);
 const route = fs.readFileSync("src/server/denty-supabase/route-handler.ts", "utf8");
 assert.ok(route.includes('parts[1] === "tasks"'), "Task routes missing from Supabase handler");
 console.log("Stage 11 tasks contract PASS");

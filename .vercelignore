@@ -1,0 +1,9 @@
+.git
+.next
+.turbo
+.worktrees
+node_modules
+out
+*.zip
+*.tsbuildinfo
+tsconfig.tsbuildinfo

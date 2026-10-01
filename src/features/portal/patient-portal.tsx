@@ -109,9 +109,13 @@ export function PatientPortal({ patientId }: { patientId: string }) {
                 <span className={styles.rowTitle}>{formatEUR(budget.totalCents)}</span>
                 <span className={styles.rowMeta}>{budget.status}</span>
               </div>
-              <Button size="xs" variant="light">
-                Ver
-              </Button>
+              <Badge
+                variant="outline"
+                color="gray"
+                title="El detalle del presupuesto aún no está disponible en el portal"
+              >
+                No disponible
+              </Badge>
             </div>
           ))}
           {data.budgets.length === 0 ? <Text c="dimmed">Sin presupuestos.</Text> : null}

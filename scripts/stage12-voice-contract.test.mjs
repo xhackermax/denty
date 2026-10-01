@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 const executor = fs.readFileSync("src/features/voice/voice-executor.ts", "utf8");
 const nlu = fs.readFileSync("src/features/voice/local-nlu.ts", "utf8");
 const router = fs.readFileSync("src/features/voice/voice-router.ts", "utf8");
+const adapter = fs.readFileSync("src/features/assistant/tools/local-voice-adapter.ts", "utf8");
+assert.match(adapter, /unsupported/, "Tool adapter must report unsupported actions");
 
 assert.ok(
   executor.includes("EXECUTABLE_VOICE_ACTION_TYPES"),
@@ -14,8 +16,8 @@ assert.ok(
   "Voice executor must expose executable-action guard",
 );
 assert.ok(
-  router.includes("isExecutableVoiceAction"),
-  "Voice preview must consult executable-action guard",
+  router.includes("localVoicePlanToToolCalls"),
+  "Voice preview must consult the canonical tool adapter",
 );
 assert.ok(
   router.includes("unsupportedActions"),

@@ -203,3 +203,5 @@ export function waitingVisualState(input: {
 export * from "./clinical-glyph";
 export * from "./rota";
 export * from "./view";
+
+export * from "./treatment-options";

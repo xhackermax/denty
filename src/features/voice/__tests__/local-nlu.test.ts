@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { planLocalVoiceCommand } from "../local-nlu";
+import { previewVoiceCommand, shouldAutoExecuteSpokenPreview } from "../voice-router";
 
 describe("local voice NLU parity", () => {
   it("expands a bridge across the midline by FDI arch order", () => {
@@ -68,5 +69,35 @@ describe("local voice NLU parity", () => {
       type: "navigation.patient",
       patientRef: "Paciente Test",
     });
+  });
+
+  it("allows complete spoken odontogram findings to be applied from the patient chart", () => {
+    const preview = previewVoiceCommand("Oye Denty apunta caries en el 36", {
+      pathname: "/app/patients/patient-1/odontogram",
+    });
+
+    expect(preview.plan.actions).toContainEqual({
+      type: "odontogram.set_state",
+      patientRef: "",
+      tooth: "36",
+      status: "CARIES",
+      surfaces: [],
+    });
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
+  });
+
+  it("understands the dictated distal caries command for a specific tooth", () => {
+    const preview = previewVoiceCommand("Oye Denty apunta una caries en distal del 23", {
+      pathname: "/app/patients/patient-1/odontogram",
+    });
+
+    expect(preview.plan.actions).toContainEqual({
+      type: "odontogram.set_state",
+      patientRef: "",
+      tooth: "23",
+      status: "CARIES",
+      surfaces: ["D"],
+    });
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
   });
 });

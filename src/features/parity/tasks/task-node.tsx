@@ -9,7 +9,6 @@ import {
   IconChevronDown,
   IconChevronUp,
   IconPencil,
-  IconTrash,
 } from "@tabler/icons-react";
 import { useState, type DragEvent } from "react";
 
@@ -21,7 +20,6 @@ import styles from "./tasks-timeline.module.css";
 export interface TaskNodeHandlers {
   onToggleDone: (entry: ScheduleEntry) => void;
   onArchive: (entry: ScheduleEntry) => void;
-  onDelete: (entry: ScheduleEntry) => void;
   onEdit: (entry: ScheduleEntry) => void;
   onMove: (id: string, direction: -1 | 1) => void;
   onMoveToDay: (entry: ScheduleEntry, day: string | null) => void;
@@ -194,15 +192,6 @@ export function TaskNode({
             onClick={() => handlers.onArchive(entry)}
           >
             <IconArchive size={18} />
-          </ActionIcon>
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            size="md"
-            aria-label={`Eliminar: ${task.title}`}
-            onClick={() => handlers.onDelete(entry)}
-          >
-            <IconTrash size={18} />
           </ActionIcon>
         </div>
         {choosing ? (

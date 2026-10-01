@@ -1,4 +1,6 @@
 "use client";
+
+import { agendaTreatmentOptions } from "@/domain";
 import {
   ActionIcon,
   Alert,
@@ -107,7 +109,7 @@ import styles from "./agenda.module.css";
 import parityStyles from "@/shared/ui/parity.module.css";
 import { DentyApiError, type UpdateAppointment } from "@/shared/api";
 import { useClinicalPlanQuery, useTreatmentCatalogQuery } from "@/shared/clinical/clinical-data";
-import { ClinicalGlyph } from "@/shared/odontogram/clinical-glyph";
+import { ClinicalGlyph, ClinicalGlyphs } from "@/shared/odontogram/clinical-glyph";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { PageHeader } from "@/shared/ui";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
@@ -1506,11 +1508,13 @@ export function AgendaPage() {
           <span className={parityStyles.rowTitle}>
             {hhmm(appointment.startsAt)} · {appointment.patientName}
           </span>
-          {appointment.glyph ? <ClinicalGlyph glyph={appointment.glyph} mode="micro" /> : null}
+          {appointment.glyphs.length ? (
+            <ClinicalGlyphs glyphs={appointment.glyphs} />
+          ) : (
+            <Text size="xs">{appointment.reason}</Text>
+          )}
         </Group>
-        <span className={parityStyles.rowMeta}>
-          {appointment.reason} · {AGENDA_STATUS_META[appointment.status].label}
-        </span>
+        <span className={parityStyles.rowMeta}>{AGENDA_STATUS_META[appointment.status].label}</span>
       </UnstyledButton>
       <div className={parityStyles.rowActions}>
         {withAdvance && nextStatus(appointment.status) ? (
@@ -1759,7 +1763,7 @@ export function AgendaPage() {
                 Del plan de tratamiento
               </Text>
               <div className={styles.planItems}>
-                {pendingPlanItems.slice(0, 8).map((item) => {
+                {pendingPlanItems.map((item) => {
                   const glyph = clinicalGlyphFor({
                     tooth: item.tooth,
                     treatmentCode: item.treatmentCode,
@@ -1796,10 +1800,11 @@ export function AgendaPage() {
             value={reason}
             onChange={(value) => {
               setReason(value);
+              setPlanItemId(null);
               const entry = catalog.find((item) => item.name === value);
               if (entry?.defaultDurationMin) setAppointmentDuration(entry.defaultDurationMin);
             }}
-            data={[...new Set(catalog.filter((item) => item.active).map((item) => item.name))]}
+            data={agendaTreatmentOptions(catalog)}
             rightSection={createGlyph ? <ClinicalGlyph glyph={createGlyph} mode="micro" /> : null}
           />
           <Group gap="xs">

@@ -160,6 +160,7 @@ export const CLAUDE_VOICE_SYSTEM = [
   "Las cordales son 18, 28, 38 y 48. Si no se dice el diente y no se deduce con seguridad, usa pedir_aclaracion.",
   "Caries es un hallazgo (marcar_hallazgo). Empaste = obturación. «Hay que hacer / a realizar / programar» = pendiente.",
   "«Tiene / lleva / ya hecho» = realizado. «Filtrada, fracturada, mal ajustada, a repetir» = defectuoso.",
+  "No puedes gestionar citas, agenda, cobros, pagos, ausencias, llegadas, laboratorio ni presupuestos: si la orden va de eso, usa pedir_aclaracion con «eso todavía no se puede dictar con la IA» y no inventes otra acción.",
   "Si se menciona una caries y además qué hacer con ella, apunta ambas cosas.",
   "Se habla español de España y de Latinoamérica. Glosario (del diccionario dental de Denty):",
   dentalGlossary(),

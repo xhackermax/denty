@@ -71,6 +71,7 @@ import {
   taskSchema,
   createTaskSchema,
   updateTaskSchema,
+  reorderTasksSchema,
 } from "../schemas/core";
 import { encodeId, withQuery } from "./shared";
 
@@ -349,6 +350,12 @@ export function createCoreResource(client: ApiClient) {
         client.mutation(`/api/tasks/${encodeId(id)}`, taskSchema, updateTaskSchema.parse(payload), {
           method: "PATCH",
         }),
+      reorder: (orderedIds: string[]) =>
+        client.mutation(
+          "/api/tasks/reorder",
+          tasksSchema,
+          reorderTasksSchema.parse({ orderedIds }),
+        ),
     },
     attendance: {
       me: (date?: string) =>

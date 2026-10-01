@@ -1,25 +1,79 @@
-/** Prints a standalone HTML page through a hidden frame (no pop-up, no navigation). */
-export function printHtml(html: string): void {
+const PRINT_ERROR =
+  "No se pudo abrir el diálogo de impresión. Revisa los bloqueadores de ventanas.";
+const IMAGE_WAIT_MS = 2_000;
+const FRAME_CLEANUP_MS = 60_000;
+
+const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
+function createFrame(): HTMLIFrameElement {
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
-  frame.title = "Impresión";
+  frame.title = "Impresion";
   frame.className = "denty-print-frame";
-  frame.width = "0";
-  frame.height = "0";
-  frame.style.position = "fixed";
-  frame.style.border = "0";
-  frame.style.inset = "auto auto 0 0";
+  // A 0x0 frame prints blank in Firefox/Safari: keep a real size but invisible.
+  frame.width = "1";
+  frame.height = "1";
+  Object.assign(frame.style, {
+    position: "fixed",
+    right: "0",
+    bottom: "0",
+    border: "0",
+    opacity: "0",
+    pointerEvents: "none",
+  });
   frame.tabIndex = -1;
-  frame.srcdoc = html;
-  frame.onload = () => {
+  return frame;
+}
+
+async function printInFrame(html: string): Promise<void> {
+  const frame = createFrame();
+  document.body.appendChild(frame);
+  const keepAlive = window.setTimeout(() => frame.isConnected && frame.remove(), FRAME_CLEANUP_MS);
+  try {
     const view = frame.contentWindow;
-    if (!view) return;
-    const cleanup = () => window.setTimeout(() => frame.remove(), 500);
-    view.addEventListener("afterprint", cleanup, { once: true });
+    const target = frame.contentDocument ?? view?.document;
+    if (!view || !target) throw new Error(PRINT_ERROR);
+    target.open();
+    target.write(html);
+    target.close();
+    // Chrome prints a blank page if print() runs before the frame has painted.
+    await wait(0);
+    const pending = Array.from(target.images ?? []).some((image) => !image.complete);
+    if (pending) await wait(IMAGE_WAIT_MS);
     view.focus();
     view.print();
-    // Some browsers do not fire afterprint for the frame: remove it anyway later.
-    window.setTimeout(() => frame.isConnected && frame.remove(), 60_000);
-  };
-  document.body.appendChild(frame);
+  } catch (error) {
+    window.clearTimeout(keepAlive);
+    frame.remove();
+    throw error;
+  }
+}
+
+function printInPopup(html: string): void {
+  const popup = window.open("", "_blank", "width=900,height=700");
+  if (!popup) throw new Error(PRINT_ERROR);
+  popup.document.open();
+  popup.document.write(html);
+  popup.document.close();
+  popup.focus();
+  popup.print();
+}
+
+/**
+ * Prints a standalone HTML page: hidden frame first, popup window as fallback.
+ * Rejects with a user-readable message when neither can print, so callers can
+ * tell the user instead of failing silently.
+ */
+export async function printHtml(html: string): Promise<void> {
+  try {
+    await printInFrame(html);
+    return;
+  } catch {
+    // Some browsers/extensions block printing from frames; try a popup.
+  }
+  try {
+    printInPopup(html);
+  } catch {
+    throw new Error(PRINT_ERROR);
+  }
 }

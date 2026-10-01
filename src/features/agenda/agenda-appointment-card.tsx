@@ -5,8 +5,8 @@ import { IconGripVertical } from "@tabler/icons-react";
 import type { CSSProperties, DragEvent, PointerEvent, ReactNode } from "react";
 
 import { appointmentCardSize, shortPatientName } from "@/domain";
-import { hhmm } from "@/domain/dates";
-import { ClinicalGlyph, describeClinicalGlyph } from "@/shared/odontogram/clinical-glyph";
+import { epochMillis, hhmm } from "@/domain/dates";
+import { ClinicalGlyphs, describeClinicalGlyph } from "@/shared/odontogram/clinical-glyph";
 import type { AgendaAppointmentView } from "./agenda-projection";
 import { AGENDA_STATUS_META, AgendaStatusIcon } from "./agenda-status";
 import styles from "./agenda.module.css";
@@ -39,11 +39,15 @@ export function AgendaAppointmentCard({
 }: AgendaAppointmentCardProps) {
   const size = appointmentCardSize(heightPx);
   const status = AGENDA_STATUS_META[appointment.status];
-  const glyph = appointment.glyph;
+  const glyphs = appointment.glyphs;
+  const urgent = glyphs.some((glyph) => glyph.urgent);
+  const duration = Math.round(
+    (epochMillis(appointment.endsAt) - epochMillis(appointment.startsAt)) / 60_000,
+  );
   const tooltip = [
     `${hhmm(appointment.startsAt)}–${hhmm(appointment.endsAt)} · ${appointment.patientName}`,
     appointment.reason,
-    glyph ? describeClinicalGlyph(glyph) : null,
+    ...glyphs.map(describeClinicalGlyph),
     status.label,
   ]
     .filter(Boolean)
@@ -57,11 +61,11 @@ export function AgendaAppointmentCard({
         data-size={size}
         data-selected={selected}
         data-dimmed={dimmed}
-        data-urgent={glyph?.urgent ?? false}
+        data-urgent={urgent}
         draggable
         style={style}
         tabIndex={0}
-        aria-label={`${appointment.patientName}, ${hhmm(appointment.startsAt)}, ${status.label}`}
+        aria-label={tooltip}
         onClick={onOpen}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -76,8 +80,12 @@ export function AgendaAppointmentCard({
           <span className={styles.cardName}>
             {size === "small" ? shortPatientName(appointment.patientName) : appointment.patientName}
           </span>
-          {glyph ? (
-            <ClinicalGlyph glyph={glyph} mode="micro" showToothNumber={size !== "small"} />
+          {size === "small" ? (
+            glyphs.length ? (
+              <ClinicalGlyphs glyphs={glyphs} max={1} />
+            ) : (
+              <span className={styles.cardReason}>{appointment.reason}</span>
+            )
           ) : null}
           <span className={styles.cardStatus} data-status={appointment.status}>
             <AgendaStatusIcon status={appointment.status} size={12} />
@@ -86,8 +94,12 @@ export function AgendaAppointmentCard({
         </div>
         {size === "small" ? null : (
           <div className={styles.cardDetail}>
-            <span className={styles.cardReason}>{appointment.reason}</span>
-            {size === "large" ? <span className={styles.cardMeta}>{status.label}</span> : null}
+            {glyphs.length ? (
+              <ClinicalGlyphs glyphs={glyphs} />
+            ) : (
+              <span className={styles.cardReason}>{appointment.reason}</span>
+            )}
+            {size === "large" ? <span className={styles.cardMeta}>{duration} min</span> : null}
           </div>
         )}
         {size === "large" && contextLabel ? (

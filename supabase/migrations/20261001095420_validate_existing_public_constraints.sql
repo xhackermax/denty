@@ -1,0 +1,20 @@
+-- Existing data was checked for violations before validation.
+set lock_timeout='5s';
+set statement_timeout='30s';
+alter table public."appointments" validate constraint "appointments_time_order_ck";
+alter table public."appointment_blocks" validate constraint "appointment_blocks_time_order_ck";
+alter table public."clinical_plan_dependencies" validate constraint "clinical_plan_dependencies_not_self_ck";
+alter table public."payment_allocations" validate constraint "payment_allocations_budget_fk";
+alter table public."fiscal_records" validate constraint "fiscal_records_clinic_fk";
+alter table public."integration_events" validate constraint "integration_events_clinic_fk";
+alter table public."bank_transactions" validate constraint "bank_transactions_clinic_fk";
+alter table public."bank_transactions" validate constraint "bank_transactions_payment_fk";
+alter table public."ai_clinical_reviews" validate constraint "ai_clinical_reviews_clinic_fk";
+alter table public."ai_clinical_reviews" validate constraint "ai_clinical_reviews_document_fk";
+alter table public."kiosk_checkins" validate constraint "kiosk_checkins_clinic_fk";
+alter table public."kiosk_checkins" validate constraint "kiosk_checkins_appointment_fk";
+alter table public."interoperability_exports" validate constraint "interoperability_exports_clinic_fk";
+alter table public."interoperability_exports" validate constraint "interoperability_exports_patient_fk";
+alter table public."payment_attempts" validate constraint "payment_attempts_created_by_fk";
+alter table public."ai_clinical_reviews" validate constraint "ai_clinical_reviews_patient_fk";
+alter table public."kiosk_checkins" validate constraint "kiosk_checkins_patient_fk";

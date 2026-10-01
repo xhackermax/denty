@@ -190,10 +190,10 @@
   padding: 3px 6px 7px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--denty-blue) 50%, var(--denty-line));
-  border-left-width: 3px;
+  border-left-width: 2px;
   border-radius: 9px;
   background: color-mix(in srgb, var(--denty-blue) 11%, var(--denty-card-solid));
-  box-shadow: 0 3px 10px rgb(15 23 42 / 7%);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 4%);
   cursor: grab;
   transition:
     top 140ms ease,
@@ -269,7 +269,7 @@
   overflow: hidden;
   color: var(--denty-text);
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -300,7 +300,9 @@
   display: flex;
   min-width: 0;
   gap: 6px;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 3px;
 }
 
 .cardReason,
@@ -379,6 +381,8 @@
 }
 
 .planItems {
+  max-height: 160px;
+  overflow-y: auto;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;

@@ -51,7 +51,6 @@ function TaskForm({
   onClose,
   onSubmit,
 }: Omit<TaskEditorModalProps, "opened">) {
-  const supabase = getSupabaseBrowserClient();
   const [title, setTitle] = useState(task?.title ?? "");
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? "NORMAL");
   const [duration, setDuration] = useState<number | string>(
@@ -67,7 +66,10 @@ function TaskForm({
   useEffect(() => {
     const loadStaff = async () => {
       try {
-        const { data: user } = await supabase.auth.getUser();
+        const supabase = getSupabaseBrowserClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) return;
 
         const { data: staffMember } = await supabase
@@ -93,7 +95,7 @@ function TaskForm({
     };
 
     loadStaff();
-  }, [supabase]);
+  }, []);
 
   const durationMin = typeof duration === "number" ? duration : Number(duration);
   const valid = title.trim().length > 0 && Number.isFinite(durationMin) && durationMin >= 1;
@@ -109,7 +111,7 @@ function TaskForm({
           durationMin: Math.round(durationMin),
           day,
           time,
-          assigneeStaffId: assigneeStaffId || undefined,
+          ...(assigneeStaffId ? { assigneeStaffId } : {}),
         });
       }}
     >

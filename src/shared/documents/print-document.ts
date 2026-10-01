@@ -32,7 +32,7 @@ export function printClinicalDocument(input: {
   signed?: { signerName: string; signedAt: string } | null;
   createdAt?: string | undefined;
   reference?: string | undefined;
-}) {
+}): Promise<void> {
   const data = input.data ?? {};
   const doctor =
     input.context.doctorById(text(data.doctorId)) ??
@@ -51,7 +51,7 @@ export function printClinicalDocument(input: {
       acompanante: text(data.acompanante) ?? "",
     },
   });
-  printHtml(
+  return printHtml(
     buildDocumentPrintHtml({
       kind: input.templateCode === "ATTENDANCE_CERTIFICATE" ? "certificate" : "consent",
       clinicName: input.context.clinicName,

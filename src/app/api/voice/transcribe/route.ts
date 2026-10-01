@@ -1,4 +1,7 @@
+import { createGateway } from "@ai-sdk/gateway";
+
 import { resolveRequestIdentity } from "@/server/denty-supabase/route-handler";
+import { gatewayTranscriptionModel } from "@/server/voice/transcription-config";
 import { getServerEnv } from "@/shared/config/env";
 
 export const runtime = "nodejs";
@@ -8,6 +11,19 @@ const MAX_AUDIO_BYTES = 12 * 1024 * 1024;
 
 function apiError(status: number, code: string, message: string): Response {
   return Response.json({ error: { code, message } }, { status });
+}
+
+function normalizeAudioMediaType(mediaType: string): string {
+  const normalized = mediaType.toLowerCase().split(";")[0]?.trim();
+  if (normalized === "audio/webm") return "audio/webm";
+  if (normalized === "audio/ogg") return "audio/ogg";
+  if (normalized === "audio/mpeg") return "audio/mpeg";
+  if (normalized === "audio/mp3") return "audio/mpeg";
+  if (normalized === "audio/mp4") return "audio/mp4";
+  if (normalized === "audio/wav" || normalized === "audio/wave" || normalized === "audio/x-wav") {
+    return "audio/wav";
+  }
+  return normalized || "audio/webm";
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -32,12 +48,14 @@ export async function POST(request: Request): Promise<Response> {
     return apiError(401, "UNAUTHENTICATED", "Inicia sesión en Denty para usar el dictado por voz.");
   }
 
-  const { OPENAI_API_KEY, OPENAI_TRANSCRIBE_MODEL } = getServerEnv();
-  if (!OPENAI_API_KEY) {
+  const { AI_GATEWAY_API_KEY, VERCEL_OIDC_TOKEN, OPENAI_API_KEY, OPENAI_TRANSCRIBE_MODEL } =
+    getServerEnv();
+  const gatewayApiKey = AI_GATEWAY_API_KEY ?? VERCEL_OIDC_TOKEN;
+  if (!OPENAI_API_KEY && !gatewayApiKey) {
     return apiError(
       503,
       "VOICE_TRANSCRIPTION_NOT_CONFIGURED",
-      "Configura OPENAI_API_KEY en Vercel para transcribir voz en navegadores sin Web Speech.",
+      "Configura AI_GATEWAY_API_KEY en Vercel para transcribir voz.",
     );
   }
 
@@ -54,6 +72,32 @@ export async function POST(request: Request): Promise<Response> {
   }
   if (audio.size > MAX_AUDIO_BYTES) {
     return apiError(413, "AUDIO_TOO_LARGE", "La grabación supera el límite de 12 MB.");
+  }
+
+  if (gatewayApiKey) {
+    try {
+      const gateway = createGateway({ apiKey: gatewayApiKey });
+      const audioBytes = new Uint8Array(await audio.arrayBuffer());
+      const mediaType = normalizeAudioMediaType(audio.type || "audio/webm");
+      const model = gateway.transcription(gatewayTranscriptionModel(OPENAI_TRANSCRIBE_MODEL));
+      const result = await model.doGenerate({
+        audio: audioBytes,
+        mediaType,
+        providerOptions: {
+          openai: { language: "es" },
+        },
+        abortSignal: request.signal,
+        headers: {},
+      });
+      const text = result.text.trim();
+      if (!text) {
+        return apiError(422, "VOICE_EMPTY_TRANSCRIPT", "No se ha detectado voz inteligible.");
+      }
+      return Response.json({ text }, { headers: { "cache-control": "no-store" } });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "La transcripcion ha fallado.";
+      return apiError(502, "VOICE_TRANSCRIPTION_FAILED", detail);
+    }
   }
 
   const payload = new FormData();

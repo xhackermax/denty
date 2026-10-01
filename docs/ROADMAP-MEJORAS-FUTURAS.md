@@ -71,6 +71,25 @@ Pendiente:
   reintentos desde `integration_events`, QR tributario en el PDF de factura
   (ver `docs/guias/VERIFACTU.md`).
 
+## 🔴 6b. Contactos especiales de la clínica (proveedores y servicios)
+
+**Qué:** una libreta de contactos de la clínica, separada de los pacientes, para apuntar
+teléfonos y datos de fontanero, electricista, empresa de reparto, mantenimiento,
+laboratorios de urgencia, gestoría, etc. Nueva categoría con sus propias fichas
+(nombre, empresa, categoría, teléfono(s), email, notas, horario) y búsqueda rápida.
+
+**Por qué:** Denty gestiona la clínica entera, no solo pacientes. Hoy esos datos viven en
+papeles o en móviles personales y se pierden al cambiar de personal.
+
+**Cómo (a diseñar):**
+- Tabla `clinic_contacts` por clínica con RLS de personal, categorías configurables y
+  auditoría como el resto de tablas.
+- Desde una tarea o por voz ("apunta el teléfono del fontanero: …") crear/consultar un
+  contacto, y enlazar un contacto a una tarea ("llamar al fontanero").
+- Llamar/escribir con un toque desde móvil (`tel:` / `mailto:`).
+- No mezclar con `laboratories` ni `suppliers` (ya tienen su ciclo financiero): decidir
+  si se enlazan o si los contactos los referencian.
+
 ## 🟠 6. Calidad
 - Subir la cobertura de dominio del 78 % actual hacia el 90 % (umbral en `vitest.config.ts`
   como *ratchet*: solo puede subir).

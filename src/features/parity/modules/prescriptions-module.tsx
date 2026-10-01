@@ -26,6 +26,7 @@ import type { Patient, Prescription } from "@/shared/api";
 import { getBrowserApi } from "@/shared/api/browser";
 import { DentyApiError } from "@/shared/api/errors";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
+import { PrintNotice, usePrintNotice } from "@/shared/print/print-notice";
 import { dentyQueryKeys } from "@/shared/query";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import styles from "@/shared/ui/parity.module.css";
@@ -84,7 +85,9 @@ function toLines(prescription: Prescription): PrescriptionLine[] {
 }
 
 function errorText(error: unknown) {
-  return error instanceof DentyApiError ? error.message : "No se pudo guardar la receta.";
+  return error instanceof DentyApiError
+    ? error.message
+    : "No se pudo completar la acción de la receta.";
 }
 
 function printPrescription(input: {
@@ -98,7 +101,7 @@ function printPrescription(input: {
   patient: Patient | undefined;
   settings: Settings | undefined;
   fallbackSiteId: string | null;
-}) {
+}): Promise<void> {
   const { prescription, patient, settings } = input;
   const staff = settings?.staff.find((member) => member.id === prescription.prescriberStaffId);
   const prescriber = settings?.prescribers.find(
@@ -107,7 +110,7 @@ function printPrescription(input: {
   const site =
     settings?.sites.find((entry) => entry.id === (prescription.siteId ?? input.fallbackSiteId)) ??
     settings?.sites.find((entry) => entry.active !== false);
-  printHtml(
+  return printHtml(
     buildPrescriptionPrintHtml({
       clinicName: settings?.clinic.name ?? "Clínica dental",
       ...(site ? { site } : {}),
@@ -146,6 +149,7 @@ export function PrescriptionsModule() {
   const issue = useIssuePrescriptionMutation();
 
   // Composer.
+  const printNotice = usePrintNotice();
   const [patientId, setPatientId] = useState<string | null>(null);
   const [prescriberChoice, setPrescriberChoice] = useState<string | null>(null);
   const [siteChoice, setSiteChoice] = useState<string | null>(null);
@@ -207,17 +211,19 @@ export function PrescriptionsModule() {
       if (andPrint) {
         // Ready to print and sign by hand; without signing permission it stays a draft.
         await validate.mutateAsync(created).catch(() => undefined);
-        printPrescription({
-          prescription: {
-            ...created,
-            prescriptionDate: date,
-            prescriberStaffId: prescriberId,
-            ...(siteId ? { siteId } : {}),
-          },
-          patient: patientsById.get(patientId),
-          settings: settings.data,
-          fallbackSiteId: siteId,
-        });
+        void printNotice.run(() =>
+          printPrescription({
+            prescription: {
+              ...created,
+              prescriptionDate: date,
+              prescriberStaffId: prescriberId,
+              ...(siteId ? { siteId } : {}),
+            },
+            patient: patientsById.get(patientId),
+            settings: settings.data,
+            fallbackSiteId: siteId,
+          }),
+        );
       }
       resetComposer();
     } catch (error) {
@@ -246,6 +252,9 @@ export function PrescriptionsModule() {
       {hasError ? (
         <Alert color="red">No se pudieron cargar todos los datos de recetas.</Alert>
       ) : null}
+      <PrintNotice error={printNotice.error} onClose={printNotice.clear} />
+      {validate.isError ? <Alert color="red">{errorText(validate.error)}</Alert> : null}
+      {issue.isError ? <Alert color="red">{errorText(issue.error)}</Alert> : null}
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Nueva receta</h3>
@@ -346,12 +355,14 @@ export function PrescriptionsModule() {
                       variant="light"
                       leftSection={<IconPrinter size={14} />}
                       onClick={() =>
-                        printPrescription({
-                          prescription,
-                          patient: patientsById.get(prescription.patientId),
-                          settings: settings.data,
-                          fallbackSiteId: activeSiteId,
-                        })
+                        void printNotice.run(() =>
+                          printPrescription({
+                            prescription,
+                            patient: patientsById.get(prescription.patientId),
+                            settings: settings.data,
+                            fallbackSiteId: activeSiteId,
+                          }),
+                        )
                       }
                     >
                       Imprimir
@@ -470,6 +481,7 @@ export function PrescriptionsModule() {
             required
           />
           <SignaturePad label="Firma del prescriptor" onChange={setSignatureDataUrl} />
+          {sign.isError ? <Alert color="red">{errorText(sign.error)}</Alert> : null}
           <Group justify="flex-end">
             <Button variant="default" onClick={() => setSigning(null)}>
               Cancelar
@@ -504,6 +516,7 @@ export function PrescriptionsModule() {
             onChange={(event) => setCancelReason(event.currentTarget.value)}
             required
           />
+          {cancel.isError ? <Alert color="red">{errorText(cancel.error)}</Alert> : null}
           <Group justify="flex-end">
             <Button variant="default" onClick={() => setCancelling(null)}>
               Volver

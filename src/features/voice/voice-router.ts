@@ -5,7 +5,7 @@ import {
   type LocalVoiceContext,
   type LocalVoicePlan,
 } from "./local-nlu";
-import { isExecutableVoiceAction } from "./voice-executor";
+import { localVoicePlanToToolCalls } from "@/features/assistant/tools/local-voice-adapter";
 
 export interface VoicePreview {
   planToken: string;
@@ -30,19 +30,23 @@ export function patientIdFromPathname(pathname?: string): string | undefined {
   return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }
 
+// The assistant tools decide what can run. The patient may still be unresolved here, so the
+// probe assumes one: argument problems that need the real patient are re-checked at execution.
+function unsupportedActionTypes(plan: LocalVoicePlan): LocalVoiceAction["type"][] {
+  const probe = { ...plan, contextPatientId: plan.contextPatientId ?? "pending-patient" };
+  return localVoicePlanToToolCalls(probe).unsupported as LocalVoiceAction["type"][];
+}
+
 export function previewVoiceCommand(input: string, context: LocalVoiceContext = {}): VoicePreview {
   const patientId = context.patientId ?? patientIdFromPathname(context.pathname);
   const plan = planLocalVoiceCommand(input, {
     ...context,
     ...(patientId ? { patientId } : {}),
   });
-  const unsupportedActions = plan.actions
-    .filter((action) => !isExecutableVoiceAction(action))
-    .map((action) => action.type);
   return {
     planToken: crypto.randomUUID(),
     plan,
-    unsupportedActions,
+    unsupportedActions: unsupportedActionTypes(plan),
   };
 }
 
@@ -75,9 +79,7 @@ export function previewFromClaude(
   return {
     planToken: crypto.randomUUID(),
     plan,
-    unsupportedActions: actions
-      .filter((action) => !isExecutableVoiceAction(action))
-      .map((action) => action.type),
+    unsupportedActions: unsupportedActionTypes(plan),
   };
 }
 
@@ -85,6 +87,11 @@ export function hrefForVoiceAction(
   action: LocalVoiceAction,
   contextPatientId?: string,
 ): string | undefined {
+  if (action.type === "navigation.open" && action.destination === "odontogram") {
+    return contextPatientId
+      ? `/app/patients/${encodeURIComponent(contextPatientId)}/odontogram`
+      : "/app/patients";
+  }
   if (action.type === "navigation.open") return DESTINATIONS[action.destination];
   if (action.type === "navigation.patient") {
     return contextPatientId
@@ -132,5 +139,37 @@ export function canExecuteVoicePreview(preview: VoicePreview): boolean {
     preview.plan.actions.length > 0 &&
     preview.plan.ambiguities.length === 0 &&
     preview.unsupportedActions.length === 0
+  );
+}
+
+const SPOKEN_AUTORUN_ACTIONS = new Set<LocalVoiceAction["type"]>([
+  "odontogram.set_state",
+  "odontogram.bridge",
+  "odontogram.removable",
+  "periodontal.update",
+  "clinical.add_item",
+  "clinical.complete_item",
+  "clinical.mark_unsatisfactory",
+  "clinical.plan_item",
+  "clinical.note",
+]);
+
+/**
+ * True when the local rules understood nothing and only kept the raw speech as a
+ * note. That isn't an interpretation: Claude gets a chance first and a human confirms.
+ */
+export function isLiteralNoteFallback(preview: VoicePreview): boolean {
+  return preview.plan.actions.some(
+    (action) => action.type === "clinical.note" && action.literalFallback === true,
+  );
+}
+
+export function shouldAutoExecuteSpokenPreview(preview: VoicePreview): boolean {
+  if (!canExecuteVoicePreview(preview)) return false;
+  if (isLiteralNoteFallback(preview)) return false;
+  if (!preview.plan.contextPatientId) return false;
+  const actionable = preview.plan.actions.filter((action) => action.type !== "patient.resolve");
+  return (
+    actionable.length > 0 && actionable.every((action) => SPOKEN_AUTORUN_ACTIONS.has(action.type))
   );
 }

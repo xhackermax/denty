@@ -62,6 +62,8 @@
     "gate:stage13": "npm run -s auth:stage1-check && npm run -s security:stage2-check && npm run -s architecture:stage3-check && npm run -s patients:stage4-check && npm run -s storage:stage5-check && npm run -s clinical:stage6-check && npm run -s clinical:stage6-runtime-check && npm run -s agenda:stage7-check && npm run -s finance:stage8-check && npm run -s analytics:stage9-check && npm run -s laboratory:stage10-check && npm run -s engagement:stage11-check && npm run -s prescriptions-voice:stage12-check && npm run -s integration:stage13-check && npm run -s regressions:legacy && npm run -s api:parity && npm run -s architecture:check && npm run -s history:check && npm run -s vercel:regressions && npm run -s node24:check && npm run -s payments:check && npm run -s payments:security"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "4.0.101",
+    "@ai-sdk/provider": "4.0.20",
     "@anthropic-ai/sdk": "0.129.0",
     "@date-fns/tz": "1.5.0",
     "@mantine/core": "9.6.1",
@@ -71,6 +73,7 @@
     "@tabler/icons-react": "3.47.0",
     "@tanstack/react-query": "5.103.1",
     "@tanstack/react-table": "9.2.4",
+    "ai": "7.0.123",
     "date-fns": "4.4.0",
     "motion": "13.4.0",
     "next": "16.3.5",
@@ -79,6 +82,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "stripe": "22.6.2",
+    "undici": "7.30.0",
     "zod": "4.6.5"
   },
   "devDependencies": {

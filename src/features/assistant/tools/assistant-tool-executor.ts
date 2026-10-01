@@ -1,16 +1,35 @@
-import { archForTooth, createBridgeEntities, createRemovable, type DentalEntity } from "@/domain";
+import {
+  archForTooth,
+  createBridgeEntities,
+  createRemovable,
+  type DentalEntity,
+  type ToothSurface,
+} from "@/domain";
 import { getBrowserApi } from "@/shared/api/browser";
-import { createStateEntity, domainEntityToApiInput } from "@/shared/odontogram/odontogram-wire";
+import {
+  createStateEntity,
+  domainEntityToApiInput,
+  persistedEntityToDomain,
+} from "@/shared/odontogram/odontogram-wire";
+import { entityForVoiceAction, mergeVoiceEntities } from "@/features/voice/voice-odontogram";
 
 import type { AssistantToolCall } from "../assistant-types";
+import { agendaToolHandlers, type AssistantToolDeps } from "./assistant-agenda-tools";
 import { assistantToolNeedsConfirmation } from "./assistant-policy";
 
 export type AssistantExecutionEffect =
   { type: "NAVIGATE"; href: string } | { type: "SELECT_TOOTH"; tooth: string } | { type: "NONE" };
 
+export interface AssistantExecutionFailure {
+  name: string;
+  message: string;
+}
+
 export interface AssistantExecutionBatchResult {
   executed: string[];
   skipped: string[];
+  /** Why each skipped call failed, in the same order as `skipped`. */
+  failures?: AssistantExecutionFailure[];
   effects: AssistantExecutionEffect[];
   pendingConfirmation?: AssistantToolCall;
 }
@@ -18,20 +37,80 @@ export interface AssistantExecutionBatchResult {
 async function saveOdontogramEntities(patientId: string, entities: readonly DentalEntity[]) {
   const api = getBrowserApi();
   const current = await api.clinical.odontogram.get(patientId);
+  const merged = mergeVoiceEntities(current.entities.map(persistedEntityToDomain), entities);
   await api.clinical.odontogram.batch(patientId, {
     expectedVersion: current.version,
-    entities: entities.map(domainEntityToApiInput),
+    entities: merged.map(domainEntityToApiInput),
   });
+}
+
+function hrefForDestination(destination: unknown, patientId?: unknown): string {
+  const key = String(destination ?? "home").toLowerCase();
+  if (key === "odontogram" || key === "odontograma") {
+    return patientId ? `/app/patients/${String(patientId)}/odontogram` : "/app/patients";
+  }
+  const destinations: Record<string, string> = {
+    home: "/app",
+    inicio: "/app",
+    dashboard: "/app",
+    patients: "/app/patients",
+    pacientes: "/app/patients",
+    agenda: "/app/agenda",
+    calendar: "/app/agenda",
+    laboratory: "/app/laboratory",
+    laboratorio: "/app/laboratory",
+    finance: "/app/finance",
+    finanzas: "/app/finance",
+    documents: "/app/documents",
+    documentos: "/app/documents",
+    tasks: "/app/tasks",
+    tareas: "/app/tasks",
+    settings: "/app/settings",
+    ajustes: "/app/settings",
+    admin: "/app/admin",
+  };
+  return destinations[key] ?? "/app";
+}
+
+const LEGACY_TOOL_NAMES: ReadonlySet<string> = new Set([
+  "navigation.open",
+  "navigation.patient",
+  "odontogram.select_tooth",
+  "odontogram.set_state",
+  "odontogram.bridge",
+  "odontogram.removable",
+  "periodontal.update",
+  "clinical.add_item",
+  "clinical.complete_item",
+  "clinical.mark_unsatisfactory",
+  "clinical.note",
+  "budget.sync",
+  "payment.record",
+  "patient.create",
+]);
+
+export function hasAssistantToolHandler(name: string): boolean {
+  return name in agendaToolHandlers || LEGACY_TOOL_NAMES.has(name);
+}
+
+export function listAssistantToolHandlerNames(): string[] {
+  return [...Object.keys(agendaToolHandlers), ...LEGACY_TOOL_NAMES];
 }
 
 export async function executeAssistantTool(
   call: AssistantToolCall,
+  deps: AssistantToolDeps = {},
 ): Promise<AssistantExecutionEffect> {
-  const api = getBrowserApi();
   const args = call.args as Record<string, unknown>;
+  const handler = agendaToolHandlers[call.name];
+  if (handler) {
+    await handler(args, { now: deps.now ?? (() => new Date()) });
+    return { type: "NONE" };
+  }
+  const api = getBrowserApi();
 
   if (call.name === "navigation.open") {
-    return { type: "NAVIGATE", href: String(args.destination ?? "/app") };
+    return { type: "NAVIGATE", href: hrefForDestination(args.destination, args.patientId) };
   }
   if (call.name === "navigation.patient") {
     return { type: "NAVIGATE", href: `/app/patients/${String(args.patientId)}` };
@@ -113,14 +192,41 @@ export async function executeAssistantTool(
     await saveOdontogramEntities(String(args.patientId), [createRemovable(arch, teeth)]);
     return { type: "NONE" };
   }
+  if (
+    call.name === "clinical.add_item" ||
+    call.name === "clinical.complete_item" ||
+    call.name === "clinical.mark_unsatisfactory"
+  ) {
+    const patientId = String(args.patientId);
+    const entity = entityForVoiceAction({
+      type: call.name,
+      patientRef: "",
+      tooth: String(args.tooth),
+      treatmentCode: String(args.treatmentCode),
+      label: "",
+      surfaces: (args.surfaces as ToothSurface[] | undefined) ?? [],
+    });
+    if (!entity) throw new Error("Este tratamiento no se puede dibujar en el odontograma.");
+    await saveOdontogramEntities(patientId, [entity]);
+    if (call.name === "clinical.add_item") {
+      // The odontogram is already saved; the UI flags an outdated plan and can re-sync it.
+      await api.clinical.sync.plan(patientId).catch(() => undefined);
+    }
+    return { type: "NONE" };
+  }
   throw new Error(`Herramienta de Denty no implementada: ${call.name}`);
 }
 
 export async function executeAssistantCalls(
   calls: readonly AssistantToolCall[],
-  options: { confirmedCallIds: ReadonlySet<string> },
+  options: { confirmedCallIds: ReadonlySet<string> } & AssistantToolDeps,
 ): Promise<AssistantExecutionBatchResult> {
-  const result: AssistantExecutionBatchResult = { executed: [], skipped: [], effects: [] };
+  const result: AssistantExecutionBatchResult = {
+    executed: [],
+    skipped: [],
+    failures: [],
+    effects: [],
+  };
 
   for (const call of calls) {
     if (assistantToolNeedsConfirmation(call) && !options.confirmedCallIds.has(call.id)) {
@@ -128,11 +234,20 @@ export async function executeAssistantCalls(
       break;
     }
     try {
-      result.effects.push(await executeAssistantTool(call));
+      result.effects.push(await executeAssistantTool(call, options));
       result.executed.push(call.name);
-    } catch {
+    } catch (error) {
       result.skipped.push(call.name);
+      result.failures?.push({
+        name: call.name,
+        message: error instanceof Error ? error.message : "No se pudo ejecutar la acción.",
+      });
     }
+  }
+
+  // Current callers only surface thrown errors, so a total failure must throw to be visible.
+  if (result.executed.length === 0 && result.failures?.length) {
+    throw new Error(result.failures.map((failure) => failure.message).join(" "));
   }
 
   return result;

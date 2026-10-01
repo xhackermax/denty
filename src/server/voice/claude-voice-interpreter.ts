@@ -12,7 +12,7 @@ import {
 export class ClaudeVoiceUnavailableError extends Error {}
 
 export function isHaiku45(model: string): boolean {
-  return model.startsWith("claude-haiku-4-5");
+  return model.startsWith("claude-haiku-4-5") || model.endsWith("/claude-haiku-4.5");
 }
 
 export interface ClaudeVoiceRequest {
@@ -22,6 +22,7 @@ export interface ClaudeVoiceRequest {
   /** Where the user is (e.g. the odontogram of a patient), to resolve "este diente". */
   screen: string;
   selectedTooth?: string | undefined;
+  baseURL?: string | undefined;
 }
 
 /**
@@ -31,7 +32,12 @@ export interface ClaudeVoiceRequest {
 export async function interpretWithClaude(
   request: ClaudeVoiceRequest,
 ): Promise<ClaudeVoiceInterpretation> {
-  const client = new Anthropic({ apiKey: request.apiKey, timeout: 25_000, maxRetries: 1 });
+  const client = new Anthropic({
+    apiKey: request.apiKey,
+    ...(request.baseURL ? { baseURL: request.baseURL } : {}),
+    timeout: 25_000,
+    maxRetries: 1,
+  });
   const context = [
     `Pantalla actual: ${request.screen}.`,
     request.selectedTooth ? `Diente seleccionado: ${request.selectedTooth}.` : "",

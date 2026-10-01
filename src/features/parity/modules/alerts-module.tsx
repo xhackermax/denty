@@ -7,6 +7,7 @@ import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import styles from "@/shared/ui/parity.module.css";
+import { ActionErrorAlert } from "./action-error-alert";
 
 function textValue(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim() ? value : fallback;
@@ -63,6 +64,7 @@ export function AlertsModule() {
 
   return (
     <Stack gap="md">
+      <ActionErrorAlert errors={[resolve.error, review.error, snooze.error, assign.error]} />
       <Group justify="space-between">
         <Text fw={700}>Alertas abiertas</Text>
         <Group gap="xs">

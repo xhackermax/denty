@@ -1,4 +1,5 @@
 import type { LocalVoiceAction, LocalVoicePlan } from "@/features/voice/local-nlu";
+import { isOdontogramTreatmentCode } from "@/features/voice/voice-odontogram";
 
 import type { AssistantToolCall } from "../assistant-types";
 import { getAssistantToolDefinition } from "./assistant-tool-registry";
@@ -20,8 +21,57 @@ function toArgs(action: LocalVoiceAction, plan: LocalVoicePlan): unknown | undef
   const patientId = patientIdFor(plan);
 
   switch (action.type) {
+    case "clinical.alert":
+      // Denty has no patient medical-alert endpoint; admin alerts are system-wide.
+      return undefined;
+    case "appointment.arrive":
+      return patientId ? { patientId } : undefined;
+    case "appointment.schedule":
+      return patientId
+        ? {
+            patientId,
+            dateText: action.dateText,
+            ...(action.timeText !== undefined ? { timeText: action.timeText } : {}),
+            ...(action.durationMin !== undefined ? { durationMin: action.durationMin } : {}),
+            ...(action.staffRef !== undefined ? { staffRef: action.staffRef } : {}),
+          }
+        : undefined;
+    case "lab.transition":
+      return patientId ? { patientId, status: action.status } : undefined;
+    case "clinical.add_dependency":
+      return patientId && action.tooth
+        ? {
+            patientId,
+            tooth: action.tooth,
+            beforeCode: action.beforeCode,
+            afterCode: action.afterCode,
+          }
+        : undefined;
+    case "clinical.prosthesis_options":
+      return patientId && action.teeth.length ? { patientId, teeth: action.teeth } : undefined;
+    case "clinical.add_item":
+    case "clinical.complete_item":
+    case "clinical.mark_unsatisfactory":
+      return patientId && action.tooth && isOdontogramTreatmentCode(action.treatmentCode)
+        ? {
+            patientId,
+            tooth: action.tooth,
+            treatmentCode: action.treatmentCode,
+            surfaces: action.surfaces,
+          }
+        : undefined;
+    case "clinical.plan_item":
+      return patientId
+        ? {
+            patientId,
+            ...(action.tooth ? { tooth: action.tooth } : {}),
+            treatmentCode: action.treatmentCode,
+            label: action.label,
+            adHoc: action.adHoc,
+          }
+        : undefined;
     case "navigation.open":
-      return { destination: action.destination };
+      return { destination: action.destination, ...(patientId ? { patientId } : {}) };
     case "navigation.patient":
       return patientId ? { patientId } : undefined;
     case "patient.create":
@@ -73,6 +123,18 @@ function toArgs(action: LocalVoiceAction, plan: LocalVoicePlan): unknown | undef
       return patientId && action.amountCents !== undefined && action.method
         ? { patientId, amountCents: action.amountCents, method: action.method }
         : undefined;
+    case "appointment.reschedule":
+      return patientId
+        ? {
+            patientId,
+            dateText: action.dateText,
+            ...(action.timeText !== undefined ? { timeText: action.timeText } : {}),
+            ...(action.durationMin !== undefined ? { durationMin: action.durationMin } : {}),
+            ...(action.staffRef !== undefined ? { staffRef: action.staffRef } : {}),
+          }
+        : undefined;
+    case "appointment.no_show":
+      return patientId ? { patientId } : undefined;
     default:
       return undefined;
   }
@@ -84,13 +146,14 @@ export function localVoicePlanToToolCalls(plan: LocalVoicePlan): LocalVoiceAdapt
 
   plan.actions.forEach((action, index) => {
     if (action.type === "patient.resolve") return;
-    const definition = getAssistantToolDefinition(action.type);
+    const name = action.type === "appointment.no_show" ? "appointment.mark_no_show" : action.type;
+    const definition = getAssistantToolDefinition(name);
     const args = toArgs(action, plan);
     if (!definition || args === undefined) {
       unsupported.push(action.type);
       return;
     }
-    calls.push({ id: callId(index, action), name: action.type, args, source: "LOCAL_NLU" });
+    calls.push({ id: callId(index, action), name, args, source: "LOCAL_NLU" });
   });
 
   return { calls, unsupported };

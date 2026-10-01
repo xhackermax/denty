@@ -1,5 +1,6 @@
 "use client";
 
+import { getGatewayRealtimeProtocols } from "@ai-sdk/gateway";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
@@ -164,11 +165,10 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions = {}) {
         throw new Error(errorMsg);
       }
 
-      const { token } = await tokenResponse.json() as { token: string };
+      const { token, url } = (await tokenResponse.json()) as { token: string; url: string };
 
-      // Connect to Realtime API via WebSocket
-      const wsUrl = `wss://ai.vercel.sh/openai/realtime?token=${token}`;
-      const ws = new WebSocket(wsUrl);
+      // Connect to AI Gateway Realtime with the official auth subprotocols.
+      const ws = new WebSocket(url, getGatewayRealtimeProtocols(token));
 
       ws.onopen = () => {
         setConnected(true);

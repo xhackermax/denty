@@ -1,5 +1,6 @@
 import { archForTooth, createBridgeEntities, createRemovable, type DentalEntity } from "@/domain";
 import { getBrowserApi } from "@/shared/api/browser";
+import { DentyApiError } from "@/shared/api/errors";
 import {
   domainEntityToApiInput,
   persistedEntityToDomain,
@@ -47,6 +48,15 @@ export function isExecutableVoiceAction(action: LocalVoiceAction): boolean {
     return Boolean(action.tooth) && isOdontogramTreatmentCode(action.treatmentCode);
   }
   return true;
+}
+
+function describeError(error: unknown): string {
+  if (error instanceof DentyApiError) {
+    const status = error.status ? ` (HTTP ${error.status})` : "";
+    const code = error.code ? ` [${error.code}]` : "";
+    return `${error.message}${code}${status}`;
+  }
+  return error instanceof Error ? error.message : "error desconocido";
 }
 
 function requirePatientId(plan: LocalVoicePlan): string {
@@ -169,9 +179,21 @@ export async function executeVoicePlan(plan: LocalVoicePlan): Promise<VoiceExecu
   }
   if (odontogramAdditions.length) {
     const patientId = requirePatientId(plan);
-    await saveOdontogramEntities(patientId, odontogramAdditions);
+    try {
+      await saveOdontogramEntities(patientId, odontogramAdditions);
+    } catch (error) {
+      throw new Error(`No se pudo guardar en el odontograma: ${describeError(error)}`);
+    }
     // A treatment to do goes straight to the plan (and from there to the budget).
-    if (plansTreatment) await getBrowserApi().clinical.sync.plan(patientId);
+    if (plansTreatment) {
+      try {
+        await getBrowserApi().clinical.sync.plan(patientId);
+      } catch (error) {
+        throw new Error(
+          `Guardado en el odontograma, pero el plan no se actualizó: ${describeError(error)}`,
+        );
+      }
+    }
   }
 
   for (const action of plan.actions) {

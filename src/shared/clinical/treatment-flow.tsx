@@ -40,6 +40,7 @@ import {
 } from "@/shared/clinical/clinical-data";
 import { documentValues, useDocumentContext } from "@/shared/documents/document-context";
 import { printClinicalDocument } from "@/shared/documents/print-document";
+import { PrintNotice, usePrintNotice } from "@/shared/print/print-notice";
 import { TemplateText } from "@/shared/documents/template-text";
 import { usePatientQuery } from "@/shared/patients/patient-data";
 import styles from "@/shared/ui/parity.module.css";
@@ -401,6 +402,7 @@ function ConsentsStep({
   const doctor = context.doctorById(context.defaultDoctorId);
   const sign = useSignConsentMutation(patientId);
   const [signingId, setSigningId] = useState<string | null>(null);
+  const printNotice = usePrintNotice();
   const [signerName, setSignerName] = useState(patientName);
   const [signature, setSignature] = useState<string | null>(null);
   const titleFor = (requirement: ConsentRequirementView) => {
@@ -481,6 +483,7 @@ function ConsentsStep({
                         {errorText(sign.error, "No se pudo firmar el consentimiento.")}
                       </Alert>
                     ) : null}
+                    <PrintNotice error={printNotice.error} onClose={printNotice.clear} />
                     <Group justify="flex-end">
                       <Button variant="default" size="xs" onClick={() => setSigningId(null)}>
                         Cancelar
@@ -491,17 +494,19 @@ function ConsentsStep({
                           size="xs"
                           leftSection={<IconPrinter size={14} />}
                           onClick={() =>
-                            printClinicalDocument({
-                              title: titleFor(requirement),
-                              templateCode: templateFor(requirement)?.code,
-                              templateBody: templateFor(requirement)?.body ?? "",
-                              patient,
-                              context,
-                              data: {
-                                doctorId: context.defaultDoctorId,
-                                tratamiento: treatmentFor(requirement),
-                              },
-                            })
+                            void printNotice.run(() =>
+                              printClinicalDocument({
+                                title: titleFor(requirement),
+                                templateCode: templateFor(requirement)?.code,
+                                templateBody: templateFor(requirement)?.body ?? "",
+                                patient,
+                                context,
+                                data: {
+                                  doctorId: context.defaultDoctorId,
+                                  tratamiento: treatmentFor(requirement),
+                                },
+                              }),
+                            )
                           }
                         >
                           Imprimir para leer

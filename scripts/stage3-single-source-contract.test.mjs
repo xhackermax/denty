@@ -99,7 +99,17 @@ const webStorageAllow = new Set([
   "src/app/layout.tsx",
   "src/app/_components/shell/time-color-scheme-provider.tsx",
   "src/shared/ui/density-provider.tsx",
+  // Site selection is a UI preference; identity and permissions still come from Auth.
+  "src/shared/tenancy/active-context.tsx",
 ]);
+const tenantContext =
+  runtime.find(([file]) => file === "src/shared/tenancy/active-context.tsx")?.[1] ?? "";
+assert.match(tenantContext, /activeClinicId:\s*sessionQuery\.data\?\.actor\.clinicId/);
+assert.match(tenantContext, /permissions:\s*sessionQuery\.data\?\.actor\.permissions/);
+assert.doesNotMatch(
+  tenantContext,
+  /(?:localStorage|sessionStorage)\.(?:getItem|setItem)\((?!ACTIVE_SITE_STORAGE_KEY)/,
+);
 for (const [file, text] of runtime) {
   if (!webStorageAllow.has(file)) {
     assert.doesNotMatch(

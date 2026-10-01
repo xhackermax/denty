@@ -57,8 +57,9 @@ export async function POST(request: Request) {
       // Return only the client secret (the token)
       return Response.json(
         {
-          token: sessionToken.client_secret.value,
-          expiresAt: sessionToken.client_secret.expires_at,
+          token: sessionToken.token,
+          url: sessionToken.url,
+          expiresAt: sessionToken.expiresAt,
         },
         {
           headers: {

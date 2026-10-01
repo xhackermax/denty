@@ -134,6 +134,7 @@ export function AgendaQuickView({
       size="sm"
       title={appointment?.patientName ?? ""}
       aria-label="Detalle de la cita"
+      closeButtonProps={{ "aria-label": "Cerrar detalle de la cita" }}
     >
       {appointment && status ? (
         <Stack gap="md">
@@ -146,14 +147,14 @@ export function AgendaQuickView({
             >
               {status.label}
             </Badge>
-            {appointment.glyph ? (
-              <Group gap={6} wrap="nowrap">
-                <ClinicalGlyph glyph={appointment.glyph} />
+            {appointment.glyphs.map((glyph, index) => (
+              <Group key={`${glyph.family}-${index}`} gap={6} wrap="nowrap">
+                <ClinicalGlyph glyph={glyph} />
                 <Text size="xs" c="dimmed">
-                  {describeClinicalGlyph(appointment.glyph)}
+                  {describeClinicalGlyph(glyph)}
                 </Text>
               </Group>
-            ) : null}
+            ))}
           </Group>
 
           <Group gap="xs">
