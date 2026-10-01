@@ -2200,6 +2200,9 @@ export async function handleSupabaseDentyRoute(
     ) {
       const d = requireActorPermission(identity, "users.manage");
       if (d) return d;
+      const repo = patientRepository(identity);
+      const agenda = agendaRepository(identity);
+      const clinical = clinicalRepository(identity);
       const patients = await repo.listPatients({ pageSize: 1, page: 0 });
       const appointments = await agenda.listAppointments({});
       const treatments = await clinical.listClinicalPlans();
@@ -2222,6 +2225,9 @@ export async function handleSupabaseDentyRoute(
     ) {
       const d = requireActorPermission(identity, "users.manage");
       if (d) return d;
+      const repo = patientRepository(identity);
+      const agenda = agendaRepository(identity);
+      const clinical = clinicalRepository(identity);
       const entity = parts[3];
       const format = new URL(request.url).searchParams.get("format") ?? "csv";
 
