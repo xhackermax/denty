@@ -40,7 +40,10 @@ export function useSaveOdontogramBatchMutation(patientId: string) {
         expectedVersion: input.expectedVersion,
         entities: input.entities.map(domainEntityToApiInput),
       }),
-    onSuccess: () => {
+    onSuccess: (saved) => {
+      // Use the committed version before a slower background read can finish.
+      // This also resets the editor's dirty guard through its version key.
+      queryClient.setQueryData(dentyQueryKeys.clinical.odontogram(patientId), saved);
       invalidateOdontogramQueries(queryClient, patientId);
     },
   });
