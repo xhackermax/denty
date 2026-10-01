@@ -1,465 +1,178 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import type {
-  ClinicContact,
-  ClinicContactInsert,
-  ClinicContactUpdate,
-  PhoneEntry,
-} from "@/shared/api/resources/clinic-contacts";
+import { ActionIcon, Alert, Avatar, Badge, Button, Drawer, Group, Loader, Modal, Pagination, Select, Skeleton, Stack, Text, TextInput } from "@mantine/core";
+import { useDebouncedValue } from "@mantine/hooks";
+import { IconAddressBook, IconAlertCircle, IconArrowLeft, IconCheck, IconClock, IconMail, IconPencil, IconPhone, IconPlus, IconSearch, IconTrash, IconX } from "@tabler/icons-react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import type { ClinicContact, ClinicContactInsert } from "@/shared/api/resources/clinic-contacts";
+import { EmptyState, PageHeader } from "@/shared/ui";
+import { ClinicContactForm } from "./clinic-contact-form";
 import { useClinicContacts } from "./use-clinic-contacts";
+import styles from "./clinic-contacts.module.css";
 
-interface ClinicContactsListProps {
+interface Props {
   clinicId: string;
   initialContacts: ClinicContact[];
   initialTotalCount: number;
 }
+const PAGE_SIZE = 20;
 
-export function ClinicContactsList({
-  clinicId,
-  initialContacts,
-  initialTotalCount,
-}: ClinicContactsListProps) {
-  const {
-    create,
-    list,
-    update,
-    delete: deleteContact,
-    isLoading: apiLoading,
-  } = useClinicContacts(clinicId);
-  const [contacts, setContacts] = useState(initialContacts);
-  const [totalCount, setTotalCount] = useState(initialTotalCount);
+export function ClinicContactsList({ clinicId, initialContacts, initialTotalCount }: Props) {
+  const { create, list, update, delete: deleteContact, listCategories } = useClinicContacts(clinicId);
+  const [contacts, setContacts] = useState(initialContacts.slice(0, PAGE_SIZE));
+  const [total, setTotal] = useState(initialTotalCount);
+  const [matchTotal, setMatchTotal] = useState(initialTotalCount);
+  const [categories, setCategories] = useState(() => [...new Set(initialContacts.map(c => c.category))]);
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [showForm, setShowForm] = useState(false);
-  const [editingContact, setEditingContact] = useState<ClinicContact | null>(null);
-  const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
+  const [debouncedSearch] = useDebouncedValue(search.trim(), 300);
+  const [category, setCategory] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [reload, setReload] = useState(0);
+  const firstQuery = useRef(true);
+  const [queryPending, setQueryPending] = useState(false);
+  const [notice, setNotice] = useState<{ kind: "success" | "error"; message: string } | null>(null);
+  const [editorOpened, setEditorOpened] = useState(false);
+  const [editing, setEditing] = useState<ClinicContact | null>(null);
+  const [savePending, setSavePending] = useState(false);
+  const [deleting, setDeleting] = useState<ClinicContact | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const categories = useMemo(() => [...new Set(contacts.map((c) => c.category))], [contacts]);
+  useEffect(() => {
+    let cancelled = false;
+    void listCategories().then(values => {
+      if (!cancelled) setCategories(values.sort((a, b) => a.localeCompare(b, "es")));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [listCategories, reload]);
 
-  const filteredContacts = useMemo(() => {
-    return contacts.filter((contact) => {
-      const matchesSearch =
-        !search ||
-        contact.name.toLowerCase().includes(search.toLowerCase()) ||
-        contact.notes?.toLowerCase().includes(search.toLowerCase());
-
-      const matchesCategory = !selectedCategory || contact.category === selectedCategory;
-
-      return matchesSearch && matchesCategory;
-    });
-  }, [contacts, search, selectedCategory]);
-
-  const handleLoadContacts = async () => {
-    try {
-      const options: NonNullable<Parameters<typeof list>[0]> = { limit: 100, offset: 0 };
-      if (search) options.search = search;
-      if (selectedCategory) options.category = selectedCategory;
-
-      const result = await list(options);
-      setContacts(result.data);
-      setTotalCount(result.totalCount);
-    } catch (error) {
-      setToast({ type: "error", message: "Error loading contacts" });
-      console.error(error);
+  useEffect(() => {
+    if (firstQuery.current) {
+      firstQuery.current = false;
+      return;
     }
-  };
+    let cancelled = false;
+    setQueryPending(true);
+    void list({ ...(debouncedSearch ? { search: debouncedSearch } : {}), ...(category ? { category } : {}), limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE })
+      .then(result => {
+        if (!cancelled) {
+          setContacts(result.data);
+          setMatchTotal(result.totalCount);
+          if (!debouncedSearch && !category) setTotal(result.totalCount);
+        }
+      })
+      .catch(cause => {
+        if (!cancelled) setNotice({ kind: "error", message: cause instanceof Error ? cause.message : "No se pudieron cargar los contactos." });
+      })
+      .finally(() => { if (!cancelled) setQueryPending(false); });
+    return () => { cancelled = true; };
+  }, [list, debouncedSearch, category, page, reload]);
 
-  const handleDelete = async (contactId: string) => {
-    if (!confirm("Are you sure you want to delete this contact?")) return;
-
-    try {
-      await deleteContact(contactId);
-      setContacts(contacts.filter((c) => c.id !== contactId));
-      setToast({ type: "success", message: "Contact deleted" });
-    } catch (error) {
-      setToast({ type: "error", message: "Error deleting contact" });
-      console.error(error);
+  function openEditor(contact: ClinicContact | null) {
+    setEditing(contact);
+    setEditorOpened(true);
+  }
+  function closeEditor() {
+    if (!savePending) setEditorOpened(false);
+  }
+  async function save(data: ClinicContactInsert) {
+    if (editing) await update(editing.id, { ...data, expectedVersion: editing.version });
+    else {
+      await create(data);
+      setTotal(value => value + 1);
     }
-  };
-
-  const handleEdit = (contact: ClinicContact) => {
-    setEditingContact(contact);
-    setShowForm(true);
-  };
-
-  const formatPhones = (phones: ClinicContact["phones"]) => {
-    if (!phones || phones.length === 0) return null;
-    return phones.map((p) => (typeof p === "string" ? p : p.number)).join(", ");
-  };
+    setEditorOpened(false);
+    setNotice({ kind: "success", message: editing ? "Cambios guardados." : "Contacto creado." });
+    setReload(value => value + 1);
+  }
+  async function remove() {
+    if (!deleting || deletePending) return;
+    setDeletePending(true);
+    setDeleteError(null);
+    try {
+      await deleteContact(deleting.id);
+      setTotal(value => Math.max(0, value - 1));
+      if (contacts.length === 1 && page > 1) setPage(value => value - 1);
+      setDeleting(null);
+      setNotice({ kind: "success", message: "Contacto eliminado." });
+      setReload(value => value + 1);
+    } catch (cause) {
+      setDeleteError(cause instanceof Error ? cause.message : "No se pudo eliminar el contacto.");
+    } finally { setDeletePending(false); }
+  }
+  const filtered = Boolean(search.trim() || category);
+  const pages = Math.max(1, Math.ceil(matchTotal / PAGE_SIZE));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Contactos especiales</h2>
-        <button
-          onClick={() => {
-            setEditingContact(null);
-            setShowForm(!showForm);
-          }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          ➕ Nuevo contacto
-        </button>
-      </div>
-
-      {showForm && (
-        <ClinicContactForm
-          clinicId={clinicId}
-          editingContact={editingContact}
-          onSuccess={(contact) => {
-            setShowForm(false);
-            if (editingContact) {
-              setContacts(contacts.map((c) => (c.id === contact.id ? contact : c)));
-            } else {
-              setContacts([contact, ...contacts]);
-              setTotalCount(totalCount + 1);
-            }
-            setToast({
-              type: "success",
-              message: editingContact ? "Contact updated" : "Contact created",
-            });
-          }}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingContact(null);
-          }}
-          onCreate={(clinicId, data) => create(data)}
-          onUpdate={(contactId, data) => {
-            const { expectedVersion, ...rest } = data;
-            return update(contactId, {
-              ...rest,
-              ...(expectedVersion !== undefined ? { expectedVersion } : {}),
-            });
-          }}
-        />
-      )}
-
-      <div className="flex gap-4 items-end">
-        <div className="flex-1">
-          <label className="block text-sm font-medium mb-1">Search</label>
-          <input
-            type="text"
-            placeholder="Search contacts..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg"
-          />
+    <div className={styles.page}>
+      <Link href="/app/settings" className={styles.back}><IconArrowLeft size={15} /> Ajustes</Link>
+      <PageHeader eyebrow="Directorio de la clínica" title="Contactos especiales"
+        description="Laboratorios, proveedores y servicios. Los contactos que tu equipo necesita, siempre a mano."
+        actions={<Button leftSection={<IconPlus size={18} />} onClick={() => openEditor(null)}>Nuevo contacto</Button>} />
+      {notice && <Alert role={notice.kind === "error" ? "alert" : "status"} color={notice.kind === "error" ? "red" : "green"}
+        icon={notice.kind === "error" ? <IconAlertCircle size={18} /> : <IconCheck size={18} />} withCloseButton closeButtonLabel="Cerrar aviso" onClose={() => setNotice(null)}>{notice.message}</Alert>}
+      <section className={styles.directory} aria-label="Directorio de contactos">
+        <div className={styles.toolbar}>
+          <TextInput className={styles.search} label="Buscar contactos" placeholder="Busca por nombre o notas" leftSection={<IconSearch size={18} />}
+            value={search} onChange={e => { setSearch(e.currentTarget.value); setPage(1); }}
+            rightSection={search ? <ActionIcon variant="subtle" color="gray" aria-label="Borrar búsqueda" onClick={() => { setSearch(""); setPage(1); }}><IconX size={16} /></ActionIcon> : null} />
+          <Select className={styles.category} label="Filtrar por categoría" placeholder="Todas las categorías" value={category} onChange={value => { setCategory(value); setPage(1); }}
+            data={[...new Set([...categories, ...(category ? [category] : [])])].map(value => ({ value, label: value }))} clearable searchable nothingFoundMessage="Sin categorías" />
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Category</label>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 border rounded-lg"
-          >
-            <option value="">All categories</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
+        <div className={styles.summary}>
+          <span><IconAddressBook size={17} /> <strong>{total} {total === 1 ? "contacto" : "contactos"}</strong></span>
+          {filtered ? <span>{matchTotal} resultados</span> : <span>{categories.length} {categories.length === 1 ? "categoría" : "categorías"}</span>}
+          {queryPending && <Loader size={15} aria-label="Actualizando contactos" />}
+        </div>
+        {contacts.length > 0 ? (
+          <div className={styles.rows} aria-busy={queryPending}>
+            <div className={styles.columns} aria-hidden="true"><span>Contacto</span><span>Teléfono y correo</span><span>Horario</span><span /></div>
+            {contacts.map(contact => (
+              <article key={contact.id} className={styles.row} aria-label={contact.name}>
+                <div className={styles.identity}>
+                  <Avatar size={42} radius="md" color="dentyBlue">{contact.name.split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}</Avatar>
+                  <div className={styles.identityText}><h2>{contact.name}</h2><Badge className={styles.categoryBadge} variant="light" color="gray" size="sm">{contact.category}</Badge></div>
+                </div>
+                <div className={styles.communication}>
+                  {contact.phones.map((phone, index) => {
+                    const number = typeof phone === "string" ? phone : phone.number;
+                    return <a key={"phone-" + index} href={"tel:" + number.replace(/[^\d+*#;,]/g, "")}><IconPhone size={16} aria-hidden="true" /><span>{number}</span></a>;
+                  })}
+                  {contact.emails.map((email, index) => <a key={"email-" + index} href={"mailto:" + email}><IconMail size={16} aria-hidden="true" /><span>{email}</span></a>)}
+                  {!contact.phones.length && !contact.emails.length && <Text c="dimmed" size="sm">Sin teléfono ni correo</Text>}
+                </div>
+                <div className={styles.hours}><IconClock size={16} aria-hidden="true" /><span>{contact.hours || "Horario sin indicar"}</span></div>
+                <Group gap={4} className={styles.actions} wrap="nowrap">
+                  <ActionIcon size="lg" variant="subtle" color="gray" aria-label={"Editar " + contact.name} onClick={() => openEditor(contact)}><IconPencil size={17} /></ActionIcon>
+                  <ActionIcon size="lg" variant="subtle" color="red" aria-label={"Eliminar " + contact.name} onClick={() => { setDeleteError(null); setDeleting(contact); }}><IconTrash size={17} /></ActionIcon>
+                </Group>
+                {contact.notes && <p className={styles.notes}>{contact.notes}</p>}
+              </article>
             ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid gap-4">
-        {filteredContacts.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No contacts found</p>
+          </div>
+        ) : queryPending ? (
+          <Stack p="lg" role="status" aria-label="Cargando contactos"><Skeleton height={65} /><Skeleton height={65} /></Stack>
         ) : (
-          filteredContacts.map((contact) => (
-            <div
-              key={contact.id}
-              className="border rounded-lg p-4 bg-white hover:shadow-md transition"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{contact.name}</h3>
-                  <p className="text-sm text-gray-600">{contact.category}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(contact)}
-                    className="p-2 hover:bg-gray-100 rounded-lg text-blue-600 text-xl"
-                    title="Edit"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => handleDelete(contact.id)}
-                    className="p-2 hover:bg-gray-100 rounded-lg text-red-600 text-xl"
-                    title="Delete"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                {formatPhones(contact.phones) && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>📞</span>
-                    <a href={`tel:${formatPhones(contact.phones)}`}>
-                      {formatPhones(contact.phones)}
-                    </a>
-                  </div>
-                )}
-                {contact.emails && contact.emails.length > 0 && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>📧</span>
-                    <a href={`mailto:${contact.emails.join(", ")}`}>
-                      {Array.isArray(contact.emails) ? contact.emails.join(", ") : contact.emails}
-                    </a>
-                  </div>
-                )}
-                {contact.hours && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>⏰</span>
-                    <span>{contact.hours}</span>
-                  </div>
-                )}
-              </div>
-
-              {contact.notes && <p className="text-sm text-gray-600 mt-3">{contact.notes}</p>}
-            </div>
-          ))
+          <div className={styles.empty}><EmptyState title={filtered ? "No encontramos contactos" : "Todavía no hay contactos"}
+            description={filtered ? "Prueba otro nombre o cambia la categoría." : "Añade tu primer laboratorio, proveedor o servicio para tener sus datos siempre a mano."}
+            action={filtered ? <Button variant="light" onClick={() => { setSearch(""); setCategory(null); setPage(1); }}>Limpiar filtros</Button> : <Button leftSection={<IconPlus size={16} />} onClick={() => openEditor(null)}>Crear primer contacto</Button>} /></div>
         )}
-      </div>
-
-      <p className="text-sm text-gray-500 text-center">Total: {totalCount} contacts</p>
+        {pages > 1 && <footer className={styles.pagination}><Text size="sm" c="dimmed">Página {page} de {pages}</Text><Pagination total={pages} value={page} onChange={setPage} size="sm" withControls /></footer>}
+      </section>
+      <Drawer opened={editorOpened} onClose={closeEditor} title={editing ? "Editar contacto" : "Nuevo contacto"} position="right" size="md"
+        closeButtonProps={{ "aria-label": "Cerrar formulario", disabled: savePending }} closeOnEscape={!savePending} closeOnClickOutside={!savePending}
+        classNames={{ content: styles.drawer, header: styles.drawerHeader, body: styles.drawerBody }}>
+        {editorOpened && <ClinicContactForm key={editing?.id ?? "new"} contact={editing} categories={categories} onSave={save} onCancel={closeEditor} onPendingChange={setSavePending} />}
+      </Drawer>
+      <Modal opened={Boolean(deleting)} onClose={() => { if (!deletePending) setDeleting(null); }} title="Eliminar contacto" centered closeOnEscape={!deletePending} closeOnClickOutside={!deletePending}
+        closeButtonProps={{ "aria-label": "Cerrar confirmación", disabled: deletePending }}>
+        <Stack gap="md">
+          <Text>¿Quieres eliminar <strong>{deleting?.name}</strong>? El equipo dejará de verlo en el directorio.</Text>
+          {deleteError && <Alert role="alert" color="red">{deleteError}</Alert>}
+          <Group justify="flex-end"><Button variant="default" disabled={deletePending} onClick={() => setDeleting(null)}>Cancelar</Button><Button color="red" loading={deletePending} onClick={() => void remove()}>Eliminar contacto</Button></Group>
+        </Stack>
+      </Modal>
     </div>
-  );
-}
-
-interface ClinicContactFormProps {
-  clinicId: string;
-  editingContact: ClinicContact | null;
-  onSuccess: (contact: ClinicContact) => void;
-  onCancel: () => void;
-  onCreate: (clinicId: string, data: ClinicContactInsert) => Promise<ClinicContact>;
-  onUpdate: (
-    contactId: string,
-    data: ClinicContactUpdate & { expectedVersion?: number },
-  ) => Promise<ClinicContact>;
-}
-
-function ClinicContactForm({
-  clinicId,
-  editingContact,
-  onSuccess,
-  onCancel,
-  onCreate,
-  onUpdate,
-}: ClinicContactFormProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: editingContact?.name || "",
-    category: editingContact?.category || "",
-    phones: (editingContact?.phones || []) as PhoneEntry[],
-    emails: (editingContact?.emails || []) as string[],
-    notes: editingContact?.notes || "",
-    hours: editingContact?.hours || "",
-  });
-  const [newPhone, setNewPhone] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      let result;
-
-      if (editingContact) {
-        result = await onUpdate(editingContact.id, {
-          ...formData,
-          expectedVersion: editingContact.version,
-        });
-      } else {
-        result = await onCreate(clinicId, formData);
-      }
-
-      onSuccess(result);
-    } catch (error) {
-      console.error(error);
-      alert(error instanceof Error ? error.message : "Error saving contact");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="border rounded-lg p-6 bg-gray-50">
-      <h3 className="text-lg font-semibold mb-4">
-        {editingContact ? "Edit contact" : "New contact"}
-      </h3>
-
-      <div className="grid gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
-          <input
-            type="text"
-            required
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 border rounded-lg"
-            placeholder="e.g., Plumber Juan"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Category *</label>
-          <input
-            type="text"
-            required
-            value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            className="w-full px-3 py-2 border rounded-lg"
-            placeholder="e.g., Plumber, Electrician, Delivery"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Phones</label>
-          <div className="flex gap-2 mb-2">
-            <input
-              type="tel"
-              value={newPhone}
-              onChange={(e) => setNewPhone(e.target.value)}
-              className="flex-1 px-3 py-2 border rounded-lg"
-              placeholder="Add phone number"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                if (newPhone) {
-                  setFormData({
-                    ...formData,
-                    phones: [
-                      ...(Array.isArray(formData.phones) ? formData.phones : []),
-                      { number: newPhone, type: "mobile" },
-                    ],
-                  });
-                  setNewPhone("");
-                }
-              }}
-              className="px-3 py-2 bg-gray-300 rounded-lg hover:bg-gray-400"
-            >
-              Add
-            </button>
-          </div>
-          <div className="space-y-1">
-            {Array.isArray(formData.phones) &&
-              formData.phones.map((phone, idx) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <span className="text-sm">
-                    {typeof phone === "string" ? phone : phone.number}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData({
-                        ...formData,
-                        phones: formData.phones.filter((_, i) => i !== idx),
-                      });
-                    }}
-                    className="text-red-600 hover:text-red-800 text-sm"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Emails</label>
-          <div className="flex gap-2 mb-2">
-            <input
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              className="flex-1 px-3 py-2 border rounded-lg"
-              placeholder="Add email"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                if (newEmail) {
-                  setFormData({
-                    ...formData,
-                    emails: [...(Array.isArray(formData.emails) ? formData.emails : []), newEmail],
-                  });
-                  setNewEmail("");
-                }
-              }}
-              className="px-3 py-2 bg-gray-300 rounded-lg hover:bg-gray-400"
-            >
-              Add
-            </button>
-          </div>
-          <div className="space-y-1">
-            {Array.isArray(formData.emails) &&
-              formData.emails.map((email, idx) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <span className="text-sm">{email}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData({
-                        ...formData,
-                        emails: formData.emails.filter((_, i) => i !== idx),
-                      });
-                    }}
-                    className="text-red-600 hover:text-red-800 text-sm"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Hours</label>
-          <input
-            type="text"
-            value={formData.hours}
-            onChange={(e) => setFormData({ ...formData, hours: e.target.value })}
-            className="w-full px-3 py-2 border rounded-lg"
-            placeholder="e.g., 9:00-17:00 (Mon-Fri)"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Notes</label>
-          <textarea
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            className="w-full px-3 py-2 border rounded-lg"
-            placeholder="Additional notes..."
-            rows={3}
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-3 mt-6">
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          {isLoading ? "Saving..." : editingContact ? "Update" : "Create"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex-1 border rounded-lg py-2 hover:bg-gray-100"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
   );
 }
