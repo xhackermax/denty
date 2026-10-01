@@ -6,16 +6,31 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { MouthStateProvider } from "@/features/odontogram/mouth-state-context";
 import { deriveMouthState } from "@/domain/odontogram/mouth-state";
 import { dispatchPerioVoice } from "../perio-voice-session";
+import { useState } from "react";
+import { createPerioDraftOwner } from "../draft-owner";
+import { createPerioExam } from "@/domain/periodontal/exam";
+import { createPerioSession } from "@/domain/periodontal/entry-cursor";
+import type { DentalEntity } from "@/domain/odontogram";
+import type { PeriodontalReading } from "@/domain/periodontal";
 import { PerioChart } from "../perio-chart";
+const workflowData = vi.hoisted(() => ({
+  periodontalExams: [] as {
+    id: string;
+    sites: Partial<PeriodontalReading>[];
+    metadata?: Record<string, unknown>;
+  }[],
+}));
 const api = { perioDrafts: { get: vi.fn(), save: vi.fn(), finish: vi.fn() } };
 vi.mock("@/shared/api/browser", () => ({ getBrowserApi: () => api }));
 vi.mock("@/shared/clinical/clinical-data", () => ({
-  useClinicalWorkflowQuery: () => ({ data: { periodontalExams: [] }, isLoading: false }),
+  useClinicalWorkflowQuery: () => ({ data: workflowData, isLoading: false }),
 }));
 afterEach(cleanup);
 beforeEach(() => {
+  workflowData.periodontalExams = [];
   api.perioDrafts.get.mockResolvedValue(null);
   api.perioDrafts.save.mockImplementation(async (_id, data, version) => ({
+    id: "00000000-0000-4000-8000-000000000020",
     data,
     version: version + 1,
   }));
@@ -72,4 +87,135 @@ test("failed finalization retains measurements and reports error", async () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Servidor no disponible"),
   );
   expect(screen.getByLabelText("18 MV sondaje")).toHaveValue(4);
+}, 20000);
+test("patient draft owner survives a version remount with an outgoing save delayed", async () => {
+  const owner = createPerioDraftOwner(),
+    mouth = deriveMouthState([]),
+    client = new QueryClient();
+  const data = createPerioSession(
+    createPerioExam(mouth, [{ tooth: "18", site: "MV", probingDepth: 3 }]),
+    mouth,
+  );
+  let server = { id: "00000000-0000-4000-8000-000000000020", version: 1, data },
+    release!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let writes = 0;
+  api.perioDrafts.get.mockImplementation(async () => ({ ...server }));
+  api.perioDrafts.save.mockImplementation(async (_id, next, version) => {
+    if (++writes === 1) await delayed;
+    if (version !== server.version) throw new Error("VERSION_CONFLICT");
+    server = { ...server, version: version + 1, data: next };
+    return { ...server };
+  });
+  const view = (key: number) => (
+    <QueryClientProvider client={client}>
+      <MantineProvider>
+        <MouthStateProvider state={mouth}>
+          <PerioChart key={key} owner={owner} patientId="p" active readOnly={false} />
+        </MouthStateProvider>
+      </MantineProvider>
+    </QueryClientProvider>
+  );
+  const { rerender } = render(view(1));
+  try {
+    await waitFor(() => expect(screen.getByLabelText("18 MV sondaje")).not.toBeDisabled());
+    fireEvent.change(screen.getByLabelText("18 MV sondaje"), { target: { value: "5" } });
+    await waitFor(() => expect(api.perioDrafts.save).toHaveBeenCalled(), { timeout: 3000 });
+    rerender(view(2));
+    await waitFor(() => expect(screen.getByLabelText("18 MV sondaje")).not.toBeDisabled());
+    expect(screen.getByLabelText("18 MV sondaje")).toHaveValue(5);
+    expect(api.perioDrafts.get).toHaveBeenCalledTimes(1);
+  } finally {
+    release();
+  }
+}, 20000);
+test("prior measurements are displayed as saved; an explicit new exam starts blank", async () => {
+  const old = createPerioExam(deriveMouthState([]), [
+    { tooth: "18", site: "MV", probingDepth: 6, recession: 2 },
+  ]);
+  workflowData.periodontalExams = [{ id: "previous", sites: [], metadata: { perioExam: old } }];
+  mount();
+  const fresh = await screen.findByRole("button", { name: "Nuevo examen" });
+  expect(screen.getByLabelText("18 MV sondaje")).toBeDisabled();
+  expect(api.perioDrafts.save).not.toHaveBeenCalled();
+  fireEvent.click(fresh);
+  expect(screen.getByLabelText("18 MV sondaje")).toHaveValue(null);
+  expect(screen.getByLabelText("18 MV sondaje")).not.toBeDisabled();
+}, 20000);
+test("undo after marking absent restores presence and keeps the preceding triplet", async () => {
+  function Harness() {
+    const [entities, setEntities] = useState<DentalEntity[]>([]);
+    return (
+      <MouthStateProvider state={deriveMouthState(entities)}>
+        <PerioChart
+          patientId="p"
+          active
+          readOnly={false}
+          onPresenceChange={(tooth, presence) => {
+            const applied: DentalEntity = {
+              id: `${presence}-${tooth}`,
+              tooth,
+              entityType: presence === "missing" ? "MISSING" : "IMPLANT",
+              status: presence,
+              active: true,
+            };
+            const previous = entities.find((e) => e.id === applied.id) ?? null;
+            setEntities([...entities.filter((e) => e.id !== applied.id), applied]);
+            return { tooth, entityId: applied.id, previous, applied };
+          }}
+          onPresenceRestore={(change) => {
+            const restored = [
+              ...entities.filter((e) => e.id !== change.entityId),
+              ...(change.previous ? [change.previous] : []),
+            ];
+            setEntities(restored);
+            return deriveMouthState(restored);
+          }}
+        />
+      </MouthStateProvider>
+    );
+  }
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MantineProvider>
+        <Harness />
+      </MantineProvider>
+    </QueryClientProvider>,
+  );
+  const command = screen.getByLabelText("Trío o comando");
+  await waitFor(() => expect(command).not.toBeDisabled());
+  fireEvent.change(command, { target: { value: "tres dos tres" } });
+  fireEvent.keyDown(command, { key: "Enter" });
+  fireEvent.click(screen.getByRole("button", { name: "Marcar ausente" }));
+  fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+  expect(screen.getByLabelText("18 MV sondaje")).toHaveValue(3);
+  expect(screen.getByLabelText("17 MV sondaje")).not.toBeDisabled();
+}, 20000);
+test("a lost successful finish response retries the same exam without recreating a deleted draft", async () => {
+  let active = true,
+    completed = false;
+  api.perioDrafts.save.mockImplementation(async (_id, data, version) => {
+    if (!active) throw new Error("VERSION_CONFLICT");
+    return { id: "00000000-0000-4000-8000-000000000020", data, version: version + 1 };
+  });
+  api.perioDrafts.finish.mockImplementation(async () => {
+    if (!completed) {
+      completed = true;
+      active = false;
+      throw new Error("Respuesta perdida");
+    }
+    return { examId: "only-exam" };
+  });
+  mount();
+  await waitFor(() => expect(screen.getByLabelText("Trío o comando")).not.toBeDisabled());
+  fireEvent.change(screen.getByLabelText("18 MV sondaje"), { target: { value: "4" } });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar examen parcial" }));
+  await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Respuesta perdida"));
+  fireEvent.click(
+    screen.getByRole("button", { name: /Guardar examen parcial|Reintentar finalización/ }),
+  );
+  await waitFor(() => expect(api.perioDrafts.finish).toHaveBeenCalledTimes(2));
+  expect(api.perioDrafts.save).toHaveBeenCalledTimes(1);
 }, 20000);

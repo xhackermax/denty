@@ -45,25 +45,12 @@
   width: 100px;
 }
 
-@media print {
-  :global(body *) {
-    visibility: hidden;
-  }
-
-  .chart,
-  .chart * {
-    visibility: visible;
-  }
-
-  .chart {
-    position: absolute;
-    inset: 0;
-    border: 0;
-  }
-
-  .scroll {
-    overflow: visible;
-  }
+.printFrame {
+  position: fixed;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  border: 0;
 }
 
 .flag {

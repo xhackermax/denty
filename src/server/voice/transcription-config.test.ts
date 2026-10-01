@@ -10,8 +10,6 @@ describe("voice transcription config", () => {
   });
 
   it("keeps explicit gateway model slugs unchanged", () => {
-    expect(gatewayTranscriptionModel("openai/gpt-4o-transcribe")).toBe(
-      "openai/gpt-4o-transcribe",
-    );
+    expect(gatewayTranscriptionModel("openai/gpt-4o-transcribe")).toBe("openai/gpt-4o-transcribe");
   });
 });

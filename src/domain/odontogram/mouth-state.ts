@@ -85,9 +85,14 @@ export function deriveMouthState(
       teeth[e.tooth] = { presence: "extracted_planned" };
   }
   for (const e of active) {
-    const done =
-      ["REALIZADO", "REALIZADO_OTRA_CLINICA"].includes(clinicalLifecycleState(e) ?? "") ||
+    const lifecycle = clinicalLifecycleState(e);
+    const completed =
+      ["REALIZADO", "REALIZADO_OTRA_CLINICA"].includes(lifecycle ?? "") ||
       /_completed$|^implant$/.test(e.status);
+    const done =
+      e.entityType === "IMPLANT"
+        ? lifecycle !== "PLANIFICADO" && (completed || lifecycle === "HALLAZGO_EXISTENTE")
+        : completed;
     if (!done) continue;
     if (e.entityType === "IMPLANT" && e.tooth && teeth[e.tooth])
       teeth[e.tooth] = { presence: "implant", replacedBy: "implant" };

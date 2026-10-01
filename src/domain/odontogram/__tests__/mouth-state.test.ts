@@ -77,3 +77,30 @@ test("retained primary teeth remain visible in an adult periodontal chart", () =
   expect(isProbeable(state, "55")).toBe(true);
   expect(teethForChart(state, "perio")).toContain("55");
 });
+test("an existing implant under review stays probeable and cannot receive natural-tooth treatment", () => {
+  const implant = {
+    id: "review",
+    tooth: "36",
+    entityType: "IMPLANT" as const,
+    status: "implant_review",
+    active: true,
+  };
+  for (const entities of [
+    [implant],
+    [
+      {
+        id: "missing",
+        tooth: "36",
+        entityType: "MISSING" as const,
+        status: "missing",
+        active: true,
+      },
+      implant,
+    ],
+  ]) {
+    const state = deriveMouthState(entities);
+    expect(state.teeth["36"]?.presence).toBe("implant");
+    expect(isProbeable(state, "36")).toBe(true);
+    expect(isEndoCandidate(state, "36")).toBe(false);
+  }
+});

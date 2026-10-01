@@ -36,10 +36,7 @@ export async function POST(request: Request) {
     // Verify user is authenticated
     const identity = await resolveRequestIdentity(request);
     if (!identity) {
-      return Response.json(
-        { error: "Usuario no autenticado" },
-        { status: 401 },
-      );
+      return Response.json({ error: "Usuario no autenticado" }, { status: 401 });
     }
 
     // Create a new Realtime session with tool support
@@ -89,10 +86,7 @@ export async function POST(request: Request) {
     console.error("Failed to create Realtime session:", error);
     return Response.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No se pudo crear la sesión de voz",
+        error: error instanceof Error ? error.message : "No se pudo crear la sesión de voz",
       },
       { status: 500 },
     );

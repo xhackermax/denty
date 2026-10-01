@@ -60,10 +60,20 @@ export function reconcileExamMouth(exam: PerioExam, mouth: MouthState): PerioExa
   const defaults = createPerioExam(mouth);
   return {
     teeth: Object.fromEntries(
-      Object.entries(defaults.teeth).map(([tooth, base]) => [
-        tooth,
-        { ...(exam.teeth[tooth] ?? base), missing: base.missing, implant: base.implant },
-      ]),
+      [...new Set([...Object.keys(exam.teeth), ...Object.keys(defaults.teeth)])].map((tooth) => {
+        const data = exam.teeth[tooth] ?? defaults.teeth[tooth]!;
+        const presence = mouth.teeth[tooth]?.presence;
+        return [
+          tooth,
+          {
+            ...data,
+            missing: !["present", "deciduous", "extracted_planned", "implant"].includes(
+              presence ?? "missing",
+            ),
+            implant: presence === "implant",
+          },
+        ];
+      }),
     ),
   };
 }

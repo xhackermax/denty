@@ -25,19 +25,22 @@ export async function handlePerioDraftsRoute(
     patientId = decodeURIComponent(parts[2] ?? "");
   const mouth = await loadMouthState(client, identity.actor.clinicId, patientId);
   if (parts.length === 4 && request.method === "GET") {
-    const rows = await client.select<{ version: number; data: unknown; updated_at: string }>(
-      "periodontal_drafts",
-      {
-        select: "version,data,updated_at",
-        patient_id: `eq.${patientId}`,
-        clinic_id: `eq.${identity.actor.clinicId}`,
-        limit: 1,
-      },
-    );
+    const rows = await client.select<{
+      draft_id: string;
+      version: number;
+      data: unknown;
+      updated_at: string;
+    }>("periodontal_drafts", {
+      select: "draft_id,version,data,updated_at",
+      patient_id: `eq.${patientId}`,
+      clinic_id: `eq.${identity.actor.clinicId}`,
+      limit: 1,
+    });
     return reply(
       200,
       rows[0]
         ? perioDraftSchema.parse({
+            id: rows[0].draft_id,
             version: rows[0].version,
             data: rows[0].data,
             updatedAt: rows[0].updated_at,
@@ -52,6 +55,7 @@ export async function handlePerioDraftsRoute(
     const result = await client.rpc("save_periodontal_draft", {
       p_patient_id: patientId,
       p_expected_version: input.expectedVersion,
+      p_draft_id: input.expectedDraftId,
       p_data: data,
     });
     return reply(200, perioDraftSchema.parse(result));
@@ -62,22 +66,32 @@ export async function handlePerioDraftsRoute(
         error: { code: "FORBIDDEN", message: "La finalización requiere al dentista." },
       });
     const input = finishPerioDraftSchema.parse(await request.json());
-    const rows = await client.select<{ version: number; data: unknown }>("periodontal_drafts", {
-      select: "version,data",
-      patient_id: `eq.${patientId}`,
-      clinic_id: `eq.${identity.actor.clinicId}`,
-      limit: 1,
-    });
-    if (!rows[0] || rows[0].version !== input.expectedVersion)
-      throw new SupabaseRestError("El borrador cambió. Recarga antes de continuar.", 409, {});
-    const data = perioDraftInputSchema.shape.data.parse(rows[0].data),
-      exam = reconcileExamMouth(data.exam, mouth),
-      sites = examToSites(exam);
-    if (!sites.length) throw new SupabaseRestError("Introduce al menos una medición.", 422, {});
+    const rows = await client.select<{ draft_id: string; version: number; data: unknown }>(
+      "periodontal_drafts",
+      {
+        select: "draft_id,version,data",
+        patient_id: `eq.${patientId}`,
+        clinic_id: `eq.${identity.actor.clinicId}`,
+        limit: 1,
+      },
+    );
+    let prepared: Record<string, unknown> = {};
+    if (
+      rows[0] &&
+      rows[0].draft_id === input.draftId &&
+      rows[0].version === input.expectedVersion
+    ) {
+      const data = perioDraftInputSchema.shape.data.parse(rows[0].data),
+        exam = reconcileExamMouth(data.exam, mouth),
+        sites = examToSites(exam);
+      if (!sites.length) throw new SupabaseRestError("Introduce al menos una medición.", 422, {});
+      prepared = { sites, risk: perioSummary(exam), metadata: { perioExam: exam } };
+    }
     const result = await client.rpc("finish_periodontal_draft", {
       p_patient_id: patientId,
       p_expected_version: input.expectedVersion,
-      p_exam: { sites, risk: perioSummary(exam), metadata: { perioExam: exam } },
+      p_draft_id: input.draftId,
+      p_exam: prepared,
     });
     return reply(201, result);
   }

@@ -138,8 +138,7 @@ export function selectVoiceEngine(
 
   const hasSpeechRecognition =
     typeof window !== "undefined" &&
-    (typeof (window as unknown as Record<string, unknown>).SpeechRecognition !==
-      "undefined" ||
+    (typeof (window as unknown as Record<string, unknown>).SpeechRecognition !== "undefined" ||
       typeof (window as unknown as Record<string, unknown>).webkitSpeechRecognition !==
         "undefined");
 

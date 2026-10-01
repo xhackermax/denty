@@ -545,7 +545,9 @@ function rowToPatient(row: PatientRow): Patient {
     return text && /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : null;
   };
   const email = nullableText(row.email);
-  const declaredSource = patientAcquisitionSourceSchema.safeParse(nullableText(row.declared_source));
+  const declaredSource = patientAcquisitionSourceSchema.safeParse(
+    nullableText(row.declared_source),
+  );
   const patient: Patient = {
     id: row.id,
     clinicId: row.clinic_id,

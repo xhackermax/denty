@@ -3,7 +3,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Button, Group, Select, Text, TextInput, Title } from "@mantine/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMouthState } from "@/features/odontogram/mouth-state-context";
-import { PERIODONTAL_SITES, type PeriodontalReading } from "@/domain/periodontal";
+import {
+  PERIODONTAL_SITES,
+  normalizePeriodontalSite,
+  type PeriodontalReading,
+} from "@/domain/periodontal";
 import { createPerioExam, examToReadings, perioSummary } from "@/domain/periodontal/exam";
 import {
   applyPerioCommand,
@@ -11,13 +15,14 @@ import {
   reconcileSessionMouth,
   type PerioCommand,
   type PerioSession,
+  type PerioPresenceChange,
 } from "@/domain/periodontal/entry-cursor";
 import { parsePerioDictation } from "@/features/voice/perio-dictation";
 import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
 import { getBrowserApi } from "@/shared/api/browser";
-import { perioExamDataSchema, type PerioDraftData } from "@/shared/api/schemas/perio-drafts";
+import { perioExamDataSchema } from "@/shared/api/schemas/perio-drafts";
 import { useClinicalWorkflowQuery } from "@/shared/clinical/clinical-data";
-import { DraftWriter } from "./draft-writer";
+import { createPerioDraftOwner, type PerioDraftOwner } from "./draft-owner";
 import { registerPerioSession } from "./perio-voice-session";
 import { PerioToothGraph } from "./perio-tooth-graph";
 import { PerioSummaryBar } from "./perio-summary-bar";
@@ -45,7 +50,10 @@ interface Props {
   active: boolean;
   readings?: readonly Partial<PeriodontalReading>[];
   onReadingsChange?: (readings: PeriodontalReading[]) => void;
-  onPresenceChange?: (tooth: string, presence: "missing" | "implant") => void;
+  owner?: PerioDraftOwner;
+  onPresenceChange?: (tooth: string, presence: "missing" | "implant") => PerioPresenceChange;
+  onPresenceRestore?: (change: PerioPresenceChange) => ReturnType<typeof useMouthState>;
+  onBeforeFinalize?: () => Promise<void>;
 }
 const empty: readonly Partial<PeriodontalReading>[] = [];
 export function PerioChart({
@@ -55,133 +63,138 @@ export function PerioChart({
   readings = empty,
   onReadingsChange,
   onPresenceChange,
+  onPresenceRestore,
+  onBeforeFinalize,
+  owner: providedOwner,
 }: Props) {
   const mouth = useMouthState(),
     queryClient = useQueryClient(),
     workflow = useClinicalWorkflowQuery(patientId);
-  const [session, setSession] = useState(() =>
-    createPerioSession(createPerioExam(mouth, readings), mouth),
+  const [localOwner] = useState(createPerioDraftOwner);
+  const owner = readOnly ? localOwner : (providedOwner ?? localOwner);
+  const chartRef = useRef<HTMLElement>(null);
+  const [session, setSession] = useState(
+    () => owner.session ?? createPerioSession(createPerioExam(mouth, readings), mouth),
   );
-  const lastSaved = useRef(session);
-  const [dirty, setDirty] = useState(false);
   const current = useRef(session);
-  current.current = session;
-  const [closed, setClosed] = useState(false);
-  const closedRef = useRef(false);
+  current.current = owner.session ?? session;
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const [ready, setReady] = useState(readOnly),
-    [error, setError] = useState(""),
-    [status, setStatus] = useState(readOnly ? "Examen histórico" : "Cargando borrador…"),
+  const [ready, setReady] = useState(readOnly || owner.initialized),
+    [dirty, setDirty] = useState(owner.dirty),
+    [closed, setClosed] = useState(owner.closed),
+    [error, setError] = useState(owner.error),
+    [status, setStatus] = useState(readOnly ? "Examen histórico" : owner.status),
     [phrase, setPhrase] = useState(""),
-    [finishing, setFinishing] = useState(false),
+    [finishing, setFinishing] = useState(owner.busy),
     [listening, setListening] = useState(false),
     [feedback, setFeedback] = useState<string | null>("silent");
-  const writer = useRef<DraftWriter<PerioDraftData> | null>(null),
-    recognition = useRef<Recognition | null>(null),
-    listeningRef = useRef(false),
-    finishingRef = useRef(false);
+  const recognition = useRef<Recognition | null>(null),
+    listeningRef = useRef(false);
   const latestExam = workflow.data?.periodontalExams[0];
   const previousParsed = perioExamDataSchema.safeParse(latestExam?.metadata?.perioExam);
   const previous =
-    !readOnly && previousParsed.success ? previousParsed.data : createPerioExam(mouth, readings);
+    !readOnly && previousParsed.success
+      ? previousParsed.data
+      : createPerioExam(
+          mouth,
+          latestExam
+            ? latestExam.sites.map((reading) => ({
+                tooth: reading.tooth,
+                site: normalizePeriodontalSite(reading.site),
+                ...(reading.probingDepth === undefined
+                  ? {}
+                  : { probingDepth: reading.probingDepth }),
+                ...(reading.recession === undefined ? {} : { recession: reading.recession }),
+                ...(reading.bleeding === undefined ? {} : { bleeding: reading.bleeding }),
+                ...(reading.plaque === undefined ? {} : { plaque: reading.plaque }),
+                ...(reading.suppuration === undefined ? {} : { suppuration: reading.suppuration }),
+                ...(reading.mobility === undefined ? {} : { mobility: reading.mobility }),
+                ...(reading.furcation === undefined ? {} : { furcation: reading.furcation }),
+              }))
+            : readings,
+        );
+  useEffect(
+    () =>
+      owner.subscribe(() => {
+        if (owner.session) {
+          current.current = owner.session;
+          setSession(owner.session);
+        }
+        setReady(readOnly || owner.initialized);
+        setDirty(owner.dirty);
+        setClosed(owner.closed);
+        setFinishing(owner.busy);
+        setStatus(owner.status);
+        setError(owner.error);
+      }),
+    [owner, readOnly],
+  );
   useEffect(() => {
     if (readOnly || workflow.isLoading) return;
-    let cancelled = false;
-    void getBrowserApi()
-      .perioDrafts.get(patientId)
-      .then((draft) => {
-        if (cancelled) return;
-        writer.current = new DraftWriter(async (data, version) => {
-          const saved = await getBrowserApi().perioDrafts.save(patientId, data, version);
-          return saved.version;
-        }, draft?.version ?? 0);
-        if (draft) {
-          const restored = reconcileSessionMouth({ ...draft.data, past: [] }, mouth);
-          lastSaved.current = restored;
-          setSession(restored);
-          setDirty(false);
-        } else if (previousParsed.success)
-          setSession(createPerioSession(previousParsed.data, mouth));
-        setStatus(draft ? "Borrador recuperado" : "Sin cambios");
-        setReady(true);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "No se pudo cargar el borrador.");
-      });
-    return () => {
-      cancelled = true;
-    };
-    // A draft is loaded once per patient; mouth updates reconcile independently.
-  }, [patientId, readOnly, loadAttempt, workflow.isLoading]);
+    const prior = perioSummary(previous).siteCount > 0 ? previous : null;
+    void owner
+      .initialize(getBrowserApi().perioDrafts, patientId, mouth, prior)
+      .catch(() => undefined);
+    // The owner loads once, even when saving the odontogram remounts its editor.
+  }, [owner, patientId, readOnly, loadAttempt, workflow.isLoading]);
   useEffect(() => {
-    setSession((s) => reconcileSessionMouth(s, mouth));
-  }, [mouth]);
+    if (readOnly) setSession((s) => reconcileSessionMouth(s, mouth));
+    else owner.reconcile(mouth);
+  }, [mouth, owner, readOnly]);
   useEffect(() => {
     onReadingsChange?.(examToReadings(session.exam, { requireMargin: true }));
   }, [session.exam, onReadingsChange]);
-  const persist = useCallback(async (state: PerioSession) => {
-    if (!writer.current) throw new Error("El borrador todavía no está disponible.");
-    setStatus("Guardando…");
-    await writer.current.write({
-      order: state.order,
-      exam: state.exam,
-      cursor: state.cursor,
-      lastTriplet: state.lastTriplet,
-    });
-    lastSaved.current = state;
-    if (current.current === state) setDirty(false);
-    setStatus("Borrador guardado");
-  }, []);
   useUnsavedChangesGuard({
     dirty: dirty && !readOnly && !closed,
     onSave: async () => {
-      await persist(current.current);
-      await writer.current!.flush();
+      if (owner.busy) throw new Error("Espera a que termine la finalización del examen.");
+      if (owner.checkpoint) await owner.finish();
+      else await owner.persist(owner.session!);
     },
-    onDiscard: () => {
-      current.current = lastSaved.current;
-      setSession(lastSaved.current);
-      setDirty(false);
-    },
+    onDiscard: () => owner.discard(),
   });
   useEffect(() => {
-    if (!ready || readOnly || finishingRef.current || closedRef.current) return;
+    if (!ready || readOnly || !dirty || owner.busy || owner.closed || owner.checkpoint) return;
     const timer = setTimeout(() => {
-      void persist(session).catch((e) => {
-        setError(e.message);
-        setStatus("Sin guardar");
-      });
+      void owner.persist(owner.session!).catch(() => undefined);
     }, 600);
     return () => clearTimeout(timer);
-  }, [session, ready, readOnly, persist]);
+  }, [session, ready, readOnly, dirty, owner, finishing]);
   useEffect(
     () => () => {
-      if (!readOnly && writer.current && !finishingRef.current && !closedRef.current) {
-        const state = current.current;
-        void writer.current
-          .write({
-            order: state.order,
-            exam: state.exam,
-            cursor: state.cursor,
-            lastTriplet: state.lastTriplet,
-          })
-          .catch(() => undefined);
-      }
+      if (
+        !readOnly &&
+        owner.initialized &&
+        owner.dirty &&
+        !owner.busy &&
+        !owner.closed &&
+        !owner.checkpoint
+      )
+        void owner.persist(owner.session!).catch(() => undefined);
     },
-    [patientId, readOnly],
+    [owner, readOnly],
   );
   const dispatch = useCallback(
     (command: PerioCommand) => {
-      if (readOnly || !ready || finishingRef.current || closedRef.current)
+      if (readOnly || !ready || owner.busy || owner.closed || owner.checkpoint)
         throw new Error("El periodontograma no está disponible para editar.");
+      let next: PerioSession;
       if (command.type === "missing" || command.type === "implant") {
-        onPresenceChange?.(current.current.cursor.tooth, command.type);
-        return;
-      }
-      const next = applyPerioCommand(current.current, command, mouth);
+        if (!onPresenceChange) throw new Error("La presencia debe modificarse en el odontograma.");
+        next = applyPerioCommand(current.current, command, mouth);
+        const change = onPresenceChange(current.current.cursor.tooth, command.type);
+        next.past[next.past.length - 1]!.presenceChange = change;
+      } else if (command.type === "undo" && current.current.past.at(-1)?.presenceChange) {
+        if (!onPresenceRestore)
+          throw new Error("No se puede restaurar la presencia desde esta vista.");
+        const restoredMouth = onPresenceRestore(current.current.past.at(-1)!.presenceChange!);
+        next = reconcileSessionMouth(
+          applyPerioCommand(current.current, command, restoredMouth),
+          restoredMouth,
+        );
+      } else next = applyPerioCommand(current.current, command, mouth);
       current.current = next;
-      setSession(next);
-      setDirty(true);
+      owner.update(next);
       setError("");
       if (feedback === "spoken" && typeof speechSynthesis !== "undefined")
         speechSynthesis.speak(
@@ -208,7 +221,7 @@ export function PerioChart({
         }
       }
     },
-    [readOnly, ready, onPresenceChange, mouth, feedback],
+    [readOnly, ready, onPresenceChange, onPresenceRestore, owner, mouth, feedback],
   );
   useEffect(
     () => (active && !readOnly ? registerPerioSession(patientId, dispatch) : undefined),
@@ -307,31 +320,14 @@ export function PerioChart({
     [],
   );
   const finish = async () => {
-    if (finishingRef.current || closedRef.current) return;
-    finishingRef.current = true;
-    setFinishing(true);
     recognition.current?.stop();
     listeningRef.current = false;
     setListening(false);
     try {
-      await persist(current.current);
-      const version = await writer.current!.flush();
-      await getBrowserApi().perioDrafts.finish(patientId, version);
-      writer.current = new DraftWriter(
-        async (data, v) => (await getBrowserApi().perioDrafts.save(patientId, data, v)).version,
-        0,
-      );
-      closedRef.current = true;
-      setClosed(true);
-      setDirty(false);
-      setStatus("Examen guardado");
-      setError("");
+      await owner.finish(onBeforeFinalize);
       await queryClient.invalidateQueries({ queryKey: ["denty", "clinical", patientId] });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo finalizar; el borrador se conserva.");
-    } finally {
-      finishingRef.current = false;
-      setFinishing(false);
     }
   };
   const run = (command: PerioCommand) => {
@@ -341,9 +337,9 @@ export function PerioChart({
       setError(e instanceof Error ? e.message : "Repite.");
     }
   };
-  const disabled = readOnly || !ready || finishing || closed;
+  const disabled = readOnly || !ready || finishing || closed || owner.checkpoint !== null;
   return (
-    <section className={styles.chart} aria-label="Periodontograma">
+    <section ref={chartRef} className={styles.chart} aria-label="Periodontograma">
       <Title order={3}>Periodontograma</Title>
       <Text size="sm">
         Mesial → central → distal · Margen negativo = recesión · F8 pausa el dictado
@@ -363,9 +359,20 @@ export function PerioChart({
           {error}
         </Alert>
       ) : null}
+      {error && !readOnly && !owner.checkpoint ? (
+        <Button
+          variant="subtle"
+          onClick={() => {
+            if (ready) owner.reload();
+            setLoadAttempt((n) => n + 1);
+          }}
+        >
+          {ready ? "Descartar cambios y recargar borrador" : "Reintentar carga"}
+        </Button>
+      ) : null}
       {!readOnly ? (
         <>
-          <Group mt="sm">
+          <Group mt="sm" data-print-hide>
             <TextInput
               label="Trío o comando"
               placeholder="tres dos tres"
@@ -393,7 +400,7 @@ export function PerioChart({
               ]}
             />
           </Group>
-          <Group mt="sm">
+          <Group mt="sm" data-print-hide>
             <Button variant="subtle" disabled={disabled} onClick={() => run({ type: "back" })}>
               Atrás
             </Button>
@@ -421,16 +428,25 @@ export function PerioChart({
             >
               Cambiar cara
             </Button>
-            <Button variant="subtle" disabled={disabled} onClick={() => run({ type: "missing" })}>
+            <Button
+              variant="subtle"
+              disabled={disabled || !onPresenceChange}
+              onClick={() => run({ type: "missing" })}
+            >
               Marcar ausente
             </Button>
-            <Button variant="subtle" disabled={disabled} onClick={() => run({ type: "implant" })}>
+            <Button
+              variant="subtle"
+              disabled={disabled || !onPresenceChange}
+              onClick={() => run({ type: "implant" })}
+            >
               Marcar implante
             </Button>
           </Group>
         </>
       ) : null}
       <Select
+        data-print-hide
         label="Orden de sondaje"
         value={session.order}
         disabled={disabled}
@@ -617,32 +633,30 @@ export function PerioChart({
           </table>
         </div>
       ))}
-      <Group mt="md">
-        <PerioPrint />
-        {closed ? (
-          <Button
-            variant="light"
-            onClick={() => {
-              const next = createPerioSession(createPerioExam(mouth), mouth, session.order);
-              current.current = next;
-              setSession(next);
-              closedRef.current = false;
-              setClosed(false);
-              setStatus("Nuevo examen");
-            }}
-          >
+      <Group mt="md" data-print-hide>
+        <PerioPrint target={chartRef} />
+        {closed && !readOnly ? (
+          <Button variant="light" onClick={() => owner.startNew(mouth, session.order)}>
             Nuevo examen
           </Button>
         ) : null}
         {!readOnly ? (
           <Button
-            disabled={disabled || perioSummary(session.exam).siteCount === 0}
+            disabled={
+              readOnly ||
+              !ready ||
+              finishing ||
+              closed ||
+              perioSummary(session.exam).siteCount === 0
+            }
             loading={finishing}
             onClick={() => void finish()}
           >
-            {perioSummary(session.exam).remainingSites
-              ? "Guardar examen parcial"
-              : "Finalizar examen"}
+            {owner.checkpoint
+              ? "Reintentar finalización"
+              : perioSummary(session.exam).remainingSites
+                ? "Guardar examen parcial"
+                : "Finalizar examen"}
           </Button>
         ) : null}
       </Group>

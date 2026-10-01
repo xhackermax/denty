@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { VoiceRealtimeAdapter, isRealtimeAvailable, selectVoiceEngine } from "../voice-realtime-adapter";
+import {
+  VoiceRealtimeAdapter,
+  isRealtimeAvailable,
+  selectVoiceEngine,
+} from "../voice-realtime-adapter";
 
 describe("VoiceRealtimeAdapter", () => {
   describe("constructor and configuration", () => {

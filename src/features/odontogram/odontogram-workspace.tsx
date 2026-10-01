@@ -6,7 +6,7 @@ import { MouthMiniMap } from "./mouth-mini-map";
 import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
 import { Alert, Badge, Button, Group, Select, SimpleGrid, Text } from "@mantine/core";
 import { IconArrowBackUp, IconArrowForwardUp, IconArrowRight } from "@tabler/icons-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useOptionalAssistantContextPatch } from "@/features/assistant/assistant-context";
 import {
@@ -47,6 +47,8 @@ import {
 } from "./odontogram-data";
 import { OdontogramHistory } from "./odontogram-history";
 import { OdontogramLegend, type OdontogramLegendSelection } from "./odontogram-legend";
+import { createPerioDraftOwner, type PerioDraftOwner } from "@/features/periodontal/draft-owner";
+import type { PerioPresenceChange } from "@/domain/periodontal/entry-cursor";
 import { PerioChart } from "@/features/periodontal/perio-chart";
 import { RetainedFlowStep } from "@/shared/clinical/retained-flow-step";
 import { ImplantSurgeryPanel } from "./implant-surgery-panel";
@@ -313,6 +315,7 @@ function Tooth({
   );
 }
 interface OdontogramEditorProps {
+  perioOwner: PerioDraftOwner;
   activeTab: ClinicalTab;
   setActiveTab: (tab: ClinicalTab) => void;
   patientId: string;
@@ -332,6 +335,7 @@ interface OdontogramEditorProps {
   onOpenTreatmentFlow: () => void;
 }
 function OdontogramEditor({
+  perioOwner,
   activeTab,
   setActiveTab,
   patientId,
@@ -362,6 +366,8 @@ function OdontogramEditor({
   const [history, setHistory] = useState<BoundedHistory<OdontogramEntityState>>(() =>
     createBoundedHistory(createOdontogramEntityState(initialEntities), 30),
   );
+  const historyRef = useRef(history);
+  historyRef.current = history;
   const [tool, setTool] = useState<ToothState>("caries");
   const [placementMode, setPlacementMode] = useState<"tooth" | "bridge">("tooth");
   const [selectedTooth, setSelectedTooth] = useState(() => {
@@ -442,6 +448,45 @@ function OdontogramEditor({
       setClinicalRuleMessage(result.evaluation.messages[0] ?? null);
       return result.history;
     });
+  };
+  const changePresence = (tooth: string, presence: "missing" | "implant"): PerioPresenceChange => {
+    const applied = createStateEntity(tooth, presence);
+    const previous = historyRef.current.present.entitiesById[applied.id] ?? null;
+    const result = executeValidatedOdontogramCommand(historyRef.current, {
+      type: "UPSERT_ENTITY",
+      entity: applied,
+    });
+    if (result.history === historyRef.current)
+      throw new Error(result.evaluation.messages[0] ?? "No se pudo modificar la presencia.");
+    historyRef.current = result.history;
+    setHistory(result.history);
+    return { tooth, entityId: applied.id, previous, applied };
+  };
+  const restorePresence = (change: PerioPresenceChange) => {
+    const marker = historyRef.current.present.entitiesById[change.entityId];
+    if (
+      !marker ||
+      marker.status !== change.applied.status ||
+      marker.active !== change.applied.active ||
+      marker.entityType !== change.applied.entityType
+    )
+      throw new Error(
+        "La presencia cambió en otra edición; revisa el odontograma antes de deshacer.",
+      );
+    const result = executeValidatedOdontogramCommand(
+      historyRef.current,
+      change.previous
+        ? { type: "UPSERT_ENTITY", entity: change.previous }
+        : { type: "REMOVE_ENTITY", entityId: change.entityId },
+    );
+    if (result.history === historyRef.current)
+      throw new Error(result.evaluation.messages[0] ?? "No se pudo restaurar la presencia.");
+    historyRef.current = result.history;
+    setHistory(result.history);
+    return deriveMouthState(
+      Object.values(result.history.present.entitiesById).filter((entity) => entity.active),
+      birthDate ? { birthDate } : {},
+    );
   };
   const commitBatch = (batch: readonly DentalEntity[]) => {
     if (historical) return;
@@ -914,7 +959,13 @@ function OdontogramEditor({
             readOnly={historical}
             readings={initialPeriodontal}
             onReadingsChange={setCurrentPerioReadings}
-            onPresenceChange={(tooth, presence) => commit(createStateEntity(tooth, presence))}
+            owner={perioOwner}
+            onPresenceChange={changePresence}
+            onPresenceRestore={restorePresence}
+            onBeforeFinalize={async () => {
+              if (historyRef.current.present.revision !== 0)
+                await onSave(Object.values(historyRef.current.present.entitiesById));
+            }}
           />
         </RetainedFlowStep>
         {activeTab === "orthodontic" ? (
@@ -1000,6 +1051,7 @@ function OdontogramEditor({
   );
 }
 export function OdontogramWorkspace({ patientId }: { patientId: string }) {
+  const perioOwner = useMemo(() => createPerioDraftOwner(), [patientId]);
   const searchParams = useSearchParams();
   const sectionParam = searchParams.get("section");
   const actionParam = searchParams.get("action");
@@ -1078,6 +1130,7 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
         onClose={() => setTreatmentFlowOpen(false)}
       />
       <OdontogramEditor
+        perioOwner={perioOwner}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         key={`${editorKey}-${initialSection}-${initialAction ?? "default"}`}

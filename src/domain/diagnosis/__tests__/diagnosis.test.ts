@@ -136,3 +136,15 @@ test("uses grade evidence and only estimates extent for sufficiently complete ch
   expect(suggestedQuadrants([...readings(5, 4), { tooth: "36", probingDepth: 2 }])).toEqual([1, 2]);
   expect(treatmentSuggestions("unknown")).toEqual([]);
 });
+test.each([
+  ["11", "21"],
+  ["31", "41"],
+])("adjacent central incisors %s/%s do not satisfy nonadjacent attachment loss", (a, b) => {
+  const readings: PeriodontalReading[] = [a, b].map((tooth) => ({
+    tooth,
+    site: "MV",
+    probingDepth: 6,
+    recession: 0,
+  }));
+  expect(suggestPeriodontalDiagnosis(readings)?.value).not.toBe("periodontitis");
+});

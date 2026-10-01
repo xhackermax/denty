@@ -48,13 +48,20 @@ export const perioDraftDataSchema = z.object({
   lastTriplet: perioCursorSchema.nullable(),
 });
 export const perioDraftInputSchema = z.object({
+  expectedDraftId: z.uuid().nullable().default(null),
   expectedVersion: z.number().int().nonnegative(),
   data: perioDraftDataSchema,
 });
 export const perioDraftSchema = z.object({
+  id: z.uuid(),
   version: z.number().int().positive(),
   data: perioDraftDataSchema,
   updatedAt: z.string(),
 });
-export const finishPerioDraftSchema = z.object({ expectedVersion: z.number().int().positive() });
+export const finishPerioDraftSchema = z.object({
+  draftId: z.uuid(),
+  expectedVersion: z.number().int().positive(),
+});
 export type PerioDraftData = z.infer<typeof perioDraftDataSchema>;
+
+export type PerioDraft = z.infer<typeof perioDraftSchema>;

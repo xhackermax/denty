@@ -25,8 +25,14 @@ interface Snapshot {
   cursor: PerioCursor;
   lastTriplet: PerioCursor | null;
 }
+export interface PerioPresenceChange {
+  tooth: string;
+  entityId: string;
+  previous: import("../odontogram").DentalEntity | null;
+  applied: import("../odontogram").DentalEntity;
+}
 export interface PerioSession extends Snapshot {
-  past: Snapshot[];
+  past: (Snapshot & { presenceChange?: PerioPresenceChange })[];
 }
 const key = (c: PerioCursor) => `${c.tooth}:${c.face}`;
 const faces: PerioFace[] = ["vestibular", "palatal", "lingual", "vestibular"];

@@ -40,11 +40,7 @@ const TaskItem = memo(
           <Text size="sm" fw={500} lineClamp={1} flex={1}>
             {task.title}
           </Text>
-          <Badge
-            size="xs"
-            variant="light"
-            color={PRIORITY_COLORS[task.priority] || "blue"}
-          >
+          <Badge size="xs" variant="light" color={PRIORITY_COLORS[task.priority] || "blue"}>
             {task.priority[0]}
           </Badge>
         </Group>
@@ -74,11 +70,7 @@ export function TasksSidebar({
         onClick={onToggle}
         aria-label={isOpen ? "Cerrar panel de tareas" : "Abrir panel de tareas"}
       >
-        {isOpen ? (
-          <IconChevronLeft size={18} />
-        ) : (
-          <IconChevronRight size={18} />
-        )}
+        {isOpen ? <IconChevronLeft size={18} /> : <IconChevronRight size={18} />}
       </button>
 
       {isOpen && (

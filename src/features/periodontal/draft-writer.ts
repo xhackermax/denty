@@ -1,4 +1,4 @@
-/** One ordered stream per mounted exam; failed writes remain a barrier to finalization. */
+/** One ordered stream per patient draft owner; failed writes remain a barrier to finalization. */
 export class DraftWriter<T> {
   private tail: Promise<void> = Promise.resolve();
   private error: unknown;

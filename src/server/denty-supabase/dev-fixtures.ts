@@ -135,14 +135,12 @@ const mockPatients: MockPatient[] = [
   },
 ];
 
-export function getDevMockPatients(
-  options?: {
-    includeArchived?: boolean;
-    search?: string;
-    page?: number;
-    pageSize?: number;
-  },
-): {
+export function getDevMockPatients(options?: {
+  includeArchived?: boolean;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}): {
   items: MockPatient[];
   total: number;
   page: number;

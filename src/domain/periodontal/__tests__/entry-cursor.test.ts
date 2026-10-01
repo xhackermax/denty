@@ -128,3 +128,18 @@ test("summary ignores unmeasured values, preserves known zero margins and reconc
     examToSites(createPerioExam(mouth, [{ tooth: "36", site: "V", probingDepth: 3 }]))[0],
   ).not.toHaveProperty("recession");
 });
+test("temporary loss of retained primary tooth keeps measurements for a later undo", () => {
+  const present = deriveMouthState([
+    { id: "55", tooth: "55", entityType: "PEDIATRIC", status: "retained", active: true },
+  ]);
+  const exam = createPerioExam(present, [
+    { tooth: "55", site: "MV", probingDepth: 6, recession: 2 },
+  ]);
+  const absent = deriveMouthState([
+    { id: "55", tooth: "55", entityType: "MISSING", status: "missing", active: true },
+  ]);
+  const removed = reconcileSessionMouth(createPerioSession(exam, present), absent);
+  expect(examToSites(removed.exam).some((r) => r.tooth === "55")).toBe(false);
+  const restored = reconcileSessionMouth(removed, present);
+  expect(restored.exam.teeth["55"]?.sites.MV).toMatchObject({ pd: 6, gm: -2 });
+});

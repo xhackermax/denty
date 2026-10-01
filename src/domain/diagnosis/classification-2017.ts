@@ -18,8 +18,19 @@ export function suggestPeriodontalDiagnosis(
       .filter((r) => ["MV", "DV", "MP", "DP"].includes(r.site) && r.probingDepth + r.recession >= 1)
       .map((r) => r.tooth),
   );
+  const position = (tooth: string) => {
+    const q = Number(tooth[0]) > 4 ? Number(tooth[0]) - 4 : Number(tooth[0]);
+    return {
+      arch: q <= 2 ? "upper" : "lower",
+      index: q === 1 || q === 3 ? -Number(tooth[1]) : Number(tooth[1]) - 1,
+    };
+  };
   const nonAdjacent = [...affected].some((a) =>
-    [...affected].some((b) => a[0] !== b[0] || Math.abs(Number(a[1]) - Number(b[1])) > 1),
+    [...affected].some((b) => {
+      const first = position(a),
+        second = position(b);
+      return first.arch !== second.arch || Math.abs(first.index - second.index) > 1;
+    }),
   );
   const value: "periodontitis" | "gingivitis" | "healthy" =
     affected.size >= 2 && nonAdjacent
