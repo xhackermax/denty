@@ -1,0 +1,29 @@
+.handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.handle:focus-visible {
+  outline: 2px solid var(--mantine-color-teal-6);
+  outline-offset: 2px;
+}
+
+.handle:active {
+  cursor: grabbing;
+}
+
+.handle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

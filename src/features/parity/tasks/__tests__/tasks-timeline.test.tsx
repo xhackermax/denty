@@ -5,9 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { makeApi, mk, renderTimeline, titlesInOrder } from "./agenda-fixture";
 
+afterEach(cleanup);
 describe("TasksTimeline", () => {
-  afterEach(cleanup);
-
   it("muestra estado vacío", async () => {
     renderTimeline(makeApi([]));
     expect(await screen.findByText(/Nada programado este día/)).toBeTruthy();
@@ -259,4 +258,97 @@ it("blocks manual reorder while replanning and waiting for refresh", async () =>
   release();
   await waitFor(() => expect(screen.getByRole("button", { name: "Bajar: A" })).not.toBeDisabled());
   cleanup();
+});
+it("offers an accessible drag handle in inbox and agenda", async () => {
+  const api = makeApi([
+    mk({ id: "a", position: 0, scheduledOn: null }),
+    mk({ id: "b", position: 1, scheduledOn: "2026-09-30" }),
+  ]);
+  renderTimeline(api);
+  expect(await screen.findByRole("button", { name: "Reordenar tarea B" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("radio", { name: /Bandeja/ }));
+  expect(await screen.findByRole("button", { name: "Reordenar tarea A" })).toBeInTheDocument();
+});
+it("reorders inbox with the keyboard sensor", async () => {
+  const rect = vi
+    .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+    .mockImplementation(function (this: HTMLElement) {
+      const row = this.closest('[data-testid="inbox-item"],[data-testid="task-node"]');
+      const rows = Array.from(
+        document.querySelectorAll('[data-testid="inbox-item"],[data-testid="task-node"]'),
+      );
+      const top = Math.max(0, rows.indexOf(row!)) * 80;
+      return {
+        x: 0,
+        y: top,
+        top,
+        left: 0,
+        right: 400,
+        bottom: top + 70,
+        width: 400,
+        height: 70,
+        toJSON: () => ({}),
+      };
+    });
+  try {
+    const api = makeApi([
+      mk({ id: "a", position: 0, scheduledOn: null }),
+      mk({ id: "b", position: 1, scheduledOn: null }),
+    ]);
+    renderTimeline(api);
+    fireEvent.click(screen.getByRole("radio", { name: /Bandeja/ }));
+    const handle = await screen.findByRole("button", { name: "Reordenar tarea A" });
+    handle.focus();
+    fireEvent.keyDown(handle, { key: " ", code: "Space" });
+    await waitFor(() => expect(handle).toHaveAttribute("aria-pressed", "true"));
+    fireEvent.keyDown(document, { key: "ArrowDown", code: "ArrowDown" });
+    fireEvent.keyDown(document, { key: " ", code: "Space" });
+    await waitFor(() => expect(api.reorder).toHaveBeenCalledWith(["b", "a"]));
+  } finally {
+    rect.mockRestore();
+  }
+});
+it("reorders inbox through the touch pointer sensor", async () => {
+  class TouchPointer extends MouseEvent {
+    pointerId = 1;
+    isPrimary = true;
+    pointerType = "touch";
+  }
+  vi.stubGlobal("PointerEvent", TouchPointer);
+  const rect = vi
+    .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+    .mockImplementation(function (this: HTMLElement) {
+      const row = this.closest('[data-testid="inbox-item"]');
+      const rows = Array.from(document.querySelectorAll('[data-testid="inbox-item"]'));
+      const top = Math.max(0, rows.indexOf(row!)) * 80;
+      return {
+        x: 0,
+        y: top,
+        top,
+        left: 0,
+        right: 400,
+        bottom: top + 70,
+        width: 400,
+        height: 70,
+        toJSON: () => ({}),
+      };
+    });
+  try {
+    const api = makeApi([
+      mk({ id: "a", position: 0, scheduledOn: null }),
+      mk({ id: "b", position: 1, scheduledOn: null }),
+    ]);
+    renderTimeline(api);
+    fireEvent.click(screen.getByRole("radio", { name: /Bandeja/ }));
+    const handle = await screen.findByRole("button", { name: "Reordenar tarea A" });
+    fireEvent.pointerDown(handle, { clientX: 10, clientY: 20, button: 0 });
+    fireEvent.pointerMove(document, { clientX: 10, clientY: 30 });
+    await waitFor(() => expect(handle).toHaveAttribute("aria-pressed", "true"));
+    fireEvent.pointerMove(document, { clientX: 10, clientY: 110 });
+    fireEvent.pointerUp(document, { clientX: 10, clientY: 110 });
+    await waitFor(() => expect(api.reorder).toHaveBeenCalledWith(["b", "a"]));
+  } finally {
+    rect.mockRestore();
+    vi.unstubAllGlobals();
+  }
 });

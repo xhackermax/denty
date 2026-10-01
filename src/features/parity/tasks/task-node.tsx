@@ -1,4 +1,7 @@
 "use client";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { DragHandle } from "@/shared/drag/drag-handle";
 
 import { ActionIcon } from "@mantine/core";
 import {
@@ -50,6 +53,11 @@ export function TaskNode({
 }: TaskNodeProps) {
   const { task } = entry;
   const [choosing, setChoosing] = useState(false);
+  const sortable = useSortable({ id: task.id, disabled: Boolean(handlers.ordering) });
+  const dragStyle = {
+    transform: CSS.Transform.toString(sortable.transform),
+    transition: sortable.transition,
+  };
   const tomorrow = shiftDay(today, 1);
   const done = task.status === "DONE";
   const conflict = entry.conflictsWith.length > 0;
@@ -83,6 +91,8 @@ export function TaskNode({
 
   return (
     <li
+      ref={sortable.setNodeRef}
+      style={dragStyle}
       className={classes.filter(Boolean).join(" ")}
       data-testid="task-node"
       draggable
@@ -91,6 +101,13 @@ export function TaskNode({
       onDrop={onDrop}
       onDragEnd={handlers.onDragEnd}
     >
+      <DragHandle
+        label={`Reordenar tarea ${task.title}`}
+        disabled={Boolean(handlers.ordering)}
+        attributes={sortable.attributes}
+        listeners={sortable.listeners}
+        setActivatorNodeRef={sortable.setActivatorNodeRef}
+      />
       <span className={styles.time}>
         {formatClock(entry.startMin)}
         <span className={styles.timeEnd}>{formatClock(entry.endMin)}</span>

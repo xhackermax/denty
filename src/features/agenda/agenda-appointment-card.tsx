@@ -1,4 +1,7 @@
 "use client";
+import { useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { DragHandle } from "@/shared/drag/drag-handle";
 
 import { Tooltip } from "@mantine/core";
 import { IconGripVertical } from "@tabler/icons-react";
@@ -37,6 +40,12 @@ export function AgendaAppointmentCard({
   onDragStart,
   onResizeStart,
 }: AgendaAppointmentCardProps) {
+  const draggable = useDraggable({ id: appointment.id });
+  const dragStyle = {
+    ...style,
+    transform: CSS.Translate.toString(draggable.transform),
+    zIndex: draggable.isDragging ? 30 : style.zIndex,
+  };
   const size = appointmentCardSize(heightPx);
   const status = AGENDA_STATUS_META[appointment.status];
   const glyphs = appointment.glyphs;
@@ -56,6 +65,7 @@ export function AgendaAppointmentCard({
   return (
     <Tooltip label={tooltip} multiline maw={260} openDelay={450} withinPortal>
       <article
+        ref={draggable.setNodeRef}
         className={styles.card}
         data-status={appointment.status}
         data-size={size}
@@ -63,11 +73,14 @@ export function AgendaAppointmentCard({
         data-dimmed={dimmed}
         data-urgent={urgent}
         draggable
-        style={style}
+        style={dragStyle}
         tabIndex={0}
         aria-label={tooltip}
-        onClick={onOpen}
+        onClick={() => {
+          if (!draggable.isDragging) onOpen();
+        }}
         onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return;
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             onOpen();
@@ -76,6 +89,12 @@ export function AgendaAppointmentCard({
         onDragStart={onDragStart}
       >
         <div className={styles.cardRow}>
+          <DragHandle
+            label={`Mover cita de ${appointment.patientName}`}
+            attributes={draggable.attributes}
+            listeners={draggable.listeners}
+            setActivatorNodeRef={draggable.setActivatorNodeRef}
+          />
           <span className={styles.cardTime}>{hhmm(appointment.startsAt)}</span>
           <span className={styles.cardName}>
             {size === "small" ? shortPatientName(appointment.patientName) : appointment.patientName}

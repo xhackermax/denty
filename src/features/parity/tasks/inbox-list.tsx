@@ -1,4 +1,7 @@
 "use client";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { DragHandle } from "@/shared/drag/drag-handle";
 
 import { ActionIcon, Button } from "@mantine/core";
 import {
@@ -44,6 +47,11 @@ interface InboxItemProps extends InboxHandlers {
 
 function InboxItem({ task, today, selectedDay, isFirst, isLast, ...handlers }: InboxItemProps) {
   const [choosing, setChoosing] = useState(false);
+  const sortable = useSortable({ id: task.id, disabled: Boolean(handlers.ordering) });
+  const dragStyle = {
+    transform: CSS.Transform.toString(sortable.transform),
+    transition: sortable.transition,
+  };
   const done = task.status === "DONE";
   const meta = PRIORITY_META[task.priority];
   const PriorityIcon = meta.icon;
@@ -56,6 +64,8 @@ function InboxItem({ task, today, selectedDay, isFirst, isLast, ...handlers }: I
 
   return (
     <li
+      ref={sortable.setNodeRef}
+      style={dragStyle}
       className={`${styles.inboxItem} ${done ? styles.doneCard : ""}`}
       data-testid="inbox-item"
       draggable={!handlers.ordering}
@@ -67,6 +77,13 @@ function InboxItem({ task, today, selectedDay, isFirst, isLast, ...handlers }: I
       onDragStart={onDragStart}
       onDragEnd={handlers.onDragEnd}
     >
+      <DragHandle
+        label={`Reordenar tarea ${task.title}`}
+        disabled={Boolean(handlers.ordering)}
+        attributes={sortable.attributes}
+        listeners={sortable.listeners}
+        setActivatorNodeRef={sortable.setActivatorNodeRef}
+      />
       <span className={styles.node} data-priority={task.priority} title={`Prioridad ${meta.label}`}>
         <PriorityIcon size={18} aria-hidden="true" />
       </span>

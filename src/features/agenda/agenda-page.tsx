@@ -1,4 +1,7 @@
 "use client";
+import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
+import { dropMinute } from "@/shared/drag/drop-minute";
+import { AgendaDropColumn } from "./agenda-drop-column";
 
 import { agendaTreatmentOptions } from "@/domain";
 import {
@@ -1377,7 +1380,8 @@ export function AgendaPage() {
               ).map((item) => [item.id, item]),
             );
             return (
-              <div
+              <AgendaDropColumn
+                id={member.id}
                 key={member.id}
                 className={styles.column}
                 style={heightStyle(dayHeight)}
@@ -1490,7 +1494,7 @@ export function AgendaPage() {
                     />
                   );
                 })}
-              </div>
+              </AgendaDropColumn>
             );
           })}
         </div>
@@ -1540,414 +1544,441 @@ export function AgendaPage() {
   });
 
   return (
-    <div className={parityStyles.grid}>
-      <PageHeader
-        eyebrow="Agenda"
-        title="Agenda"
-        description="Arrastra para mover. ··· para más."
-      />
+    <ClinicalDragContext
+      onDragEnd={(event) => {
+        if (
+          transitionPending ||
+          moveMutation.isPending ||
+          pending ||
+          opened ||
+          blockOpened ||
+          !event.over
+        )
+          return;
+        const column = columns.find((c) => c.id === String(event.over!.id));
+        const appointment = appointments.find((a) => a.id === String(event.active.id));
+        const initial = event.active.rect.current.initial;
+        if (!column || !appointment || !initial) return;
+        const minute = dropMinute({
+          initialTop: initial.top,
+          deltaY: event.delta.y,
+          columnTop: event.over.rect.top,
+          pixelsPerMinute: pxPerMinute,
+          dayMinutes: DAY_MINUTES,
+          duration: durationMinutes(appointment),
+        });
+        void moveByDrop(appointment.id, column, minute);
+      }}
+    >
+      <div className={parityStyles.grid}>
+        <PageHeader
+          eyebrow="Agenda"
+          title="Agenda"
+          description="Arrastra para mover. ··· para más."
+        />
 
-      {renderToolbar()}
+        {renderToolbar()}
 
-      {hasBackendError ? (
-        <Alert color="red" title="Error al cargar agenda">
-          Revisa la conexión con Denty.
-        </Alert>
-      ) : null}
-      {agendaNotice ? (
-        <Alert color="blue" withCloseButton onClose={() => setAgendaNotice(null)}>
-          {agendaNotice}
-        </Alert>
-      ) : null}
+        {hasBackendError ? (
+          <Alert color="red" title="Error al cargar agenda">
+            Revisa la conexión con Denty.
+          </Alert>
+        ) : null}
+        {agendaNotice ? (
+          <Alert color="blue" withCloseButton onClose={() => setAgendaNotice(null)}>
+            {agendaNotice}
+          </Alert>
+        ) : null}
 
-      {implantSurgeryReminders.map((reminder) => (
-        <Alert key={reminder.appointmentId} color="orange" title={reminder.title}>
-          <Group justify="space-between" align="center">
-            <Text size="sm">
-              {reminder.patientName} · {reminder.message}
-            </Text>
-            <Button component={Link} href={reminder.href} size="xs" variant="light">
-              Rellenar datos del implante
-            </Button>
-          </Group>
-        </Alert>
-      ))}
+        {implantSurgeryReminders.map((reminder) => (
+          <Alert key={reminder.appointmentId} color="orange" title={reminder.title}>
+            <Group justify="space-between" align="center">
+              <Text size="sm">
+                {reminder.patientName} · {reminder.message}
+              </Text>
+              <Button component={Link} href={reminder.href} size="xs" variant="light">
+                Rellenar datos del implante
+              </Button>
+            </Group>
+          </Alert>
+        ))}
 
-      {view === "grid" ? renderGrid() : null}
+        {view === "grid" ? renderGrid() : null}
 
-      {view === "pipeline" ? (
-        <SimpleGrid cols={{ base: 1, xl: 4 }}>
-          {PIPELINE.map((stage) => {
-            const statuses = stage.statuses as readonly string[];
-            const items = visibleAppointments.filter((appointment) =>
-              statuses.includes(appointment.status),
-            );
-            return (
-              <section className={parityStyles.section} key={stage.key}>
-                <div className={parityStyles.sectionHeader}>
-                  <h2 className={parityStyles.sectionTitle}>{stage.title}</h2>
-                  <Badge>{items.length}</Badge>
-                </div>
-                <div className={parityStyles.rowList}>
-                  {items.map((appointment) => renderRow(appointment, true))}
-                </div>
-              </section>
-            );
-          })}
-        </SimpleGrid>
-      ) : null}
+        {view === "pipeline" ? (
+          <SimpleGrid cols={{ base: 1, xl: 4 }}>
+            {PIPELINE.map((stage) => {
+              const statuses = stage.statuses as readonly string[];
+              const items = visibleAppointments.filter((appointment) =>
+                statuses.includes(appointment.status),
+              );
+              return (
+                <section className={parityStyles.section} key={stage.key}>
+                  <div className={parityStyles.sectionHeader}>
+                    <h2 className={parityStyles.sectionTitle}>{stage.title}</h2>
+                    <Badge>{items.length}</Badge>
+                  </div>
+                  <div className={parityStyles.rowList}>
+                    {items.map((appointment) => renderRow(appointment, true))}
+                  </div>
+                </section>
+              );
+            })}
+          </SimpleGrid>
+        ) : null}
 
-      {view === "list" ? (
-        <section className={parityStyles.section}>
-          <div className={parityStyles.rowList}>
-            {[...visibleAppointments]
-              .filter(matchesSearch)
-              .sort((left, right) => left.startsAt.localeCompare(right.startsAt))
-              .map((appointment) => renderRow(appointment, false))}
-          </div>
-        </section>
-      ) : null}
+        {view === "list" ? (
+          <section className={parityStyles.section}>
+            <div className={parityStyles.rowList}>
+              {[...visibleAppointments]
+                .filter(matchesSearch)
+                .sort((left, right) => left.startsAt.localeCompare(right.startsAt))
+                .map((appointment) => renderRow(appointment, false))}
+            </div>
+          </section>
+        ) : null}
 
-      {isMobile ? (
-        <ActionIcon
-          size={52}
-          radius="xl"
-          className={styles.fab}
-          aria-label="Nueva cita"
-          onClick={() =>
-            openCreate({
-              date: anchor,
-              minute: nextQuarterMinute(),
-              staffId: columns[0]?.staffId ?? null,
-              cabinetId: columns[0]?.cabinetId ?? null,
-            })
+        {isMobile ? (
+          <ActionIcon
+            size={52}
+            radius="xl"
+            className={styles.fab}
+            aria-label="Nueva cita"
+            onClick={() =>
+              openCreate({
+                date: anchor,
+                minute: nextQuarterMinute(),
+                staffId: columns[0]?.staffId ?? null,
+                cabinetId: columns[0]?.cabinetId ?? null,
+              })
+            }
+          >
+            <IconPlus size={24} />
+          </ActionIcon>
+        ) : null}
+
+        <AgendaQuickView
+          appointment={quickView}
+          patient={quickView ? patientsById.get(quickView.patientId) : undefined}
+          staffName={quickView ? staffNames.get(quickView.staffId) : undefined}
+          cabinetName={quickView?.cabinetId ? cabinetNames.get(quickView.cabinetId) : undefined}
+          staffOptions={staff.map((member) => ({ value: member.id, label: member.displayName }))}
+          busy={transitionPending || moveMutation.isPending}
+          onClose={() => setQuickViewId(null)}
+          onAdvance={(appointment) => void advance(appointment)}
+          onNoShow={(appointment) =>
+            void transitions.noShow
+              .mutateAsync({ id: appointment.id, expectedVersion: appointment.version })
+              .catch((error: unknown) => setAgendaNotice(errorMessage(error)))
           }
+          onReschedule={(appointment) => void duplicate(appointment, 30)}
+          onCancel={(appointment, cancelReason) =>
+            void transitions.cancel
+              .mutateAsync({
+                id: appointment.id,
+                expectedVersion: appointment.version,
+                reason: cancelReason,
+              })
+              .then(() => {
+                setQuickViewId(null);
+                setAgendaNotice(`Cita de ${appointment.patientName} cancelada.`);
+              })
+              .catch((error: unknown) => setAgendaNotice(errorMessage(error)))
+          }
+          onEdit={(appointment, edit: QuickViewEdit) => {
+            const appointmentDate = dateYMDMadrid(appointment.startsAt);
+            const startsAt = madridLocalDateTime(appointmentDate, edit.time);
+            void commitMove(
+              appointment,
+              {
+                expectedVersion: appointment.version,
+                startsAt: toMadridISO(startsAt),
+                endsAt: toMadridISO(addMinutes(startsAt, edit.durationMinutes)),
+                ...(edit.staffId !== appointment.staffId ? { staffId: edit.staffId } : {}),
+              },
+              appointmentDate,
+            );
+          }}
+        />
+
+        <Modal
+          opened={pending !== null}
+          onClose={() => {
+            setPending(null);
+            setSlotSearch(null);
+          }}
+          title="Ese hueco no está libre"
         >
-          <IconPlus size={24} />
-        </ActionIcon>
-      ) : null}
-
-      <AgendaQuickView
-        appointment={quickView}
-        patient={quickView ? patientsById.get(quickView.patientId) : undefined}
-        staffName={quickView ? staffNames.get(quickView.staffId) : undefined}
-        cabinetName={quickView?.cabinetId ? cabinetNames.get(quickView.cabinetId) : undefined}
-        staffOptions={staff.map((member) => ({ value: member.id, label: member.displayName }))}
-        busy={transitionPending || moveMutation.isPending}
-        onClose={() => setQuickViewId(null)}
-        onAdvance={(appointment) => void advance(appointment)}
-        onNoShow={(appointment) =>
-          void transitions.noShow
-            .mutateAsync({ id: appointment.id, expectedVersion: appointment.version })
-            .catch((error: unknown) => setAgendaNotice(errorMessage(error)))
-        }
-        onReschedule={(appointment) => void duplicate(appointment, 30)}
-        onCancel={(appointment, cancelReason) =>
-          void transitions.cancel
-            .mutateAsync({
-              id: appointment.id,
-              expectedVersion: appointment.version,
-              reason: cancelReason,
-            })
-            .then(() => {
-              setQuickViewId(null);
-              setAgendaNotice(`Cita de ${appointment.patientName} cancelada.`);
-            })
-            .catch((error: unknown) => setAgendaNotice(errorMessage(error)))
-        }
-        onEdit={(appointment, edit: QuickViewEdit) => {
-          const appointmentDate = dateYMDMadrid(appointment.startsAt);
-          const startsAt = madridLocalDateTime(appointmentDate, edit.time);
-          void commitMove(
-            appointment,
-            {
-              expectedVersion: appointment.version,
-              startsAt: toMadridISO(startsAt),
-              endsAt: toMadridISO(addMinutes(startsAt, edit.durationMinutes)),
-              ...(edit.staffId !== appointment.staffId ? { staffId: edit.staffId } : {}),
-            },
-            appointmentDate,
-          );
-        }}
-      />
-
-      <Modal
-        opened={pending !== null}
-        onClose={() => {
-          setPending(null);
-          setSlotSearch(null);
-        }}
-        title="Ese hueco no está libre"
-      >
-        {pending ? (
-          <Stack gap="sm">
-            <Text size="sm">Coincide con:</Text>
-            <Stack gap={2}>
-              {pending.conflicts.map((conflict) => (
-                <Text size="sm" fw={600} key={conflict}>
-                  {describeConflict(conflict)}
-                </Text>
-              ))}
+          {pending ? (
+            <Stack gap="sm">
+              <Text size="sm">Coincide con:</Text>
+              <Stack gap={2}>
+                {pending.conflicts.map((conflict) => (
+                  <Text size="sm" fw={600} key={conflict}>
+                    {describeConflict(conflict)}
+                  </Text>
+                ))}
+              </Stack>
+              <Text size="xs" c="dimmed">
+                Denty no permite dobles reservas del mismo profesional o gabinete.
+              </Text>
+              {slotSearch ? (
+                availabilityQuery.isLoading ? (
+                  <Text size="sm">Buscando huecos…</Text>
+                ) : (availabilityQuery.data?.slots ?? []).length ? (
+                  <div className={styles.slotChoices}>
+                    {(availabilityQuery.data?.slots ?? []).slice(0, 12).map((slot) => (
+                      <Button
+                        key={slot.startsAt}
+                        size="xs"
+                        variant="light"
+                        onClick={() => void applySlot(slot.startsAt)}
+                      >
+                        {hhmm(slot.startsAt)}
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <Text size="sm">No hay huecos libres ese día para esa duración.</Text>
+                )
+              ) : null}
+              <Group justify="flex-end">
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    setPending(null);
+                    setSlotSearch(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() =>
+                    setSlotSearch({
+                      date: pending.date,
+                      staffId: pending.staffId,
+                      durationMin: pending.durationMinutes,
+                    })
+                  }
+                >
+                  Buscar otro hueco
+                </Button>
+              </Group>
             </Stack>
-            <Text size="xs" c="dimmed">
-              Denty no permite dobles reservas del mismo profesional o gabinete.
-            </Text>
-            {slotSearch ? (
-              availabilityQuery.isLoading ? (
-                <Text size="sm">Buscando huecos…</Text>
-              ) : (availabilityQuery.data?.slots ?? []).length ? (
-                <div className={styles.slotChoices}>
-                  {(availabilityQuery.data?.slots ?? []).slice(0, 12).map((slot) => (
-                    <Button
-                      key={slot.startsAt}
-                      size="xs"
-                      variant="light"
-                      onClick={() => void applySlot(slot.startsAt)}
-                    >
-                      {hhmm(slot.startsAt)}
-                    </Button>
-                  ))}
+          ) : null}
+        </Modal>
+
+        <Modal
+          opened={opened}
+          onClose={() => {
+            setOpened(false);
+            setSelectedSlot(null);
+          }}
+          title={`Nueva cita · ${dayLabel(date)} · ${appointmentTime}`}
+        >
+          <Stack>
+            <Select
+              searchable
+              label="Paciente"
+              value={effectivePatientId || null}
+              onChange={(value) => {
+                setPatientId(value ?? "");
+                setPlanItemId(null);
+              }}
+              data={patientOptions.map((patient) => ({ value: patient.id, label: patient.label }))}
+            />
+            {pendingPlanItems.length ? (
+              <div>
+                <Text size="xs" c="dimmed" mb={4}>
+                  Del plan de tratamiento
+                </Text>
+                <div className={styles.planItems}>
+                  {pendingPlanItems.map((item) => {
+                    const glyph = clinicalGlyphFor({
+                      tooth: item.tooth,
+                      treatmentCode: item.treatmentCode,
+                      label: item.label,
+                    });
+                    return (
+                      <UnstyledButton
+                        key={item.id}
+                        className={styles.planItem}
+                        data-selected={planItemId === item.id}
+                        onClick={() => {
+                          const selecting = planItemId !== item.id;
+                          setPlanItemId(selecting ? item.id : null);
+                          if (!selecting) return;
+                          setReason(item.label);
+                          const duration = catalog.find(
+                            (entry) =>
+                              entry.id === item.treatmentCatalogId ||
+                              entry.code === item.treatmentCode,
+                          )?.defaultDurationMin;
+                          if (duration) setAppointmentDuration(duration);
+                        }}
+                      >
+                        {glyph ? <ClinicalGlyph glyph={glyph} mode="micro" /> : null}
+                        {item.label}
+                      </UnstyledButton>
+                    );
+                  })}
                 </div>
-              ) : (
-                <Text size="sm">No hay huecos libres ese día para esa duración.</Text>
-              )
+              </div>
             ) : null}
-            <Group justify="flex-end">
+            <Autocomplete
+              label="Motivo o tratamiento"
+              value={reason}
+              onChange={(value) => {
+                setReason(value);
+                setPlanItemId(null);
+                const entry = catalog.find((item) => item.name === value);
+                if (entry?.defaultDurationMin) setAppointmentDuration(entry.defaultDurationMin);
+              }}
+              data={agendaTreatmentOptions(catalog)}
+              rightSection={createGlyph ? <ClinicalGlyph glyph={createGlyph} mode="micro" /> : null}
+            />
+            <Group gap="xs">
+              <Badge variant="light">{appointmentTime}</Badge>
+              <Badge variant="light">{appointmentDuration} min</Badge>
+              <Badge variant="light">{staffNames.get(effectiveStaffId) ?? "Profesional"}</Badge>
+              {cabinetId ? <Badge variant="light">{cabinetNames.get(cabinetId)}</Badge> : null}
               <Button
-                variant="default"
-                onClick={() => {
-                  setPending(null);
-                  setSlotSearch(null);
-                }}
+                size="compact-xs"
+                variant="subtle"
+                onClick={() => setAdvancedOpen((open) => !open)}
               >
+                {advancedOpen ? "Menos opciones" : "Más opciones"}
+              </Button>
+            </Group>
+            <Collapse expanded={advancedOpen}>
+              <Stack>
+                <TextInput label="Fecha" type="date" value={date} readOnly />
+                <Group grow>
+                  <TextInput
+                    label="Hora"
+                    type="time"
+                    value={appointmentTime}
+                    onChange={(event) => setAppointmentTime(event.currentTarget.value)}
+                  />
+                  <Select
+                    label="Duración"
+                    value={String(appointmentDuration)}
+                    onChange={(value) => setAppointmentDuration(Number(value) || 30)}
+                    data={[...new Set([...DURATION_STEPS, appointmentDuration])]
+                      .sort((a, b) => a - b)
+                      .map((minutes) => ({ value: String(minutes), label: `${minutes} min` }))}
+                  />
+                </Group>
+                <Select
+                  label="Profesional"
+                  value={effectiveStaffId || null}
+                  onChange={(value) => setStaffId(value ?? "")}
+                  data={staff.map((member) => ({ value: member.id, label: member.displayName }))}
+                />
+                <Group grow>
+                  <Select
+                    label="Gabinete"
+                    clearable
+                    value={cabinetId}
+                    onChange={setCabinetId}
+                    data={cabinets.map((cabinet) => ({ value: cabinet.id, label: cabinet.name }))}
+                  />
+                  <Select
+                    label="Sede"
+                    value={effectiveSiteId || null}
+                    onChange={(value) => setActiveSiteId(value ?? null)}
+                    data={sites.map((site) => ({ value: site.id, label: site.name }))}
+                  />
+                </Group>
+                <Group grow align="flex-start">
+                  <NumberInput
+                    label="Visitas"
+                    min={1}
+                    max={12}
+                    value={visitCount}
+                    onChange={(value: string | number) =>
+                      setVisitCount(Math.max(1, Number(value) || 1))
+                    }
+                  />
+                  <div>
+                    <Text size="sm" fw={600}>
+                      Intervalo
+                    </Text>
+                    <Text size="sm">{planVisitGapDays} días</Text>
+                    <Text size="xs" c="dimmed">
+                      Se ajusta en Ajustes → Agenda.
+                    </Text>
+                  </div>
+                </Group>
+              </Stack>
+            </Collapse>
+            <Group justify="flex-end">
+              <Button variant="default" onClick={() => setOpened(false)}>
                 Cancelar
               </Button>
-              <Button
-                onClick={() =>
-                  setSlotSearch({
-                    date: pending.date,
-                    staffId: pending.staffId,
-                    durationMin: pending.durationMinutes,
-                  })
-                }
-              >
-                Buscar otro hueco
+              <Button loading={createMutation.isPending} onClick={() => void create()}>
+                Guardar cita
               </Button>
             </Group>
           </Stack>
-        ) : null}
-      </Modal>
+        </Modal>
 
-      <Modal
-        opened={opened}
-        onClose={() => {
-          setOpened(false);
-          setSelectedSlot(null);
-        }}
-        title={`Nueva cita · ${dayLabel(date)} · ${appointmentTime}`}
-      >
-        <Stack>
-          <Select
-            searchable
-            label="Paciente"
-            value={effectivePatientId || null}
-            onChange={(value) => {
-              setPatientId(value ?? "");
-              setPlanItemId(null);
-            }}
-            data={patientOptions.map((patient) => ({ value: patient.id, label: patient.label }))}
-          />
-          {pendingPlanItems.length ? (
-            <div>
-              <Text size="xs" c="dimmed" mb={4}>
-                Del plan de tratamiento
-              </Text>
-              <div className={styles.planItems}>
-                {pendingPlanItems.map((item) => {
-                  const glyph = clinicalGlyphFor({
-                    tooth: item.tooth,
-                    treatmentCode: item.treatmentCode,
-                    label: item.label,
-                  });
-                  return (
-                    <UnstyledButton
-                      key={item.id}
-                      className={styles.planItem}
-                      data-selected={planItemId === item.id}
-                      onClick={() => {
-                        const selecting = planItemId !== item.id;
-                        setPlanItemId(selecting ? item.id : null);
-                        if (!selecting) return;
-                        setReason(item.label);
-                        const duration = catalog.find(
-                          (entry) =>
-                            entry.id === item.treatmentCatalogId ||
-                            entry.code === item.treatmentCode,
-                        )?.defaultDurationMin;
-                        if (duration) setAppointmentDuration(duration);
-                      }}
-                    >
-                      {glyph ? <ClinicalGlyph glyph={glyph} mode="micro" /> : null}
-                      {item.label}
-                    </UnstyledButton>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
-          <Autocomplete
-            label="Motivo o tratamiento"
-            value={reason}
-            onChange={(value) => {
-              setReason(value);
-              setPlanItemId(null);
-              const entry = catalog.find((item) => item.name === value);
-              if (entry?.defaultDurationMin) setAppointmentDuration(entry.defaultDurationMin);
-            }}
-            data={agendaTreatmentOptions(catalog)}
-            rightSection={createGlyph ? <ClinicalGlyph glyph={createGlyph} mode="micro" /> : null}
-          />
-          <Group gap="xs">
-            <Badge variant="light">{appointmentTime}</Badge>
-            <Badge variant="light">{appointmentDuration} min</Badge>
-            <Badge variant="light">{staffNames.get(effectiveStaffId) ?? "Profesional"}</Badge>
-            {cabinetId ? <Badge variant="light">{cabinetNames.get(cabinetId)}</Badge> : null}
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              onClick={() => setAdvancedOpen((open) => !open)}
-            >
-              {advancedOpen ? "Menos opciones" : "Más opciones"}
-            </Button>
-          </Group>
-          <Collapse expanded={advancedOpen}>
-            <Stack>
-              <TextInput label="Fecha" type="date" value={date} readOnly />
-              <Group grow>
-                <TextInput
-                  label="Hora"
-                  type="time"
-                  value={appointmentTime}
-                  onChange={(event) => setAppointmentTime(event.currentTarget.value)}
-                />
-                <Select
-                  label="Duración"
-                  value={String(appointmentDuration)}
-                  onChange={(value) => setAppointmentDuration(Number(value) || 30)}
-                  data={[...new Set([...DURATION_STEPS, appointmentDuration])]
-                    .sort((a, b) => a - b)
-                    .map((minutes) => ({ value: String(minutes), label: `${minutes} min` }))}
-                />
-              </Group>
+        <Modal opened={blockOpened} onClose={() => setBlockOpened(false)} title="Bloquear agenda">
+          <Stack>
+            <Select
+              label="Tipo"
+              value={blockKind}
+              onChange={(value) => setBlockKind(value ?? "MEETING")}
+              data={BLOCK_KINDS}
+            />
+            <Group grow>
+              <TextInput
+                label="Desde"
+                type="time"
+                value={blockFrom}
+                onChange={(event) => setBlockFrom(event.currentTarget.value)}
+              />
+              <TextInput
+                label="Hasta"
+                type="time"
+                value={blockTo}
+                onChange={(event) => setBlockTo(event.currentTarget.value)}
+              />
+            </Group>
+            {resourceMode === "staff" ? (
               <Select
                 label="Profesional"
                 value={effectiveStaffId || null}
                 onChange={(value) => setStaffId(value ?? "")}
                 data={staff.map((member) => ({ value: member.id, label: member.displayName }))}
               />
-              <Group grow>
-                <Select
-                  label="Gabinete"
-                  clearable
-                  value={cabinetId}
-                  onChange={setCabinetId}
-                  data={cabinets.map((cabinet) => ({ value: cabinet.id, label: cabinet.name }))}
-                />
-                <Select
-                  label="Sede"
-                  value={effectiveSiteId || null}
-                  onChange={(value) => setActiveSiteId(value ?? null)}
-                  data={sites.map((site) => ({ value: site.id, label: site.name }))}
-                />
-              </Group>
-              <Group grow align="flex-start">
-                <NumberInput
-                  label="Visitas"
-                  min={1}
-                  max={12}
-                  value={visitCount}
-                  onChange={(value: string | number) =>
-                    setVisitCount(Math.max(1, Number(value) || 1))
-                  }
-                />
-                <div>
-                  <Text size="sm" fw={600}>
-                    Intervalo
-                  </Text>
-                  <Text size="sm">{planVisitGapDays} días</Text>
-                  <Text size="xs" c="dimmed">
-                    Se ajusta en Ajustes → Agenda.
-                  </Text>
-                </div>
-              </Group>
-            </Stack>
-          </Collapse>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setOpened(false)}>
-              Cancelar
-            </Button>
-            <Button loading={createMutation.isPending} onClick={() => void create()}>
-              Guardar cita
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-
-      <Modal opened={blockOpened} onClose={() => setBlockOpened(false)} title="Bloquear agenda">
-        <Stack>
-          <Select
-            label="Tipo"
-            value={blockKind}
-            onChange={(value) => setBlockKind(value ?? "MEETING")}
-            data={BLOCK_KINDS}
-          />
-          <Group grow>
+            ) : (
+              <Select
+                label="Gabinete"
+                value={cabinetId}
+                onChange={setCabinetId}
+                data={cabinets.map((cabinet) => ({ value: cabinet.id, label: cabinet.name }))}
+              />
+            )}
             <TextInput
-              label="Desde"
-              type="time"
-              value={blockFrom}
-              onChange={(event) => setBlockFrom(event.currentTarget.value)}
+              label="Nota"
+              value={blockReason}
+              onChange={(event) => setBlockReason(event.currentTarget.value)}
             />
-            <TextInput
-              label="Hasta"
-              type="time"
-              value={blockTo}
-              onChange={(event) => setBlockTo(event.currentTarget.value)}
-            />
-          </Group>
-          {resourceMode === "staff" ? (
-            <Select
-              label="Profesional"
-              value={effectiveStaffId || null}
-              onChange={(value) => setStaffId(value ?? "")}
-              data={staff.map((member) => ({ value: member.id, label: member.displayName }))}
-            />
-          ) : (
-            <Select
-              label="Gabinete"
-              value={cabinetId}
-              onChange={setCabinetId}
-              data={cabinets.map((cabinet) => ({ value: cabinet.id, label: cabinet.name }))}
-            />
-          )}
-          <TextInput
-            label="Nota"
-            value={blockReason}
-            onChange={(event) => setBlockReason(event.currentTarget.value)}
-          />
-          <Text size="xs" c="dimmed">
-            {dayLabel(date)}
-          </Text>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setBlockOpened(false)}>
-              Cancelar
-            </Button>
-            <Button loading={blockMutation.isPending} onClick={() => void createBlock()}>
-              Crear bloqueo
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </div>
+            <Text size="xs" c="dimmed">
+              {dayLabel(date)}
+            </Text>
+            <Group justify="flex-end">
+              <Button variant="default" onClick={() => setBlockOpened(false)}>
+                Cancelar
+              </Button>
+              <Button loading={blockMutation.isPending} onClick={() => void createBlock()}>
+                Crear bloqueo
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
+      </div>
+    </ClinicalDragContext>
   );
 }

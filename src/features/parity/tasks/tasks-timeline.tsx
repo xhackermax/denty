@@ -1,4 +1,10 @@
 "use client";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
 
 import { Button, SegmentedControl } from "@mantine/core";
 import { IconArchive, IconCalendarRepeat, IconPlus, IconSortDescending } from "@tabler/icons-react";
@@ -297,194 +303,218 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
       };
 
   return (
-    <div className={styles.root}>
-      <ActionErrorAlert
-        errors={[
-          query.error,
-          actions.create.error,
-          actions.patch.error,
-          actions.patchMany.error,
-          actions.reorder.error,
-          actions.replan.error,
-        ]}
-      />
-      <div className={styles.header}>
-        <h2 className={styles.title}>Tareas</h2>
-        <SegmentedControl
-          size="xs"
-          value={view}
-          onChange={(value) => setView(value as View)}
-          data={[
-            { value: "agenda", label: "Agenda" },
-            { value: "inbox", label: `Bandeja${inbox.length ? ` (${inbox.length})` : ""}` },
-            { value: "archive", label: `Archivo${archived.length ? ` (${archived.length})` : ""}` },
-          ]}
-        />
-      </div>
-
-      {view === "archive" ? (
-        query.isLoading ? (
-          <p className={styles.state} role="status">
-            Cargando tareas…
-          </p>
-        ) : (
-          <ArchivedList tasks={archived} onRestore={restore} />
-        )
-      ) : (
-        <>
-          <DayStrip
-            selectedDay={selectedDay}
-            today={today}
-            onSelect={setSelectedDay}
-            markers={markers}
-            dragActive={dragId !== null}
-            onDropTask={dropOnDay}
+    <ClinicalDragContext
+      keyboardCoordinates={sortableKeyboardCoordinates}
+      onDragStart={(event) => setDragId(String(event.active.id))}
+      onDragOver={(event) => setOverId(event.over ? String(event.over.id) : null)}
+      onDragCancel={() => {
+        setDragId(null);
+        setOverId(null);
+      }}
+      onDragEnd={(event) => {
+        const id = String(event.active.id),
+          target = event.over ? String(event.over.id) : null;
+        setDragId(null);
+        setOverId(null);
+        if (view !== "archive" && target && visibleIds.includes(id) && visibleIds.includes(target))
+          applyOrder(moveIdToIndex(visibleIds, id, visibleIds.indexOf(target)));
+      }}
+    >
+      <SortableContext items={visibleIds} strategy={verticalListSortingStrategy}>
+        <div className={styles.root}>
+          <ActionErrorAlert
+            errors={[
+              query.error,
+              actions.create.error,
+              actions.patch.error,
+              actions.patchMany.error,
+              actions.reorder.error,
+              actions.replan.error,
+            ]}
           />
-          <div className={styles.toolbar}>
-            <Button
+          <div className={styles.header}>
+            <h2 className={styles.title}>Tareas</h2>
+            <SegmentedControl
               size="xs"
-              variant="light"
-              leftSection={<IconSortDescending size={14} />}
-              disabled={viewTasks.length < 2}
-              onClick={() => applyOrder(sortByPriority(viewTasks).map((t) => t.id))}
-            >
-              Ordenar por prioridad
-            </Button>
-            <Button
-              size="xs"
-              variant="light"
-              color="gray"
-              leftSection={<IconArchive size={14} />}
-              disabled={doneTasks.length === 0}
-              loading={actions.patchMany.isPending}
-              onClick={archiveDone}
-            >
-              Archivar hechas
-            </Button>
+              value={view}
+              onChange={(value) => setView(value as View)}
+              data={[
+                { value: "agenda", label: "Agenda" },
+                { value: "inbox", label: `Bandeja${inbox.length ? ` (${inbox.length})` : ""}` },
+                {
+                  value: "archive",
+                  label: `Archivo${archived.length ? ` (${archived.length})` : ""}`,
+                },
+              ]}
+            />
           </div>
 
-          {query.isLoading ? (
-            <p className={styles.state} role="status">
-              Cargando tareas…
-            </p>
-          ) : view === "inbox" ? (
-            <InboxList
-              tasks={inbox}
-              today={today}
-              selectedDay={selectedDay}
-              onSchedule={moveToDay}
-              onToggleDone={toggleDone}
-              onArchive={archiveOne}
-              onEdit={setEditing}
-              onMove={(taskId, dir) => applyOrder(moveId(visibleIds, taskId, dir))}
-              ordering={actions.reorder.isPending || actions.replan.isPending}
-              onDrop={drop}
-              onDragStart={setDragId}
-              onDragEnd={() => {
-                setDragId(null);
-                setOverId(null);
-              }}
-            />
-          ) : schedule.rows.length === 0 ? (
-            <p className={styles.state}>
-              Nada programado este día. Crea una tarea o trae alguna de la Bandeja.
-            </p>
+          {view === "archive" ? (
+            query.isLoading ? (
+              <p className={styles.state} role="status">
+                Cargando tareas…
+              </p>
+            ) : (
+              <ArchivedList tasks={archived} onRestore={restore} />
+            )
           ) : (
-            <ol className={styles.list} aria-label="Tareas del día">
-              {schedule.rows.map((row) => {
-                if (row.kind === "gap") return <TimelineGap key={row.key} gap={row.gap} />;
-                const id = row.entry.task.id;
-                const index = visibleIds.indexOf(id);
-                return (
-                  <TaskNode
-                    key={row.key}
-                    entry={row.entry}
-                    today={today}
-                    isFirst={index === 0}
-                    isLast={index === visibleIds.length - 1}
-                    ordering={actions.reorder.isPending || actions.replan.isPending}
-                    dragging={dragId === id}
-                    dropTarget={overId === id && dragId !== null && dragId !== id}
-                    onToggleDone={(e) => toggleDone(e.task)}
-                    onArchive={(e) => archiveOne(e.task)}
-                    onEdit={(e) => setEditing(e.task)}
-                    onMove={(taskId, dir) => applyOrder(moveId(visibleIds, taskId, dir))}
-                    onMoveToDay={(e, day) => moveToDay(e.task, day)}
-                    onDragStart={setDragId}
-                    onDragOver={setOverId}
-                    onDrop={drop}
-                    onDragEnd={() => {
-                      setDragId(null);
-                      setOverId(null);
-                    }}
-                  />
-                );
-              })}
-            </ol>
+            <>
+              <DayStrip
+                selectedDay={selectedDay}
+                today={today}
+                onSelect={setSelectedDay}
+                markers={markers}
+                dragActive={dragId !== null}
+                onDropTask={dropOnDay}
+              />
+              <div className={styles.toolbar}>
+                <Button
+                  size="xs"
+                  variant="light"
+                  leftSection={<IconSortDescending size={14} />}
+                  disabled={viewTasks.length < 2}
+                  onClick={() => applyOrder(sortByPriority(viewTasks).map((t) => t.id))}
+                >
+                  Ordenar por prioridad
+                </Button>
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="gray"
+                  leftSection={<IconArchive size={14} />}
+                  disabled={doneTasks.length === 0}
+                  loading={actions.patchMany.isPending}
+                  onClick={archiveDone}
+                >
+                  Archivar hechas
+                </Button>
+              </div>
+
+              {query.isLoading ? (
+                <p className={styles.state} role="status">
+                  Cargando tareas…
+                </p>
+              ) : view === "inbox" ? (
+                <InboxList
+                  tasks={inbox}
+                  today={today}
+                  selectedDay={selectedDay}
+                  onSchedule={moveToDay}
+                  onToggleDone={toggleDone}
+                  onArchive={archiveOne}
+                  onEdit={setEditing}
+                  onMove={(taskId, dir) => applyOrder(moveId(visibleIds, taskId, dir))}
+                  ordering={actions.reorder.isPending || actions.replan.isPending}
+                  onDrop={drop}
+                  onDragStart={setDragId}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setOverId(null);
+                  }}
+                />
+              ) : schedule.rows.length === 0 ? (
+                <p className={styles.state}>
+                  Nada programado este día. Crea una tarea o trae alguna de la Bandeja.
+                </p>
+              ) : (
+                <ol className={styles.list} aria-label="Tareas del día">
+                  {schedule.rows.map((row) => {
+                    if (row.kind === "gap") return <TimelineGap key={row.key} gap={row.gap} />;
+                    const id = row.entry.task.id;
+                    const index = visibleIds.indexOf(id);
+                    return (
+                      <TaskNode
+                        key={row.key}
+                        entry={row.entry}
+                        today={today}
+                        isFirst={index === 0}
+                        isLast={index === visibleIds.length - 1}
+                        ordering={actions.reorder.isPending || actions.replan.isPending}
+                        dragging={dragId === id}
+                        dropTarget={overId === id && dragId !== null && dragId !== id}
+                        onToggleDone={(e) => toggleDone(e.task)}
+                        onArchive={(e) => archiveOne(e.task)}
+                        onEdit={(e) => setEditing(e.task)}
+                        onMove={(taskId, dir) => applyOrder(moveId(visibleIds, taskId, dir))}
+                        onMoveToDay={(e, day) => moveToDay(e.task, day)}
+                        onDragStart={setDragId}
+                        onDragOver={setOverId}
+                        onDrop={drop}
+                        onDragEnd={() => {
+                          setDragId(null);
+                          setOverId(null);
+                        }}
+                      />
+                    );
+                  })}
+                </ol>
+              )}
+
+              <div className={styles.dock}>
+                <AnimatePresence>
+                  {undo ? (
+                    <motion.div key="undo" className={styles.undo} role="status" {...motionProps}>
+                      <span>{undo.label}</span>
+                      <Button
+                        size="compact-sm"
+                        variant="subtle"
+                        onClick={() => {
+                          undo.run();
+                          setUndo(null);
+                        }}
+                      >
+                        Deshacer
+                      </Button>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+                <div className={styles.dockRow}>
+                  <AnimatePresence>
+                    {view === "agenda" && overdueCount > 0 ? (
+                      <motion.div key="replan" className={styles.replan} {...motionProps}>
+                        <Button
+                          fullWidth
+                          radius="xl"
+                          color="orange"
+                          leftSection={<IconCalendarRepeat size={16} />}
+                          loading={actions.replan.isPending}
+                          disabled={actions.reorder.isPending}
+                          onClick={replan}
+                        >
+                          Volver a planificar {overdueCount}{" "}
+                          {overdueCount === 1 ? "tarea" : "tareas"}
+                        </Button>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                  <Button
+                    className={styles.fab}
+                    radius="xl"
+                    size="md"
+                    aria-label="Nueva tarea"
+                    onClick={() => setCreating(true)}
+                  >
+                    <IconPlus size={22} />
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
 
-          <div className={styles.dock}>
-            <AnimatePresence>
-              {undo ? (
-                <motion.div key="undo" className={styles.undo} role="status" {...motionProps}>
-                  <span>{undo.label}</span>
-                  <Button
-                    size="compact-sm"
-                    variant="subtle"
-                    onClick={() => {
-                      undo.run();
-                      setUndo(null);
-                    }}
-                  >
-                    Deshacer
-                  </Button>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-            <div className={styles.dockRow}>
-              <AnimatePresence>
-                {view === "agenda" && overdueCount > 0 ? (
-                  <motion.div key="replan" className={styles.replan} {...motionProps}>
-                    <Button
-                      fullWidth
-                      radius="xl"
-                      color="orange"
-                      leftSection={<IconCalendarRepeat size={16} />}
-                      loading={actions.replan.isPending}
-                      disabled={actions.reorder.isPending}
-                      onClick={replan}
-                    >
-                      Volver a planificar {overdueCount} {overdueCount === 1 ? "tarea" : "tareas"}
-                    </Button>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-              <Button
-                className={styles.fab}
-                radius="xl"
-                size="md"
-                aria-label="Nueva tarea"
-                onClick={() => setCreating(true)}
-              >
-                <IconPlus size={22} />
-              </Button>
-            </div>
-          </div>
-        </>
-      )}
-
-      <TaskEditorModal
-        opened={creating || editing !== null}
-        task={editing}
-        today={today}
-        initialDay={view === "inbox" ? null : selectedDay}
-        pending={actions.create.isPending || actions.patch.isPending}
-        onClose={() => {
-          setCreating(false);
-          setEditing(null);
-        }}
-        onSubmit={submit}
-      />
-    </div>
+          <TaskEditorModal
+            opened={creating || editing !== null}
+            task={editing}
+            today={today}
+            initialDay={view === "inbox" ? null : selectedDay}
+            pending={actions.create.isPending || actions.patch.isPending}
+            onClose={() => {
+              setCreating(false);
+              setEditing(null);
+            }}
+            onSubmit={submit}
+          />
+        </div>
+      </SortableContext>
+    </ClinicalDragContext>
   );
 }

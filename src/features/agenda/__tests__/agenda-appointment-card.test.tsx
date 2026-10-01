@@ -169,3 +169,11 @@ describe("tarjeta de agenda sencilla", () => {
     expect(screen.getByRole("img")).toHaveAccessibleName(/insatisfactorio.*rehacer/i);
   });
 });
+it("drag grip keyboard activation does not open appointment details", () => {
+  const onOpen = showCard();
+  const grip = screen.getByRole("button", { name: "Mover cita de Ana García López" });
+  fireEvent.keyDown(grip, { key: " ", code: "Space" });
+  expect(onOpen).not.toHaveBeenCalled();
+  fireEvent.keyDown(screen.getByRole("article"), { key: "Enter" });
+  expect(onOpen).toHaveBeenCalledTimes(1);
+});
