@@ -244,10 +244,9 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
         <Button
           variant="default"
           leftSection={<IconArrowLeft size={16} />}
-          onClick={goBack}
-          disabled={index === 0}
+          onClick={index === 0 ? onClose : goBack}
         >
-          Atrás
+          {index === 0 ? "Volver al odontograma" : "Atrás"}
         </Button>
         <Group gap="sm">
           {blocker && step !== "appointments" ? (

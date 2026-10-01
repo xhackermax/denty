@@ -1,3 +1,4 @@
+import { PageBackButton } from "./page-back-button";
 import { Group, Text, Title } from "@mantine/core";
 import type { ReactNode } from "react";
 
@@ -13,6 +14,7 @@ interface PageHeaderProps {
 export function PageHeader({ title, description, eyebrow, actions }: PageHeaderProps) {
   return (
     <header className={styles.pageHeader}>
+      <PageBackButton />
       <div className={styles.pageHeaderText}>
         {eyebrow ? <p className={styles.eyebrow}>{eyebrow}</p> : null}
         <Title order={1} size="h2">

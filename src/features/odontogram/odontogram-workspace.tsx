@@ -1,4 +1,5 @@
 "use client";
+import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
 import { Alert, Badge, Button, Group, Select, SimpleGrid, Text } from "@mantine/core";
 import { IconArrowBackUp, IconArrowForwardUp, IconArrowRight } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
@@ -400,6 +401,15 @@ function OdontogramEditor({
   const bridgeReady = bridgePreviewTeeth.length >= 2 && Boolean(bridgeFrom && bridgeTo);
   const legendSelection: OdontogramLegendSelection = { state: tool, placement: placementMode };
   const dirty = history.present.revision !== 0;
+  const discardChanges = () =>
+    setHistory(createBoundedHistory(createOdontogramEntityState(initialEntities), 30));
+  const { confirmLeave } = useUnsavedChangesGuard({
+    dirty: dirty && !historical,
+    onSave: async () => {
+      await onSave(Object.values(history.present.entitiesById));
+    },
+    onDiscard: discardChanges,
+  });
 
   useEffect(() => {
     setAdvancedToolsOpen(false);
@@ -592,6 +602,16 @@ function OdontogramEditor({
                 Plan y presupuesto
               </Button>
             ) : null}
+            {!historical ? (
+              <Button
+                size="xs"
+                variant="subtle"
+                disabled={!dirty || saving}
+                onClick={discardChanges}
+              >
+                Descartar cambios
+              </Button>
+            ) : null}
             <Button
               size="xs"
               variant="light"
@@ -647,7 +667,7 @@ function OdontogramEditor({
         </div>
       ) : null}
 
-      <ClinicalTabs active={activeTab} onChange={setActiveTab} />
+      <ClinicalTabs active={activeTab} onChange={(tab) => confirmLeave(() => setActiveTab(tab))} />
 
       {activeTab === "general" ? (
         <>

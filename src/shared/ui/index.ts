@@ -20,3 +20,5 @@ export { StatusBadge } from "./status-badge";
 export { Toolbar } from "./toolbar";
 export { HorizontalSnapNav } from "./horizontal-snap-nav";
 export type { HorizontalSnapItem } from "./horizontal-snap-nav";
+
+export { PageBackButton } from "./page-back-button";
