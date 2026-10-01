@@ -27,3 +27,7 @@ jobs:
       - run: npm run typecheck
       - name: Run complete Vitest suite
         run: npx vitest run
+      - name: Browser layout and interaction checks
+        run: |
+          npx playwright install --with-deps chromium
+          node .contacts-preview/verify.mjs

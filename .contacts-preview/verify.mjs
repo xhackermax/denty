@@ -1,0 +1,40 @@
+import { chromium } from "@playwright/test";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+const server=spawn("npx",["vite","--config",".contacts-preview/vite.config.mjs","--host","127.0.0.1","--port","4173"],{stdio:["ignore","pipe","pipe"]});
+let output="";
+server.stdout.on("data",b=>{output+=b;});
+server.stderr.on("data",b=>{output+=b;});
+let browser;
+try {
+ for(let i=0;i<100;i++){try{const r=await fetch("http://127.0.0.1:4173/.contacts-preview/");if(r.ok)break;}catch{}await new Promise(r=>setTimeout(r,200));}
+ browser=await chromium.launch();
+ const page=await browser.newPage({viewport:{width:1280,height:900}});
+ const errors=[];page.on("pageerror",e=>errors.push(e.message));
+ await page.goto("http://127.0.0.1:4173/.contacts-preview/");
+ await page.getByRole("heading",{name:"Contactos especiales"}).waitFor();
+ await page.getByRole("link",{name:"+34 600 111 222"}).waitFor();
+ await page.screenshot({path:"/tmp/contacts-desktop.jpg",type:"jpeg",quality:75,fullPage:true});
+ console.log("CONTACT_SCREENSHOT "+JSON.stringify({name:"desktop",data:(await page.screenshot({type:"jpeg",quality:65,fullPage:true})).toString("base64")}));
+ await page.setViewportSize({width:390,height:844});
+ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
+ if(overflow)throw new Error("Mobile directory overflows horizontally");
+ console.log("CONTACT_SCREENSHOT "+JSON.stringify({name:"mobile",data:(await page.screenshot({type:"jpeg",quality:65,fullPage:true})).toString("base64")}));
+ await page.getByRole("button",{name:"Nuevo contacto",exact:true}).click();
+ const dialog=page.getByRole("dialog");
+ await dialog.getByLabel(/^Nombre/).fill("Proveedor de prueba");
+ await dialog.getByLabel(/^Categoría/).fill("Proveedores");
+ await dialog.getByLabel("Teléfono 1").fill("+34 600 000 000");
+ await dialog.getByRole("button",{name:"Añadir teléfono"}).click();
+ await dialog.getByLabel("Teléfono 2").fill("910 000 000");
+ if(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth))throw new Error("Mobile editor overflows horizontally");
+ console.log("CONTACT_SCREENSHOT "+JSON.stringify({name:"editor",data:(await page.screenshot({type:"jpeg",quality:65,fullPage:true})).toString("base64")}));
+ await dialog.getByRole("button",{name:"Cancelar",exact:true}).click();
+ await dialog.waitFor({state:"hidden"});
+ await page.getByLabel("Buscar contactos").fill("Inexistente");
+ await page.getByRole("heading",{name:"No encontramos contactos"}).waitFor();
+ await page.getByRole("button",{name:"Limpiar filtros"}).click();
+ await page.getByRole("link",{name:"+34 600 111 222"}).waitFor();
+ if(errors.length)throw new Error(JSON.stringify(errors));
+ console.log("CONTACT_VISUAL_CHECK desktop mobile editor search passed; no browser exceptions");
+} catch(error){console.error(output);throw error;}finally{await browser?.close();server.kill();}
