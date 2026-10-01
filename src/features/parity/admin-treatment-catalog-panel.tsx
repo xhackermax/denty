@@ -45,6 +45,7 @@ export function AdminTreatmentCatalogPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editPriceEuros, setEditPriceEuros] = useState<number | string>(0);
+  const [editRequiresLab, setEditRequiresLab] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,6 +92,7 @@ export function AdminTreatmentCatalogPanel() {
       await getBrowserApi().admin.treatmentCatalog.update(item.id, {
         expectedVersion: item.version,
         name: editName,
+        requiresLab: editRequiresLab,
         defaultPriceCents: Math.round(Number(editPriceEuros || 0) * 100),
       });
       setEditingId(null);
@@ -139,6 +141,9 @@ export function AdminTreatmentCatalogPanel() {
           <Group justify="space-between">
             <Switch
               label="Requiere laboratorio"
+              aria-label="Requiere laboratorio"
+              description="Habilita el envío a laboratorio desde el plan clínico."
+              disabled={pending}
               checked={requiresLab}
               onChange={(event) => setRequiresLab(event.currentTarget.checked)}
             />
@@ -162,21 +167,31 @@ export function AdminTreatmentCatalogPanel() {
             <div className={styles.row} key={item.id}>
               <div className={styles.rowMain}>
                 {editing ? (
-                  <Group grow>
-                    <TextInput
-                      value={editName}
-                      onChange={(event) => setEditName(event.currentTarget.value)}
-                      aria-label={`Nombre ${item.code}`}
+                  <Stack gap="sm">
+                    <Group grow>
+                      <TextInput
+                        value={editName}
+                        onChange={(event) => setEditName(event.currentTarget.value)}
+                        aria-label={`Nombre ${item.code}`}
+                      />
+                      <NumberInput
+                        value={editPriceEuros}
+                        onChange={setEditPriceEuros}
+                        min={0}
+                        decimalScale={2}
+                        suffix=" €"
+                        aria-label={`Precio ${item.code}`}
+                      />
+                    </Group>
+                    <Switch
+                      label="Requiere laboratorio"
+                      aria-label={`Requiere laboratorio ${item.code}`}
+                      description="Habilita el envío a laboratorio desde el plan clínico."
+                      checked={editRequiresLab}
+                      disabled={pending}
+                      onChange={(event) => setEditRequiresLab(event.currentTarget.checked)}
                     />
-                    <NumberInput
-                      value={editPriceEuros}
-                      onChange={setEditPriceEuros}
-                      min={0}
-                      decimalScale={2}
-                      suffix=" €"
-                      aria-label={`Precio ${item.code}`}
-                    />
-                  </Group>
+                  </Stack>
                 ) : (
                   <>
                     <span className={styles.rowTitle}>{item.name}</span>
@@ -209,10 +224,12 @@ export function AdminTreatmentCatalogPanel() {
                   <Button
                     size="xs"
                     variant="light"
+                    disabled={pending}
                     onClick={() => {
                       setEditingId(item.id);
                       setEditName(item.name);
                       setEditPriceEuros(item.defaultPriceCents / 100);
+                      setEditRequiresLab(item.requiresLab);
                     }}
                   >
                     Editar
