@@ -1,3 +1,5 @@
+import { ExportRepository } from "./export-repository";
+import { exportFile } from "./export-file";
 import { z } from "zod";
 import { withoutUndefined, type WithoutUndefined } from "@/shared/lib/without-undefined";
 
@@ -157,47 +159,6 @@ function requireAdmin(actor: AuthenticatedActor | null): Response | null {
 }
 async function parseJson<T>(request: Request, schema: z.ZodType<T>): Promise<WithoutUndefined<T>> {
   return withoutUndefined(schema.parse(await request.json()));
-}
-function escapeCsvCell(cell: unknown): string {
-  const str = String(cell || "");
-  return `"${str.replace(/"/g, '""')}"`;
-}
-function generatePatientsCsv(patients: any[]): string {
-  const headers = ["ID", "Nombre", "Email", "Teléfono", "Fecha Nacimiento", "Creado"];
-  const rows = patients.map((p: any) => [
-    p.id,
-    p.fullName,
-    p.email || "",
-    p.phone || "",
-    p.dateOfBirth || "",
-    p.createdAt || "",
-  ]);
-  return [headers, ...rows].map(row => row.map(escapeCsvCell).join(",")).join("\n");
-}
-function generateAppointmentsCsv(appointments: any[]): string {
-  const headers = ["ID", "Paciente", "Doctor", "Fecha", "Hora", "Duración", "Estado"];
-  const rows = appointments.map((a: any) => [
-    a.id,
-    a.patientName || "",
-    a.staffName || "",
-    a.date || "",
-    a.time || "",
-    a.duration || "",
-    a.status || "",
-  ]);
-  return [headers, ...rows].map(row => row.map(escapeCsvCell).join(",")).join("\n");
-}
-function generateTreatmentsCsv(treatments: any[]): string {
-  const headers = ["ID", "Paciente", "Descripción", "Estado", "Costo", "Fecha"];
-  const rows = treatments.map((t: any) => [
-    t.id,
-    t.patientName || "",
-    t.description || "",
-    t.status || "",
-    t.cost || "",
-    t.date || "",
-  ]);
-  return [headers, ...rows].map(row => row.map(escapeCsvCell).join(",")).join("\n");
 }
 export interface RequestIdentity {
   actor: AuthenticatedActor;
@@ -2238,35 +2199,6 @@ export async function handleSupabaseDentyRoute(
         headers,
       );
     }
-    // Export endpoints
-    if (
-      parts.length === 4 &&
-      parts[0] === "api" &&
-      parts[1] === "admin" &&
-      parts[2] === "export" &&
-      parts[3] === "overview" &&
-      method === "GET"
-    ) {
-      const d = requireActorPermission(identity, "users.manage");
-      if (d) return d;
-      const repo = patientRepository(identity);
-      const agenda = agendaRepository(identity);
-      const restClient = identity.restClient;
-      const patients = await repo.listPatients({ pageSize: 1, page: 0 });
-      const appointments = await agenda.listAppointments();
-      const plans = await restClient.select<{ id: string }>("clinical_plans", {
-        clinic_id: `eq.${identity.actor.clinicId}`,
-      });
-      return json(
-        200,
-        {
-          patientCount: patients.total,
-          appointmentCount: appointments.length,
-          treatmentCount: plans.length,
-        },
-        headers,
-      );
-    }
     if (
       parts.length === 4 &&
       parts[0] === "api" &&
@@ -2274,41 +2206,28 @@ export async function handleSupabaseDentyRoute(
       parts[2] === "export" &&
       method === "GET"
     ) {
-      const d = requireActorPermission(identity, "users.manage");
-      if (d) return d;
-      const repo = patientRepository(identity);
-      const agenda = agendaRepository(identity);
-      const restClient = identity.restClient;
+      const denied = requireActorPermission(identity, "users.manage");
+      if (denied) return denied;
+      const exports = new ExportRepository(identity.restClient, identity.actor.clinicId);
       const entity = parts[3];
+      if (entity === "overview") return json(200, await exports.overview(), headers);
+      if (entity !== "patients" && entity !== "appointments" && entity !== "treatments")
+        return error(400, "INVALID_ENTITY", "La entidad no es válida");
       const format = new URL(request.url).searchParams.get("format") ?? "csv";
-
-      if (entity === "patients") {
-        const patients = await repo.listPatients({ pageSize: 10000, page: 0 });
-        const csv = generatePatientsCsv(patients.items);
-        const responseHeaders = responseHeadersForIdentity(request, identity);
-        responseHeaders.set("content-type", format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv; charset=utf-8");
-        responseHeaders.set("content-disposition", `attachment; filename*=UTF-8''patients.${format === "xlsx" ? "xlsx" : "csv"}`);
-        return new Response(csv, { status: 200, headers: responseHeaders });
-      }
-      if (entity === "appointments") {
-        const appointments = await agenda.listAppointments();
-        const csv = generateAppointmentsCsv(appointments);
-        const responseHeaders = responseHeadersForIdentity(request, identity);
-        responseHeaders.set("content-type", format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv; charset=utf-8");
-        responseHeaders.set("content-disposition", `attachment; filename*=UTF-8''appointments.${format === "xlsx" ? "xlsx" : "csv"}`);
-        return new Response(csv, { status: 200, headers: responseHeaders });
-      }
-      if (entity === "treatments") {
-        const plans = await restClient.select<{ id: string }>("clinical_plans", {
-          clinic_id: `eq.${identity.actor.clinicId}`,
-        });
-        const csv = generateTreatmentsCsv(plans);
-        const responseHeaders = responseHeadersForIdentity(request, identity);
-        responseHeaders.set("content-type", format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv; charset=utf-8");
-        responseHeaders.set("content-disposition", `attachment; filename*=UTF-8''treatments.${format === "xlsx" ? "xlsx" : "csv"}`);
-        return new Response(csv, { status: 200, headers: responseHeaders });
-      }
-      return error(400, "INVALID_ENTITY", "La entidad no es válida");
+      if (format !== "csv" && format !== "xlsx")
+        return error(400, "INVALID_FORMAT", "El formato debe ser CSV o Excel");
+      const body = await exportFile(await exports.table(entity), format);
+      const responseHeaders = responseHeadersForIdentity(request, identity);
+      responseHeaders.set(
+        "content-type",
+        format === "xlsx"
+          ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          : "text/csv; charset=utf-8",
+      );
+      responseHeaders.set("content-disposition", `attachment; filename="${entity}.${format}"`);
+      responseHeaders.set("cache-control", "private, no-store");
+      responseHeaders.set("x-content-type-options", "nosniff");
+      return new Response(body, { status: 200, headers: responseHeaders });
     }
     if (
       parts.length === 4 &&

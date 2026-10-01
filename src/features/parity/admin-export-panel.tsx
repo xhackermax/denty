@@ -1,13 +1,13 @@
 "use client";
 
-import { Alert, Button, Group, Select, Stack, Text, Title } from "@mantine/core";
+import { Alert, Button, Group, Stack, Text, Title } from "@mantine/core";
 import { IconDownload } from "@tabler/icons-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { getBrowserApi } from "@/shared/api/browser";
 import { DentyApiError } from "@/shared/api/errors";
-import { dentyQueryKeys } from "@/shared/query";
+import { todayMadrid } from "@/domain/dates";
 import styles from "@/shared/ui/parity.module.css";
 
 const SERVER_MESSAGES: Record<string, string> = {
@@ -27,7 +27,6 @@ type ExportEntity = "patients" | "appointments" | "treatments";
 
 export function AdminExportPanel() {
   const [format, setFormat] = useState<ExportFormat>("csv");
-  const [entity, setEntity] = useState<ExportEntity | null>(null);
 
   const overview = useQuery({
     queryKey: ["admin", "export", "overview"],
@@ -35,10 +34,10 @@ export function AdminExportPanel() {
   });
 
   const exportMutation = useMutation({
-    mutationFn: async (type: ExportEntity) => {
+    mutationFn: async ({ type, format }: { type: ExportEntity; format: ExportFormat }) => {
       const blob = await getBrowserApi().admin.export.execute(type, format);
 
-      const timestamp = new Date().toISOString().split("T")[0];
+      const timestamp = todayMadrid();
       const fileName = `${type}-${timestamp}.${format === "csv" ? "csv" : "xlsx"}`;
 
       const url = URL.createObjectURL(blob);
@@ -46,9 +45,12 @@ export function AdminExportPanel() {
       link.href = url;
       link.download = fileName;
       document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      try {
+        link.click();
+      } finally {
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
     },
   });
 
@@ -56,22 +58,22 @@ export function AdminExportPanel() {
     {
       value: "patients",
       label: "Pacientes",
-      description: `${overview.data?.patientCount ?? 0} pacientes en el sistema`,
+      description: `${overview.data?.patientCount ?? "—"} pacientes en el sistema`,
     },
     {
       value: "appointments",
       label: "Citas",
-      description: `${overview.data?.appointmentCount ?? 0} citas registradas`,
+      description: `${overview.data?.appointmentCount ?? "—"} citas registradas`,
     },
     {
       value: "treatments",
       label: "Tratamientos",
-      description: `${overview.data?.treatmentCount ?? 0} tratamientos completados`,
+      description: `${overview.data?.treatmentCount ?? "—"} tratamientos registrados`,
     },
   ];
 
   const handleExport = (type: ExportEntity) => {
-    exportMutation.mutate(type);
+    exportMutation.mutate({ type, format });
   };
 
   return (
@@ -101,12 +103,16 @@ export function AdminExportPanel() {
             <Group>
               <Button
                 variant={format === "csv" ? "filled" : "light"}
+                disabled={exportMutation.isPending}
+                aria-pressed={format === "csv"}
                 onClick={() => setFormat("csv")}
               >
                 CSV
               </Button>
               <Button
                 variant={format === "xlsx" ? "filled" : "light"}
+                disabled={exportMutation.isPending}
+                aria-pressed={format === "xlsx"}
                 onClick={() => setFormat("xlsx")}
               >
                 Excel
@@ -129,7 +135,7 @@ export function AdminExportPanel() {
                   size="sm"
                   leftSection={<IconDownload size={16} />}
                   loading={exportMutation.isPending}
-                  disabled={overview.isLoading}
+                  disabled={!overview.isSuccess || exportMutation.isPending}
                   onClick={() => handleExport(option.value)}
                 >
                   Descargar

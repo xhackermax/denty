@@ -66,7 +66,7 @@ export class SupabaseRestClient {
       });
       all.push(...rows);
       offset += rows.length;
-      if (rows.length < pageSize || offset >= total) break;
+      if (rows.length === 0 || offset >= total) break;
     }
     return all;
   }
