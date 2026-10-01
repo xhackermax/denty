@@ -1,44 +1,91 @@
 .glyph {
   display: inline-flex;
   flex: none;
-  gap: 2px;
+  gap: 3px;
   align-items: center;
+  color: var(--denty-text);
   line-height: 1;
 }
 
-.tooth {
-  width: 19px;
-  height: 26px;
+.icon {
+  width: 24px;
+  height: 24px;
+  flex: none;
   overflow: visible;
   pointer-events: none;
 }
 
-.glyph[data-mode="micro"] .tooth {
-  width: 14px;
+.glyph[data-mode="micro"] .icon {
+  width: 19px;
   height: 19px;
 }
 
-.tooth[data-arch="upper"] {
-  transform: scaleY(-1);
+.glyph :global(.clinical-accent) {
+  stroke: var(--denty-danger);
 }
 
-.tooth[data-state="missing"] {
-  opacity: 0.38;
+.glyph[data-clinical-state="redo"] .icon,
+.glyph[data-clinical-state="redo"] :global(.clinical-accent) {
+  color: var(--denty-blue);
+  stroke: var(--denty-blue);
+}
+
+.surface {
+  fill: var(--denty-card-solid);
+  stroke: var(--denty-muted);
+}
+
+.surface[data-active="true"] {
+  fill: color-mix(in srgb, var(--denty-danger) 18%, var(--denty-card-solid));
+  stroke: var(--denty-danger);
+}
+
+.glyph[data-clinical-state="redo"] .surface[data-active="true"] {
+  fill: var(--denty-blue);
+  stroke: var(--denty-danger);
+  stroke-width: 3px;
+}
+
+.glyph[data-clinical-state="redo"] .redoOutline {
+  stroke: var(--denty-danger);
+  stroke-width: 1px;
 }
 
 .toothNumber {
-  color: var(--denty-muted);
-  font-size: 0.68rem;
+  color: var(--denty-text);
+  font-size: 0.7rem;
   font-variant-numeric: tabular-nums;
-  font-weight: 800;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .glyph[data-mode="micro"] .toothNumber {
-  font-size: 0.62rem;
+  font-size: 0.65rem;
 }
 
 .alert {
-  width: 13px;
-  height: 13px;
   color: var(--denty-danger);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.list {
+  display: inline-flex;
+  min-width: 0;
+  gap: 8px;
+  align-items: center;
+}
+
+.overflow {
+  flex: none;
+  color: var(--denty-muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.glyph .unknownOutline {
+  stroke: var(--denty-danger);
+  stroke-width: 2px;
 }

@@ -1,20 +1,10 @@
 "use client";
 
-import { IconAlertTriangleFilled } from "@tabler/icons-react";
-
-import type { ClinicalGlyphModel, ToothSurface } from "@/domain";
-import odontogramStyles from "@/features/odontogram/odontogram.module.css";
+import type { CSSProperties } from "react";
+import { CLINICAL_FAMILY_LABELS, type ClinicalGlyphModel, type ToothSurface } from "@/domain";
+import { ClinicalIconPaths } from "./clinical-icon-paths";
+import { SURFACE_MAP_PATHS, surfaceMapLayout } from "./tooth-geometry";
 import styles from "./clinical-glyph.module.css";
-import {
-  CROWN_PATHS,
-  ROOT_PATHS,
-  SURFACE_PATHS,
-  TOOTH_MARK_PATHS,
-  archForTooth,
-  toothSurfaceLayout,
-  toothType,
-} from "./tooth-geometry";
-import { TOOTH_STATE_LABELS } from "./tooth-state-labels";
 
 const SURFACE_NAMES: Readonly<Record<ToothSurface, string>> = {
   V: "vestibular",
@@ -25,97 +15,151 @@ const SURFACE_NAMES: Readonly<Record<ToothSurface, string>> = {
   P: "palatina",
   L: "lingual",
 };
-
 export type ClinicalGlyphMode = "compact" | "micro";
 
 export function describeClinicalGlyph(glyph: ClinicalGlyphModel): string {
-  const parts: string[] = [];
-  if (glyph.urgent) parts.push("Urgencia");
-  if (glyph.state) parts.push(TOOTH_STATE_LABELS[glyph.state]);
-  if (glyph.tooth) parts.push(`pieza ${glyph.tooth}`);
-  if (glyph.surfaces.length) {
-    parts.push(glyph.surfaces.map((surface) => SURFACE_NAMES[surface]).join(", "));
-  }
-  return parts.join(" · ");
+  return [
+    glyph.urgent && glyph.family !== "emergency" ? "Urgencia" : null,
+    CLINICAL_FAMILY_LABELS[glyph.family],
+    glyph.location,
+    glyph.surfaces.map((surface) => SURFACE_NAMES[surface]).join(", "),
+    glyph.family === "restorative_surface" && glyph.surfaces.length === 0
+      ? "Superficies no especificadas"
+      : null,
+    glyph.clinicalState === "redo"
+      ? "Tratamiento existente insatisfactorio · Rehacer"
+      : "Pendiente",
+    glyph.label,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
-/**
- * Read-only miniature of the odontogram tooth. Same geometry, same surface
- * orientation and same CSS state classes as the odontogram itself.
- */
+/** Shared clinical symbol for the agenda and treatment selector, with odontogram surface orientation. */
 export function ClinicalGlyph({
   glyph,
   mode = "compact",
   showToothNumber = true,
+  size,
 }: {
   glyph: ClinicalGlyphModel;
   mode?: ClinicalGlyphMode;
   showToothNumber?: boolean;
+  size?: number;
 }) {
   const description = describeClinicalGlyph(glyph);
-  const tooth = glyph.tooth;
+  const surfaceMap = glyph.family === "restorative_surface" || glyph.family === "sealant";
+  const layout = surfaceMapLayout(glyph.tooth ?? "16");
+  const iconStyle: CSSProperties | undefined = size ? { width: size, height: size } : undefined;
   return (
-    <span className={styles.glyph} data-mode={mode} role="img" aria-label={description}>
-      {glyph.urgent ? (
-        <IconAlertTriangleFilled className={styles.alert} aria-hidden="true" />
+    <span
+      className={styles.glyph}
+      data-mode={mode}
+      data-family={glyph.family}
+      data-clinical-state={glyph.clinicalState}
+      role="img"
+      aria-label={description}
+      title={description}
+    >
+      <svg
+        className={styles.icon}
+        style={iconStyle}
+        viewBox={surfaceMap ? "0 0 44 44" : "0 0 24 24"}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={surfaceMap ? 2 : 1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {surfaceMap ? (
+          <>
+            {(["top", "left", "center", "right", "bottom"] as const).map((position) => {
+              const surface = layout[position];
+              const active =
+                (glyph.family === "sealant" &&
+                  glyph.surfaces.length === 0 &&
+                  position === "center") ||
+                glyph.surfaces.some(
+                  (item) =>
+                    item === surface ||
+                    (position === "center" && (item === "O" || item === "I")) ||
+                    ((position === "top" || position === "bottom") &&
+                      (item === "P" || item === "L") &&
+                      (surface === "P" || surface === "L")),
+                );
+              return (
+                <path
+                  key={position}
+                  className={styles.surface}
+                  d={SURFACE_MAP_PATHS[position]}
+                  data-surface={surface}
+                  data-active={active}
+                />
+              );
+            })}
+            {glyph.family === "restorative_surface" && glyph.surfaces.length === 0 ? (
+              <path className={styles.unknownOutline} d={SURFACE_MAP_PATHS.frame} />
+            ) : null}
+          </>
+        ) : (
+          <>
+            <ClinicalIconPaths family={glyph.family} />
+            {glyph.clinicalState === "redo" ? (
+              <rect
+                className={styles.redoOutline}
+                x="0.75"
+                y="0.75"
+                width="22.5"
+                height="22.5"
+                rx="5"
+              />
+            ) : null}
+          </>
+        )}
+      </svg>
+      {glyph.location && showToothNumber ? (
+        <span className={styles.toothNumber}>{glyph.location}</span>
       ) : null}
-      {tooth ? <ToothMiniature tooth={tooth} glyph={glyph} /> : null}
-      {tooth && showToothNumber ? <span className={styles.toothNumber}>{tooth}</span> : null}
+      {glyph.urgent && glyph.family !== "emergency" ? (
+        <span className={styles.alert} aria-hidden="true">
+          !
+        </span>
+      ) : null}
     </span>
   );
 }
 
-function ToothMiniature({ tooth, glyph }: { tooth: string; glyph: ClinicalGlyphModel }) {
-  const type = toothType(tooth);
-  const arch = archForTooth(tooth);
-  const layout = toothSurfaceLayout(tooth);
-  const whole = glyph.surfaces.length === 0;
-  const state = glyph.state ?? "";
-  const stateFor = (surface: ToothSurface) =>
-    whole || glyph.surfaces.includes(surface) ? state : "";
-  const clipId = `denty-glyph-${tooth}-${state || "none"}-${glyph.surfaces.join("")}`;
-  const surface = (key: keyof typeof SURFACE_PATHS, name: ToothSurface) => (
-    <path className={odontogramStyles.surface} data-state={stateFor(name)} d={SURFACE_PATHS[key]} />
-  );
-
+/** Overflow opens with the containing appointment, including on touch devices. */
+export function ClinicalGlyphs({
+  glyphs,
+  max = 3,
+  mode = "micro",
+}: {
+  glyphs: readonly ClinicalGlyphModel[];
+  max?: number;
+  mode?: ClinicalGlyphMode;
+}) {
+  const visible = glyphs.slice(0, max);
+  const remaining = glyphs.slice(max);
   return (
-    <svg
-      className={styles.tooth}
-      data-arch={arch}
-      data-state={state || "healthy"}
-      viewBox="0 0 64 90"
-      aria-hidden="true"
-    >
-      <defs>
-        <clipPath id={clipId}>
-          <path d={CROWN_PATHS[type]} />
-        </clipPath>
-      </defs>
-      <path className={odontogramStyles.rootShape} d={ROOT_PATHS[type]} />
-      <path className={odontogramStyles.crownBase} d={CROWN_PATHS[type]} />
-      <g clipPath={`url(#${clipId})`}>
-        {surface("V", "V")}
-        {surface("left", layout.left)}
-        {surface("occlusal", layout.occlusal)}
-        {surface("right", layout.right)}
-        {surface("inner", layout.inner)}
-      </g>
-      <path className={odontogramStyles.crownOutline} d={CROWN_PATHS[type]} />
-      {state.startsWith("endo") ? (
-        <path className={odontogramStyles.endoMark} d={TOOTH_MARK_PATHS.endo} />
+    <span className={styles.list}>
+      {visible.map((glyph, index) => (
+        <ClinicalGlyph
+          key={`${glyph.family}-${glyph.location}-${index}`}
+          glyph={glyph}
+          mode={mode}
+        />
+      ))}
+      {remaining.length ? (
+        <span
+          className={styles.overflow}
+          aria-label={`${remaining.length} tratamientos más. Abrir cita para ver el detalle.`}
+          title={remaining.map(describeClinicalGlyph).join("\n")}
+        >
+          +{remaining.length}
+        </span>
       ) : null}
-      {state.startsWith("implant") ? (
-        <g className={odontogramStyles.implantMark}>
-          <path d={TOOTH_MARK_PATHS.implantBody} />
-          <path d={TOOTH_MARK_PATHS.implantThreads} />
-        </g>
-      ) : null}
-      {state === "extraction" ? (
-        <path className={odontogramStyles.extractionMark} d={TOOTH_MARK_PATHS.extraction} />
-      ) : null}
-      {state === "missing" ? (
-        <path className={odontogramStyles.missingMark} d={TOOTH_MARK_PATHS.missing} />
-      ) : null}
-    </svg>
+    </span>
   );
 }

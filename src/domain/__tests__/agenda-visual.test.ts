@@ -12,7 +12,9 @@ import {
 
 describe("clinicalGlyphFor", () => {
   it("usa el estado del odontograma para una caries distal del 26", () => {
-    expect(clinicalGlyphFor({ treatmentCode: "CARIES", tooth: "26", surfaces: ["d"] })).toEqual({
+    expect(
+      clinicalGlyphFor({ treatmentCode: "CARIES", tooth: "26", surfaces: ["d"] }),
+    ).toMatchObject({
       tooth: "26",
       state: "caries",
       surfaces: ["D"],
@@ -21,15 +23,14 @@ describe("clinicalGlyphFor", () => {
     });
   });
 
-  it("pinta una obturación MOD realizada con el color de realizado", () => {
+  it("no ofrece como trabajo pendiente una obturación ya realizada", () => {
     const glyph = clinicalGlyphFor({
       treatmentCode: "FILLING",
       tooth: "36",
       surfaces: ["M", "O", "D"],
       completed: true,
     });
-    expect(glyph?.state).toBe("filling");
-    expect(glyph?.surfaces).toEqual(["M", "O", "D"]);
+    expect(glyph).toBeNull();
   });
 
   it("marca el implante indicado en toda la pieza", () => {
@@ -43,11 +44,14 @@ describe("clinicalGlyphFor", () => {
   });
 
   it("no inventa una pieza a partir de números sin tratamiento", () => {
-    expect(clinicalGlyphFor({ label: "Revisión 12 meses" })).toBeNull();
+    expect(clinicalGlyphFor({ label: "Revisión 12 meses" })?.tooth).toBeNull();
   });
 
-  it("no dibuja nada para citas sin contexto clínico", () => {
-    expect(clinicalGlyphFor({ label: "Revisión" })).toBeNull();
+  it("representa una revisión general sin inventar un diente", () => {
+    expect(clinicalGlyphFor({ label: "Revisión" })).toMatchObject({
+      family: "review",
+      tooth: null,
+    });
   });
 
   it("descarta superficies desconocidas", () => {

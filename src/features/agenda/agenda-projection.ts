@@ -1,4 +1,4 @@
-import { clinicalGlyphFor, type ClinicalGlyphModel, type RotaShift } from "@/domain";
+import { agendaClinicalGlyphs, type ClinicalGlyphModel, type RotaShift } from "@/domain";
 import type { Appointment, Patient } from "@/shared/api";
 import type { AgendaContext } from "@/shared/api/schemas/agenda";
 
@@ -18,6 +18,7 @@ export interface AgendaAppointmentView {
   reason: string;
   version: number;
   glyph: ClinicalGlyphModel | null;
+  glyphs: readonly ClinicalGlyphModel[];
 }
 
 export interface AgendaStaffView {
@@ -48,6 +49,16 @@ export function projectApiAppointments(
 
   return appointments.map((appointment) => {
     const reason = appointment.reason ?? appointment.title;
+    const glyphs = agendaClinicalGlyphs({
+      tooth: appointment.clinical?.tooth,
+      surfaces: appointment.clinical?.surfaces,
+      treatmentCode: appointment.clinical?.treatmentCode,
+      label: appointment.clinical?.label ?? reason,
+      appointmentReason: reason,
+      planStatus: appointment.clinical?.planStatus,
+      clinicalStatus: appointment.clinical?.clinicalStatus,
+      completed: appointment.status === "COMPLETED",
+    });
     return {
       id: appointment.id,
       patientId: appointment.patientId,
@@ -63,13 +74,8 @@ export function projectApiAppointments(
       status: appointment.status,
       reason,
       version: appointment.version,
-      glyph: clinicalGlyphFor({
-        tooth: appointment.clinical?.tooth,
-        surfaces: appointment.clinical?.surfaces,
-        treatmentCode: appointment.clinical?.treatmentCode,
-        label: appointment.clinical?.label ? `${reason} ${appointment.clinical.label}` : reason,
-        completed: appointment.status === "COMPLETED",
-      }),
+      glyph: glyphs[0] ?? null,
+      glyphs,
     };
   });
 }

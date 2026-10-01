@@ -37,6 +37,7 @@ interface AppointmentRpcResult extends Partial<AppointmentRow> {
 
 interface PlanItemClinicalRow {
   id: string;
+  status: string;
   tooth: string | null;
   treatment_code: string;
   treatment_code_snapshot: string | null;
@@ -46,6 +47,7 @@ interface PlanItemClinicalRow {
 }
 interface DentalEntitySurfacesRow {
   id: string;
+  status: string;
   surfaces_json: string[] | null;
 }
 interface BlockRow {
@@ -173,19 +175,19 @@ export class AgendaRepository {
     if (planItemIds.length === 0) return appointments;
     const items = await this.client.select<PlanItemClinicalRow>("clinical_plan_items", {
       select:
-        "id,tooth,treatment_code,treatment_code_snapshot,label,label_snapshot,dental_entity_id",
+        "id,tooth,treatment_code,treatment_code_snapshot,label,label_snapshot,dental_entity_id,status",
       clinic_id: `eq.${this.clinicId}`,
       id: `in.(${planItemIds.join(",")})`,
     });
     const entityIds = [...new Set(items.flatMap((item) => item.dental_entity_id ?? []))];
     const entities = entityIds.length
       ? await this.client.select<DentalEntitySurfacesRow>("dental_entities", {
-          select: "id,surfaces_json",
+          select: "id,surfaces_json,status",
           clinic_id: `eq.${this.clinicId}`,
           id: `in.(${entityIds.join(",")})`,
         })
       : [];
-    const surfacesByEntity = new Map(entities.map((row) => [row.id, row.surfaces_json ?? []]));
+    const entitiesById = new Map(entities.map((row) => [row.id, row]));
     const byId = new Map(items.map((item) => [item.id, item]));
     return appointments.map((appointment) => {
       const item = appointment.clinicalPlanItemId
@@ -195,11 +197,15 @@ export class AgendaRepository {
       return {
         ...appointment,
         clinical: {
+          planStatus: item.status ?? null,
+          clinicalStatus: item.dental_entity_id
+            ? (entitiesById.get(item.dental_entity_id)?.status ?? null)
+            : null,
           tooth: item.tooth,
           treatmentCode: item.treatment_code_snapshot ?? item.treatment_code,
           label: item.label_snapshot ?? item.label,
           surfaces: item.dental_entity_id
-            ? (surfacesByEntity.get(item.dental_entity_id) ?? [])
+            ? (entitiesById.get(item.dental_entity_id)?.surfaces_json ?? [])
             : [],
         },
       };

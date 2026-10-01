@@ -107,7 +107,7 @@ import styles from "./agenda.module.css";
 import parityStyles from "@/shared/ui/parity.module.css";
 import { DentyApiError, type UpdateAppointment } from "@/shared/api";
 import { useClinicalPlanQuery, useTreatmentCatalogQuery } from "@/shared/clinical/clinical-data";
-import { ClinicalGlyph } from "@/shared/odontogram/clinical-glyph";
+import { ClinicalGlyph, ClinicalGlyphs } from "@/shared/odontogram/clinical-glyph";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { PageHeader } from "@/shared/ui";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
@@ -1506,11 +1506,9 @@ export function AgendaPage() {
           <span className={parityStyles.rowTitle}>
             {hhmm(appointment.startsAt)} · {appointment.patientName}
           </span>
-          {appointment.glyph ? <ClinicalGlyph glyph={appointment.glyph} mode="micro" /> : null}
+          <ClinicalGlyphs glyphs={appointment.glyphs} />
         </Group>
-        <span className={parityStyles.rowMeta}>
-          {appointment.reason} · {AGENDA_STATUS_META[appointment.status].label}
-        </span>
+        <span className={parityStyles.rowMeta}>{AGENDA_STATUS_META[appointment.status].label}</span>
       </UnstyledButton>
       <div className={parityStyles.rowActions}>
         {withAdvance && nextStatus(appointment.status) ? (
