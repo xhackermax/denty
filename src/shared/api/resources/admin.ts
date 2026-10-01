@@ -168,14 +168,8 @@ export function createAdminResource(client: ApiClient) {
           appointmentCount: z.number(),
           treatmentCount: z.number(),
         })),
-      execute: async (entity: "patients" | "appointments" | "treatments", format: "csv" | "xlsx") => {
-        const response = await fetch(
-          `/api/admin/export/${entity}?format=${format}`,
-          { method: "GET" }
-        );
-        if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
-        return response.blob();
-      },
+      execute: (entity: "patients" | "appointments" | "treatments", format: "csv" | "xlsx") =>
+        client.requestBlob(`/api/admin/export/${entity}?format=${format}`),
     },
   } as const;
 }
