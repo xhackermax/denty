@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { archForTooth } from "@/domain/odontogram/surgery-procedures";
 import type { DentalEntity } from "@/domain";
 
 import styles from "./odontogram.module.css";
@@ -34,7 +35,14 @@ export function SurgeryLegend({
   requiredFields: readonly string[];
 }) {
   const relevant = useMemo(
-    () => entities.filter((entity) => entity.active && entity.tooth === selectedTooth),
+    () =>
+      entities.filter(
+        (entity) =>
+          entity.active &&
+          (entity.tooth === selectedTooth ||
+            (entity.arch === archForTooth(selectedTooth) &&
+              entity.attributes?.procedure === "guided_surgery_splint")),
+      ),
     [entities, selectedTooth],
   );
   const [open, setOpen] = useState(requiredFields.length > 0);

@@ -2,6 +2,10 @@ import type { ClinicalIconFamily } from "./clinical-glyph";
 
 /** Clinical suggestions; prices and duration remain owned by the clinic catalog. */
 export const AGENDA_TREATMENT_OPTIONS = [
+  { label: "Gingivectomía", family: "surgery" },
+  { label: "Regularización ósea", family: "surgery" },
+  { label: "Férula quirúrgica guiada", family: "surgery" },
+  { label: "Malla de titanio", family: "surgery" },
   {
     label: "Caries",
     family: "restorative_surface",

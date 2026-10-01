@@ -1,3 +1,4 @@
+import { archForTooth } from "@/domain/odontogram/surgery-procedures";
 import type { DentalEntity } from "@/domain";
 
 export interface SurgicalVisualMark {
@@ -35,7 +36,7 @@ function visualFor(entity: DentalEntity, tooth: string): SurgicalVisualMark | nu
       key: entity.id,
       kind: "membrane",
       path: "M14 66 Q32 52 50 66",
-      ariaLabel: `Membrana en ${tooth}`,
+      ariaLabel: `${entity.attributes?.procedure === "titanium_mesh" ? "Malla de titanio" : "Membrana"} en ${tooth}`,
       lifecycle,
     };
   if (entity.entityType === "SINUS_LIFT")
@@ -72,7 +73,13 @@ export function surgicalVisualsForTooth(
   entities: readonly DentalEntity[],
 ): SurgicalVisualMark[] {
   return entities
-    .filter((entity) => entity.active && entity.tooth === tooth)
+    .filter(
+      (entity) =>
+        entity.active &&
+        (entity.tooth === tooth ||
+          (entity.arch === archForTooth(tooth) &&
+            entity.attributes?.procedure === "guided_surgery_splint")),
+    )
     .map((entity) => visualFor(entity, tooth))
     .filter((mark): mark is SurgicalVisualMark => mark !== null);
 }

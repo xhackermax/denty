@@ -113,6 +113,10 @@ export interface LocalVoicePlan {
 }
 
 const TREATMENTS: readonly [RegExp, string, string][] = [
+  [/gingivectom/, "gingivectomy", "Gingivectomía"],
+  [/regularizaci[oó]n.*[oó]sea/, "bone_regularization", "Regularización ósea"],
+  [/f[eé]rula.*(?:guiada|quir[uú]rgica)/, "guided_surgery_splint", "Férula quirúrgica guiada"],
+  [/malla.*titanio/, "titanium_mesh", "Malla de titanio"],
   [/apicectom/, "apicoectomy", "Apicectomía"],
   [/reendodon|retratamiento\s+endod|repetir\s+endodon/, "reendodontics", "Reendodoncia"],
   [/endodon|tratamiento\s+de\s+conductos?/, "endodontics", "Endodoncia"],

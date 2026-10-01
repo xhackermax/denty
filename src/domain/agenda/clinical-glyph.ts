@@ -112,6 +112,7 @@ const KEYWORD_FAMILIES: ReadonlyArray<readonly [RegExp, ClinicalIconFamily]> = [
   [/puente|protesis fija|provisional fijo|prueba de estructura/, "fixed_prosthesis"],
   [/protesis (?:total|completa)|dentadura|(?:prueba|ajuste) de total/, "complete_denture"],
   [/removible|esqueletico|rebase/, "removable_prosthesis"],
+  [/ferula.*(?:guiada|quirurg)|gingivect|regularizacion osea|malla.*titanio/, "surgery"],
   [/ferula/, "occlusal_splint"],
   [/ortodon|bracket|alineador|retenedor|mantenedor de espacio/, "orthodontics"],
   [/profilaxis|tartrect|raspado|higiene|limpieza|periodont|desbrid/, "periodontal_hygiene"],

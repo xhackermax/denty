@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 
 import { MantineProvider } from "@mantine/core";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { dentyTheme } from "@/styles/theme";
 import { SurgeryPanel } from "./surgery-panel";
 import { surgicalVisualsForTooth } from "./surgery-visuals";
+
+afterEach(cleanup);
 
 describe("SurgeryPanel", () => {
   it("commits the selected tooth through the shared batch path", () => {
@@ -53,3 +55,23 @@ describe("SurgeryPanel", () => {
     ]);
   });
 });
+
+it.each(["Gingivectomía", "Regularización ósea", "Férula quirúrgica guiada", "Malla de titanio"])(
+  "offers %s in procedure selector",
+  (label) => {
+    const view = render(
+      <MantineProvider>
+        <SurgeryPanel
+          selectedTooth="16"
+          entities={[]}
+          readOnly={false}
+          onCommitBatch={() => {}}
+          onWarning={() => {}}
+        />
+      </MantineProvider>,
+    );
+    fireEvent.click(view.getByRole("combobox", { name: "Procedimiento" }));
+    expect(view.getByRole("option", { name: label })).toBeInTheDocument();
+    view.unmount();
+  },
+);

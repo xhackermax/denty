@@ -1,6 +1,11 @@
 "use client";
 
 import { Badge, Button, Group, Select, Text } from "@mantine/core";
+import {
+  SURGERY_PROCEDURES,
+  archForTooth,
+  createSurgeryEntity,
+} from "@/domain/odontogram/surgery-procedures";
 import { useState } from "react";
 
 import {
@@ -12,37 +17,6 @@ import {
 
 import styles from "./odontogram.module.css";
 import { SurgeryLegend } from "./surgery-legend";
-
-const PROCEDURES = [
-  ["extraction_simple", "Exodoncia simple"],
-  ["extraction_surgical", "Exodoncia quirúrgica"],
-  ["impacted", "Diente incluido / impactado"],
-  ["germectomy", "Germectomía"],
-  ["alveoloplasty", "Alveoloplastia"],
-  ["surgical_exposure", "Exposición para tracción"],
-  ["apicoectomy", "Apicectomía"],
-  ["frenectomy_labial", "Frenectomía labial"],
-  ["frenectomy_lingual", "Frenectomía lingual"],
-  ["biopsy", "Biopsia / lesión"],
-  ["implant_planned", "Implante planificado"],
-  ["implant_placed", "Implante colocado"],
-  ["implant_lost", "Implante perdido"],
-  ["bone_graft", "Injerto óseo / ROG"],
-  ["socket_preservation", "Preservación alveolar"],
-  ["split_crest", "Split crest"],
-  ["membrane", "Membrana"],
-  ["sinus_lift_internal", "Elevación de seno interna / Summers"],
-  ["sinus_lift_external", "Elevación de seno externa"],
-] as const;
-
-function entityTypeFor(procedure: string): DentalEntity["entityType"] {
-  if (["bone_graft", "socket_preservation", "split_crest"].includes(procedure)) return "BONE_GRAFT";
-  if (procedure === "membrane") return "MEMBRANE";
-  if (procedure.startsWith("sinus_lift")) return "SINUS_LIFT";
-  if (procedure === "biopsy") return "SURGICAL_LESION";
-  if (procedure.startsWith("implant")) return "IMPLANT";
-  return "SURGERY";
-}
 
 export interface SurgeryPanelProps {
   selectedTooth: string;
@@ -57,11 +31,12 @@ export function SurgeryPanel({
   entities,
   readOnly,
   onCommitBatch,
+  onWarning,
 }: SurgeryPanelProps) {
   const [procedure, setProcedure] = useState<string>("extraction_simple");
   const [state, setState] = useState<"PLANIFICADO" | "REALIZADO">("PLANIFICADO");
   const [implantDesign, setImplantDesign] = useState<ImplantProstheticDesign>("UNIT_TIBASE");
-  const procedureLabel = PROCEDURES.find(([value]) => value === procedure)?.[1] ?? procedure;
+  const [arch, setArch] = useState(archForTooth(selectedTooth));
   const selectedCount = entities.filter(
     (entity) => entity.active && entity.tooth === selectedTooth,
   ).length;
@@ -71,21 +46,11 @@ export function SurgeryPanel({
       onCommitBatch(implantPlanEntities(createPlannedImplant(selectedTooth, implantDesign)));
       return;
     }
-    onCommitBatch([
-      {
-        id: `surgery-${selectedTooth}-${procedure}`,
-        tooth: selectedTooth,
-        entityType: entityTypeFor(procedure),
-        status: procedure,
-        active: true,
-        attributes: {
-          lifecycle: state,
-          procedure,
-          label: procedureLabel,
-          ...(procedure === "extraction_surgical" ? { impacted: true } : {}),
-        },
-      },
-    ]);
+    try {
+      onCommitBatch([createSurgeryEntity(procedure, selectedTooth, state, entities, arch)]);
+    } catch (error) {
+      onWarning(error instanceof Error ? error.message : "No se pudo registrar el procedimiento");
+    }
   };
 
   return (
@@ -104,7 +69,7 @@ export function SurgeryPanel({
           label="Procedimiento"
           value={procedure}
           onChange={(value) => setProcedure(value ?? procedure)}
-          data={PROCEDURES.map(([value, label]) => ({ value, label }))}
+          data={SURGERY_PROCEDURES.map(({ value, label }) => ({ value, label }))}
           disabled={readOnly}
         />
         <Select
@@ -117,6 +82,18 @@ export function SurgeryPanel({
           ]}
           disabled={readOnly}
         />
+        {procedure === "guided_surgery_splint" ? (
+          <Select
+            label="Arcada"
+            value={arch}
+            onChange={(value) => setArch(value === "lower" ? "lower" : "upper")}
+            data={[
+              { value: "upper", label: "Superior" },
+              { value: "lower", label: "Inferior" },
+            ]}
+            disabled={readOnly}
+          />
+        ) : null}
         {procedure === "implant_planned" ? (
           <Select
             label="Diseño protésico"
