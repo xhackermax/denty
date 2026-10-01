@@ -31,7 +31,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const history = useRef<string[]>([]);
-  const active = useRef<(() => UnsavedGuard) | null>(null);
+  const active = useRef(new Set<() => UnsavedGuard>());
   const [pending, setPending] = useState<{ guard: UnsavedGuard; navigate: () => void } | null>(
     null,
   );
@@ -48,13 +48,24 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     else if (stack.at(-1) !== path) history.current = [...stack.slice(-49), path];
   }, [pathname]);
   const register = useCallback((guard: () => UnsavedGuard) => {
-    active.current = guard;
+    active.current.add(guard);
     return () => {
-      if (active.current === guard) active.current = null;
+      active.current.delete(guard);
     };
   }, []);
   const confirmLeave = useCallback((navigate: () => void) => {
-    const guard = active.current?.();
+    const dirtyGuards = [...active.current].map((get) => get()).filter((guard) => guard.dirty);
+    const guard: UnsavedGuard | null = dirtyGuards.length
+      ? {
+          dirty: true,
+          onSave: async () => {
+            for (const item of dirtyGuards) await item.onSave();
+          },
+          onDiscard: () => {
+            for (const item of dirtyGuards) item.onDiscard();
+          },
+        }
+      : null;
     if (!guard?.dirty) {
       navigate();
       return;
@@ -75,7 +86,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         event.ctrlKey ||
         event.shiftKey ||
         event.altKey ||
-        !active.current?.().dirty
+        ![...active.current].some((get) => get().dirty)
       )
         return;
       const link = event.target instanceof Element ? event.target.closest("a[href]") : null;

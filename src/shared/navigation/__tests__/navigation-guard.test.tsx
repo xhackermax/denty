@@ -78,3 +78,76 @@ test("guards internal links and registers beforeunload only while dirty", async 
   window.dispatchEvent(clean);
   expect(clean.defaultPrevented).toBe(false);
 });
+test("multiple clinical editors all save before navigation; a later clean editor cannot hide dirty edits", async () => {
+  const saved: string[] = [];
+  function First() {
+    useUnsavedChangesGuard({
+      dirty: true,
+      onDiscard: () => undefined,
+      onSave: async () => {
+        saved.push("mouth");
+      },
+    });
+    return <PageBackButton fallbackHref="/app" />;
+  }
+  function Second() {
+    useUnsavedChangesGuard({
+      dirty: false,
+      onDiscard: () => undefined,
+      onSave: async () => {
+        saved.push("perio");
+      },
+    });
+    return null;
+  }
+  render(
+    <MantineProvider>
+      <NavigationProvider>
+        <First />
+        <Second />
+      </NavigationProvider>
+    </MantineProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Volver" }));
+  expect(await screen.findByText("Tienes cambios sin guardar")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+  await waitFor(() => expect(router.push).toHaveBeenCalledWith("/app"));
+  expect(saved).toEqual(["mouth"]);
+});
+test("saves every dirty editor and blocks navigation if any save fails", async () => {
+  const saved: string[] = [];
+  function First() {
+    useUnsavedChangesGuard({
+      dirty: true,
+      onDiscard: () => undefined,
+      onSave: async () => {
+        saved.push("mouth");
+      },
+    });
+    return <PageBackButton fallbackHref="/app" />;
+  }
+  function Second() {
+    useUnsavedChangesGuard({
+      dirty: true,
+      onDiscard: () => undefined,
+      onSave: async () => {
+        saved.push("perio");
+        throw new Error("Borrador sin guardar");
+      },
+    });
+    return null;
+  }
+  render(
+    <MantineProvider>
+      <NavigationProvider>
+        <First />
+        <Second />
+      </NavigationProvider>
+    </MantineProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Volver" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Guardar" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Borrador sin guardar");
+  expect(router.push).not.toHaveBeenCalled();
+  expect(saved).toEqual(["mouth", "perio"]);
+});

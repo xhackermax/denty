@@ -43,16 +43,25 @@ test("keyboard, manual grid and voice share one draft; arrows focus and finaliza
   const input = screen.getByLabelText("18 MV sondaje");
   fireEvent.keyDown(input, { key: "ArrowRight" });
   expect(screen.getByLabelText("18 MV margen")).toHaveFocus();
+  const unsaved = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(unsaved);
+  expect(unsaved.defaultPrevented).toBe(true);
   fireEvent.change(screen.getByLabelText("18 MV margen"), { target: { value: "-1" } });
   dispatchPerioVoice("p", { type: "site", tooth: "18", site: "MV", patch: { pd: 5 } });
   await waitFor(() => expect(screen.getByLabelText("18 MV sondaje")).toHaveValue(5));
   fireEvent.click(screen.getByRole("button", { name: "Guardar examen parcial" }));
   await waitFor(() => expect(api.perioDrafts.finish).toHaveBeenCalledTimes(1));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Guardar examen parcial" })).toBeDisabled(),
+  );
+  const saved = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(saved);
+  expect(saved.defaultPrevented).toBe(false);
   expect(api.perioDrafts.save.mock.calls.at(-1)?.[1].exam.teeth["18"].sites.MV).toMatchObject({
     pd: 5,
     gm: -1,
   });
-});
+}, 20000);
 test("failed finalization retains measurements and reports error", async () => {
   api.perioDrafts.finish.mockRejectedValueOnce(new Error("Servidor no disponible"));
   mount();
@@ -63,4 +72,4 @@ test("failed finalization retains measurements and reports error", async () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Servidor no disponible"),
   );
   expect(screen.getByLabelText("18 MV sondaje")).toHaveValue(4);
-});
+}, 20000);

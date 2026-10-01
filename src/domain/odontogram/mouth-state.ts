@@ -121,7 +121,7 @@ export function teethForChart(
 ): string[] {
   if (state.dentition === "deciduous") return [...primary];
   return state.dentition === "permanent"
-    ? [...permanent]
+    ? [...permanent, ...primary.filter((tooth) => isProbeable(state, tooth))]
     : [...PERMANENT_UPPER, ...TEMPORARY_UPPER, ...PERMANENT_LOWER, ...TEMPORARY_LOWER].filter(
         (t) => state.teeth[t]?.presence !== "unerupted",
       );

@@ -41,7 +41,7 @@ begin
  select * into v_row from public.clinical_diagnoses where id=p_id and patient_id=p_patient_id for update;
  if v_row.id is null then raise exception 'DIAGNOSIS_NOT_FOUND' using errcode='P0002';end if;
  if not private.is_clinical_diagnostician(v_row.clinic_id) then raise exception 'FORBIDDEN' using errcode='42501';end if;
- if v_row.version<>p_expected_version then raise exception 'DIAGNOSIS_VERSION_CONFLICT' using errcode='40001';end if;
+ if v_row.version<>p_expected_version then raise exception 'DIAGNOSIS_VERSION_CONFLICT' using errcode='PT409';end if;
  update public.clinical_diagnoses set status='resolved',version=version+1 where id=p_id returning * into v_row;
  return to_jsonb(v_row);
 end $$;

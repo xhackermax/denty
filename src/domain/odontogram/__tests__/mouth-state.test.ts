@@ -69,3 +69,11 @@ test("mixed dentition includes primary teeth and explicit clinical presence over
   expect(child.dentition).toBe("deciduous");
   expect(isProbeable(child, "16")).toBe(false);
 });
+test("retained primary teeth remain visible in an adult periodontal chart", () => {
+  const state = deriveMouthState(
+    [{ id: "retained", tooth: "55", entityType: "PEDIATRIC", status: "retained", active: true }],
+    { birthDate: "1980-01-01", today: "2026-10-01" },
+  );
+  expect(isProbeable(state, "55")).toBe(true);
+  expect(teethForChart(state, "perio")).toContain("55");
+});

@@ -13,6 +13,7 @@ import {
   type PerioSession,
 } from "@/domain/periodontal/entry-cursor";
 import { parsePerioDictation } from "@/features/voice/perio-dictation";
+import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
 import { getBrowserApi } from "@/shared/api/browser";
 import { perioExamDataSchema, type PerioDraftData } from "@/shared/api/schemas/perio-drafts";
 import { useClinicalWorkflowQuery } from "@/shared/clinical/clinical-data";
@@ -61,6 +62,8 @@ export function PerioChart({
   const [session, setSession] = useState(() =>
     createPerioSession(createPerioExam(mouth, readings), mouth),
   );
+  const lastSaved = useRef(session);
+  const [dirty, setDirty] = useState(false);
   const current = useRef(session);
   current.current = session;
   const [closed, setClosed] = useState(false);
@@ -79,7 +82,8 @@ export function PerioChart({
     finishingRef = useRef(false);
   const latestExam = workflow.data?.periodontalExams[0];
   const previousParsed = perioExamDataSchema.safeParse(latestExam?.metadata?.perioExam);
-  const previous = previousParsed.success ? previousParsed.data : createPerioExam(mouth, readings);
+  const previous =
+    !readOnly && previousParsed.success ? previousParsed.data : createPerioExam(mouth, readings);
   useEffect(() => {
     if (readOnly || workflow.isLoading) return;
     let cancelled = false;
@@ -91,8 +95,13 @@ export function PerioChart({
           const saved = await getBrowserApi().perioDrafts.save(patientId, data, version);
           return saved.version;
         }, draft?.version ?? 0);
-        if (draft) setSession(reconcileSessionMouth({ ...draft.data, past: [] }, mouth));
-        else if (previousParsed.success) setSession(createPerioSession(previousParsed.data, mouth));
+        if (draft) {
+          const restored = reconcileSessionMouth({ ...draft.data, past: [] }, mouth);
+          lastSaved.current = restored;
+          setSession(restored);
+          setDirty(false);
+        } else if (previousParsed.success)
+          setSession(createPerioSession(previousParsed.data, mouth));
         setStatus(draft ? "Borrador recuperado" : "Sin cambios");
         setReady(true);
       })
@@ -119,8 +128,22 @@ export function PerioChart({
       cursor: state.cursor,
       lastTriplet: state.lastTriplet,
     });
+    lastSaved.current = state;
+    if (current.current === state) setDirty(false);
     setStatus("Borrador guardado");
   }, []);
+  useUnsavedChangesGuard({
+    dirty: dirty && !readOnly && !closed,
+    onSave: async () => {
+      await persist(current.current);
+      await writer.current!.flush();
+    },
+    onDiscard: () => {
+      current.current = lastSaved.current;
+      setSession(lastSaved.current);
+      setDirty(false);
+    },
+  });
   useEffect(() => {
     if (!ready || readOnly || finishingRef.current || closedRef.current) return;
     const timer = setTimeout(() => {
@@ -158,6 +181,7 @@ export function PerioChart({
       const next = applyPerioCommand(current.current, command, mouth);
       current.current = next;
       setSession(next);
+      setDirty(true);
       setError("");
       if (feedback === "spoken" && typeof speechSynthesis !== "undefined")
         speechSynthesis.speak(
@@ -299,6 +323,7 @@ export function PerioChart({
       );
       closedRef.current = true;
       setClosed(true);
+      setDirty(false);
       setStatus("Examen guardado");
       setError("");
       await queryClient.invalidateQueries({ queryKey: ["denty", "clinical", patientId] });
