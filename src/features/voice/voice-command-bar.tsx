@@ -184,13 +184,14 @@ function policyMessage(result: AssistantPolicyResult, call?: AssistantToolCall):
   return call ? `No puedo ejecutar ${call.name} todavía.` : "No se pudo ejecutar la orden.";
 }
 
-export function shouldRenderVoiceControls(role: string | null | undefined, loading: boolean) {
-  return !loading && isInternalVoiceRole(role);
+export function shouldRenderVoiceControls(role: string | null | undefined) {
+  // Agenda loading must not hide voice once the authenticated clinic role is known.
+  return isInternalVoiceRole(role);
 }
 
 export function VoiceCommandBar() {
-  const { role, permissions, loading } = useActiveTenant();
-  if (!shouldRenderVoiceControls(role, loading)) return null;
+  const { role, permissions } = useActiveTenant();
+  if (!shouldRenderVoiceControls(role)) return null;
   return <VoiceCommandBarInner permissions={permissions} role={role} />;
 }
 
