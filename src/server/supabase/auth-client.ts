@@ -40,7 +40,7 @@ export class SupabaseAuthClient {
 
   constructor(
     private readonly credentials: SupabaseAuthCredentials,
-    fetchImpl: typeof fetch = fetch,
+    private readonly fetchImpl: typeof fetch = fetch,
   ) {
     const common = {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -93,11 +93,18 @@ export class SupabaseAuthClient {
     if (error) throw authError(error, "No se pudo solicitar el restablecimiento de contraseña.");
   }
 
-  async updatePassword(accessToken: string, password: string): Promise<void> {
+  async updatePassword(accessToken: string, password: string, refreshToken: string): Promise<void> {
     const scoped = createClient(this.credentials.url, this.credentials.publishableKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+      global: { fetch: this.fetchImpl },
     });
+    // Denty stores the session in HttpOnly cookies, not SDK storage. Initialize
+    // this request-scoped SDK session before updateUser, which requires one.
+    const { error: sessionError } = await scoped.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (sessionError) throw authError(sessionError, "No se pudo validar la sesión.");
     const { error } = await scoped.auth.updateUser({ password });
     if (error) throw authError(error, "No se pudo actualizar la contraseña.");
   }

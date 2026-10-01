@@ -478,7 +478,14 @@ export async function handleSupabaseDentyRoute(
             return error(400, "CURRENT_PASSWORD_INVALID", "La contraseña actual no es correcta.");
           throw caught;
         }
-        await identity.authClient.updatePassword(identity.accessToken, payload.newPassword);
+        const refreshToken =
+          identity.refreshedSession?.refreshToken ?? readAuthCookies(request).refreshToken;
+        if (!refreshToken) return error(401, "UNAUTHENTICATED", "No hay sesión activa.");
+        await identity.authClient.updatePassword(
+          identity.accessToken,
+          payload.newPassword,
+          refreshToken,
+        );
         return json(200, { ok: true }, responseHeadersForIdentity(request, identity));
       }
       if (parts[2] === "reset-password" && method === "POST") {

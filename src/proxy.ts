@@ -46,6 +46,26 @@ function carrySessionCookies(target: NextResponse, source: Response): NextRespon
   return target;
 }
 
+function refreshedRequest(request: NextRequest, response: Response): NextResponse {
+  const cookies = new Map(
+    (request.headers.get("cookie") ?? "")
+      .split(";")
+      .map((part) => {
+        const index = part.indexOf("=");
+        return [part.slice(0, index).trim(), part.slice(index + 1)] as const;
+      })
+      .filter(([name]) => Boolean(name)),
+  );
+  for (const cookie of response.headers.getSetCookie()) {
+    const pair = cookie.split(";")[0] ?? "";
+    const index = pair.indexOf("=");
+    if (index > 0) cookies.set(pair.slice(0, index), pair.slice(index + 1));
+  }
+  const headers = new Headers(request.headers);
+  headers.set("cookie", [...cookies].map(([name, value]) => `${name}=${value}`).join("; "));
+  return NextResponse.next({ request: { headers } });
+}
+
 export async function proxy(request: NextRequest): Promise<Response> {
   const headers = new Headers({ accept: "application/json" });
   const cookie = request.headers.get("cookie");
@@ -68,7 +88,13 @@ export async function proxy(request: NextRequest): Promise<Response> {
   if (response.status === 401) return loginRedirect(request);
   if (!response.ok) return unavailableResponse();
 
-  const session = sessionResponseSchema.safeParse(await response.json());
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    return unavailableResponse();
+  }
+  const session = sessionResponseSchema.safeParse(payload);
   if (!session.success) return unavailableResponse();
 
   const actor = actorFromSession(session.data);
@@ -77,18 +103,22 @@ export async function proxy(request: NextRequest): Promise<Response> {
     const patientId = request.nextUrl.pathname.split("/")[2];
     result =
       patientId && canAccessPatient(actor, patientId)
-        ? NextResponse.next()
+        ? refreshedRequest(request, response)
         : forbiddenRedirect(request);
     return carrySessionCookies(result, response);
   }
 
-  const decision = decideStaffRouteAccess(actor, request.nextUrl.pathname);
-  if (decision.kind === "allow") result = NextResponse.next();
+  const pathname = request.nextUrl.pathname;
+  const decision = decideStaffRouteAccess(
+    actor,
+    pathname.startsWith("/admin/") ? `/app${pathname}` : pathname,
+  );
+  if (decision.kind === "allow") result = refreshedRequest(request, response);
   else if (decision.kind === "unauthenticated") result = loginRedirect(request);
   else result = forbiddenRedirect(request);
   return carrySessionCookies(result, response);
 }
 
 export const config = {
-  matcher: ["/app/:path*", "/patient/:path*"],
+  matcher: ["/app/:path*", "/patient/:path*", "/admin/:path*"],
 };

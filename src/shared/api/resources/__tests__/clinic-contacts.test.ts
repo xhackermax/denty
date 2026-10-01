@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createClinicContactsAPI } from "../clinic-contacts";
 
 describe("clinic-contacts API", () => {
-  let mockClient: any;
+  let mockClient: { rpc: ReturnType<typeof vi.fn>; from: ReturnType<typeof vi.fn> };
   let api: ReturnType<typeof createClinicContactsAPI>;
 
   beforeEach(() => {
@@ -10,7 +10,9 @@ describe("clinic-contacts API", () => {
       rpc: vi.fn(),
       from: vi.fn(),
     };
-    api = createClinicContactsAPI(mockClient);
+    api = createClinicContactsAPI(
+      mockClient as unknown as Parameters<typeof createClinicContactsAPI>[0],
+    );
   });
 
   describe("create", () => {
@@ -96,7 +98,7 @@ describe("clinic-contacts API", () => {
         api.create("clinic-1", {
           name: "Test",
           category: "Test",
-        })
+        }),
       ).rejects.toThrow("Database error");
     });
   });
@@ -138,7 +140,7 @@ describe("clinic-contacts API", () => {
         "list_clinic_contacts",
         expect.objectContaining({
           p_search: "plumber",
-        })
+        }),
       );
     });
 
@@ -151,7 +153,7 @@ describe("clinic-contacts API", () => {
         "list_clinic_contacts",
         expect.objectContaining({
           p_category: "Plumber",
-        })
+        }),
       );
     });
   });
@@ -189,9 +191,9 @@ describe("clinic-contacts API", () => {
       const error = new Error("VERSION_CONFLICT");
       mockClient.rpc.mockResolvedValue({ data: null, error });
 
-      await expect(
-        api.update("contact-1", { name: "Test", expectedVersion: 1 })
-      ).rejects.toThrow("VERSION_CONFLICT");
+      await expect(api.update("contact-1", { name: "Test", expectedVersion: 1 })).rejects.toThrow(
+        "VERSION_CONFLICT",
+      );
     });
   });
 
@@ -216,19 +218,14 @@ describe("clinic-contacts API", () => {
 
   describe("listCategories", () => {
     it("should list unique categories", async () => {
-      mockClient.from.mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            distinct: vi.fn().mockResolvedValue({
-              data: [
-                { category: "Plumber" },
-                { category: "Electrician" },
-                { category: "Delivery" },
-              ],
-              error: null,
-            }),
-          }),
-        }),
+      mockClient.rpc.mockResolvedValue({
+        data: [
+          { category: "Plumber" },
+          { category: "Electrician" },
+          { category: "Delivery" },
+          { category: "Plumber" },
+        ],
+        error: null,
       });
 
       const result = await api.listCategories("clinic-1");
@@ -237,16 +234,7 @@ describe("clinic-contacts API", () => {
     });
 
     it("should return empty array if no categories", async () => {
-      mockClient.from.mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            distinct: vi.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          }),
-        }),
-      });
+      mockClient.rpc.mockResolvedValue({ data: [], error: null });
 
       const result = await api.listCategories("clinic-1");
 

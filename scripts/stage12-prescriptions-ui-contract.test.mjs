@@ -25,16 +25,19 @@ assert.ok(
 );
 
 const ui = fs.readFileSync("src/features/parity/modules/prescriptions-module.tsx", "utf8");
-for (const token of [
-  "SignaturePad",
-  "Principio activo",
-  "Dosis",
-  "Frecuencia",
-  "Duración",
-  "Firmar receta",
-]) {
+for (const token of ["SignaturePad", "Firmar receta"]) {
   assert.ok(ui.includes(token), `Prescription editor missing ${token}`);
 }
+assert.match(ui, /PrescriptionLinesEditor/, "Prescription module must render the line editor");
+const editor = fs.readFileSync("src/features/parity/modules/prescription-line-editor.tsx", "utf8");
+for (const token of ["Medicamento", "Dosis", "Vía", "Posología", "Duración"]) {
+  assert.ok(editor.includes(token), `Prescription line editor missing ${token}`);
+}
+assert.doesNotMatch(
+  editor,
+  /label="Principio activo"/,
+  "The editor uses medicine names and administration instructions",
+);
 assert.match(
   ui,
   /prescription\.status === "SIGNING"[\s\S]{0,500}issue\.mutate/i,

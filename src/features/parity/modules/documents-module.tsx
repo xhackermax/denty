@@ -113,7 +113,7 @@ export function DocumentsModule() {
     staleTime: 30_000,
   });
   const templates = useQuery({
-    queryKey: [...dentyQueryKeys.documents.templates, "all-versions"],
+    queryKey: dentyQueryKeys.documents.allTemplateVersions,
     queryFn: () => getBrowserApi().documents.templates.list({ includeInactive: true }),
     staleTime: 60_000,
   });

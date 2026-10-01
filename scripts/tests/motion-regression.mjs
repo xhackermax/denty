@@ -25,8 +25,8 @@ assert.doesNotMatch(motionPageStyles, /cube|flip|filter/);
 assert.ok((shell.match(/animate=\{active \?/g) ?? []).length >= 2);
 assert.match(voice, /voicePulse/);
 assert.match(voice, /repeat: Infinity/);
-assert.match(patients, /rotateY:/);
-assert.match(patients, /patientCarouselAvatar/);
+assert.match(patients, /animate=\{\{ opacity: 1, y: 0 \}\}/);
+assert.match(patients, /carouselControls/);
 assert.match(dashboard, /MotionScrollReveal/);
 assert.equal((dashboard.match(/<SpeedingMetric/g) ?? []).length, 0);
 assert.match(dashboard, /MotionParallax/);
@@ -46,7 +46,7 @@ assert.match(analysis, /MotionParallax/);
 // Motion must be perceptible rather than technically present but visually negligible.
 assert.match(tokens, /page:\s*1[2-9]|page:\s*[2-9]\d/);
 assert.match(parallax, /expressive" \? (?:[5-9]\d|1\d{2})/);
-assert.match(patients, /scale:\s*active \? 1\.0[2-9]/);
-assert.match(patients, /rotateY:\s*active \? 0 : -Math\.min\(distance, 2\) \* [3-9]/);
+assert.match(patients, /AnimatePresence/);
+assert.match(patients, /animate=\{\{ opacity: 1, x: 0 \}\}/);
 
 console.log("motion regression: ok");

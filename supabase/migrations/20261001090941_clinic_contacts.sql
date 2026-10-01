@@ -29,50 +29,16 @@ create index clinic_contacts_created_at_idx on public.clinic_contacts(clinic_id,
 alter table public.clinic_contacts enable row level security;
 
 create policy clinic_contacts_clinic_staff on public.clinic_contacts
-  for select
-  using (exists(
-    select 1 from public.staff_members s
-    where s.clinic_id = clinic_contacts.clinic_id
-      and s.id = auth.uid()
-      and s.active
-  ));
+  for select to authenticated
+  using ((select private.is_clinic_staff(clinic_contacts.clinic_id)));
 
-create policy clinic_contacts_clinic_staff_insert on public.clinic_contacts
-  for insert
-  with check (exists(
-    select 1 from public.staff_members s
-    where s.clinic_id = clinic_id
-      and s.id = auth.uid()
-      and s.active
-  ));
-
-create policy clinic_contacts_clinic_staff_update on public.clinic_contacts
-  for update
-  using (exists(
-    select 1 from public.staff_members s
-    where s.clinic_id = clinic_contacts.clinic_id
-      and s.id = auth.uid()
-      and s.active
-  ))
-  with check (exists(
-    select 1 from public.staff_members s
-    where s.clinic_id = clinic_id
-      and s.id = auth.uid()
-      and s.active
-  ));
-
-create policy clinic_contacts_clinic_staff_delete on public.clinic_contacts
-  for delete
-  using (exists(
-    select 1 from public.staff_members s
-    where s.clinic_id = clinic_contacts.clinic_id
-      and s.id = auth.uid()
-      and s.active
-  ));
+revoke all on public.clinic_contacts from anon;
+revoke insert, update, delete on public.clinic_contacts from authenticated;
+grant select on public.clinic_contacts to authenticated;
 
 -- Audit log entries
 create trigger clinic_contacts_audit after insert or update or delete on public.clinic_contacts
-  for each row execute function private.audit_log_trigger();
+  for each row execute function private.audit_sensitive_mutation();
 
 -- RPC: Create a contact
 create or replace function public.create_clinic_contact(
@@ -215,10 +181,10 @@ begin
   v_search_pattern := case when p_search is not null then '%' || btrim(p_search) || '%' else null end;
 
   select count(*) into v_total
-  from public.clinic_contacts
-  where clinic_contacts.clinic_id = p_clinic_id
-    and (v_search_pattern is null or name ilike v_search_pattern or notes ilike v_search_pattern)
-    and (p_category is null or category = p_category);
+  from public.clinic_contacts c
+  where c.clinic_id = p_clinic_id
+    and (v_search_pattern is null or c.name ilike v_search_pattern or c.notes ilike v_search_pattern)
+    and (p_category is null or c.category = p_category);
 
   return query
   select
@@ -237,10 +203,10 @@ begin
     v_total
   from public.clinic_contacts
   where clinic_contacts.clinic_id = p_clinic_id
-    and (v_search_pattern is null or name ilike v_search_pattern or notes ilike v_search_pattern)
-    and (p_category is null or category = p_category)
-  order by created_at desc
-  limit p_limit offset p_offset;
+    and (v_search_pattern is null or clinic_contacts.name ilike v_search_pattern or clinic_contacts.notes ilike v_search_pattern)
+    and (p_category is null or clinic_contacts.category = p_category)
+  order by clinic_contacts.created_at desc
+  limit greatest(1, least(coalesce(p_limit,100),1000)) offset greatest(coalesce(p_offset,0),0);
 end $$;
 
 -- Grant execute permissions

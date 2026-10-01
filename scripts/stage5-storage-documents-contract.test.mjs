@@ -83,8 +83,12 @@ assert.ok(
 );
 const camera = read("src/features/patients/patient-photo-capture.tsx");
 assert.match(camera, /getUserMedia/);
-assert.match(camera, /video:\s*true/);
-assert.match(camera, /canvas/);
+assert.match(
+  camera,
+  /video:\s*(?:true|deviceId\s*\?\s*\{\s*deviceId:\s*\{\s*exact:\s*deviceId\s*\}\s*\}\s*:\s*true)/,
+);
+assert.match(camera, /compressVideoFrame/);
+assert.match(read("src/features/patients/photo-compression.ts"), /createElement\("canvas"\)/);
 assert.match(camera, /onPhotoReady/);
 assert.match(camera, /capturePhoto/);
 

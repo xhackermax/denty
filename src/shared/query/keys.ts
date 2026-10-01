@@ -6,6 +6,8 @@ export const dentyQueryKeys = {
     root: root("patients"),
     all: ["denty", "patients", "list", { includeArchived: false }] as const,
     list: (includeArchived = false) => ["denty", "patients", "list", { includeArchived }] as const,
+    page: (includeArchived = false, search = "", page = 1) =>
+      ["denty", "patients", "list", { includeArchived }, search, page] as const,
     detail: (patientId: string) => ["denty", "patients", "detail", patientId] as const,
     projection: (patientId: string) => ["denty", "patients", "projection", patientId] as const,
   },
@@ -37,6 +39,7 @@ export const dentyQueryKeys = {
     patient: (patientId: string) => ["denty", "documents", { patientId }] as const,
     all: ["denty", "documents", "list"] as const,
     templates: ["denty", "documents", "templates"] as const,
+    allTemplateVersions: ["denty", "documents", "templates", "all-versions"] as const,
   },
   prescriptions: {
     root: root("prescriptions"),
