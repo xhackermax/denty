@@ -161,5 +161,21 @@ export function createAdminResource(client: ApiClient) {
         withQuery("/api/admin/financial-dashboard", financialDashboardQuerySchema.parse(query)),
         financialDashboardSchema,
       ),
+    export: {
+      overview: () =>
+        client.request("/api/admin/export/overview", z.object({
+          patientCount: z.number(),
+          appointmentCount: z.number(),
+          treatmentCount: z.number(),
+        })),
+      execute: async (entity: "patients" | "appointments" | "treatments", format: "csv" | "xlsx") => {
+        const response = await fetch(
+          `/api/admin/export/${entity}?format=${format}`,
+          { method: "GET" }
+        );
+        if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
+        return response.blob();
+      },
+    },
   } as const;
 }

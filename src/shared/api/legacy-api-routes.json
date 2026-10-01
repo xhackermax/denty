@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
-  "routeCount": 225,
+  "routeCount": 227,
   "routes": [
     {
       "method": "GET",
@@ -67,6 +67,16 @@
       "method": "GET",
       "path": "/api/admin/communications/templates",
       "source": "apps/api/src/modules/communications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/export/overview",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/export/:entity",
       "kind": "browser"
     },
     {
