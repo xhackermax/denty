@@ -1,7 +1,7 @@
 "use client";
 import {
   SortableContext,
-  verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
@@ -320,7 +320,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
           applyOrder(moveIdToIndex(visibleIds, id, visibleIds.indexOf(target)));
       }}
     >
-      <SortableContext items={visibleIds} strategy={verticalListSortingStrategy}>
+      <SortableContext items={visibleIds} strategy={horizontalListSortingStrategy}>
         <div className={styles.root}>
           <ActionErrorAlert
             errors={[

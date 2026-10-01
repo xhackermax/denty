@@ -18,9 +18,9 @@ export function ArchivedList({ tasks, onRestore }: ArchivedListProps) {
     return <p className={timelineStyles.state}>No hay tareas archivadas.</p>;
   }
   return (
-    <div className={styles.rowList}>
+    <div className={timelineStyles.inboxList}>
       {tasks.map((task) => (
-        <div className={styles.row} key={task.id}>
+        <div className={`${styles.row} ${timelineStyles.archiveCard}`} key={task.id}>
           <div className={styles.rowMain}>
             <span className={styles.rowTitle}>{task.title}</span>
             <span className={styles.rowMeta}>

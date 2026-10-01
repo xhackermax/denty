@@ -7,6 +7,7 @@
 
 .header {
   display: flex;
+  min-width: 0;
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
@@ -24,6 +25,11 @@
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+.header > :last-child {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 /* Franja de días */
@@ -262,8 +268,10 @@
 /* Bandeja */
 .inboxList {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  gap: 12px;
+  overflow-x: auto;
+  align-items: stretch;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -271,8 +279,10 @@
 
 .inboxItem {
   display: grid;
+  flex: 0 0 280px;
+  align-content: start;
   gap: 6px 10px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: 32px 34px minmax(0, 1fr);
   align-items: center;
   padding: 10px 12px;
   border: 1px solid var(--denty-line);
@@ -282,7 +292,20 @@
 }
 
 .inboxBody {
+  grid-column: 1 / -1;
+  grid-row: 2;
   min-width: 0;
+}
+
+.archiveCard {
+  display: flex;
+  flex: 0 0 280px;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.archiveCard > button {
+  align-self: flex-start;
 }
 
 .inboxActions {
@@ -300,7 +323,10 @@
 /* Línea de tiempo */
 .list {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  gap: 12px;
+  overflow-x: auto;
+  align-items: stretch;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -308,21 +334,24 @@
 
 .item {
   display: grid;
-  gap: 0 8px;
-  grid-template-columns: 44px 38px minmax(0, 1fr);
+  flex: 0 0 280px;
+  gap: 8px;
+  grid-template-columns: 32px minmax(0, 1fr) 34px;
+  align-content: start;
+  align-items: center;
 }
 
 .time {
-  padding-top: 8px;
   color: var(--denty-muted);
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  text-align: right;
+  text-align: left;
 }
 
 .timeEnd {
-  display: block;
+  display: inline;
+  margin-left: 6px;
   font-weight: 500;
   opacity: 0.75;
 }
@@ -333,25 +362,6 @@
   justify-content: center;
 }
 
-.rail::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  background: var(--denty-line-strong);
-  content: "";
-  transform: translateX(-50%);
-}
-
-.item:first-child .rail::before {
-  top: 18px;
-}
-
-.item:last-child .rail::before {
-  bottom: calc(100% - 18px);
-}
-
 .node {
   --node-color: var(--denty-blue);
 
@@ -360,7 +370,7 @@
   display: grid;
   width: 34px;
   height: 34px;
-  margin-top: 4px;
+  margin-top: 0;
   border: 2px solid var(--node-color);
   border-radius: 12px;
   background: color-mix(in srgb, var(--node-color) 16%, var(--denty-card-solid));
@@ -390,9 +400,10 @@
 
 .card {
   display: grid;
+  grid-column: 1 / -1;
   gap: 4px 10px;
   grid-template-columns: minmax(0, 1fr) auto;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   padding: 10px 12px;
   border: 1px solid var(--denty-line);
   border-radius: 16px;
@@ -465,6 +476,12 @@
   outline-offset: 2px;
 }
 
+.inboxItem > .check {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+}
+
 .checkDone {
   border-color: var(--denty-green);
   background: var(--denty-green);
@@ -505,6 +522,7 @@
 }
 
 .gap {
+  grid-column: 1 / -1;
   padding: 2px 0 10px;
   color: var(--denty-muted);
   font-size: 0.82rem;
@@ -572,15 +590,6 @@
 @media (width >= 48em) {
   .dock {
     bottom: 16px;
-  }
-
-  .root {
-    max-width: 760px;
-  }
-
-  .item {
-    grid-template-columns: 56px 42px minmax(0, 1fr);
-    gap: 0 12px;
   }
 
   .actions {

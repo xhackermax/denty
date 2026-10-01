@@ -1,0 +1,99 @@
+.workspace {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+
+.quickActions {
+  position: sticky;
+  top: calc(var(--denty-shell-header, 64px) + 12px);
+  padding: 10px;
+  border: 1px solid var(--denty-line);
+  border-radius: 16px;
+  background: var(--denty-card);
+}
+
+.quickTitle {
+  margin: 0 0 10px;
+  color: var(--denty-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.quickList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quickLink {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px;
+  border-radius: 10px;
+  color: var(--denty-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.quickLink:hover {
+  background: var(--denty-glow);
+}
+
+.quickLink:focus-visible {
+  outline: 2px solid var(--denty-blue);
+  outline-offset: 2px;
+}
+
+.quickIcon {
+  display: grid;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--denty-teal) 10%, transparent);
+  color: var(--denty-teal);
+  place-items: center;
+}
+
+.tasksPanel {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--denty-line);
+  border-radius: 16px;
+  background: var(--denty-card);
+}
+
+@media (width <= 38em) {
+  .workspace {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .quickActions {
+    padding: 8px 4px;
+  }
+
+  .quickTitle {
+    text-align: center;
+    font-size: 0.65rem;
+  }
+
+  .quickLink {
+    flex-direction: column;
+    gap: 4px;
+    min-height: 56px;
+    padding: 6px 2px;
+    font-size: 0.68rem;
+    text-align: center;
+  }
+
+  .tasksPanel {
+    padding: 10px;
+  }
+}

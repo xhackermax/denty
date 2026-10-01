@@ -73,27 +73,27 @@ describe("TasksTimeline", () => {
     expect(api.update).toHaveBeenCalledWith("c", { archived: true, expectedVersion: 1 });
   });
 
-  it("reordena con los botones subir/bajar y llama a reorder", async () => {
+  it("reordena con los botones izquierda/derecha y llama a reorder", async () => {
     const api = makeApi([
       mk({ id: "a", position: 1 }),
       mk({ id: "b", position: 2 }),
       mk({ id: "c", position: 3 }),
     ]);
     renderTimeline(api);
-    fireEvent.click(await screen.findByRole("button", { name: "Subir: B" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Mover a la izquierda: B" }));
     await waitFor(() => expect(api.reorder).toHaveBeenCalledWith(["b", "a", "c"]));
     await waitFor(() => expect(titlesInOrder()).toEqual(["B", "A", "C"]));
-    fireEvent.click(screen.getByRole("button", { name: "Bajar: B" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mover a la derecha: B" }));
     await waitFor(() => expect(api.reorder).toHaveBeenLastCalledWith(["a", "b", "c"]));
   });
 
-  it("deshabilita subir en la primera y bajar en la última", async () => {
+  it("deshabilita mover a la izquierda en la primera y a la derecha en la última", async () => {
     renderTimeline(makeApi([mk({ id: "a", position: 1 }), mk({ id: "b", position: 2 })]));
-    const up = await screen.findByRole("button", { name: "Subir: A" });
+    const up = await screen.findByRole("button", { name: "Mover a la izquierda: A" });
     expect((up as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("button", { name: "Bajar: B" }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (screen.getByRole("button", { name: "Mover a la derecha: B" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it("ordena por prioridad", async () => {
@@ -252,11 +252,13 @@ it("blocks manual reorder while replanning and waiting for refresh", async () =>
   renderTimeline(api);
   fireEvent.click(await screen.findByRole("button", { name: "Volver a planificar 1 tarea" }));
   await waitFor(() => expect(api.reorder).toHaveBeenCalledTimes(1));
-  expect(screen.getByRole("button", { name: "Bajar: A" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Bajar: A" }));
+  expect(screen.getByRole("button", { name: "Mover a la derecha: A" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Mover a la derecha: A" }));
   expect(api.reorder).toHaveBeenCalledTimes(1);
   release();
-  await waitFor(() => expect(screen.getByRole("button", { name: "Bajar: A" })).not.toBeDisabled());
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Mover a la derecha: A" })).not.toBeDisabled(),
+  );
   cleanup();
 });
 it("offers an accessible drag handle in inbox and agenda", async () => {
@@ -277,16 +279,16 @@ it("reorders inbox with the keyboard sensor", async () => {
       const rows = Array.from(
         document.querySelectorAll('[data-testid="inbox-item"],[data-testid="task-node"]'),
       );
-      const top = Math.max(0, rows.indexOf(row!)) * 80;
+      const left = Math.max(0, rows.indexOf(row!)) * 300;
       return {
-        x: 0,
-        y: top,
-        top,
-        left: 0,
-        right: 400,
-        bottom: top + 70,
-        width: 400,
-        height: 70,
+        x: left,
+        y: 0,
+        top: 0,
+        left,
+        right: left + 280,
+        bottom: 200,
+        width: 280,
+        height: 200,
         toJSON: () => ({}),
       };
     });
@@ -301,7 +303,7 @@ it("reorders inbox with the keyboard sensor", async () => {
     handle.focus();
     fireEvent.keyDown(handle, { key: " ", code: "Space" });
     await waitFor(() => expect(handle).toHaveAttribute("aria-pressed", "true"));
-    fireEvent.keyDown(document, { key: "ArrowDown", code: "ArrowDown" });
+    fireEvent.keyDown(document, { key: "ArrowRight", code: "ArrowRight" });
     fireEvent.keyDown(document, { key: " ", code: "Space" });
     await waitFor(() => expect(api.reorder).toHaveBeenCalledWith(["b", "a"]));
   } finally {
@@ -320,16 +322,16 @@ it("reorders inbox through the touch pointer sensor", async () => {
     .mockImplementation(function (this: HTMLElement) {
       const row = this.closest('[data-testid="inbox-item"]');
       const rows = Array.from(document.querySelectorAll('[data-testid="inbox-item"]'));
-      const top = Math.max(0, rows.indexOf(row!)) * 80;
+      const left = Math.max(0, rows.indexOf(row!)) * 300;
       return {
-        x: 0,
-        y: top,
-        top,
-        left: 0,
-        right: 400,
-        bottom: top + 70,
-        width: 400,
-        height: 70,
+        x: left,
+        y: 0,
+        top: 0,
+        left,
+        right: left + 280,
+        bottom: 200,
+        width: 280,
+        height: 200,
         toJSON: () => ({}),
       };
     });
@@ -342,10 +344,10 @@ it("reorders inbox through the touch pointer sensor", async () => {
     fireEvent.click(screen.getByRole("radio", { name: /Bandeja/ }));
     const handle = await screen.findByRole("button", { name: "Reordenar tarea A" });
     fireEvent.pointerDown(handle, { clientX: 10, clientY: 20, button: 0 });
-    fireEvent.pointerMove(document, { clientX: 10, clientY: 30 });
+    fireEvent.pointerMove(document, { clientX: 20, clientY: 20 });
     await waitFor(() => expect(handle).toHaveAttribute("aria-pressed", "true"));
-    fireEvent.pointerMove(document, { clientX: 10, clientY: 110 });
-    fireEvent.pointerUp(document, { clientX: 10, clientY: 110 });
+    fireEvent.pointerMove(document, { clientX: 330, clientY: 20 });
+    fireEvent.pointerUp(document, { clientX: 330, clientY: 20 });
     await waitFor(() => expect(api.reorder).toHaveBeenCalledWith(["b", "a"]));
   } finally {
     rect.mockRestore();

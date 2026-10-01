@@ -1,41 +1,44 @@
 "use client";
 
-import { Button, Stack, Text } from "@mantine/core";
+import {
+  IconCalendarPlus,
+  IconCash,
+  IconFlask,
+  IconPrescription,
+  IconUserPlus,
+} from "@tabler/icons-react";
 import Link from "next/link";
 
-import styles from "@/shared/ui/parity.module.css";
 import { TasksTimeline } from "./tasks/tasks-timeline";
+import styles from "./tasks-page.module.css";
 
 const QUICK_ACTIONS = [
-  ["Crear paciente", "Alta y ficha clínica", "/app/patients"],
-  ["Crear cita", "Abrir agenda", "/app/agenda"],
-  ["Emitir receta", "Abrir recetas", "/app/prescriptions"],
-  ["Registrar cobro", "Abrir finanzas", "/app/finance"],
-  ["Recibir laboratorio", "Abrir trabajos de laboratorio", "/app/laboratory"],
+  { title: "Crear paciente", href: "/app/patients", icon: IconUserPlus },
+  { title: "Crear cita", href: "/app/agenda", icon: IconCalendarPlus },
+  { title: "Emitir receta", href: "/app/prescriptions", icon: IconPrescription },
+  { title: "Registrar cobro", href: "/app/finance", icon: IconCash },
+  { title: "Laboratorio", href: "/app/laboratory", icon: IconFlask },
 ] as const;
 
 export function TasksPage() {
   return (
-    <Stack gap="md">
-      <section className={styles.section}>
-        <Text fw={700}>Acciones rápidas</Text>
-        <div className={styles.rowList}>
-          {QUICK_ACTIONS.map(([titleText, description, href]) => (
-            <div className={styles.row} key={titleText}>
-              <div className={styles.rowMain}>
-                <span className={styles.rowTitle}>{titleText}</span>
-                <Text className={styles.rowMeta}>{description}</Text>
-              </div>
-              <Button component={Link} href={href} size="xs" variant="light">
-                Abrir
-              </Button>
-            </div>
+    <div className={styles.workspace}>
+      <nav className={styles.quickActions} aria-label="Acciones rápidas">
+        <h2 className={styles.quickTitle}>Acciones rápidas</h2>
+        <div className={styles.quickList}>
+          {QUICK_ACTIONS.map(({ title, href, icon: Icon }) => (
+            <Link className={styles.quickLink} href={href} key={href}>
+              <span className={styles.quickIcon}>
+                <Icon size={19} stroke={1.6} aria-hidden="true" />
+              </span>
+              <span>{title}</span>
+            </Link>
           ))}
         </div>
-      </section>
-      <section className={styles.section}>
+      </nav>
+      <section className={styles.tasksPanel} aria-label="Tareas">
         <TasksTimeline />
       </section>
-    </Stack>
+    </div>
   );
 }

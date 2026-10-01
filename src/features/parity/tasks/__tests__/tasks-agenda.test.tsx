@@ -140,7 +140,7 @@ describe("Agenda de días", () => {
       const api = inboxApi();
       renderTimeline(api);
       await openInbox();
-      fireEvent.click(await screen.findByRole("button", { name: "Bajar: A" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Mover a la derecha: A" }));
       await waitFor(() => expect(api.reorder).toHaveBeenCalledWith(["b", "a", "hoy"]));
       fireEvent.click(await screen.findByRole("button", { name: "Archivar: B" }));
       await waitFor(() =>
