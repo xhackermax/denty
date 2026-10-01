@@ -2413,16 +2413,26 @@ export async function handleSupabaseDentyRoute(
       const adminError = requireAdmin(identity.actor);
       if (adminError) return adminError;
       const adminClient = makeAdminRestClient();
-      if (!adminClient)
-        return error(
-          503,
-          "ADMIN_CREDENTIALS_REQUIRED",
-          "Falta la credencial administrativa de Supabase.",
-        );
-      const auth = new AuthRepository(identity.restClient, { adminClient, authClient });
+      const configurationMessage =
+        "Configura SUPABASE_SECRET_KEY (o SUPABASE_SERVICE_ROLE_KEY) solo en el servidor de Vercel, con la clave del mismo proyecto que SUPABASE_URL, y vuelve a desplegar para crear accesos y restablecer contraseñas.";
+      const auth = new AuthRepository(identity.restClient, {
+        ...(adminClient ? { adminClient } : {}),
+        authClient,
+      });
       if (method === "GET")
-        return json(200, await auth.listUsers(identity.actor.clinicId), headers);
+        return json(
+          200,
+          {
+            ...(await auth.listUsers(identity.actor.clinicId)),
+            administration: {
+              configured: Boolean(adminClient),
+              message: adminClient ? null : configurationMessage,
+            },
+          },
+          headers,
+        );
       if (method === "POST") {
+        if (!adminClient) return error(503, "ADMIN_CREDENTIALS_REQUIRED", configurationMessage);
         const payload = await parseJson(request, createUserSchema);
         return json(
           201,

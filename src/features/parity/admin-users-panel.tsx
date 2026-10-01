@@ -61,16 +61,21 @@ export function AdminUsersPanel() {
   const queryClient = useQueryClient();
   const users = useQuery({
     queryKey: dentyQueryKeys.security.users,
-    queryFn: async () => (await getBrowserApi().admin.users.list()).items as UserRow[],
+    queryFn: () => getBrowserApi().admin.users.list(),
   });
   const [kind, setKind] = useState<"staff" | "patient">("staff");
   const [resetTarget, setResetTarget] = useState<UserRow | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const linkedPatientIds = useMemo(
-    () => new Set((users.data ?? []).flatMap((user) => (user.patientId ? [user.patientId] : []))),
+    () =>
+      new Set(
+        (users.data?.items ?? []).flatMap((user) => (user.patientId ? [user.patientId] : [])),
+      ),
     [users.data],
   );
+
+  const canManage = users.isSuccess && users.data.administration?.configured !== false;
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: dentyQueryKeys.security.users });
 
@@ -88,10 +93,25 @@ export function AdminUsersPanel() {
             { value: "patient", label: "Paciente (portal)" },
           ]}
         />
+        {users.data?.administration?.configured === false ? (
+          <Alert color="yellow" title="Configuración de accesos pendiente">
+            {users.data.administration.message}
+            <Button
+              mt="sm"
+              size="xs"
+              variant="light"
+              onClick={() => void users.refetch()}
+              loading={users.isFetching}
+            >
+              Comprobar configuración
+            </Button>
+          </Alert>
+        ) : null}
         {kind === "staff" ? (
-          <StaffUserForm onCreated={refresh} />
+          <StaffUserForm onCreated={refresh} canManage={canManage} />
         ) : (
           <PatientAccountForm
+            canManage={canManage}
             linkedPatientIds={linkedPatientIds}
             onCreated={(message) => {
               setNotice(message);
@@ -108,7 +128,7 @@ export function AdminUsersPanel() {
       </Stack>
 
       <div className={styles.rowList}>
-        {(users.data ?? []).map((user) => (
+        {(users.data?.items ?? []).map((user) => (
           <div className={styles.row} key={user.id}>
             <div className={styles.rowMain}>
               <span className={styles.rowTitle}>{user.displayName}</span>
@@ -121,7 +141,12 @@ export function AdminUsersPanel() {
               <Badge color={user.active === false ? "gray" : "green"}>
                 {user.active === false ? "Inactivo" : "Activo"}
               </Badge>
-              <Button size="xs" variant="light" onClick={() => setResetTarget(user)}>
+              <Button
+                size="xs"
+                variant="light"
+                disabled={!canManage}
+                onClick={() => setResetTarget(user)}
+              >
                 Restablecer contraseña
               </Button>
             </Group>
@@ -141,7 +166,7 @@ export function AdminUsersPanel() {
   );
 }
 
-function StaffUserForm({ onCreated }: { onCreated: () => unknown }) {
+function StaffUserForm({ onCreated, canManage }: { onCreated: () => unknown; canManage: boolean }) {
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<StaffRole>("RECEPTION");
@@ -178,7 +203,7 @@ function StaffUserForm({ onCreated }: { onCreated: () => unknown }) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    create.mutate();
+    if (canManage) create.mutate();
   }
 
   return (
@@ -236,7 +261,7 @@ function StaffUserForm({ onCreated }: { onCreated: () => unknown }) {
             minLength={STAFF_MIN_PASSWORD}
           />
         </Group>
-        <Button type="submit" loading={create.isPending}>
+        <Button type="submit" loading={create.isPending} disabled={!canManage}>
           Crear usuario
         </Button>
         {create.isError ? <Alert color="red">{messageFromError(create.error)}</Alert> : null}
@@ -246,9 +271,11 @@ function StaffUserForm({ onCreated }: { onCreated: () => unknown }) {
 }
 
 function PatientAccountForm({
+  canManage,
   linkedPatientIds,
   onCreated,
 }: {
+  canManage: boolean;
   linkedPatientIds: Set<string>;
   onCreated: (message: string) => void;
 }) {
@@ -300,7 +327,7 @@ function PatientAccountForm({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    create.mutate();
+    if (canManage) create.mutate();
   }
 
   return (
@@ -321,6 +348,14 @@ function PatientAccountForm({
           nothingFoundMessage="Sin pacientes sin cuenta con ese nombre"
           required
         />
+        {patients.isError ? (
+          <Alert color="red">
+            No se pudieron cargar los pacientes.{" "}
+            <Button variant="subtle" onClick={() => void patients.refetch()}>
+              Reintentar
+            </Button>
+          </Alert>
+        ) : null}
         {patient ? (
           <Group grow align="end">
             <TextInput
@@ -356,7 +391,13 @@ function PatientAccountForm({
             restablecerla cuando lo necesite.
           </Text>
         )}
-        <Button type="submit" loading={create.isPending} disabled={!patientId}>
+        <Button
+          type="submit"
+          loading={create.isPending}
+          disabled={
+            !patientId || !canManage || (needsPassword && password.length < RESET_MIN_PASSWORD)
+          }
+        >
           Crear acceso al portal
         </Button>
         {create.isError ? <Alert color="red">{messageFromError(create.error)}</Alert> : null}

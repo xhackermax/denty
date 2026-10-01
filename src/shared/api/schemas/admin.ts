@@ -15,7 +15,10 @@ export const userSchema = z
   })
   .passthrough();
 
-export const usersSchema = z.object({ items: z.array(userSchema) });
+export const usersSchema = z.object({
+  items: z.array(userSchema),
+  administration: z.object({ configured: z.boolean(), message: z.string().nullable() }).optional(),
+});
 
 export const createUserSchema = z
   .object({
