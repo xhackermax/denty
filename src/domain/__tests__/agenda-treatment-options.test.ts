@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { AGENDA_TREATMENT_OPTIONS, agendaTreatmentOptions } from "../agenda/treatment-options";
 import { clinicalGlyphFor } from "../agenda/clinical-glyph";
 describe("complete agenda treatment suggestions", () => {
+  it("keeps linked endodontics authoritative over a perno mentioned in notes", () => {
+    expect(
+      clinicalGlyphFor({ treatmentCode: "ENDO", label: "Endodoncia previa al perno", tooth: "46" })
+        ?.state,
+    ).toBe("endo_indicated");
+  });
   it.each(AGENDA_TREATMENT_OPTIONS)("represents $label", ({ label, family }) => {
     expect(clinicalGlyphFor({ label })?.family).toBe(family);
   });

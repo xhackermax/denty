@@ -245,7 +245,7 @@ export function clinicalGlyphFor(input: ClinicalGlyphInput): ClinicalGlyphModel 
           : "filling_pending",
     crown: clinicalState === "redo" ? "crown_bad" : "crown_pending",
     endodontics:
-      code === "POST" || /perno/.test(text)
+      code === "POST" || (!(code && CODE_FAMILIES[code]) && /perno/.test(text))
         ? clinicalState === "redo"
           ? "post_bad"
           : "post_pending"
