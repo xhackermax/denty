@@ -601,3 +601,115 @@
     transition: none;
   }
 }
+
+/* Sidebar de tareas */
+.sidebar {
+  position: relative;
+  width: 32px;
+  transition: width 0.25s ease;
+}
+
+.sidebarOpen {
+  width: 260px;
+}
+
+.sidebarToggle {
+  position: absolute;
+  top: 12px;
+  left: 8px;
+  z-index: 10;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--denty-line);
+  border-radius: 8px;
+  background: var(--denty-card);
+  color: var(--denty-text);
+  cursor: pointer;
+  place-items: center;
+  transition: all 0.2s ease;
+}
+
+.sidebarToggle:hover {
+  background: var(--denty-glow);
+}
+
+.sidebarToggle:focus-visible {
+  outline: 2px solid var(--denty-blue);
+  outline-offset: 2px;
+}
+
+.sidebarContent {
+  position: absolute;
+  top: 0;
+  left: 32px;
+  bottom: 0;
+  width: 228px;
+  padding: 12px;
+  border: 1px solid var(--denty-line);
+  border-left: none;
+  border-radius: 0 16px 16px 0;
+  background: var(--denty-card-solid);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  padding-top: 8px;
+}
+
+.sidebarList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebarTaskItem {
+  padding: 8px;
+  border: 1px solid var(--denty-line);
+  border-radius: 8px;
+  background: var(--denty-card);
+  color: var(--denty-text);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.sidebarTaskItem:hover {
+  background: var(--denty-glow);
+  border-color: var(--denty-blue);
+}
+
+.sidebarTaskItem:focus-visible {
+  outline: 2px solid var(--denty-blue);
+  outline-offset: 2px;
+}
+
+.sidebarTaskItemSelected {
+  background: var(--denty-blue);
+  border-color: var(--denty-blue);
+  color: #fff;
+}
+
+.sidebarTaskItemSelected svg {
+  color: #fff;
+}
+
+/* Layout con sidebar */
+.rootWithSidebar {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+}

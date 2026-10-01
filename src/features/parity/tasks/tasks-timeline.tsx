@@ -14,6 +14,7 @@ import { DayStrip } from "./day-strip";
 import { InboxList } from "./inbox-list";
 import { TaskEditorModal, type TaskFormValues } from "./task-editor-modal";
 import { TaskNode } from "./task-node";
+import { TasksSidebar } from "./tasks-sidebar";
 import {
   buildDayMarkers,
   buildSchedule,
@@ -74,6 +75,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [undo, setUndo] = useState<UndoState | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(nowFn()), TICK_MS);
@@ -281,8 +283,16 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
       };
 
   return (
-    <div className={styles.root}>
-      <ActionErrorAlert
+    <div className={styles.rootWithSidebar}>
+      <TasksSidebar
+        tasks={viewTasks}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen((prev) => !prev)}
+        onSelectTask={(task) => setEditing(task)}
+        selectedTaskId={editing?.id}
+      />
+      <div className={styles.root}>
+        <ActionErrorAlert
         errors={[
           query.error,
           actions.create.error,
@@ -465,6 +475,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
         }}
         onSubmit={submit}
       />
+      </div>
     </div>
   );
 }
