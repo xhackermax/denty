@@ -36,7 +36,7 @@ export interface TaskUpdateInput {
   dueAt?: string | null;
   scheduledOn?: string | null;
   archived?: boolean;
-  assigneeStaffId?: string | null;
+  assigneeStaffId?: string;
   expectedVersion?: number;
 }
 
