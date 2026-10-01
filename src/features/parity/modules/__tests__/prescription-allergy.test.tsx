@@ -19,6 +19,42 @@ test("blocks manual NSAID and disables incompatible protocols for allergic patie
   );
   expect(screen.getByRole("alert")).toHaveTextContent(/alergia.*AINEs/i);
   expect(screen.getByRole("button", { name: "Dolor" })).toBeDisabled();
-  fireEvent.change(screen.getByRole("combobox", { name: "1. Medicamento" }), { target: { value: "Naproxeno" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "1. Medicamento" }), {
+    target: { value: "Naproxeno" },
+  });
   expect(onChange).not.toHaveBeenCalled();
+});
+
+test("quick alternatives do not add a second paracetamol-containing medicine", () => {
+  const onChange = vi.fn();
+  const props = {
+    lines: [{ ...emptyPrescriptionLine(), activeIngredient: "Paracetamol" }],
+    onChange,
+    medicalProfile: { allergies: ["AINEs"] },
+  };
+  render(
+    <MantineProvider>
+      <PrescriptionLinesEditor {...props} />
+    </MantineProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Dolor intenso · alergia a AINEs" }));
+  expect(screen.getByRole("alert")).toHaveTextContent(/alternativa/i);
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test("explains why a manually typed NSAID is blocked", () => {
+  const props = {
+    lines: [emptyPrescriptionLine()],
+    onChange: vi.fn(),
+    medicalProfile: { allergies: ["AINEs"] },
+  };
+  render(
+    <MantineProvider>
+      <PrescriptionLinesEditor {...props} />
+    </MantineProvider>,
+  );
+  fireEvent.change(screen.getByRole("combobox", { name: "1. Medicamento" }), {
+    target: { value: "Naproxeno" },
+  });
+  expect(screen.getByRole("alert")).toHaveTextContent(/alergia.*AINEs/i);
 });

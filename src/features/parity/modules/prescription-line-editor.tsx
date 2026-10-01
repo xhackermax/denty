@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   hasNsaidAllergy,
   isNsaidMedication,
@@ -56,6 +57,7 @@ export function PrescriptionLinesEditor({
   lines: PrescriptionLine[];
   onChange: (lines: PrescriptionLine[]) => void;
 }) {
+  const [protocolError, setProtocolError] = useState<string | null>(null);
   const allergic = hasNsaidAllergy(medicalProfile);
   const conflicts = prescriptionAllergyConflicts(
     medicalProfile,
@@ -68,12 +70,29 @@ export function PrescriptionLinesEditor({
     onChange(next.length ? next : [emptyPrescriptionLine()]);
   };
   const addProtocol = (medications: readonly string[]) => {
+    setProtocolError(null);
     if (allergic && medications.some(isNsaidMedication)) return;
     const presets = medications
       .map((name) => findMedicationPreset(name))
       .filter((preset) => preset !== undefined)
       .map(lineFromPreset);
     const kept = lines.filter((line) => line.activeIngredient.trim());
+    if (
+      kept.some((line) => /paracetamol/i.test(line.activeIngredient)) &&
+      presets.some(
+        (line) =>
+          /paracetamol/i.test(line.activeIngredient) &&
+          !kept.some(
+            (current) =>
+              current.activeIngredient.toLowerCase() === line.activeIngredient.toLowerCase(),
+          ),
+      )
+    ) {
+      setProtocolError(
+        "Elige una alternativa: ya hay un medicamento con paracetamol. Retira la otra línea antes de cambiar la pauta.",
+      );
+      return;
+    }
     const names = new Set(kept.map((line) => line.activeIngredient.trim().toLowerCase()));
     onChange([
       ...kept,
@@ -83,6 +102,7 @@ export function PrescriptionLinesEditor({
 
   return (
     <Stack gap="sm">
+      {protocolError ? <Alert color="red">{protocolError}</Alert> : null}
       {conflicts.length ? (
         <Alert color="red">Alergia a AINEs: retira {conflicts.join(", ")} antes de guardar.</Alert>
       ) : null}
@@ -123,8 +143,11 @@ export function PrescriptionLinesEditor({
                   }))}
                   value={line.activeIngredient}
                   onChange={(value) => {
-                    if (!allergic || !isNsaidMedication(value))
+                    if (!allergic || !isNsaidMedication(value)) {
+                      setProtocolError(null);
                       update(index, { activeIngredient: value });
+                    } else
+                      setProtocolError("Alergia a AINEs: este medicamento no se puede añadir.");
                   }}
                   onOptionSubmit={(value) => {
                     const chosen = findMedicationPreset(value);
