@@ -84,4 +84,11 @@ export class TaskRepository {
       }),
     );
   }
+
+  async delete(id: string, expectedVersion?: number) {
+    await this.client.rpc("delete_task", {
+      p_task_id: id,
+      p_expected_version: expectedVersion ?? null,
+    });
+  }
 }

@@ -16,6 +16,11 @@ interface PatchInput {
   patch: TaskUpdateInput;
 }
 
+interface DeleteInput {
+  id: string;
+  version: number;
+}
+
 // Las mutaciones esperan al refetch para que el deshacer lea la versión ya actualizada.
 export function useTaskActions(api: TasksApi) {
   const qc = useQueryClient();
@@ -87,5 +92,10 @@ export function useTaskActions(api: TasksApi) {
     onError: refresh,
   });
 
-  return { create, patch, patchMany, reorder, replan };
+  const deleteTask = useMutation({
+    mutationFn: ({ id, version }: DeleteInput) => api.delete(id, version),
+    onSuccess: refresh,
+  });
+
+  return { create, patch, patchMany, reorder, replan, delete: deleteTask };
 }

@@ -46,6 +46,7 @@ export interface TaskLister {
 export interface TaskWriter {
   create(input: TaskCreateInput): Promise<unknown>;
   update(id: string, input: TaskUpdateInput): Promise<unknown>;
+  delete(id: string, version: number): Promise<unknown>;
 }
 export interface TaskReorderer {
   reorder(orderedIds: string[]): Promise<unknown>;

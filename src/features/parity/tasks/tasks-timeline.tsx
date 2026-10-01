@@ -193,6 +193,22 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
     actions.patch.mutate({ id: task.id, version: task.version, patch: { archived: false } });
   }
 
+  function deleteTask(task: TimelineTask) {
+    if (!confirm(`¿Eliminar tarea «${task.title}»?`)) return;
+    actions.delete.mutate(
+      { id: task.id, version: task.version },
+      {
+        onSuccess: () =>
+          setUndo({
+            label: `«${task.title}» eliminada`,
+            run: () => {
+              // Las eliminaciones no se pueden deshacer
+            },
+          }),
+      },
+    );
+  }
+
   function submit(values: TaskFormValues) {
     const { scheduledOn, dueAt } = resolveTaskSchedule(values.day, values.time);
     if (editing) {
@@ -398,6 +414,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
                     dropTarget={overId === id && dragId !== null && dragId !== id}
                     onToggleDone={(e) => toggleDone(e.task)}
                     onArchive={(e) => archiveOne(e.task)}
+                    onDelete={(e) => deleteTask(e.task)}
                     onEdit={(e) => setEditing(e.task)}
                     onMove={(taskId, dir) => applyOrder(moveId(visibleIds, taskId, dir))}
                     onMoveToDay={(e, day) => moveToDay(e.task, day)}
