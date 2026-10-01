@@ -1,128 +1,53 @@
--- Tests for clinic_contacts RPC functions
--- Run with: psql $DATABASE_URL -f supabase/__tests__/clinic_contacts.test.sql
-
+-- Contact RPC integration test. Uses a real staff identity; every mutation rolls back.
+-- Run against a seeded Denty database via SQL/MCP or psql with ON_ERROR_STOP=1.
 begin;
-
--- Setup: create test clinic and staff
-with fixtures as (
-  insert into public.clinics(name) values('Test Clinic') returning id as clinic_id
-),
-auth_user as (
-  select auth.uid() as user_id
-),
-staff as (
-  insert into public.staff_members(clinic_id, display_name, role, active)
-  select f.clinic_id, 'Test Staff', 'ASSISTANT', true
-  from fixtures f
-  returning id, clinic_id
-)
-select 'Setup complete' as test;
-
--- Test 1: Create a contact successfully
-with clinic as (
-  select id from public.clinics where name = 'Test Clinic'
-),
-contact as (
-  select * from public.create_clinic_contact(
-    p_clinic_id := (select id from clinic),
-    p_name := 'Plumber Juan',
-    p_category := 'Plumber',
-    p_phones := jsonb_build_array(jsonb_build_object('number', '555-1234', 'type', 'mobile')),
-    p_emails := jsonb_build_array('plumber@example.com'),
-    p_notes := 'Available weekdays',
-    p_hours := '9:00-17:00'
-  )
-)
-select
-  case
-    when (select name from contact) = 'Plumber Juan' then 'PASS: Create contact'
-    else 'FAIL: Create contact - name mismatch'
-  end as test,
-  (select category from contact) as category;
-
--- Test 2: List contacts
-with clinic as (
-  select id from public.clinics where name = 'Test Clinic'
-),
-list_result as (
-  select * from public.list_clinic_contacts(
-    p_clinic_id := (select id from clinic),
-    p_limit := 10
-  )
-)
-select
-  case
-    when (select count(*) from list_result) > 0 then 'PASS: List contacts'
-    else 'FAIL: List contacts - no results'
-  end as test,
-  (select total_count from list_result limit 1) as count;
-
--- Test 3: Search contacts
-with clinic as (
-  select id from public.clinics where name = 'Test Clinic'
-),
-search_result as (
-  select * from public.list_clinic_contacts(
-    p_clinic_id := (select id from clinic),
-    p_search := 'Plumber',
-    p_limit := 10
-  )
-)
-select
-  case
-    when (select count(*) from search_result) > 0 then 'PASS: Search contacts'
-    else 'FAIL: Search contacts - no results'
-  end as test;
-
--- Test 4: Update a contact
-with clinic as (
-  select id from public.clinics where name = 'Test Clinic'
-),
-contact_id as (
-  select id, version from public.clinic_contacts
-  where clinic_id = (select id from clinic)
-  and name = 'Plumber Juan'
-  limit 1
-),
-updated as (
-  select * from public.update_clinic_contact(
-    p_contact_id := (select id from contact_id),
-    p_name := 'Plumber Juan Updated',
-    p_expected_version := (select version from contact_id)
-  )
-)
-select
-  case
-    when (select name from updated) = 'Plumber Juan Updated' then 'PASS: Update contact'
-    else 'FAIL: Update contact - name not updated'
-  end as test;
-
--- Test 5: Delete a contact
-with clinic as (
-  select id from public.clinics where name = 'Test Clinic'
-),
-contact_to_delete as (
-  select id from public.clinic_contacts
-  where clinic_id = (select id from clinic)
-  and name = 'Plumber Juan Updated'
-  limit 1
-),
-deleted as (
-  select public.delete_clinic_contact((select id from contact_to_delete))
-),
-verify as (
-  select count(*) as remaining from public.clinic_contacts
-  where clinic_id = (select id from clinic)
-)
-select
-  case
-    when (select remaining from verify) = 0 then 'PASS: Delete contact'
-    else 'FAIL: Delete contact - contact still exists'
-  end as test;
-
--- Cleanup
-delete from public.clinic_contacts;
-delete from public.staff_members;
-delete from public.clinics where name = 'Test Clinic';
-
-commit;
+do $$
+declare member public.clinic_members%rowtype;
+begin
+  select * into member from public.clinic_members
+    where active and role in ('ADMIN','RECEPTION','DENTIST','ASSISTANT') limit 1;
+  if member.id is null then raise exception 'Fixture requires an active staff member'; end if;
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',member.profile_id,'role','authenticated')::text,true);
+  perform set_config('app.test_clinic',member.clinic_id::text,true);
+end $$;
+set local role authenticated;
+do $$
+declare contact public.clinic_contacts%rowtype; updated public.clinic_contacts%rowtype;
+  state text; test_name text := 'Regression '||gen_random_uuid()::text;
+  original_claims text := current_setting('request.jwt.claims');
+begin
+  select * into contact from public.create_clinic_contact(
+    p_clinic_id=>current_setting('app.test_clinic')::uuid,
+    p_name=>test_name,p_category=>'Regression',p_notes=>'Temporary notes');
+  if contact.id is null or contact.name<>test_name then raise exception 'Contact creation failed'; end if;
+  if not exists(select 1 from public.list_clinic_contacts(
+    current_setting('app.test_clinic')::uuid,p_search=>test_name) c where c.id=contact.id) then
+    raise exception 'Contact search failed';
+  end if;
+  select * into updated from public.update_clinic_contact(
+    p_contact_id=>contact.id,p_name=>test_name||' updated',p_notes=>'',p_expected_version=>contact.version);
+  if updated.version<>contact.version+1 or updated.notes is not null then
+    raise exception 'Contact update or note clearing failed';
+  end if;
+  begin
+    perform public.update_clinic_contact(p_contact_id=>contact.id,p_expected_version=>contact.version);
+    raise exception 'Stale contact update accepted';
+  exception when others then
+    get stacked diagnostics state=returned_sqlstate;
+    if state<>'PT409' then raise exception 'Expected PT409, got %',state; end if;
+  end;
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',gen_random_uuid(),'role','authenticated')::text,true);
+  begin
+    perform public.list_clinic_contacts(current_setting('app.test_clinic')::uuid);
+    raise exception 'Outsider contact read accepted';
+  exception when others then
+    get stacked diagnostics state=returned_sqlstate;
+    if state<>'42501' then raise exception 'Expected permission denial, got %',state; end if;
+  end;
+  perform set_config('request.jwt.claims',original_claims,true);
+  perform public.delete_clinic_contact(contact.id);
+  if exists(select 1 from public.clinic_contacts where id=contact.id) then
+    raise exception 'Contact deletion failed';
+  end if;
+end $$;
+rollback;
