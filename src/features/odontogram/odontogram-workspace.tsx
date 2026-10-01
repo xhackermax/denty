@@ -47,7 +47,8 @@ import {
 } from "./odontogram-data";
 import { OdontogramHistory } from "./odontogram-history";
 import { OdontogramLegend, type OdontogramLegendSelection } from "./odontogram-legend";
-import { PeriodontalQuickEntry } from "./periodontal-quick-entry";
+import { PerioChart } from "@/features/periodontal/perio-chart";
+import { RetainedFlowStep } from "@/shared/clinical/retained-flow-step";
 import { ImplantSurgeryPanel } from "./implant-surgery-panel";
 import {
   createStateEntity,
@@ -72,7 +73,7 @@ import { TOOTH_STATE_LABELS as STATE_LABELS } from "@/shared/odontogram/tooth-st
 import { OrthodonticPanel } from "./orthodontic-panel";
 import { PediatricPanel } from "./pediatric-panel";
 import { SupernumeraryPanel } from "./supernumerary-panel";
-import { PeriodontogramPanel } from "./periodontogram-panel";
+
 import { SurgeryPanel } from "./surgery-panel";
 import { surgicalVisualsForTooth } from "./surgery-visuals";
 const TOOL_OPTIONS = TOOTH_STATES.map((state) => ({
@@ -319,7 +320,7 @@ interface OdontogramEditorProps {
   initialAction?: "implant-surgery";
   birthDate?: string;
   initialEntities: readonly DentalEntity[];
-  initialPeriodontal: readonly PeriodontalReading[];
+  initialPeriodontal: readonly Partial<PeriodontalReading>[];
   expectedVersion: number | undefined;
   saving: boolean;
   saveError: unknown;
@@ -349,6 +350,15 @@ function OdontogramEditor({
   onSave,
   onOpenTreatmentFlow,
 }: OdontogramEditorProps) {
+  const [currentPerioReadings, setCurrentPerioReadings] = useState<PeriodontalReading[]>(
+    initialPeriodontal.filter(
+      (r): r is PeriodontalReading =>
+        r.tooth !== undefined &&
+        r.site !== undefined &&
+        r.probingDepth !== undefined &&
+        r.recession !== undefined,
+    ),
+  );
   const [history, setHistory] = useState<BoundedHistory<OdontogramEntityState>>(() =>
     createBoundedHistory(createOdontogramEntityState(initialEntities), 30),
   );
@@ -676,7 +686,7 @@ function OdontogramEditor({
       <MouthStateProvider state={mouthState}>
         <QuickDiagnosisBar
           patientId={patientId}
-          readings={initialPeriodontal}
+          readings={currentPerioReadings}
           readOnly={historical}
         />
         <MouthMiniMap selectedTooth={selectedTooth} onSelect={setSelectedTooth} />
@@ -897,14 +907,16 @@ function OdontogramEditor({
           </>
         ) : null}
 
-        {activeTab === "periodontal" ? (
-          <PeriodontogramPanel
+        <RetainedFlowStep active={activeTab === "periodontal"}>
+          <PerioChart
             patientId={patientId}
+            active={activeTab === "periodontal"}
             readOnly={historical}
             readings={initialPeriodontal}
-            onMarkMissing={(tooth) => commit(createStateEntity(tooth, "missing"))}
+            onReadingsChange={setCurrentPerioReadings}
+            onPresenceChange={(tooth, presence) => commit(createStateEntity(tooth, presence))}
           />
-        ) : null}
+        </RetainedFlowStep>
         {activeTab === "orthodontic" ? (
           <OrthodonticPanel patientId={patientId} readOnly={historical} onCommit={commit} />
         ) : null}
@@ -930,9 +942,6 @@ function OdontogramEditor({
           />
         ) : null}
 
-        {!historical && activeTab === "periodontal" ? (
-          <PeriodontalQuickEntry patientId={patientId} />
-        ) : null}
         {activeTab === "history" ? (
           <OdontogramHistory
             patientId={patientId}
@@ -1047,8 +1056,8 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
     (reading) => ({
       tooth: reading.tooth,
       site: reading.site as PeriodontalReading["site"],
-      probingDepth: reading.probingDepth ?? 0,
-      recession: reading.recession ?? 0,
+      ...(reading.probingDepth === undefined ? {} : { probingDepth: reading.probingDepth }),
+      ...(reading.recession === undefined ? {} : { recession: reading.recession }),
       bleeding: Boolean(reading.bleeding),
       plaque: Boolean(reading.plaque),
       suppuration: Boolean(reading.suppuration),

@@ -1,3 +1,4 @@
+import { handlePerioDraftsRoute } from "./perio-drafts-route";
 import { handleDiagnosesRoute } from "./diagnoses-route";
 import { ExportRepository } from "./export-repository";
 import { exportFile } from "./export-file";
@@ -2640,6 +2641,8 @@ export async function handleSupabaseDentyRoute(
         headers,
       );
     }
+    if (parts[0] === "api" && parts[1] === "patients" && parts[3] === "perio-draft")
+      return await handlePerioDraftsRoute(request, parts, identity, headers);
     if (parts[0] === "api" && parts[1] === "patients" && parts[3] === "diagnoses") {
       return await handleDiagnosesRoute(request, parts, identity, headers);
     }

@@ -56,7 +56,7 @@ const checks = [
   ["src/features/odontogram/odontogram-workspace.tsx", "Herramientas clínicas"],
   ["src/features/odontogram/odontogram-workspace.tsx", "Diente seleccionado"],
   ["src/features/odontogram/odontogram-history.tsx", "Historial del odontograma"],
-  ["src/features/odontogram/periodontal-quick-entry.tsx", "Registro periodontal rápido"],
+  ["src/features/periodontal/perio-chart.tsx", "Registro periodontal rápido"],
   ["src/features/parity/modules/documents-module.tsx", "Consentimientos firmados"],
   ["src/features/parity/modules/documents-module.tsx", "Todavía no hay consentimientos firmados"],
   ["src/features/parity/modules/documents-module.tsx", "Documentos pendientes"],

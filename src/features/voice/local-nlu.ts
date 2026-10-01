@@ -979,12 +979,14 @@ function periodontalActions(
   ) {
     return [];
   }
+  const site = extractPerioSite(raw);
+  if (!site) return [];
   return [
     {
       type: "periodontal.update",
       patientRef,
       tooth,
-      site: extractPerioSite(raw) ?? "DV",
+      site,
       ...(depth ? { probingDepth: Number(depth) } : {}),
       ...(recession ? { recession: Number(recession) } : {}),
       ...(mobility ? { mobility: mobility.toUpperCase() } : {}),
@@ -1400,6 +1402,8 @@ export function planLocalVoiceCommand(
     if (!patientRef && !context.patientId) ambiguities.push("paciente para guardar la nota");
   }
 
+  if (/sondaje|recesion|sangra|supuracion|movilidad|\bplaca\b/.test(text) && !extractPerioSite(raw))
+    ambiguities.push("sitio periodontal o el cursor del periodontograma abierto");
   const uniqueAmbiguities = uniq(ambiguities);
   const consequential = actions.some(
     (action) => action.type !== "patient.resolve" && !action.type.startsWith("navigation."),

@@ -1,3 +1,5 @@
+import { dispatchPerioVoice } from "@/features/periodontal/perio-voice-session";
+import { normalizePeriodontalSite } from "@/domain/periodontal";
 import { deriveMouthState, isProbeable } from "@/domain/odontogram/mouth-state";
 import { archForTooth, createBridgeEntities, createRemovable, type DentalEntity } from "@/domain";
 import { getBrowserApi } from "@/shared/api/browser";
@@ -114,15 +116,21 @@ async function executeAction(action: LocalVoiceAction, plan: LocalVoicePlan): Pr
     if (!isProbeable(deriveMouthState(current.entities.map(persistedEntityToDomain)), action.tooth))
       throw new Error(`El ${action.tooth} está ausente: no se guardó sondaje.`);
     const mobility = action.mobility ? Number(action.mobility) : undefined;
-    await api.clinical.odontogram.periodontal(requirePatientId(plan), {
+    if (mobility !== undefined && Number.isFinite(mobility)) {
+      dispatchPerioVoice(requirePatientId(plan), { type: "goTo", tooth: action.tooth });
+      dispatchPerioVoice(requirePatientId(plan), { type: "mobility", value: mobility });
+    }
+    dispatchPerioVoice(requirePatientId(plan), {
+      type: "site",
       tooth: action.tooth,
-      site: action.site,
-      ...(action.probingDepth !== undefined ? { probingDepth: action.probingDepth } : {}),
-      ...(action.recession !== undefined ? { recession: action.recession } : {}),
-      ...(mobility !== undefined && Number.isFinite(mobility) ? { mobility } : {}),
-      ...(action.bleeding !== undefined ? { bleeding: action.bleeding } : {}),
-      ...(action.suppuration !== undefined ? { suppuration: action.suppuration } : {}),
-      ...(action.plaque !== undefined ? { plaque: action.plaque } : {}),
+      site: normalizePeriodontalSite(action.site),
+      patch: {
+        ...(action.probingDepth !== undefined ? { pd: action.probingDepth } : {}),
+        ...(action.recession !== undefined ? { gm: -action.recession } : {}),
+        ...(action.bleeding !== undefined ? { bop: action.bleeding } : {}),
+        ...(action.suppuration !== undefined ? { suppuration: action.suppuration } : {}),
+        ...(action.plaque !== undefined ? { plaque: action.plaque } : {}),
+      },
     });
     return true;
   }

@@ -1,0 +1,74 @@
+.chart {
+  background: var(--mantine-color-body);
+  border: 1px solid var(--mantine-color-gray-3);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.scroll {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  padding: 6px;
+  border-bottom: 1px solid var(--mantine-color-gray-2);
+  text-align: center;
+}
+
+.active {
+  background: var(--mantine-color-teal-0);
+}
+
+.absent {
+  color: var(--mantine-color-gray-5);
+  background: var(--mantine-color-gray-0);
+}
+
+.input {
+  width: 44px;
+  padding: 6px;
+  border: 1px solid var(--mantine-color-gray-3);
+  border-radius: 6px;
+  background: var(--mantine-color-body);
+  color: inherit;
+}
+
+.graph {
+  width: 100px;
+}
+
+@media print {
+  :global(body *) {
+    visibility: hidden;
+  }
+
+  .chart,
+  .chart * {
+    visibility: visible;
+  }
+
+  .chart {
+    position: absolute;
+    inset: 0;
+    border: 0;
+  }
+
+  .scroll {
+    overflow: visible;
+  }
+}
+
+.flag {
+  display: block;
+  text-align: left;
+  white-space: nowrap;
+  font-size: 11px;
+}

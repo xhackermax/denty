@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
-  "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
-  "routeCount": 249,
+  "generatedFrom": "API_CONTRACT.md + rutas din\u00e1micas verificadas en source",
+  "routeCount": 252,
   "routes": [
     {
       "method": "GET",
@@ -71,6 +71,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/admin/export/:entity",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/export/overview",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/financial-dashboard",
       "source": "apps/api/src/modules/admin-dashboard/routes.ts",
       "kind": "browser"
@@ -113,23 +125,6 @@
     },
     {
       "method": "GET",
-      "path": "/api/admin/revenue-goals",
-      "source": "apps/api/src/modules/alerts/routes.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "PUT",
-      "path": "/api/admin/revenue-goals",
-      "source": "apps/api/src/modules/alerts/routes.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "GET",
-      "path": "/api/payment-terminals",
-      "kind": "browser"
-    },
-    {
-      "method": "GET",
       "path": "/api/admin/payment-terminals",
       "kind": "browser"
     },
@@ -139,8 +134,8 @@
       "kind": "browser"
     },
     {
-      "method": "POST",
-      "path": "/api/admin/payment-terminals/test",
+      "method": "DELETE",
+      "path": "/api/admin/payment-terminals/:id",
       "kind": "browser"
     },
     {
@@ -149,8 +144,20 @@
       "kind": "browser"
     },
     {
-      "method": "DELETE",
-      "path": "/api/admin/payment-terminals/:id",
+      "method": "POST",
+      "path": "/api/admin/payment-terminals/test",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/revenue-goals",
+      "source": "apps/api/src/modules/alerts/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/revenue-goals",
+      "source": "apps/api/src/modules/alerts/routes.ts",
       "kind": "browser"
     },
     {
@@ -265,7 +272,7 @@
       "path": "/api/agenda/settings",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 7: preferencias de separación entre visitas persistentes."
+      "note": "Stage 7: preferencias de separaci\u00f3n entre visitas persistentes."
     },
     {
       "method": "PUT",
@@ -298,7 +305,7 @@
       "path": "/api/agenda/waitlist/:id/fulfill",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 7: recepción cumple la solicitud y puede vincular una cita."
+      "note": "Stage 7: recepci\u00f3n cumple la solicitud y puede vincular una cita."
     },
     {
       "method": "GET",
@@ -329,7 +336,7 @@
       "path": "/api/analytics/doctors",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
@@ -355,14 +362,14 @@
       "path": "/api/analytics/monthly",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
       "path": "/api/analytics/profitability",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
@@ -375,21 +382,21 @@
       "path": "/api/analytics/specialties",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
       "path": "/api/analytics/summary",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
       "path": "/api/analytics/treatments",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
@@ -402,7 +409,7 @@
       "path": "/api/analytics/wait-times",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 7: métricas canónicas de espera y sillón."
+      "note": "Stage 7: m\u00e9tricas can\u00f3nicas de espera y sill\u00f3n."
     },
     {
       "method": "GET",
@@ -427,7 +434,7 @@
       "path": "/api/appointments/:id/arrive",
       "source": "apps/api/src/modules/appointments/routes.ts",
       "kind": "browser",
-      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
+      "note": "Ruta registrada din\u00e1micamente por statusActions en Denty 2.3.7."
     },
     {
       "method": "POST",
@@ -446,14 +453,14 @@
       "path": "/api/appointments/:id/chair",
       "source": "apps/api/src/modules/appointments/routes.ts",
       "kind": "browser",
-      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
+      "note": "Ruta registrada din\u00e1micamente por statusActions en Denty 2.3.7."
     },
     {
       "method": "POST",
       "path": "/api/appointments/:id/complete",
       "source": "apps/api/src/modules/appointments/routes.ts",
       "kind": "browser",
-      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
+      "note": "Ruta registrada din\u00e1micamente por statusActions en Denty 2.3.7."
     },
     {
       "method": "POST",
@@ -466,14 +473,14 @@
       "path": "/api/appointments/:id/no-show",
       "source": "apps/api/src/modules/appointments/routes.ts",
       "kind": "browser",
-      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
+      "note": "Ruta registrada din\u00e1micamente por statusActions en Denty 2.3.7."
     },
     {
       "method": "POST",
       "path": "/api/appointments/:id/waiting",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 7: transición explícita ARRIVED → WAITING."
+      "note": "Stage 7: transici\u00f3n expl\u00edcita ARRIVED \u2192 WAITING."
     },
     {
       "method": "GET",
@@ -604,6 +611,12 @@
     },
     {
       "method": "POST",
+      "path": "/api/clinical-plan/items/:id/price",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
       "path": "/api/clinical-plan/items/:id/priority-override",
       "source": "apps/api/src/modules/clinical/routes.ts",
       "kind": "browser"
@@ -612,12 +625,6 @@
       "method": "POST",
       "path": "/api/clinical-plan/items/:id/rework",
       "source": "apps/api/src/modules/clinical/routes.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "POST",
-      "path": "/api/clinical-plan/items/:id/price",
-      "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
     {
@@ -1011,9 +1018,51 @@
       "kind": "browser"
     },
     {
+      "method": "GET",
+      "path": "/api/patients/:id/diagnoses",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/diagnoses",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/diagnoses/:diagnosisId/plan",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/diagnoses/:diagnosisId/resolve",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
       "method": "POST",
       "path": "/api/patients/:id/patient-photo",
       "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:id/perio-draft",
+      "source": "src/shared/api/resources/perio-drafts.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/perio-draft",
+      "source": "src/shared/api/resources/perio-drafts.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/perio-draft/finish",
+      "source": "src/shared/api/resources/perio-drafts.ts",
       "kind": "browser"
     },
     {
@@ -1192,6 +1241,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/payment-terminals",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/payments",
       "source": "apps/api/src/modules/billing/routes.ts",
       "kind": "browser"
@@ -1263,12 +1317,6 @@
       "kind": "browser"
     },
     {
-      "method": "POST",
-      "path": "/api/prescriptions/:id/sign",
-      "source": "src/server/denty-supabase/route-handler.ts",
-      "kind": "browser"
-    },
-    {
       "method": "GET",
       "path": "/api/prescriptions/:id/history",
       "source": "src/server/denty-supabase/route-handler.ts",
@@ -1284,6 +1332,12 @@
       "method": "GET",
       "path": "/api/prescriptions/:id/pdf",
       "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prescriptions/:id/sign",
+      "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
     {
@@ -1465,42 +1519,6 @@
       "path": "/health/db",
       "source": "apps/api/src/server.ts",
       "kind": "server_only"
-    },
-    {
-      "method": "GET",
-      "path": "/api/admin/export/:entity",
-      "source": "src/server/denty-supabase/route-handler.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "GET",
-      "path": "/api/admin/export/overview",
-      "source": "src/server/denty-supabase/route-handler.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "GET",
-      "path": "/api/patients/:id/diagnoses",
-      "source": "src/server/denty-supabase/route-handler.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "POST",
-      "path": "/api/patients/:id/diagnoses",
-      "source": "src/server/denty-supabase/route-handler.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "POST",
-      "path": "/api/patients/:id/diagnoses/:diagnosisId/resolve",
-      "source": "src/server/denty-supabase/route-handler.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "POST",
-      "path": "/api/patients/:id/diagnoses/:diagnosisId/plan",
-      "source": "src/server/denty-supabase/route-handler.ts",
-      "kind": "browser"
     }
   ]
 }

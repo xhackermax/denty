@@ -107,6 +107,7 @@ interface ConsentRequirementRow {
 }
 
 interface PeriodontalExamRow {
+  metadata?: Record<string, unknown>;
   id: string;
   patient_id: string;
   version: number;
@@ -627,6 +628,7 @@ function mapPeriodontalExam(
 ) {
   return {
     id: exam.id,
+    metadata: exam.metadata ?? {},
     title: exam.title,
     measuredAt: exam.measured_at,
     summaryJson: exam.summary_json ?? {},

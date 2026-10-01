@@ -199,14 +199,15 @@ describe("treatments on several teeth and their state", () => {
 
 describe("periodontics", () => {
   it.each([
-    ["sangrado en el 16", { tooth: "16", bleeding: true }],
-    ["el 26 sangra", { tooth: "26", bleeding: true }],
-    ["movilidad grado 2 en el 31", { tooth: "31", mobility: "2" }],
-    ["recesión de 3 en el 13", { tooth: "13", recession: 3 }],
-    ["placa en el 11", { tooth: "11", plaque: true }],
-    ["supuración en el 36", { tooth: "36", suppuration: true }],
-  ])("%s", (phrase, partial) => {
-    expectAction(phrase, { type: "periodontal.update", ...partial });
+    "sangrado en el 16",
+    "movilidad grado 2 en el 31",
+    "recesión de 3 en el 13",
+    "placa en el 11",
+    "supuración en el 36",
+  ])("asks for site rather than silently assigning DV: %s", (phrase) => {
+    const plan = planLocalVoiceCommand(phrase, { patientId: "p" });
+    expect(plan.actions.some((a) => a.type === "periodontal.update")).toBe(false);
+    expect(plan.ambiguities.some((a) => a.includes("sitio periodontal"))).toBe(true);
   });
 });
 

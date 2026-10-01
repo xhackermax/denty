@@ -370,6 +370,7 @@ export const endodonticAssessmentSchema = z
 
 export const periodontalExamSchema = z
   .object({
+    metadata: z.record(z.string(), z.unknown()).optional(),
     id: idSchema,
     title: z.string().min(1),
     measuredAt: z.coerce.string(),

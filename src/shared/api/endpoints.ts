@@ -1,3 +1,4 @@
+import { createPerioDraftsResource } from "./resources/perio-drafts";
 import { createDiagnosesResource } from "./resources/diagnoses";
 import type { ApiClient } from "./client";
 import { createAdminResource } from "./resources/admin";
@@ -21,6 +22,7 @@ export function createDentyApi(client: ApiClient) {
     billing: createBillingResource(client),
     clinical: createClinicalResource(client),
     diagnoses: createDiagnosesResource(client),
+    perioDrafts: createPerioDraftsResource(client),
     engagement: createEngagementResource(client),
     portal: createPortalResource(client),
     prescriptions: createPrescriptionsResource(client),
