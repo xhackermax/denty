@@ -1,0 +1,28 @@
+name: Temporary special contacts verification
+on:
+  push:
+    branches: [design/special-contacts-2026-10-01]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Format contact files and report normalized source
+        run: |
+          npx prettier --write src/features/admin/clinic-contacts/clinic-contact-form.tsx src/features/admin/clinic-contacts/clinic-contacts-list.tsx src/features/admin/clinic-contacts/clinic-contacts-list.test.tsx src/features/admin/clinic-contacts/clinic-contacts.module.css 'src/app/(staff)/app/clinic-contacts/page.tsx'
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; for (const path of ["src/features/admin/clinic-contacts/clinic-contact-form.tsx","src/features/admin/clinic-contacts/clinic-contacts-list.tsx","src/features/admin/clinic-contacts/clinic-contacts-list.test.tsx","src/features/admin/clinic-contacts/clinic-contacts.module.css","src/app/(staff)/app/clinic-contacts/page.tsx"]) console.log("CONTACT_SOURCE "+JSON.stringify({path,content:readFileSync(path,"utf8")}));'
+      - name: Check changed components
+        run: |
+          npx eslint src/features/admin/clinic-contacts/clinic-contact-form.tsx src/features/admin/clinic-contacts/clinic-contacts-list.tsx src/features/admin/clinic-contacts/clinic-contacts-list.test.tsx 'src/app/(staff)/app/clinic-contacts/page.tsx' --max-warnings=0
+          npx stylelint src/features/admin/clinic-contacts/clinic-contacts.module.css
+      - run: npm run typecheck
+      - name: Run complete Vitest suite
+        run: npx vitest run
