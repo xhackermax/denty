@@ -19,7 +19,7 @@ Project: `awdqomgbxygtflkwggqb` (Denty).
 - Zero stuck task backends and zero remaining business `40001` functions after the correction.
 - Post-fix logs checked from 09:55 UTC: no `40001` or `57014` entries observed in the available window.
 - All 84 public tables still have RLS; no public SECURITY DEFINER function is executable by `anon`.
-- All 36 local migration versions match the applied remote history.
+- All 37 local migration versions match the applied remote history.
 - Application checks passed: 994 tests in 118 files, TypeScript, ESLint, production build and stages 1–13.
 
 The SQL regression files require a seeded Denty database. Run them through Supabase SQL/MCP or `psql` with `ON_ERROR_STOP=1`; they end in `ROLLBACK`.
@@ -30,5 +30,5 @@ The SQL regression files require a seeded Denty database. Run them through Supab
 - 78 authenticated SECURITY DEFINER notices remain. These RPCs deliberately write through privileged functions and enforce clinic/permission checks; the two delegating wrappers call guarded RPCs. Revoking them or changing all to INVOKER would break the application. No anonymous execution grant was found.
 - `legacy_identity_map` has RLS and no policies, with no grants for `anon` or `authenticated`; its denial is intentional.
 - Unused-index notices are informational and do not justify dropping protective/foreign-key indexes based on this short usage window.
-- The 26 multiple-permissive-policy warnings remain. A proposed consolidation preserves OR semantics by operation, but automatic approval review rejected the broad rewrite of policies across 23 tables. That proposal was not executed. See `docs/proposals/supabase-policy-consolidation.sql` for the concrete change requiring explicit approval.
+- After explicit user approval, migration `20261001100659` consolidated 49 policies across 23 tables into one policy per operation. All 26 multiple-permissive-policy warnings disappeared. The migration aborts if the existing policies differ from the reviewed snapshot. Before/after SELECT checks matched for 138 actor/table combinations; live regression tests also compared INSERT/UPDATE/DELETE predicates with the original policies for six actor profiles. All fixture changes rolled back.
 - Auth's historical token HTTP 400 is not evidence of an outage; no successful interactive login was tested without account credentials.
