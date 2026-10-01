@@ -23,7 +23,7 @@ try {
  await page.getByRole("button",{name:"Nuevo contacto",exact:true}).click();
  const dialog=page.getByRole("dialog");
  await dialog.getByLabel(/^Nombre/).fill("Proveedor de prueba");
- await dialog.getByLabel(/^Categoría/).fill("Proveedores");
+ await dialog.getByRole("combobox", {name:/^Categoría/}).fill("Proveedores");
  await dialog.getByLabel("Teléfono 1").fill("+34 600 000 000");
  await dialog.getByRole("button",{name:"Añadir teléfono"}).click();
  await dialog.getByLabel("Teléfono 2").fill("910 000 000");

@@ -57,7 +57,7 @@ describe("Formulario de contactos", () => {
     const save = vi.fn(async () => {});
     renderForm(save);
     fireEvent.change(screen.getByLabelText(/^Nombre/), { target: { value: "  Proveedor Sur  " } });
-    fireEvent.change(screen.getByLabelText(/^Categoría/), { target: { value: "Proveedores" } });
+    fireEvent.change(screen.getByRole("combobox", { name: /^Categoría/ }), { target: { value: "Proveedores" } });
     fireEvent.change(screen.getByLabelText("Teléfono 1"), { target: { value: "+34 600 000 111" } });
     fireEvent.change(screen.getByLabelText("Correo electrónico 1"), {
       target: { value: "ventas@sur.es" },
