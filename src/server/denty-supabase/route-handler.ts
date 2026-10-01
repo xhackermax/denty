@@ -2775,7 +2775,11 @@ export async function handleSupabaseDentyRoute(
     }
     if (caught instanceof SupabaseRestError) {
       return error(
-        caught.status >= 400 && caught.status < 600 ? caught.status : 502,
+        caught.message.includes("TOOTH_UNAVAILABLE")
+          ? 422
+          : caught.status >= 400 && caught.status < 600
+            ? caught.status
+            : 502,
         "SUPABASE_ERROR",
         caught.message,
         caught.details,

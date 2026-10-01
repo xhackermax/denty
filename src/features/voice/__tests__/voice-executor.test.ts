@@ -6,7 +6,7 @@ import type { LocalVoicePlan } from "../local-nlu";
 
 const api = {
   clinical: {
-    odontogram: { get: vi.fn(), batch: vi.fn() },
+    odontogram: { get: vi.fn(), batch: vi.fn(), periodontal: vi.fn() },
     sync: { plan: vi.fn() },
   },
 };
@@ -68,4 +68,29 @@ describe("executeVoicePlan", () => {
     await expect(executeVoicePlan(plan)).rejects.toThrow(/guardado en el odontograma.*plan.*502/i);
     expect(api.clinical.odontogram.batch).toHaveBeenCalledOnce();
   });
+});
+
+it("does not persist spoken probing on an absent tooth", async () => {
+  api.clinical.odontogram.get.mockResolvedValue({
+    version: 1,
+    entities: [
+      {
+        id: "e",
+        tooth: "36",
+        entityType: "MISSING",
+        status: "missing",
+        active: true,
+        attributes: {},
+      },
+    ],
+  });
+  await expect(
+    executeVoicePlan({
+      ...plan,
+      actions: [
+        { type: "periodontal.update", patientRef: "", tooth: "36", site: "MV", probingDepth: 3 },
+      ],
+    }),
+  ).rejects.toThrow(/ausente/);
+  expect(api.clinical.odontogram.periodontal).not.toHaveBeenCalled();
 });

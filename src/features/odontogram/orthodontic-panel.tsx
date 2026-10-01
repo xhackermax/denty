@@ -1,4 +1,5 @@
 "use client";
+import { useMouthState } from "./mouth-state-context";
 import {
   Badge,
   Button,
@@ -109,6 +110,7 @@ function OrthoTooth({
   );
 }
 export function OrthodonticPanel({ patientId, readOnly, onCommit }: OrthodonticPanelProps) {
+  const mouth = useMouthState();
   const [molarClassRight, setMolarClassRight] = useState<OrthodonticClass>("I");
   const [molarClassLeft, setMolarClassLeft] = useState<OrthodonticClass>("I");
   const [canineClassRight, setCanineClassRight] = useState<OrthodonticClass>("I");
@@ -155,6 +157,7 @@ export function OrthodonticPanel({ patientId, readOnly, onCommit }: OrthodonticP
     [toothMarks],
   );
   const cycleTooth = (tooth: string) => {
+    if (mouth.teeth[tooth]?.presence === "missing") return;
     if (readOnly) return;
     setSaved(false);
     setToothMarks((current) => ({
@@ -228,6 +231,13 @@ export function OrthodonticPanel({ patientId, readOnly, onCommit }: OrthodonticP
 
       <Text fw={800} size="sm" mt="md">
         Maxilar
+      </Text>
+      <Text size="sm">
+        Ausencias / agenesias:{" "}
+        {Object.entries(mouth.teeth)
+          .filter(([tooth, data]) => Number(tooth[0]) < 5 && data.presence === "missing")
+          .map(([tooth]) => tooth)
+          .join(", ") || "Ninguna"}
       </Text>
       {renderArch(PERMANENT_UPPER)}
       <div className={styles.orthoOcclusalLine}>Plano oclusal</div>

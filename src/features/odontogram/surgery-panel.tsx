@@ -1,5 +1,7 @@
 "use client";
 
+import { isSurgicalSite } from "@/domain/odontogram/mouth-state";
+import { useMouthState } from "./mouth-state-context";
 import { Badge, Button, Group, Select, Text } from "@mantine/core";
 import {
   SURGERY_PROCEDURES,
@@ -33,6 +35,7 @@ export function SurgeryPanel({
   onCommitBatch,
   onWarning,
 }: SurgeryPanelProps) {
+  const mouth = useMouthState();
   const [procedure, setProcedure] = useState<string>("extraction_simple");
   const [state, setState] = useState<"PLANIFICADO" | "REALIZADO">("PLANIFICADO");
   const [implantDesign, setImplantDesign] = useState<ImplantProstheticDesign>("UNIT_TIBASE");
@@ -42,6 +45,10 @@ export function SurgeryPanel({
   ).length;
 
   const commit = () => {
+    if (!isSurgicalSite(mouth, selectedTooth, procedure)) {
+      onWarning("Diente ausente: elige implante o regeneración.");
+      return;
+    }
     if (procedure === "implant_planned") {
       onCommitBatch(implantPlanEntities(createPlannedImplant(selectedTooth, implantDesign)));
       return;

@@ -1,3 +1,4 @@
+import { assertProbeable } from "./mouth-guard";
 import { odontogramSnapshotSchema } from "@/shared/api/schemas/clinical";
 import type {
   ClinicalSyncState,
@@ -464,6 +465,7 @@ export class ClinicalRepository {
   }
 
   async createPeriodontalExam(patientId: string, input: PeriodontalExamInput) {
+    await assertProbeable(this.client, this.clinicId, patientId, input.sites);
     const result = await this.client.rpc<PeriodontalRpcResult>("save_periodontal_exam", {
       p_patient_id: patientId,
       p_exam: input,
@@ -478,6 +480,7 @@ export class ClinicalRepository {
   }
 
   async savePeriodontalMeasurement(patientId: string, input: PeriodontalMeasurementInput) {
+    await assertProbeable(this.client, this.clinicId, patientId, [input]);
     const result = await this.client.rpc<PeriodontalRpcResult>("save_periodontal_exam", {
       p_patient_id: patientId,
       p_exam: { sites: [input] },

@@ -1,4 +1,7 @@
 "use client";
+import { deriveMouthState } from "@/domain/odontogram/mouth-state";
+import { MouthStateProvider } from "./mouth-state-context";
+import { MouthMiniMap } from "./mouth-mini-map";
 import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
 import { Alert, Badge, Button, Group, Select, SimpleGrid, Text } from "@mantine/core";
 import { IconArrowBackUp, IconArrowForwardUp, IconArrowRight } from "@tabler/icons-react";
@@ -370,6 +373,11 @@ function OdontogramEditor({
     () => Object.values(history.present.entitiesById).filter((entity) => entity.active),
     [history.present.entitiesById],
   );
+
+  const mouthState = useMemo(
+    () => deriveMouthState(entities, birthDate ? { birthDate } : {}),
+    [entities, birthDate],
+  );
   const persistedBridgeTeeth = useMemo(
     () =>
       new Set(
@@ -664,263 +672,269 @@ function OdontogramEditor({
         </div>
       ) : null}
 
-      <ClinicalTabs active={activeTab} onChange={(tab) => confirmLeave(() => setActiveTab(tab))} />
+      <MouthStateProvider state={mouthState}>
+        <MouthMiniMap selectedTooth={selectedTooth} onSelect={setSelectedTooth} />
+        <ClinicalTabs
+          active={activeTab}
+          onChange={(tab) => confirmLeave(() => setActiveTab(tab))}
+        />
 
-      {activeTab === "general" ? (
-        <>
-          <details
-            className={styles.advancedTools}
-            open={advancedToolsOpen}
-            onToggle={(event) => setAdvancedToolsOpen(event.currentTarget.open)}
-          >
-            <summary>
-              <span>
-                <strong>Más herramientas</strong>
-                <small>
-                  Plantillas, selección directa y prótesis por rango · diente {selectedTooth}
-                </small>
-              </span>
-            </summary>
-            <section className={styles.controlPanel}>
-              <div className={styles.panelHeading}>
-                <div>
-                  <Text fw={850}>Herramientas</Text>
-                  <Text size="xs" c="dimmed">
-                    Elige y marca.
-                  </Text>
-                </div>
-                <Badge variant="light">Diente {selectedTooth}</Badge>
-              </div>
-              <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                <Select
-                  label="Herramienta"
-                  value={tool}
-                  onChange={(value) => selectTool((value ?? "caries") as ToothState)}
-                  data={[...TOOL_OPTIONS]}
-                  disabled={historical}
-                />
-                <Select
-                  label="Diente"
-                  value={selectedTooth}
-                  onChange={(value) => setSelectedTooth(value ?? "46")}
-                  data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
-                />
-              </SimpleGrid>
-              {placementMode === "bridge" ? (
-                <div className={styles.bridgePicker}>
-                  <div className={styles.bridgePickerHeading}>
-                    <div>
-                      <Text fw={820} size="sm">
-                        Prótesis fija / puente
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {bridgeReady && bridgeFrom && bridgeTo
-                          ? `Rango ${bridgeFrom} -> ${bridgeTo}. Confirma para aplicar.`
-                          : bridgePick === "from"
-                            ? "Pulsa el diente inicial en el odontograma."
-                            : `Inicio ${bridgeFrom}. Elige el final.`}
-                      </Text>
-                    </div>
-                    <Badge variant="light">{bridgePreviewTeeth.length || 0} dientes</Badge>
+        {activeTab === "general" ? (
+          <>
+            <details
+              className={styles.advancedTools}
+              open={advancedToolsOpen}
+              onToggle={(event) => setAdvancedToolsOpen(event.currentTarget.open)}
+            >
+              <summary>
+                <span>
+                  <strong>Más herramientas</strong>
+                  <small>
+                    Plantillas, selección directa y prótesis por rango · diente {selectedTooth}
+                  </small>
+                </span>
+              </summary>
+              <section className={styles.controlPanel}>
+                <div className={styles.panelHeading}>
+                  <div>
+                    <Text fw={850}>Herramientas</Text>
+                    <Text size="xs" c="dimmed">
+                      Elige y marca.
+                    </Text>
                   </div>
-                  <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                    <Select
-                      label="Diente inicial"
-                      placeholder="Seleccionar"
-                      value={bridgeFrom}
-                      onChange={(value) => {
-                        setBridgeFrom(value);
-                        setBridgeTo(null);
-                        setBridgePick(value ? "to" : "from");
-                        setBridgeError(null);
-                      }}
-                      data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
-                      disabled={historical}
-                    />
-                    <Select
-                      label="Diente final"
-                      placeholder="Seleccionar"
-                      value={bridgeTo}
-                      onChange={(value) => {
-                        if (!value) {
+                  <Badge variant="light">Diente {selectedTooth}</Badge>
+                </div>
+                <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                  <Select
+                    label="Herramienta"
+                    value={tool}
+                    onChange={(value) => selectTool((value ?? "caries") as ToothState)}
+                    data={[...TOOL_OPTIONS]}
+                    disabled={historical}
+                  />
+                  <Select
+                    label="Diente"
+                    value={selectedTooth}
+                    onChange={(value) => setSelectedTooth(value ?? "46")}
+                    data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
+                  />
+                </SimpleGrid>
+                {placementMode === "bridge" ? (
+                  <div className={styles.bridgePicker}>
+                    <div className={styles.bridgePickerHeading}>
+                      <div>
+                        <Text fw={820} size="sm">
+                          Prótesis fija / puente
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {bridgeReady && bridgeFrom && bridgeTo
+                            ? `Rango ${bridgeFrom} -> ${bridgeTo}. Confirma para aplicar.`
+                            : bridgePick === "from"
+                              ? "Pulsa el diente inicial en el odontograma."
+                              : `Inicio ${bridgeFrom}. Elige el final.`}
+                        </Text>
+                      </div>
+                      <Badge variant="light">{bridgePreviewTeeth.length || 0} dientes</Badge>
+                    </div>
+                    <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                      <Select
+                        label="Diente inicial"
+                        placeholder="Seleccionar"
+                        value={bridgeFrom}
+                        onChange={(value) => {
+                          setBridgeFrom(value);
                           setBridgeTo(null);
-                          setBridgePick("to");
-                          return;
-                        }
-                        if (!bridgeFrom) {
-                          setBridgeError("Selecciona primero el diente inicial.");
-                          return;
-                        }
-                        try {
-                          const range = bridgeTeethFromEndpoints(bridgeFrom, value);
-                          if (range.length < 2) {
-                            setBridgeError("Elige otro diente final.");
+                          setBridgePick(value ? "to" : "from");
+                          setBridgeError(null);
+                        }}
+                        data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
+                        disabled={historical}
+                      />
+                      <Select
+                        label="Diente final"
+                        placeholder="Seleccionar"
+                        value={bridgeTo}
+                        onChange={(value) => {
+                          if (!value) {
+                            setBridgeTo(null);
+                            setBridgePick("to");
                             return;
                           }
-                          setBridgeTo(value);
-                          setBridgePick("from");
-                          setBridgeError(null);
-                        } catch {
-                          setBridgeTo(null);
-                          setBridgeError("Usa la misma arcada.");
-                        }
-                      }}
-                      data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
-                      disabled={historical || !bridgeFrom}
-                    />
-                  </SimpleGrid>
-                  <Group justify="space-between" mt="sm">
-                    <Text size="xs" c="dimmed">
-                      {bridgeReady && bridgeFrom && bridgeTo
-                        ? `Vista previa: ${bridgeFrom} → ${bridgeTo} · ${bridgePreviewTeeth.join(
-                            ", ",
-                          )}`
-                        : "El rango se ilumina antes de aplicarlo."}
-                    </Text>
-                    <Button
-                      size="xs"
-                      disabled={historical || !bridgeReady}
-                      onClick={() => applyTemplate("bridge")}
-                    >
-                      Aplicar prótesis / puente
-                    </Button>
-                  </Group>
-                  {bridgeError ? (
-                    <Text size="xs" c="red" mt="xs">
-                      {bridgeError}
-                    </Text>
-                  ) : null}
+                          if (!bridgeFrom) {
+                            setBridgeError("Selecciona primero el diente inicial.");
+                            return;
+                          }
+                          try {
+                            const range = bridgeTeethFromEndpoints(bridgeFrom, value);
+                            if (range.length < 2) {
+                              setBridgeError("Elige otro diente final.");
+                              return;
+                            }
+                            setBridgeTo(value);
+                            setBridgePick("from");
+                            setBridgeError(null);
+                          } catch {
+                            setBridgeTo(null);
+                            setBridgeError("Usa la misma arcada.");
+                          }
+                        }}
+                        data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
+                        disabled={historical || !bridgeFrom}
+                      />
+                    </SimpleGrid>
+                    <Group justify="space-between" mt="sm">
+                      <Text size="xs" c="dimmed">
+                        {bridgeReady && bridgeFrom && bridgeTo
+                          ? `Vista previa: ${bridgeFrom} → ${bridgeTo} · ${bridgePreviewTeeth.join(
+                              ", ",
+                            )}`
+                          : "El rango se ilumina antes de aplicarlo."}
+                      </Text>
+                      <Button
+                        size="xs"
+                        disabled={historical || !bridgeReady}
+                        onClick={() => applyTemplate("bridge")}
+                      >
+                        Aplicar prótesis / puente
+                      </Button>
+                    </Group>
+                    {bridgeError ? (
+                      <Text size="xs" c="red" mt="xs">
+                        {bridgeError}
+                      </Text>
+                    ) : null}
+                  </div>
+                ) : null}
+                <Group mt="md">
+                  <Button
+                    size="xs"
+                    disabled={historical || placementMode === "bridge"}
+                    onClick={() => applyWhole(selectedTooth)}
+                  >
+                    Aplicar al diente seleccionado
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    disabled={historical}
+                    onClick={() => applyTemplate("implant")}
+                  >
+                    Implante + pilar + corona
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    disabled={historical}
+                    onClick={() => applyTemplate("endo")}
+                  >
+                    Endo + perno + corona
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    disabled={historical}
+                    onClick={() => selectTool("prosthesis_pending", "bridge")}
+                  >
+                    Seleccionar prótesis / puente
+                  </Button>
+                </Group>
+              </section>
+            </details>
+
+            <section className={styles.chartPanel}>
+              <div className={styles.chartHeader}>
+                <div>
+                  <Text fw={850}>Odontograma</Text>
+                </div>
+              </div>
+              <OdontogramLegend
+                selection={legendSelection}
+                disabled={historical}
+                onSelect={(selection) => selectTool(selection.state, selection.placement)}
+              />
+              {placementMode === "bridge" ? (
+                <div className={styles.bridgeSelectionBanner}>
+                  <strong>
+                    {bridgeReady
+                      ? "✓ Rango listo"
+                      : bridgePick === "from"
+                        ? "1 · Inicio"
+                        : "2 · Final"}
+                  </strong>
+                  <span>
+                    {bridgeReady && bridgeFrom && bridgeTo
+                      ? `${bridgeFrom} → ${bridgeTo}. ` +
+                        "Pulsa Aplicar prótesis / puente para confirmarlo."
+                      : bridgePick === "from"
+                        ? "Pulsa el primer diente de la prótesis fija."
+                        : `Inicio ${bridgeFrom}. Pulsa el último diente de la misma arcada.`}
+                  </span>
                 </div>
               ) : null}
-              <Group mt="md">
-                <Button
-                  size="xs"
-                  disabled={historical || placementMode === "bridge"}
-                  onClick={() => applyWhole(selectedTooth)}
-                >
-                  Aplicar al diente seleccionado
-                </Button>
-                <Button
-                  size="xs"
-                  variant="light"
-                  disabled={historical}
-                  onClick={() => applyTemplate("implant")}
-                >
-                  Implante + pilar + corona
-                </Button>
-                <Button
-                  size="xs"
-                  variant="light"
-                  disabled={historical}
-                  onClick={() => applyTemplate("endo")}
-                >
-                  Endo + perno + corona
-                </Button>
-                <Button
-                  size="xs"
-                  variant="light"
-                  disabled={historical}
-                  onClick={() => selectTool("prosthesis_pending", "bridge")}
-                >
-                  Seleccionar prótesis / puente
-                </Button>
-              </Group>
+              <div className={styles.archBlock}>
+                <Text className={styles.archLabel} fw={800}>
+                  Maxilar
+                </Text>
+                {renderArch(PERMANENT_UPPER)}
+              </div>
+              <div className={styles.occlusalPlane}>
+                <span>Plano oclusal</span>
+              </div>
+              <div className={styles.archBlock}>
+                {renderArch(PERMANENT_LOWER)}
+                <Text className={styles.archLabel} fw={800}>
+                  Mandíbula
+                </Text>
+              </div>
             </section>
-          </details>
+            <SupernumeraryPanel entities={entities} readOnly={historical} onCommit={commit} />
+          </>
+        ) : null}
 
-          <section className={styles.chartPanel}>
-            <div className={styles.chartHeader}>
-              <div>
-                <Text fw={850}>Odontograma</Text>
-              </div>
-            </div>
-            <OdontogramLegend
-              selection={legendSelection}
-              disabled={historical}
-              onSelect={(selection) => selectTool(selection.state, selection.placement)}
-            />
-            {placementMode === "bridge" ? (
-              <div className={styles.bridgeSelectionBanner}>
-                <strong>
-                  {bridgeReady
-                    ? "✓ Rango listo"
-                    : bridgePick === "from"
-                      ? "1 · Inicio"
-                      : "2 · Final"}
-                </strong>
-                <span>
-                  {bridgeReady && bridgeFrom && bridgeTo
-                    ? `${bridgeFrom} → ${bridgeTo}. ` +
-                      "Pulsa Aplicar prótesis / puente para confirmarlo."
-                    : bridgePick === "from"
-                      ? "Pulsa el primer diente de la prótesis fija."
-                      : `Inicio ${bridgeFrom}. Pulsa el último diente de la misma arcada.`}
-                </span>
-              </div>
-            ) : null}
-            <div className={styles.archBlock}>
-              <Text className={styles.archLabel} fw={800}>
-                Maxilar
-              </Text>
-              {renderArch(PERMANENT_UPPER)}
-            </div>
-            <div className={styles.occlusalPlane}>
-              <span>Plano oclusal</span>
-            </div>
-            <div className={styles.archBlock}>
-              {renderArch(PERMANENT_LOWER)}
-              <Text className={styles.archLabel} fw={800}>
-                Mandíbula
-              </Text>
-            </div>
-          </section>
-          <SupernumeraryPanel entities={entities} readOnly={historical} onCommit={commit} />
-        </>
-      ) : null}
+        {activeTab === "periodontal" ? (
+          <PeriodontogramPanel
+            patientId={patientId}
+            readOnly={historical}
+            readings={initialPeriodontal}
+            onMarkMissing={(tooth) => commit(createStateEntity(tooth, "missing"))}
+          />
+        ) : null}
+        {activeTab === "orthodontic" ? (
+          <OrthodonticPanel patientId={patientId} readOnly={historical} onCommit={commit} />
+        ) : null}
+        {activeTab === "pediatric" ? (
+          <PediatricPanel
+            patientId={patientId}
+            {...(birthDate === undefined ? {} : { birthDate })}
+            readOnly={historical}
+            initialEntities={entities}
+            onCommit={commit}
+          />
+        ) : null}
+        {activeTab === "endodontic" ? (
+          <EndodonticPanel selectedTooth={selectedTooth} readOnly={historical} onCommit={commit} />
+        ) : null}
+        {activeTab === "surgery" ? (
+          <SurgeryPanel
+            selectedTooth={selectedTooth}
+            entities={entities}
+            readOnly={historical}
+            onCommitBatch={commitBatch}
+            onWarning={setClinicalRuleMessage}
+          />
+        ) : null}
 
-      {activeTab === "periodontal" ? (
-        <PeriodontogramPanel
-          patientId={patientId}
-          readOnly={historical}
-          readings={initialPeriodontal}
-        />
-      ) : null}
-      {activeTab === "orthodontic" ? (
-        <OrthodonticPanel patientId={patientId} readOnly={historical} onCommit={commit} />
-      ) : null}
-      {activeTab === "pediatric" ? (
-        <PediatricPanel
-          patientId={patientId}
-          {...(birthDate === undefined ? {} : { birthDate })}
-          readOnly={historical}
-          initialEntities={entities}
-          onCommit={commit}
-        />
-      ) : null}
-      {activeTab === "endodontic" ? (
-        <EndodonticPanel selectedTooth={selectedTooth} readOnly={historical} onCommit={commit} />
-      ) : null}
-      {activeTab === "surgery" ? (
-        <SurgeryPanel
-          selectedTooth={selectedTooth}
-          entities={entities}
-          readOnly={historical}
-          onCommitBatch={commitBatch}
-          onWarning={setClinicalRuleMessage}
-        />
-      ) : null}
-
-      {!historical && activeTab === "periodontal" ? (
-        <PeriodontalQuickEntry patientId={patientId} />
-      ) : null}
-      {activeTab === "history" ? (
-        <OdontogramHistory
-          patientId={patientId}
-          selectedSnapshotId={selectedSnapshotId}
-          onSelectSnapshot={onSelectSnapshot}
-        />
-      ) : null}
-
+        {!historical && activeTab === "periodontal" ? (
+          <PeriodontalQuickEntry patientId={patientId} />
+        ) : null}
+        {activeTab === "history" ? (
+          <OdontogramHistory
+            patientId={patientId}
+            selectedSnapshotId={selectedSnapshotId}
+            onSelectSnapshot={onSelectSnapshot}
+          />
+        ) : null}
+      </MouthStateProvider>
       <details
         className={parityStyles.disclosure}
         id="clinical-flow"

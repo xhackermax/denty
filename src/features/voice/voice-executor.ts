@@ -1,3 +1,4 @@
+import { deriveMouthState, isProbeable } from "@/domain/odontogram/mouth-state";
 import { archForTooth, createBridgeEntities, createRemovable, type DentalEntity } from "@/domain";
 import { getBrowserApi } from "@/shared/api/browser";
 import { DentyApiError } from "@/shared/api/errors";
@@ -103,6 +104,9 @@ async function executeAction(action: LocalVoiceAction, plan: LocalVoicePlan): Pr
   }
 
   if (action.type === "periodontal.update") {
+    const current = await api.clinical.odontogram.get(requirePatientId(plan));
+    if (!isProbeable(deriveMouthState(current.entities.map(persistedEntityToDomain)), action.tooth))
+      throw new Error(`El ${action.tooth} está ausente: no se guardó sondaje.`);
     const mobility = action.mobility ? Number(action.mobility) : undefined;
     await api.clinical.odontogram.periodontal(requirePatientId(plan), {
       tooth: action.tooth,

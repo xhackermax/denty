@@ -13,6 +13,8 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
+import { isProbeable } from "@/domain/odontogram/mouth-state";
+import { useMouthState } from "./mouth-state-context";
 import { useState } from "react";
 import { useOdontogramQuery, useRecordPeriodontalMeasurementMutation } from "./odontogram-data";
 import styles from "@/shared/ui/parity.module.css";
@@ -23,6 +25,7 @@ function numberValue(value: string | number): number {
 }
 
 export function PeriodontalQuickEntry({ patientId }: { patientId: string }) {
+  const mouth = useMouthState();
   const [tooth, setTooth] = useState("16");
   const [site, setSite] = useState<(typeof SITES)[number]>("MV");
   const [probingDepth, setProbingDepth] = useState(3);
@@ -80,7 +83,7 @@ export function PeriodontalQuickEntry({ patientId }: { patientId: string }) {
         <Button
           size="xs"
           loading={mutation.isPending}
-          disabled={!tooth.trim()}
+          disabled={!isProbeable(mouth, tooth)}
           onClick={() =>
             void mutation.mutateAsync({
               tooth: tooth.trim(),

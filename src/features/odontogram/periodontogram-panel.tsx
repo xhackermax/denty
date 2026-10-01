@@ -1,4 +1,6 @@
 "use client";
+import { isProbeable, teethForChart } from "@/domain/odontogram/mouth-state";
+import { useMouthState } from "./mouth-state-context";
 import {
   Alert,
   Badge,
@@ -15,6 +17,8 @@ import {
   PERIODONTAL_SITES,
   PERMANENT_LOWER,
   PERMANENT_UPPER,
+  TEMPORARY_UPPER,
+  TEMPORARY_LOWER,
   buildPeriodontalChart,
   periodontalRiskForSummary,
   type PeriodontalReading,
@@ -26,6 +30,7 @@ interface PeriodontogramPanelProps {
   patientId: string;
   readOnly: boolean;
   readings?: readonly PeriodontalReading[];
+  onMarkMissing?: (tooth: string) => void;
 }
 const RISK_LABELS = {
   normal: "Normal",
@@ -33,7 +38,12 @@ const RISK_LABELS = {
   moderate_periodontitis: "Periodontitis moderada",
   advanced_periodontitis: "Periodontitis avanzada",
 } as const;
-const ALL_TEETH = [...PERMANENT_UPPER, ...PERMANENT_LOWER] as readonly string[];
+const ALL_TEETH = [
+  ...PERMANENT_UPPER,
+  ...PERMANENT_LOWER,
+  ...TEMPORARY_UPPER,
+  ...TEMPORARY_LOWER,
+] as readonly string[];
 type FieldMode = "probing" | "recession";
 function keyFor(tooth: string, site: PeriodontalSite) {
   return `${tooth}:${site}`;
@@ -51,9 +61,11 @@ const NO_READINGS: readonly PeriodontalReading[] = [];
 
 export function PeriodontogramPanel({
   patientId,
+  onMarkMissing,
   readOnly,
   readings = NO_READINGS,
 }: PeriodontogramPanelProps) {
+  const mouth = useMouthState();
   const examMutation = useCreatePeriodontalExamMutation(patientId);
   const [fieldMode, setFieldMode] = useState<FieldMode>("probing");
   const [values, setValues] = useState<PeriodontalReading[]>(() => buildCompleteReadings(readings));
@@ -65,10 +77,13 @@ export function PeriodontogramPanel({
     setValues(buildCompleteReadings(readings));
     setSavedAt(null);
   }, [patientId, readingsSignature]);
-  const chart = useMemo(() => buildPeriodontalChart(values), [values]);
+  const chart = useMemo(
+    () => buildPeriodontalChart(values.filter((r) => isProbeable(mouth, r.tooth))),
+    [values, mouth],
+  );
   const risk = periodontalRiskForSummary(chart.summary);
   const updateSite = (tooth: string, site: PeriodontalSite, patch: Partial<PeriodontalReading>) => {
-    if (readOnly) return;
+    if (readOnly || !isProbeable(mouth, tooth)) return;
     setValues((current) =>
       current.map((reading) =>
         reading.tooth === tooth && reading.site === site ? { ...reading, ...patch } : reading,
@@ -79,7 +94,7 @@ export function PeriodontogramPanel({
     tooth: string,
     patch: Pick<PeriodontalReading, "mobility" | "furcation">,
   ) => {
-    if (readOnly) return;
+    if (readOnly || !isProbeable(mouth, tooth)) return;
     setValues((current) =>
       current.map((reading) =>
         reading.tooth === tooth && reading.site === "MV" ? { ...reading, ...patch } : reading,
@@ -96,17 +111,19 @@ export function PeriodontogramPanel({
       await examMutation.mutateAsync({
         title: "Periodontograma completo",
         measuredAt: new Date().toISOString(),
-        sites: values.map((reading) => ({
-          tooth: reading.tooth,
-          site: reading.site,
-          probingDepth: reading.probingDepth ?? 0,
-          recession: reading.recession ?? 0,
-          mobility: reading.mobility ?? 0,
-          furcation: reading.furcation ?? 0,
-          bleeding: Boolean(reading.bleeding),
-          plaque: Boolean(reading.plaque),
-          suppuration: Boolean(reading.suppuration),
-        })),
+        sites: values
+          .filter((r) => isProbeable(mouth, r.tooth))
+          .map((reading) => ({
+            tooth: reading.tooth,
+            site: reading.site,
+            probingDepth: reading.probingDepth ?? 0,
+            recession: reading.recession ?? 0,
+            mobility: reading.mobility ?? 0,
+            furcation: reading.furcation ?? 0,
+            bleeding: Boolean(reading.bleeding),
+            plaque: Boolean(reading.plaque),
+            suppuration: Boolean(reading.suppuration),
+          })),
         risk: {
           band: risk,
           bleedingPct: chart.summary.bleedingPct,
@@ -132,12 +149,26 @@ export function PeriodontogramPanel({
   const renderArch = (teeth: readonly string[]) => (
     <div className={styles.perioArch}>
       {teeth.map((tooth) => {
+        if (!isProbeable(mouth, tooth))
+          return (
+            <article className={styles.perioToothCard} key={tooth}>
+              <strong>{tooth}</strong>
+              <Text c="dimmed">Ausente / no erupcionado</Text>
+            </article>
+          );
         const toothChart = chart.teeth[tooth];
         const mv = toothChart?.sites.MV;
         return (
           <article className={styles.perioToothCard} key={tooth}>
             <div className={styles.perioToothHeader}>
-              <strong>{tooth}</strong>
+              <strong>
+                {tooth} {mouth.teeth[tooth]?.presence === "implant" ? "· Implante" : ""}
+              </strong>
+              {onMarkMissing && !readOnly ? (
+                <Button size="compact-xs" variant="subtle" onClick={() => onMarkMissing(tooth)}>
+                  Marcar {tooth} ausente
+                </Button>
+              ) : null}
               <div className={styles.perioToothMeta}>
                 <NumberInput
                   aria-label={`Movilidad diente ${tooth}`}
@@ -332,9 +363,9 @@ export function PeriodontogramPanel({
       <Text fw={800} size="sm" mt="lg">
         Maxilar
       </Text>
-      {renderArch(PERMANENT_UPPER)}
+      {renderArch(teethForChart(mouth, "perio").filter((t) => /^[1256]/.test(t)))}
       <div className={styles.perioDivider}>Plano oclusal</div>
-      {renderArch(PERMANENT_LOWER)}
+      {renderArch(teethForChart(mouth, "perio").filter((t) => /^[3478]/.test(t)))}
       <Text fw={800} size="sm">
         Mandíbula
       </Text>

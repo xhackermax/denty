@@ -1,4 +1,6 @@
 "use client";
+import { isEndoCandidate } from "@/domain/odontogram/mouth-state";
+import { useMouthState } from "./mouth-state-context";
 import { Badge, Button, Group, Select, SimpleGrid, Text } from "@mantine/core";
 import { useMemo, useState } from "react";
 import {
@@ -22,6 +24,8 @@ interface EndodonticPanelProps {
   onCommit: (entity: DentalEntity) => void;
 }
 export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: EndodonticPanelProps) {
+  const mouth = useMouthState();
+  const blocked = readOnly || !isEndoCandidate(mouth, selectedTooth);
   const [pulpalDiagnosis, setPulpalDiagnosis] = useState<PulpalDiagnosis>("Necrosis pulpar");
   const [apicalDiagnosis, setApicalDiagnosis] = useState<ApicalDiagnosis>("Absceso apical cronico");
   const visualCode = useMemo(
@@ -40,6 +44,9 @@ export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: Endodonti
           </Text>
         </div>
         <Badge variant="light">Diente {selectedTooth}</Badge>
+        {!isEndoCandidate(mouth, selectedTooth) ? (
+          <Text c="orange">Diente ausente o reemplazado en el odontograma</Text>
+        ) : null}
       </Group>
 
       <SimpleGrid cols={{ base: 1, md: 3 }} mt="md" className={styles.endoEditorGrid}>
@@ -48,7 +55,7 @@ export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: Endodonti
           value={pulpalDiagnosis}
           data={PULPAL_DIAGNOSES.map((value) => ({ value, label: value }))}
           onChange={(value) => setPulpalDiagnosis((value ?? "Necrosis pulpar") as PulpalDiagnosis)}
-          disabled={readOnly}
+          disabled={blocked}
         />
         <Select
           label="Diagnóstico apical"
@@ -57,7 +64,7 @@ export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: Endodonti
           onChange={(value) =>
             setApicalDiagnosis((value ?? "Absceso apical cronico") as ApicalDiagnosis)
           }
-          disabled={readOnly}
+          disabled={blocked}
         />
         <div className={styles.endoDiagnosisPreview} data-severity={visualMark.severity}>
           <svg viewBox="0 0 64 92" aria-hidden="true">
@@ -74,7 +81,7 @@ export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: Endodonti
       <Group mt="md" justify="flex-end">
         <Button
           size="xs"
-          disabled={readOnly}
+          disabled={blocked}
           onClick={() =>
             onCommit({
               id: `endo-diagnosis-${selectedTooth}`,

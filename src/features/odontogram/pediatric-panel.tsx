@@ -1,5 +1,7 @@
 "use client";
 
+import { useMouthState } from "./mouth-state-context";
+import { isEndoCandidate } from "@/domain/odontogram/mouth-state";
 import { Alert, Badge, Button, Group, SegmentedControl, Select, Text } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -176,6 +178,7 @@ export function PediatricPanel({
   initialEntities = NO_ENTITIES,
   onCommit,
 }: PediatricPanelProps) {
+  const mouth = useMouthState();
   const suggestedStage = useMemo(() => dentitionStageForBirthDate(birthDate), [birthDate]);
   const suggestedPediatricStage: Extract<DentitionStage, "primary" | "mixed"> =
     !birthDate || suggestedStage === "primary" ? "primary" : "mixed";
@@ -225,6 +228,19 @@ export function PediatricPanel({
 
   const commitStatus = (tooth: string, nextStatus: PediatricToothStatus) => {
     if (readOnly) return;
+    if (
+      ![
+        "healthy",
+        "unerupted",
+        "retained",
+        "impacted",
+        "congenitally_missing",
+        "exfoliated",
+        "erupting",
+      ].includes(nextStatus) &&
+      !isEndoCandidate(mouth, tooth)
+    )
+      return;
     setToothStates((current) => ({ ...current, [tooth]: nextStatus }));
     onCommit(createPediatricEntity(tooth, nextStatus));
     setSaved(false);
@@ -247,7 +263,11 @@ export function PediatricPanel({
     <PediatricTooth
       key={tooth}
       tooth={tooth}
-      status={toothStates[tooth] ?? "healthy"}
+      status={
+        mouth.teeth[tooth]?.presence === "missing"
+          ? "congenitally_missing"
+          : (toothStates[tooth] ?? "healthy")
+      }
       present={presentFor(tooth)}
       selected={selectedTooth === tooth}
       disabled={readOnly}
