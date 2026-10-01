@@ -80,7 +80,13 @@ export function AgendaAppointmentCard({
           <span className={styles.cardName}>
             {size === "small" ? shortPatientName(appointment.patientName) : appointment.patientName}
           </span>
-          {size === "small" ? <ClinicalGlyphs glyphs={glyphs} max={1} /> : null}
+          {size === "small" ? (
+            glyphs.length ? (
+              <ClinicalGlyphs glyphs={glyphs} max={1} />
+            ) : (
+              <span className={styles.cardReason}>{appointment.reason}</span>
+            )
+          ) : null}
           <span className={styles.cardStatus} data-status={appointment.status}>
             <AgendaStatusIcon status={appointment.status} size={12} />
           </span>
@@ -88,7 +94,11 @@ export function AgendaAppointmentCard({
         </div>
         {size === "small" ? null : (
           <div className={styles.cardDetail}>
-            <ClinicalGlyphs glyphs={glyphs} />
+            {glyphs.length ? (
+              <ClinicalGlyphs glyphs={glyphs} />
+            ) : (
+              <span className={styles.cardReason}>{appointment.reason}</span>
+            )}
             {size === "large" ? <span className={styles.cardMeta}>{duration} min</span> : null}
           </div>
         )}

@@ -99,15 +99,18 @@ const CODE_FAMILIES: Readonly<Record<string, ClinicalIconFamily>> = {
   XRAY: "imaging",
   DIAGNOSIS: "diagnostic",
   REVIEW: "review",
+  CHECKUP: "review",
+  PROSTHESIS: "fixed_prosthesis",
+  POST: "endodontics",
   EMERGENCY: "emergency",
 };
 // Specific families precede general ones: a surgical extraction is not a simple extraction.
 const KEYWORD_FAMILIES: ReadonlyArray<readonly [RegExp, ClinicalIconFamily]> = [
   [/cirug|quirurg|incluido|apicect|injerto|regeneraci|elevacion de seno|colgajo/, "surgery"],
   [/implant/, "implantology"],
-  [/endodon|pulpot|pulpect/, "endodontics"],
-  [/puente|protesis fija/, "fixed_prosthesis"],
-  [/protesis (?:total|completa)|dentadura/, "complete_denture"],
+  [/endodon|pulpot|pulpect|intraconducto|perno/, "endodontics"],
+  [/puente|protesis fija|provisional fijo|prueba de estructura/, "fixed_prosthesis"],
+  [/protesis (?:total|completa)|dentadura|(?:prueba|ajuste) de total/, "complete_denture"],
   [/removible|esqueletico|rebase/, "removable_prosthesis"],
   [/ferula/, "occlusal_splint"],
   [/ortodon|bracket|alineador|retenedor|mantenedor de espacio/, "orthodontics"],
@@ -241,7 +244,14 @@ export function clinicalGlyphFor(input: ClinicalGlyphInput): ClinicalGlyphModel 
           ? "caries"
           : "filling_pending",
     crown: clinicalState === "redo" ? "crown_bad" : "crown_pending",
-    endodontics: clinicalState === "redo" ? "endo_bad" : "endo_indicated",
+    endodontics:
+      code === "POST" || /perno/.test(text)
+        ? clinicalState === "redo"
+          ? "post_bad"
+          : "post_pending"
+        : clinicalState === "redo"
+          ? "endo_bad"
+          : "endo_indicated",
     implantology: clinicalState === "redo" ? "implant_review" : "implant_indicated",
     extraction: "extraction",
     fixed_prosthesis: clinicalState === "redo" ? "prosthesis_bad" : "prosthesis_pending",

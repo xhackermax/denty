@@ -5,7 +5,13 @@ const TOOTH =
   "M6 3.5C3 4 3 8 4.5 12L6.5 20C7 22 8.5 21 9 19L11 14C11.4 13 12.6 13 13 14L15 19C15.5 21 17 22 17.5 20L19.5 12C21 8 21 4 18 3.5C15.5 3 14.5 4.5 12 4.5S8.5 3 6 3.5Z";
 const CROWN = "M5 14L3.5 8C2.5 4 5 2.5 8 3.5Q12 5 16 3.5C19 2.5 21.5 4 20.5 8L19 14Z";
 
-export function ClinicalIconPaths({ family }: { family: ClinicalIconFamily }) {
+export function ClinicalIconPaths({
+  family,
+  post = false,
+}: {
+  family: ClinicalIconFamily;
+  post?: boolean;
+}) {
   switch (family) {
     case "extraction":
       return (
@@ -25,7 +31,10 @@ export function ClinicalIconPaths({ family }: { family: ClinicalIconFamily }) {
       return (
         <>
           <path d={TOOTH} />
-          <path className="clinical-accent" d="M8 8Q12 11 16 8M12 10V13M12 13L8 19M12 13L16 19" />
+          <path
+            className="clinical-accent"
+            d={post ? "M10 7H14V17H10ZM8 7H16" : "M8 8Q12 11 16 8M12 10V13M12 13L8 19M12 13L16 19"}
+          />
         </>
       );
     case "implantology":

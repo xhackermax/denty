@@ -12,7 +12,7 @@ afterEach(cleanup);
 
 const cardStyle = {};
 const reason = "Implante 46; Corona 11; Raspado Q1; Extracción 28";
-function showCard(heightPx = 90) {
+function showCard(heightPx = 90, reason = "Implante 46; Corona 11; Raspado Q1; Extracción 28") {
   const glyphs = agendaClinicalGlyphs({ label: reason });
   const appointment: AgendaAppointmentView = {
     id: "appointment",
@@ -47,6 +47,10 @@ function showCard(heightPx = 90) {
 }
 
 describe("tarjeta de agenda sencilla", () => {
+  it.each([30, 90])("mantiene visible un motivo sin icono a altura %s", (height) => {
+    showCard(height, "Consulta personalizada");
+    expect(screen.getByText("Consulta personalizada")).toBeVisible();
+  });
   it("muestra un máximo de tres símbolos y abre el detalle completo al tocar", () => {
     const onOpen = showCard();
     expect(

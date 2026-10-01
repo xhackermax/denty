@@ -20,7 +20,9 @@ export type ClinicalGlyphMode = "compact" | "micro";
 export function describeClinicalGlyph(glyph: ClinicalGlyphModel): string {
   return [
     glyph.urgent && glyph.family !== "emergency" ? "Urgencia" : null,
-    CLINICAL_FAMILY_LABELS[glyph.family],
+    glyph.state === "post_pending" || glyph.state === "post_bad"
+      ? "Perno"
+      : CLINICAL_FAMILY_LABELS[glyph.family],
     glyph.location,
     glyph.surfaces.map((surface) => SURFACE_NAMES[surface]).join(", "),
     glyph.family === "restorative_surface" && glyph.surfaces.length === 0
@@ -104,7 +106,10 @@ export function ClinicalGlyph({
           </>
         ) : (
           <>
-            <ClinicalIconPaths family={glyph.family} />
+            <ClinicalIconPaths
+              family={glyph.family}
+              post={glyph.state === "post_pending" || glyph.state === "post_bad"}
+            />
             {glyph.clinicalState === "redo" ? (
               <rect
                 className={styles.redoOutline}

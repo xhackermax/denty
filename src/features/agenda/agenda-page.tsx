@@ -1,4 +1,6 @@
 "use client";
+
+import { agendaTreatmentOptions } from "@/domain";
 import {
   ActionIcon,
   Alert,
@@ -1506,7 +1508,11 @@ export function AgendaPage() {
           <span className={parityStyles.rowTitle}>
             {hhmm(appointment.startsAt)} · {appointment.patientName}
           </span>
-          <ClinicalGlyphs glyphs={appointment.glyphs} />
+          {appointment.glyphs.length ? (
+            <ClinicalGlyphs glyphs={appointment.glyphs} />
+          ) : (
+            <Text size="xs">{appointment.reason}</Text>
+          )}
         </Group>
         <span className={parityStyles.rowMeta}>{AGENDA_STATUS_META[appointment.status].label}</span>
       </UnstyledButton>
@@ -1757,7 +1763,7 @@ export function AgendaPage() {
                 Del plan de tratamiento
               </Text>
               <div className={styles.planItems}>
-                {pendingPlanItems.slice(0, 8).map((item) => {
+                {pendingPlanItems.map((item) => {
                   const glyph = clinicalGlyphFor({
                     tooth: item.tooth,
                     treatmentCode: item.treatmentCode,
@@ -1794,10 +1800,11 @@ export function AgendaPage() {
             value={reason}
             onChange={(value) => {
               setReason(value);
+              setPlanItemId(null);
               const entry = catalog.find((item) => item.name === value);
               if (entry?.defaultDurationMin) setAppointmentDuration(entry.defaultDurationMin);
             }}
-            data={[...new Set(catalog.filter((item) => item.active).map((item) => item.name))]}
+            data={agendaTreatmentOptions(catalog)}
             rightSection={createGlyph ? <ClinicalGlyph glyph={createGlyph} mode="micro" /> : null}
           />
           <Group gap="xs">
