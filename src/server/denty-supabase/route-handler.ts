@@ -2202,16 +2202,18 @@ export async function handleSupabaseDentyRoute(
       if (d) return d;
       const repo = patientRepository(identity);
       const agenda = agendaRepository(identity);
-      const clinical = clinicalRepository(identity);
+      const restClient = identity.restClient;
       const patients = await repo.listPatients({ pageSize: 1, page: 0 });
-      const appointments = await agenda.listAppointments({});
-      const treatments = await clinical.listClinicalPlans();
+      const appointments = await agenda.listAppointments();
+      const plans = await restClient.select<{ id: string }>("clinical_plans", {
+        clinic_id: `eq.${identity.actor.clinicId}`,
+      });
       return json(
         200,
         {
           patientCount: patients.total,
           appointmentCount: appointments.length,
-          treatmentCount: treatments.length,
+          treatmentCount: plans.length,
         },
         headers,
       );
@@ -2227,7 +2229,7 @@ export async function handleSupabaseDentyRoute(
       if (d) return d;
       const repo = patientRepository(identity);
       const agenda = agendaRepository(identity);
-      const clinical = clinicalRepository(identity);
+      const restClient = identity.restClient;
       const entity = parts[3];
       const format = new URL(request.url).searchParams.get("format") ?? "csv";
 
@@ -2240,7 +2242,7 @@ export async function handleSupabaseDentyRoute(
         return new Response(csv, { status: 200, headers: responseHeaders });
       }
       if (entity === "appointments") {
-        const appointments = await agenda.listAppointments({});
+        const appointments = await agenda.listAppointments();
         const csv = generateAppointmentsCsv(appointments);
         const responseHeaders = responseHeadersForIdentity(request, identity);
         responseHeaders.set("content-type", format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv; charset=utf-8");
@@ -2248,8 +2250,10 @@ export async function handleSupabaseDentyRoute(
         return new Response(csv, { status: 200, headers: responseHeaders });
       }
       if (entity === "treatments") {
-        const treatments = await clinical.listClinicalPlans();
-        const csv = generateTreatmentsCsv(treatments);
+        const plans = await restClient.select<{ id: string }>("clinical_plans", {
+          clinic_id: `eq.${identity.actor.clinicId}`,
+        });
+        const csv = generateTreatmentsCsv(plans);
         const responseHeaders = responseHeadersForIdentity(request, identity);
         responseHeaders.set("content-type", format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv; charset=utf-8");
         responseHeaders.set("content-disposition", `attachment; filename*=UTF-8''treatments.${format === "xlsx" ? "xlsx" : "csv"}`);
