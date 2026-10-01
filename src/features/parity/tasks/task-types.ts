@@ -13,6 +13,7 @@ export interface TimelineTask {
   position: number;
   durationMin?: number | null | undefined;
   archivedAt?: string | null | undefined;
+  assigneeStaffId?: string | null | undefined;
   // 'YYYY-MM-DD' sin hora; null/ausente = sin día programado (Bandeja) salvo que dueAt lo fije.
   scheduledOn?: string | null | undefined;
 }
@@ -24,6 +25,7 @@ export interface TaskCreateInput {
   dueAt?: string;
   description?: string;
   scheduledOn?: string;
+  assigneeStaffId?: string;
 }
 
 export interface TaskUpdateInput {
@@ -34,6 +36,7 @@ export interface TaskUpdateInput {
   dueAt?: string | null;
   scheduledOn?: string | null;
   archived?: boolean;
+  assigneeStaffId?: string | null;
   expectedVersion?: number;
 }
 

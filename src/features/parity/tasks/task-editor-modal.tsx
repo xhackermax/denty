@@ -6,12 +6,14 @@ import {
   Modal,
   NumberInput,
   SegmentedControl,
+  Select,
   Stack,
   Text,
   TextInput,
 } from "@mantine/core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { getSupabaseBrowserClient } from "@/shared/supabase-browser";
 import { DayPicker } from "./day-picker";
 import { PRIORITY_OPTIONS } from "./priority";
 import { DEFAULT_DURATION_MIN, dueAtToTimeInput, taskDay } from "./task-timeline";
@@ -23,6 +25,7 @@ export interface TaskFormValues {
   durationMin: number;
   day: string | null;
   time: string;
+  assigneeStaffId?: string | null;
 }
 
 interface TaskEditorModalProps {
@@ -35,6 +38,11 @@ interface TaskEditorModalProps {
   onSubmit: (values: TaskFormValues) => void;
 }
 
+interface StaffMember {
+  id: string;
+  name: string;
+}
+
 function TaskForm({
   task,
   today,
@@ -43,6 +51,7 @@ function TaskForm({
   onClose,
   onSubmit,
 }: Omit<TaskEditorModalProps, "opened">) {
+  const supabase = getSupabaseBrowserClient();
   const [title, setTitle] = useState(task?.title ?? "");
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? "NORMAL");
   const [duration, setDuration] = useState<number | string>(
@@ -50,6 +59,41 @@ function TaskForm({
   );
   const [day, setDay] = useState<string | null>(task ? taskDay(task) : initialDay);
   const [time, setTime] = useState(dueAtToTimeInput(task?.dueAt));
+  const [assigneeStaffId, setAssigneeStaffId] = useState<string | null>(
+    task?.assigneeStaffId ?? null,
+  );
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+
+  useEffect(() => {
+    const loadStaff = async () => {
+      try {
+        const { data: user } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: staffMember } = await supabase
+          .from("staff_members")
+          .select("clinic_id")
+          .eq("id", user.id)
+          .single();
+
+        if (!staffMember) return;
+
+        const { data: staff } = await supabase
+          .from("staff_members")
+          .select("id, name")
+          .eq("clinic_id", staffMember.clinic_id)
+          .order("name");
+
+        if (staff) {
+          setStaffMembers(staff);
+        }
+      } catch (error) {
+        console.error("Error loading staff members:", error);
+      }
+    };
+
+    loadStaff();
+  }, [supabase]);
 
   const durationMin = typeof duration === "number" ? duration : Number(duration);
   const valid = title.trim().length > 0 && Number.isFinite(durationMin) && durationMin >= 1;
@@ -65,6 +109,7 @@ function TaskForm({
           durationMin: Math.round(durationMin),
           day,
           time,
+          assigneeStaffId: assigneeStaffId || undefined,
         });
       }}
     >
@@ -111,6 +156,16 @@ function TaskForm({
             onChange={(event) => setTime(event.currentTarget.value)}
           />
         </Group>
+        {staffMembers.length > 0 && (
+          <Select
+            label="Asignar a (opcional)"
+            placeholder="Sin asignar"
+            value={assigneeStaffId}
+            onChange={setAssigneeStaffId}
+            data={staffMembers.map((member) => ({ value: member.id, label: member.name }))}
+            clearable
+          />
+        )}
         <Group justify="flex-end" mt="xs">
           <Button variant="default" onClick={onClose}>
             Cancelar

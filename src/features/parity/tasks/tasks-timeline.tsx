@@ -204,6 +204,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
             durationMin: values.durationMin,
             scheduledOn,
             dueAt,
+            ...(values.assigneeStaffId ? { assigneeStaffId: values.assigneeStaffId } : {}),
           },
         },
         { onSuccess: () => setEditing(null) },
@@ -217,6 +218,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
         durationMin: values.durationMin,
         ...(scheduledOn ? { scheduledOn } : {}),
         ...(dueAt ? { dueAt } : {}),
+        ...(values.assigneeStaffId ? { assigneeStaffId: values.assigneeStaffId } : {}),
       },
       { onSuccess: () => setCreating(false) },
     );
