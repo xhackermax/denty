@@ -33,6 +33,18 @@ describe("Agenda de días", () => {
     await waitFor(() => expect(titlesInOrder()).toEqual(["MANANA"]));
   });
 
+  it("muestra la agenda en orden de hora aunque las tareas tengan otro orden guardado", async () => {
+    renderTimeline(
+      makeApi([
+        mk({ id: "Mediodía", position: 1, dueAt: "2026-09-30T12:00:00+02:00" }),
+        mk({ id: "Mañana", position: 2, dueAt: "2026-09-30T09:30:00+02:00" }),
+        mk({ id: "Media mañana", position: 3, dueAt: "2026-09-30T10:45:00+02:00" }),
+      ]),
+    );
+
+    await waitFor(() => expect(titlesInOrder()).toEqual(["MAÑANA", "MEDIA MAÑANA", "MEDIODÍA"]));
+  });
+
   it("vista vacía de un día explica qué hacer", async () => {
     renderTimeline(makeApi([]));
     expect(

@@ -323,9 +323,8 @@
 /* Línea de tiempo */
 .list {
   display: flex;
-  flex-direction: row;
-  gap: 12px;
-  overflow-x: auto;
+  flex-direction: column;
+  gap: 0;
   align-items: stretch;
   margin: 0;
   padding: 0;
@@ -334,24 +333,30 @@
 
 .item {
   display: grid;
-  flex: 0 0 280px;
-  gap: 8px;
-  grid-template-columns: 32px minmax(0, 1fr) 34px;
+  flex: none;
+  gap: 0 10px;
+  grid-template-columns: 32px minmax(56px, 76px) 34px minmax(0, 1fr);
   align-content: start;
-  align-items: center;
+  align-items: stretch;
+  padding-bottom: 12px;
 }
 
 .time {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+  align-self: start;
+  padding-top: 8px;
   color: var(--denty-muted);
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  text-align: left;
+  text-align: right;
 }
 
 .timeEnd {
-  display: inline;
-  margin-left: 6px;
+  display: block;
   font-weight: 500;
   opacity: 0.75;
 }
@@ -360,6 +365,25 @@
   position: relative;
   display: flex;
   justify-content: center;
+  align-self: stretch;
+}
+
+.rail::before {
+  position: absolute;
+  top: 17px;
+  bottom: -12px;
+  width: 2px;
+  background: var(--denty-line);
+  content: "";
+}
+
+.list > .item:last-child .rail::before {
+  display: none;
+}
+
+.timelineSpacer {
+  grid-column: 1;
+  grid-row: 1;
 }
 
 .node {
@@ -400,7 +424,9 @@
 
 .card {
   display: grid;
-  grid-column: 1 / -1;
+  grid-column: 4;
+  grid-row: 1;
+  min-width: 0;
   gap: 4px 10px;
   grid-template-columns: minmax(0, 1fr) auto;
   margin-bottom: 0;
@@ -522,7 +548,8 @@
 }
 
 .gap {
-  grid-column: 1 / -1;
+  grid-column: 4;
+  grid-row: 1;
   padding: 2px 0 10px;
   color: var(--denty-muted);
   font-size: 0.82rem;

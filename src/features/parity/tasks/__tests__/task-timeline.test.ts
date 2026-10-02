@@ -189,6 +189,24 @@ describe("buildSchedule", () => {
     });
   });
 
+  it("presenta las tareas con hora fija en orden cronológico, no por orden de creación", () => {
+    const s = buildSchedule(
+      [
+        task({ id: "mediodia", position: 1, dueAt: "2026-09-30T12:00:00+02:00" }),
+        task({ id: "manana", position: 2, dueAt: "2026-09-30T09:30:00+02:00" }),
+        task({ id: "media-manana", position: 3, dueAt: "2026-09-30T10:45:00+02:00" }),
+      ],
+      { dayKey: TODAY, now: at("08:00") },
+    );
+
+    expect(s.entries.map((entry) => entry.task.id)).toEqual(["manana", "media-manana", "mediodia"]);
+    expect(s.rows.filter((row) => row.kind === "task").map((row) => row.key)).toEqual([
+      "manana",
+      "media-manana",
+      "mediodia",
+    ]);
+  });
+
   it("las tareas flotantes siguientes se apilan tras una tarea con hora", () => {
     const a = task({ id: "a", position: 1, dueAt: "2026-09-30T14:00:00+02:00" });
     const b = task({ id: "b", position: 2 });

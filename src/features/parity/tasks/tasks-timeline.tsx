@@ -3,6 +3,7 @@ import {
   SortableContext,
   horizontalListSortingStrategy,
   sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
 
@@ -320,7 +321,10 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
           applyOrder(moveIdToIndex(visibleIds, id, visibleIds.indexOf(target)));
       }}
     >
-      <SortableContext items={visibleIds} strategy={horizontalListSortingStrategy}>
+      <SortableContext
+        items={visibleIds}
+        strategy={view === "inbox" ? horizontalListSortingStrategy : verticalListSortingStrategy}
+      >
         <div className={styles.root}>
           <ActionErrorAlert
             errors={[
