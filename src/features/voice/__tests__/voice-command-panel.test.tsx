@@ -53,6 +53,20 @@ describe("VoiceCommandPanel", () => {
     expect(screen.getByRole("button", { name: "Limpiar" })).toBeEnabled();
   });
 
+  it("offers voice examples that only populate the editable command field", () => {
+    const handlers = setup();
+    fireEvent.click(screen.getByRole("button", { name: "Comandos de voz" }));
+    expect(
+      screen.getByRole("region", { name: "Ejemplos de comandos por área" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Abre la agenda/i }));
+    expect(screen.getByRole("textbox", { name: "Escribe o dicta una instrucción" })).toHaveValue(
+      "Oye Denty, abre la agenda",
+    );
+    expect(handlers.onInterpret).not.toHaveBeenCalled();
+    expect(handlers.onConfirm).not.toHaveBeenCalled();
+  });
+
   it("disables Interpretar and Limpiar while the field is empty", () => {
     setup();
     expect(screen.getByRole("button", { name: "Interpretar" })).toBeDisabled();

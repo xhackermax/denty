@@ -76,6 +76,7 @@ import { OrthodonticPanel } from "./orthodontic-panel";
 import { PediatricPanel } from "./pediatric-panel";
 import { SupernumeraryPanel } from "./supernumerary-panel";
 import { OdontogramLayerControls } from "./odontogram-layer-controls";
+import { readBrowserStorageItem, writeBrowserStorageItem } from "@/shared/browser/browser-storage";
 import {
   applyViewPreset,
   createInitialOdontogramViewState,
@@ -100,11 +101,11 @@ import {
 
 import { SurgeryPanel } from "./surgery-panel";
 import { surgicalVisualsForTooth } from "./surgery-visuals";
-const VIEW_PREFERENCE_KEY = "denty:odontogram:view:v2";
 const TOOL_OPTIONS = TOOTH_STATES.map((state) => ({
   value: state,
   label: STATE_LABELS[state],
 }));
+const VIEW_PREFERENCE_KEY = "denty:odontogram:view:v2";
 function triStateFamily(state: string | undefined): TriStateFamily | null {
   if (!state) return null;
   if (state.startsWith("filling")) return "filling";
@@ -523,12 +524,14 @@ function OdontogramEditor({
 
   useEffect(() => {
     let restored = createInitialOdontogramViewState();
-    try {
-      const stored = window.localStorage.getItem(VIEW_PREFERENCE_KEY);
-      if (stored) restored = restoreOdontogramViewPreference(JSON.parse(stored));
-    } catch {
-      setViewPreferenceError(true);
-    }
+    const stored = readBrowserStorageItem(VIEW_PREFERENCE_KEY);
+    if (stored.ok && stored.value !== null) {
+      try {
+        restored = restoreOdontogramViewPreference(JSON.parse(stored.value));
+      } catch {
+        setViewPreferenceError(true);
+      }
+    } else if (!stored.ok) setViewPreferenceError(true);
     if (initialAction === "implant-surgery" && !restored.visibleLayerIds.includes("surgery"))
       restored = toggleOdontogramLayer(restored, "surgery");
     if (initialSection === "diagnosis" && !restored.visibleLayerIds.includes("endo"))
@@ -539,14 +542,13 @@ function OdontogramEditor({
 
   useEffect(() => {
     if (!viewPreferenceLoaded) return;
-    try {
-      window.localStorage.setItem(
+    if (
+      !writeBrowserStorageItem(
         VIEW_PREFERENCE_KEY,
         JSON.stringify(createOdontogramViewPreference(viewState)),
-      );
-    } catch {
+      )
+    )
       setViewPreferenceError(true);
-    }
   }, [viewPreferenceLoaded, viewState]);
 
   useEffect(() => {

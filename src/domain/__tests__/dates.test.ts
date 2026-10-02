@@ -4,12 +4,27 @@ import {
   epochMillis,
   hhmm,
   overlaps,
+  resolveMadridDateQuery,
   startOfDayMadrid,
   todayMadrid,
   toMadridISO,
 } from "../dates";
 
 describe("dates Europe/Madrid", () => {
+  it("resolves spoken agenda dates using the Madrid calendar", () => {
+    const now = "2026-10-02T22:30:00Z";
+    expect(resolveMadridDateQuery("hoy", now)).toBe("2026-10-03");
+    expect(resolveMadridDateQuery("mañana", now)).toBe("2026-10-04");
+    expect(resolveMadridDateQuery("viernes", now)).toBe("2026-10-09");
+  });
+
+  it("validates explicit agenda dates and rejects invalid date phrases", () => {
+    expect(resolveMadridDateQuery("05/10/2026", "2026-10-02T10:00:00Z")).toBe("2026-10-05");
+    expect(resolveMadridDateQuery("2026-10-05", "2026-10-02T10:00:00Z")).toBe("2026-10-05");
+    expect(resolveMadridDateQuery("31/02/2026", "2026-10-02T10:00:00Z")).toBeNull();
+    expect(resolveMadridDateQuery("next month", "2026-10-02T10:00:00Z")).toBeNull();
+  });
+
   it("no cae en el día UTC anterior a las 00:30 de Madrid", () => {
     expect(todayMadrid("2026-09-20T22:30:00Z")).toBe("2026-09-21");
     expect(hhmm("2026-09-20T22:30:00Z")).toBe("00:30");

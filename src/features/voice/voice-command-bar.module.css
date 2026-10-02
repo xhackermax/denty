@@ -70,13 +70,51 @@
   gap: 12px;
 }
 
+.commandGuide {
+  display: grid;
+  max-height: 48vh;
+  gap: 10px;
+  overflow-y: auto;
+  margin-top: 6px;
+  padding: 12px;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: 12px;
+  background: var(--mantine-color-default);
+}
+
+.commandGroup {
+  display: grid;
+  gap: 4px;
+}
+
+.commandExamples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.commandExample {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: normal;
+  text-align: left;
+}
+
+.commandSafety {
+  color: var(--mantine-color-dimmed);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
 .voiceBar {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-@media (max-width: 420px) {
+@media (width <= 420px) {
   .collapsibleLabel {
     display: none;
   }

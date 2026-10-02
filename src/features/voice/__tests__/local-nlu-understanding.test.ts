@@ -32,8 +32,18 @@ describe("navigation phrasing", () => {
     ["ve al inicio", "home"],
     ["ir a cobros", "finance"],
     ["ver tareas pendientes", "tasks"],
+    ["abre documentos", "documents"],
   ])("%s -> %s", (phrase, destination) => {
     expectAction(phrase, { type: "navigation.open", destination });
+  });
+
+  it.each([
+    ["muéstrame las citas de hoy", "hoy"],
+    ["enséñame la agenda de mañana", "manana"],
+    ["abre la agenda del viernes", "viernes"],
+  ])("opens the requested agenda date without creating an appointment: %s", (phrase, dateText) => {
+    expectAction(phrase, { type: "navigation.open", destination: "agenda", dateText });
+    expectNoAction(phrase, "appointment.schedule");
   });
 
   it.each([

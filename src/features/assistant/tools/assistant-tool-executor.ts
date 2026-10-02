@@ -5,6 +5,7 @@ import {
   type DentalEntity,
   type ToothSurface,
 } from "@/domain";
+import { resolveMadridDateQuery } from "@/domain/dates";
 import { getBrowserApi } from "@/shared/api/browser";
 import {
   createStateEntity,
@@ -44,7 +45,7 @@ async function saveOdontogramEntities(patientId: string, entities: readonly Dent
   });
 }
 
-function hrefForDestination(destination: unknown, patientId?: unknown): string {
+function hrefForDestination(destination: unknown, patientId?: unknown, dateText?: unknown): string {
   const key = String(destination ?? "home").toLowerCase();
   if (key === "odontogram" || key === "odontograma") {
     return patientId ? `/app/patients/${String(patientId)}/odontogram` : "/app/patients";
@@ -69,7 +70,12 @@ function hrefForDestination(destination: unknown, patientId?: unknown): string {
     ajustes: "/app/settings",
     admin: "/app/admin",
   };
-  return destinations[key] ?? "/app";
+  const href = destinations[key] ?? "/app";
+  if (key === "agenda" && typeof dateText === "string") {
+    const date = resolveMadridDateQuery(dateText);
+    if (date) return `${href}?date=${encodeURIComponent(date)}`;
+  }
+  return href;
 }
 
 const LEGACY_TOOL_NAMES: ReadonlySet<string> = new Set([
@@ -110,7 +116,10 @@ export async function executeAssistantTool(
   const api = getBrowserApi();
 
   if (call.name === "navigation.open") {
-    return { type: "NAVIGATE", href: hrefForDestination(args.destination, args.patientId) };
+    return {
+      type: "NAVIGATE",
+      href: hrefForDestination(args.destination, args.patientId, args.dateText),
+    };
   }
   if (call.name === "navigation.patient") {
     return { type: "NAVIGATE", href: `/app/patients/${String(args.patientId)}` };
