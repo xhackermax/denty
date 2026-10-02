@@ -16,6 +16,7 @@ const TREATMENT_STATES: Readonly<Record<string, string>> = {
 };
 
 const ACTION_TREATMENT_STATE: Partial<Record<LocalVoiceAction["type"], string>> = {
+  "clinical.add_item": "Planificado",
   "clinical.plan_item": "Planificado",
   "clinical.complete_item": "Realizado",
   "clinical.mark_unsatisfactory": "Defectuoso",

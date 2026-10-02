@@ -28,6 +28,12 @@ export interface VoicePreviewView {
   source: "rules" | "claude";
 }
 
+export interface VoicePatientChoices {
+  title: string;
+  verb: string;
+  options: readonly { id: string; label: string }[];
+}
+
 export interface VoicePanelMessage {
   tone: "error" | "done" | "info";
   text: string;
@@ -42,12 +48,14 @@ export interface VoiceCommandPanelProps {
   microphoneDisabled?: boolean;
   showKeyboardDictationHint: boolean;
   preview: VoicePreviewView | null;
+  patientChoices: VoicePatientChoices | null;
   message: VoicePanelMessage | null;
   onToggleMicrophone: () => void;
   onInterpret: () => void;
   onClear: () => void;
   onConfirm: () => void;
   onCancelPreview: () => void;
+  onChoosePatient: (patientId: string) => void;
 }
 
 const BUSY: ReadonlySet<VoiceStatus> = new Set(["interpreting", "executing", "finalizing"]);
@@ -61,12 +69,14 @@ export function VoiceCommandPanel({
   microphoneDisabled = false,
   showKeyboardDictationHint,
   preview,
+  patientChoices,
   message,
   onToggleMicrophone,
   onInterpret,
   onClear,
   onConfirm,
   onCancelPreview,
+  onChoosePatient,
 }: VoiceCommandPanelProps) {
   const composingRef = useRef(false);
   const interpretAfterCompositionRef = useRef(false);
@@ -199,6 +209,28 @@ export function VoiceCommandPanel({
             {message.text}
           </Text>
         )
+      ) : null}
+
+      {patientChoices ? (
+        <section className={styles.previewCard} aria-label={patientChoices.title}>
+          <Stack gap="xs">
+            <Text fw={700} size="sm">
+              {patientChoices.title}
+            </Text>
+            {patientChoices.options.map((option) => (
+              <Button
+                key={option.id}
+                variant="light"
+                radius="xl"
+                justify="space-between"
+                aria-label={`${patientChoices.verb} ${option.label}`}
+                onClick={() => onChoosePatient(option.id)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </Stack>
+        </section>
       ) : null}
 
       {preview ? (

@@ -105,6 +105,17 @@ describe("Claude voice tools", () => {
       "el número de diente",
     ]);
   });
+
+  it("rejects teeth that do not exist in FDI and accepts primary teeth", () => {
+    const invalid = actionsFromToolCalls([
+      { name: "marcar_hallazgo", input: { diente: "19", hallazgo: "caries", caras: [] } },
+    ]);
+    expect(invalid.actions).toEqual([]);
+    const primary = actionsFromToolCalls([
+      { name: "marcar_hallazgo", input: { diente: "55", hallazgo: "caries", caras: [] } },
+    ]);
+    expect(primary.actions).toEqual([expect.objectContaining({ tooth: "55" })]);
+  });
 });
 
 describe("CLAUDE_VOICE_SYSTEM scope", () => {

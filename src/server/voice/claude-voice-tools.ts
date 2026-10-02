@@ -185,7 +185,8 @@ function dentalGlossary(): string {
     .join("\n");
 }
 
-const tooth = z.string().regex(/^[1-8][1-8]$/);
+// FDI only: permanent 11-48 and primary 51-85; "19" or "88" are dictation slips.
+const tooth = z.string().regex(/^(?:[1-4][1-8]|[5-8][1-5])$/);
 const surfaces = z.array(z.enum(SURFACES));
 
 const TREATMENT_CODES: Record<(typeof TREATMENTS)[number], [string, string]> = {

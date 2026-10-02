@@ -40,12 +40,14 @@ import {
 } from "./command-input";
 import type { LocalVoiceAction } from "./local-nlu";
 import { createTranscriptAssembler, type TranscriptAssembler } from "./transcript-assembler";
-import { VoiceCommandPanel, type VoicePanelMessage } from "./voice-command-panel";
 import {
-  pickPatientOverride,
-  resolveVoicePatient,
-  type VoicePatientCandidate,
-} from "./voice-patient-resolver";
+  VoiceCommandPanel,
+  type VoicePanelMessage,
+  type VoicePatientChoices,
+} from "./voice-command-panel";
+import type { VoicePatientCandidate } from "./voice-patient-resolver";
+import { decidePatient, patientQueryOf, withPatient } from "./voice-patient-resolution";
+import { searchVoicePatients } from "./voice-patient-search";
 import { buildVoicePreviewView } from "./voice-preview-view";
 import {
   canExecuteVoicePreview,
@@ -110,6 +112,19 @@ type WindowWithSpeech = Window & {
 type CaptureEngine = "deepgram" | "web-speech" | "recording" | null;
 
 const CLAUDE_INTERPRET_TIMEOUT_MS = 12_000;
+const PATIENT_SEARCH_PAGE_SIZE = 20;
+const SEARCH_INTENT = /^\s*(?:oye\s+denty[\s,]*)?(?:busca|buscar|buscame|encuentra|localiza)\b/i;
+
+function patientName(patient: VoicePatientCandidate): string {
+  const name = `${patient.firstName} ${patient.lastName}`.trim();
+  return patient.recordNumber ? `${name} · ficha ${patient.recordNumber}` : name;
+}
+
+interface PendingPatientChoice {
+  choices: VoicePatientChoices;
+  navigate: boolean;
+  preview: VoicePreview;
+}
 const MAX_RECORDING_MS = 15_000;
 const SPEECH_START_TIMEOUT_MS = 1_800;
 const FINALIZE_TIMEOUT_MS = 2_500;
@@ -138,16 +153,6 @@ function isNavigationOnly(preview: VoicePreview): boolean {
       (action) => action.type === "navigation.open" || action.type === "navigation.patient",
     )
   );
-}
-
-function patientQueryFromPreview(preview: VoicePreview): string | undefined {
-  for (const action of preview.plan.actions) {
-    if (action.type === "patient.resolve" && action.query.trim()) return action.query.trim();
-    if (action.type === "navigation.patient" && action.patientRef.trim()) {
-      return action.patientRef.trim();
-    }
-  }
-  return undefined;
 }
 
 function bestRecorderMimeType(): string | undefined {
@@ -246,7 +251,8 @@ function VoiceCommandBarInner({
     [patchAssistantContext, router],
   );
 
-  const patients = useMemo<readonly VoicePatientCandidate[]>(() => {
+  // The first page the app keeps cached; names are always confirmed against the server.
+  const cachedPatients = useMemo<readonly VoicePatientCandidate[]>(() => {
     return (patientsQuery.data?.items ?? []).map((patient) => ({
       id: patient.id,
       firstName: patient.firstName,
@@ -254,71 +260,55 @@ function VoiceCommandBarInner({
       ...(patient.recordNumber ? { recordNumber: patient.recordNumber } : {}),
     }));
   }, [patientsQuery.data]);
+  const patientLabelsRef = useRef(new Map<string, string>());
+  const rememberPatients = useCallback((list: readonly VoicePatientCandidate[]) => {
+    for (const patient of list) patientLabelsRef.current.set(patient.id, patientName(patient));
+  }, []);
+  useEffect(() => rememberPatients(cachedPatients), [cachedPatients, rememberPatients]);
 
   const patientLabel = useCallback(
-    (patientId: string) => {
-      const patient = patients.find((candidate) => candidate.id === patientId);
-      if (!patient) return "Paciente abierto";
-      const name = `${patient.firstName} ${patient.lastName}`.trim();
-      return patient.recordNumber ? `${name} · ficha ${patient.recordNumber}` : name;
-    },
-    [patients],
+    (patientId: string) => patientLabelsRef.current.get(patientId) ?? "Paciente abierto",
+    [],
   );
 
-  const resolvePreview = useCallback(
-    (base: VoicePreview): VoicePreview => {
-      const query = patientQueryFromPreview(base);
-      if (!query) return base;
-      if (base.plan.contextPatientId) {
-        const other = pickPatientOverride(query, base.plan.contextPatientId, patients);
-        if (!other) return base;
-        return { ...base, plan: { ...base.plan, contextPatientId: other.id } };
-      }
-
-      const matches = resolveVoicePatient(query, patients);
-      const best = matches[0];
-      if (!best) {
-        return {
-          ...base,
-          plan: {
-            ...base.plan,
-            ambiguities: [...base.plan.ambiguities, `paciente «${query}» no encontrado`],
-            readback: `No encuentro al paciente ${query}.`,
-            confidence: Math.min(base.plan.confidence, 0.55),
-          },
-        };
-      }
-
-      const second = matches[1];
-      if (second && best.score < 0.98 && best.score - second.score < 0.08) {
-        return {
-          ...base,
-          plan: {
-            ...base.plan,
-            ambiguities: [
-              ...base.plan.ambiguities,
-              `varios pacientes coinciden con «${query}»: ${best.label} / ${second.label}`,
-            ],
-            readback: `Hay varios pacientes parecidos a ${query}.`,
-            confidence: Math.min(base.plan.confidence, 0.68),
-          },
-        };
-      }
-
-      return {
-        ...base,
-        plan: {
-          ...base.plan,
-          contextPatientId: best.id,
-          readback: base.plan.actions.some((action) => action.type === "navigation.patient")
-            ? `Abriendo la ficha de ${best.label}${best.recordNumber ? `, ficha ${best.recordNumber}` : ""}.`
-            : base.plan.readback,
-          confidence: Math.max(base.plan.confidence, best.score),
-        },
-      };
+  const ensurePatientLabel = useCallback(
+    async (patientId: string | undefined) => {
+      if (!patientId || patientLabelsRef.current.has(patientId)) return;
+      const patient = await getBrowserApi()
+        .patients.get(patientId)
+        .catch(() => null);
+      if (patient) rememberPatients([patient]);
     },
-    [patients],
+    [rememberPatients],
   );
+
+  const findPatients = useCallback(
+    async (query: string): Promise<readonly VoicePatientCandidate[]> => {
+      try {
+        const found = await searchVoicePatients(query, async (term) => {
+          const page = await getBrowserApi().patients.list({
+            search: term,
+            pageSize: PATIENT_SEARCH_PAGE_SIZE,
+          });
+          return page.items.map((patient) => ({
+            id: patient.id,
+            firstName: patient.firstName,
+            lastName: patient.lastName,
+            ...(patient.recordNumber ? { recordNumber: patient.recordNumber } : {}),
+          }));
+        });
+        rememberPatients(found);
+        return found;
+      } catch {
+        // Offline or failing search: the cached page is better than nothing, and
+        // anything uncertain still ends in a choice or a confirmation.
+        return cachedPatients;
+      }
+    },
+    [cachedPatients, rememberPatients],
+  );
+
+  const [patientChoice, setPatientChoice] = useState<PendingPatientChoice | null>(null);
 
   const executeConfirmedPreview = useCallback(
     async (next: VoicePreview) => {
@@ -380,7 +370,7 @@ function VoiceCommandBarInner({
   );
 
   const showInterpretation = useCallback(
-    (next: VoicePreview) => {
+    async (next: VoicePreview) => {
       if (canExecuteVoicePreview(next) && isNavigationOnly(next)) {
         const href = primaryHrefForVoicePlan(next.plan);
         if (href) {
@@ -394,9 +384,41 @@ function VoiceCommandBarInner({
         setError("No he entendido una acción concreta. Revisa el texto o concreta la instrucción.");
         return;
       }
+      await ensurePatientLabel(next.plan.contextPatientId);
       setPreview(next);
     },
-    [router, updateText],
+    [ensurePatientLabel, router, updateText],
+  );
+
+  /** Settles who the order is for; false when it already ended in a choice or an error. */
+  const settlePatient = useCallback(
+    async (base: VoicePreview, raw: string): Promise<VoicePreview | null> => {
+      const query = patientQueryOf(base);
+      if (!query) return base;
+      const candidates = await findPatients(query);
+      const decision = decidePatient(base, candidates, { search: SEARCH_INTENT.test(raw) });
+      if (decision.kind === "preview") return decision.preview;
+      if (decision.kind === "not_found") {
+        setError(
+          `No encuentro al paciente «${decision.query}». Revisa el nombre o el número de ficha.`,
+        );
+        return null;
+      }
+      setPatientChoice({
+        navigate: decision.navigate,
+        preview: decision.preview,
+        choices: {
+          title: `Pacientes que coinciden con «${decision.query}»`,
+          verb: decision.navigate ? "Abrir" : "Elegir",
+          options: decision.options.map((option) => ({
+            id: option.id,
+            label: patientLabelsRef.current.get(option.id) ?? option.label,
+          })),
+        },
+      });
+      return null;
+    },
+    [findPatients],
   );
 
   const runCommand = useCallback(
@@ -406,47 +428,73 @@ function VoiceCommandBarInner({
       setError(null);
       setLastDone(null);
       setPreview(null);
+      setPatientChoice(null);
 
-      const local = resolvePreview(previewVoiceCommand(clean, { pathname, ...assistantContext }));
+      const rules = previewVoiceCommand(clean, { pathname, ...assistantContext });
+      if (rules.plan.invalidTeeth?.length) {
+        // A wrong tooth number is a dictation slip; nobody should guess the right one.
+        setError(`No he guardado nada: ${rules.plan.ambiguities.join("; ")}.`);
+        return;
+      }
+      setInterpreting(true);
+      try {
+        const local = await settlePatient(rules, clean);
+        if (!local) return;
 
-      // The local rules are free: when they fully understood the order, Claude
-      // isn't called. Claude (paid per call) handles only what they can't, and
-      // the rules stay as the fallback when it isn't configured or doesn't answer.
-      if (
-        claudeAvailableRef.current &&
-        (!canExecuteVoicePreview(local) || isLiteralNoteFallback(local))
-      ) {
-        setInterpreting(true);
-        try {
-          const result = await withTimeout(
-            getBrowserApi().voice.interpret({ text: clean, pathname }),
-            CLAUDE_INTERPRET_TIMEOUT_MS,
-          );
-          showInterpretation(
-            resolvePreview(
+        // The local rules are free: when they fully understood the order, Claude
+        // isn't called. Claude (paid per call) handles only what they can't, and
+        // the rules stay as the fallback when it isn't configured or doesn't answer.
+        if (
+          claudeAvailableRef.current &&
+          (!canExecuteVoicePreview(local) || isLiteralNoteFallback(local))
+        ) {
+          try {
+            const result = await withTimeout(
+              getBrowserApi().voice.interpret({ text: clean, pathname }),
+              CLAUDE_INTERPRET_TIMEOUT_MS,
+            );
+            const fromClaude = await settlePatient(
               previewFromClaude(
                 clean,
                 { actions: result.actions as LocalVoiceAction[], ambiguities: result.ambiguities },
                 { pathname, ...assistantContext },
               ),
-            ),
-          );
-          return;
-        } catch (cause) {
-          if (cause instanceof DentyApiError && cause.code === "VOICE_AI_NOT_CONFIGURED") {
-            claudeAvailableRef.current = false;
-          } else if (cause instanceof VoiceTimeoutError) {
-            setError("La IA tardó demasiado; te muestro lo que entendí en local.");
-          } else if (cause instanceof DentyApiError && cause.code === "VOICE_AI_DECLINED") {
-            setError(cause.message);
+              clean,
+            );
+            if (fromClaude) await showInterpretation(fromClaude);
+            return;
+          } catch (cause) {
+            if (cause instanceof DentyApiError && cause.code === "VOICE_AI_NOT_CONFIGURED") {
+              claudeAvailableRef.current = false;
+            } else if (cause instanceof VoiceTimeoutError) {
+              setError("La IA tardó demasiado; te muestro lo que entendí en local.");
+            } else if (cause instanceof DentyApiError && cause.code === "VOICE_AI_DECLINED") {
+              setError(cause.message);
+            }
           }
-        } finally {
-          setInterpreting(false);
         }
+        await showInterpretation(local);
+      } finally {
+        setInterpreting(false);
       }
-      showInterpretation(local);
     },
-    [assistantContext, pathname, resolvePreview, showInterpretation],
+    [assistantContext, pathname, settlePatient, showInterpretation],
+  );
+
+  const choosePatient = useCallback(
+    (patientId: string) => {
+      const pending = patientChoice;
+      if (!pending) return;
+      setPatientChoice(null);
+      if (pending.navigate) {
+        router.push(`/app/patients/${encodeURIComponent(patientId)}`);
+        setLastDone(`Abriendo la ficha de ${patientLabel(patientId)}.`);
+        updateText("");
+        return;
+      }
+      setPreview(withPatient(pending.preview, patientId));
+    },
+    [patientChoice, patientLabel, router, updateText],
   );
 
   const interpret = useCallback(() => {
@@ -464,6 +512,7 @@ function VoiceCommandBarInner({
   const clear = useCallback(() => {
     updateText("");
     setPreview(null);
+    setPatientChoice(null);
     setError(null);
     setLastDone(null);
   }, [updateText]);
@@ -961,6 +1010,7 @@ function VoiceCommandBarInner({
             microphoneDisabled={capture === "finalizing" || capture === "requesting_permission"}
             showKeyboardDictationHint={keyboardDictationHint}
             preview={previewView}
+            patientChoices={patientChoice?.choices ?? null}
             message={message}
             onToggleMicrophone={toggleCapture}
             onInterpret={interpret}
@@ -969,6 +1019,7 @@ function VoiceCommandBarInner({
               if (preview) void executeConfirmedPreview(preview);
             }}
             onCancelPreview={() => setPreview(null)}
+            onChoosePatient={choosePatient}
           />
         </Popover.Dropdown>
       </Popover>

@@ -3,6 +3,7 @@ import type { DiagnosisInput } from "@/domain/diagnosis";
 import type { ToothSurface } from "@/domain";
 
 import { canonicalizeDentalSpeech, hasSelfCorrection } from "./dental-normalizer";
+import { findInvalidToothMentions } from "./tooth-mentions";
 
 export type PaymentMethod = "CARD" | "CASH" | "TRANSFER" | "FINANCING";
 export type ClinicalTreatmentState = "PLANNED" | "COMPLETED" | "UNSATISFACTORY";
@@ -113,6 +114,8 @@ export interface LocalVoicePlan {
   confidence: number;
   contextPatientId?: string;
   source: "rules" | "claude";
+  /** Teeth named in the order that do not exist in FDI; nothing is guessed in their place. */
+  invalidTeeth?: string[];
 }
 
 const TREATMENTS: readonly [RegExp, string, string][] = [
@@ -408,13 +411,12 @@ function trimNameAtStop(candidate: string): string {
 }
 
 function extractFileNumber(raw: string): string | undefined {
-  return raw.match(
-    new RegExp(
-      "\\b(?:ficha|paciente|historia|expediente)\\s+" +
-        "(?:(?:n[uú]mero|num\\.?|n[º°o]\\.?|#)\\s*)?(\\d{3,9})\\b",
-      "i",
-    ),
-  )?.[1];
+  const marker = "(?:(?:n[uú]mero|num\\.?|n[º°o]\\.?|#)\\s*)?";
+  // "ficha 16" is always a record number; "paciente 16" could be anything, so it needs 3+ digits.
+  return (
+    raw.match(new RegExp(`\\b(?:ficha|historia|expediente)\\s+${marker}(\\d{1,9})\\b`, "i"))?.[1] ??
+    raw.match(new RegExp(`\\bpaciente\\s+${marker}(\\d{3,9})\\b`, "i"))?.[1]
+  );
 }
 
 function extractPatient(raw: string): string {
@@ -456,6 +458,19 @@ function extractPatient(raw: string): string {
 // Words that show a captured "name" is really part of the sentence
 // ("el paciente no tiene el 18", "…abajo a la izquierda que es la seis").
 const NOT_NAME_WORDS = new Set([
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "setiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
   "que",
   "es",
   "no",
@@ -562,7 +577,7 @@ function looksLikeNonToothNumber(text: string, start: number, end: number): bool
 function extractTeeth(raw: string): string[] {
   const text = normalize(raw);
   const found: string[] = [];
-  for (const match of text.matchAll(/\b([1-4][1-8])\b/g)) {
+  for (const match of text.matchAll(/\b([1-4][1-8]|[5-8][1-5])\b/g)) {
     const value = match[1];
     if (!value) continue;
     const start = match.index ?? 0;
@@ -627,11 +642,32 @@ function extractPerioSite(raw: string): string | undefined {
   return undefined;
 }
 
+const MONTH_NUMBERS: Readonly<Record<string, number>> = {
+  enero: 1,
+  febrero: 2,
+  marzo: 3,
+  abril: 4,
+  mayo: 5,
+  junio: 6,
+  julio: 7,
+  agosto: 8,
+  septiembre: 9,
+  setiembre: 9,
+  octubre: 10,
+  noviembre: 11,
+  diciembre: 12,
+};
+
 function extractDate(text: string): string | undefined {
   const relative = text.match(
     /\b(hoy|manana|pasado manana|lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/,
   );
   if (relative?.[1]) return relative[1];
+  const spoken = text.match(
+    new RegExp(`\\b(\\d{1,2})\\s+de\\s+(${Object.keys(MONTH_NUMBERS).join("|")})\\b`),
+  );
+  const month = spoken?.[2] ? MONTH_NUMBERS[spoken[2]] : undefined;
+  if (spoken?.[1] && month) return `${Number(spoken[1])}/${month}`;
   return text.match(/\b(\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)\b/)?.[1];
 }
 
@@ -1176,6 +1212,26 @@ export function planLocalVoiceCommand(
   const patientRef = explicitPatient || context.patientName || "";
   const actions: LocalVoiceAction[] = [];
   const ambiguities: string[] = [];
+
+  const invalidTeeth = creatingPatient
+    ? []
+    : findInvalidToothMentions(canonicalizeDentalSpeech(raw));
+  if (invalidTeeth.length) {
+    const rejected = invalidTeeth.map(
+      (tooth) => `la pieza ${tooth} no existe en la numeración FDI`,
+    );
+    return {
+      raw: input,
+      actions: [],
+      ambiguities: rejected,
+      requiresConfirmation: true,
+      readback: `No he guardado nada: ${rejected.join("; ")}.`,
+      confidence: 0.2,
+      ...(context.patientId !== undefined ? { contextPatientId: context.patientId } : {}),
+      source: "rules",
+      invalidTeeth,
+    };
+  }
 
   if (creatingPatient) {
     const cleaned = raw

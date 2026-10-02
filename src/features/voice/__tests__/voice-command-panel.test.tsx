@@ -15,6 +15,7 @@ function setup(overrides: Partial<VoiceCommandPanelProps> = {}) {
     onToggleMicrophone: vi.fn(),
     onConfirm: vi.fn(),
     onCancelPreview: vi.fn(),
+    onChoosePatient: vi.fn(),
   };
   function Harness() {
     const [text, setText] = useState(overrides.text ?? "");
@@ -27,6 +28,7 @@ function setup(overrides: Partial<VoiceCommandPanelProps> = {}) {
         listening={false}
         showKeyboardDictationHint={false}
         preview={null}
+        patientChoices={null}
         message={null}
         {...handlers}
         {...overrides}
@@ -181,5 +183,23 @@ describe("VoiceCommandPanel", () => {
       },
     });
     expect(screen.getByRole("button", { name: "Confirmar" })).toBeDisabled();
+  });
+
+  it("lets the person pick the right patient from the matches", () => {
+    const handlers = setup({
+      text: "busca a Ana",
+      patientChoices: {
+        title: "Pacientes que coinciden con «Ana»",
+        verb: "Abrir",
+        options: [
+          { id: "a1", label: "Ana López · ficha 120" },
+          { id: "a2", label: "Ana Martín · ficha 77" },
+        ],
+      },
+    });
+    expect(screen.getByText("Pacientes que coinciden con «Ana»")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Abrir Ana Martín · ficha 77" }));
+    expect(handlers.onChoosePatient).toHaveBeenCalledWith("a2");
+    expect(screen.queryByRole("button", { name: "Confirmar" })).toBeNull();
   });
 });

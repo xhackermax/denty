@@ -92,8 +92,16 @@ function quadrantTooth(position: string, vertical: string, horizontal: string): 
   return quadrant && digit ? `el ${quadrant}${digit}` : null;
 }
 
+const FDI_NUMBER = "(?:[1-4][1-8]|[5-8][1-5])";
+// "el 16 no, el 26" / "16, digo 26": the first tooth was a slip. "el 16 no tiene…" is not.
+const TOOTH_CORRECTION = new RegExp(
+  `\\b${FDI_NUMBER}\\s*,?\\s+(?:no|digo|mejor)\\s*,?\\s+(?:en\\s+)?(?:(?:el|la)\\s+)?(?=${FDI_NUMBER}\\b)`,
+  "g",
+);
+
 /** "caries en 26 distal, no perdón, mesial" → "caries en 26 mesial". */
-function applySelfCorrection(text: string): string {
+function applySelfCorrection(spoken: string): string {
+  const text = spoken.replace(TOOTH_CORRECTION, "");
   const markers = phrasePattern(lexicon.correctionMarkers);
   const matches = [...text.matchAll(markers)];
   const last = matches.at(-1);
@@ -110,11 +118,19 @@ function applySelfCorrection(text: string): string {
 
 /** True when the speaker corrected themselves mid-sentence ("no, perdón, mesial"). */
 export function hasSelfCorrection(raw: string): boolean {
-  return phrasePattern(lexicon.correctionMarkers).test(fold(raw));
+  const text = normalizeTeeth(fold(raw));
+  TOOTH_CORRECTION.lastIndex = 0;
+  return phrasePattern(lexicon.correctionMarkers).test(text) || TOOTH_CORRECTION.test(text);
 }
+
+// "no tiene caries", "sin caries": a finding said to be absent must never be recorded.
+// The joined token no longer reads as the word "caries" further down.
+const NEGATED_CARIES =
+  /\b(?:no\s+(?:tiene|hay|presenta|veo|tiene\s+ninguna)|sin)\s+(?:ninguna\s+)?(?:caries|lesion\s+de\s+caries)\b/g;
 
 export function canonicalizeDentalSpeech(raw: string): string {
   let text = fold(raw);
+  text = text.replace(NEGATED_CARIES, " sincaries ");
   text = text.replace(phrasePattern(lexicon.fillers), " ");
   text = normalizeTeeth(text);
 

@@ -67,6 +67,26 @@ describe("buildVoicePreviewView", () => {
     expect(view.actions[0]?.details).toContainEqual({ label: "Estado", value: "Realizado" });
   });
 
+  it("marks a treatment the patient needs as planned", () => {
+    const view = buildVoicePreviewView(
+      preview({
+        contextPatientId: "p1",
+        actions: [
+          {
+            type: "clinical.add_item",
+            patientRef: "",
+            tooth: "36",
+            treatmentCode: "endodontics",
+            label: "Endodoncia 36",
+            surfaces: [],
+          },
+        ],
+      }),
+      () => undefined,
+    );
+    expect(view.actions[0]?.details).toContainEqual({ label: "Estado", value: "Planificado" });
+  });
+
   it("asks for the patient when none is resolved", () => {
     const view = buildVoicePreviewView(
       preview({
