@@ -44,3 +44,14 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
     }),
   });
 }
+
+// Mantine's autosizing Textarea listens for web font loads; jsdom has no FontFaceSet.
+if (typeof document !== "undefined" && !("fonts" in document)) {
+  Object.defineProperty(document, "fonts", {
+    configurable: true,
+    value: {
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    },
+  });
+}

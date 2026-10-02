@@ -1,25 +1,7 @@
 "use client";
 
-import {
-  ActionIcon,
-  Alert,
-  Badge,
-  Button,
-  Group,
-  List,
-  Modal,
-  Popover,
-  Stack,
-  Text,
-  TextInput,
-  Tooltip,
-} from "@mantine/core";
-import {
-  IconAlertCircle,
-  IconMicrophone,
-  IconMicrophoneOff,
-  IconSparkles,
-} from "@tabler/icons-react";
+import { ActionIcon, Popover, Tooltip } from "@mantine/core";
+import { IconMicrophone, IconMicrophoneOff, IconSparkles } from "@tabler/icons-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -49,29 +31,30 @@ import { requestMediaPermission } from "@/shared/ui/device-permissions";
 
 import motionStyles from "./voice-command-bar.module.css";
 
-import { voiceReadback, type LocalVoiceAction } from "./local-nlu";
+import {
+  appendDictation,
+  deriveVoiceStatus,
+  isAndroidUserAgent,
+  stripWakePhrase,
+  type CaptureStatus,
+} from "./command-input";
+import type { LocalVoiceAction } from "./local-nlu";
+import { createTranscriptAssembler, type TranscriptAssembler } from "./transcript-assembler";
+import { VoiceCommandPanel, type VoicePanelMessage } from "./voice-command-panel";
 import {
   pickPatientOverride,
   resolveVoicePatient,
   type VoicePatientCandidate,
 } from "./voice-patient-resolver";
+import { buildVoicePreviewView } from "./voice-preview-view";
 import {
   canExecuteVoicePreview,
   previewFromClaude,
   previewVoiceCommand,
   primaryHrefForVoicePlan,
   isLiteralNoteFallback,
-  shouldAutoExecuteSpokenPreview,
   type VoicePreview,
 } from "./voice-router";
-import { useRealtimeVoice } from "./use-realtime-voice";
-import {
-  VoiceRealtimeAdapter,
-  selectVoiceEngine,
-  type RealtimeVoiceConfig,
-} from "./voice-realtime-adapter";
-import { createSpeechCommandBuffer } from "./speech-command-buffer";
-import { useLatestHandler } from "./use-latest-handler";
 import { VoiceTimeoutError, withTimeout } from "./with-timeout";
 
 interface SpeechRecognitionAlternativeLike {
@@ -115,7 +98,12 @@ type WindowWithSpeech = Window & {
   webkitSpeechRecognition?: SpeechRecognitionConstructor;
 };
 
-type VoiceEngine = "web-speech" | "recording" | null;
+type CaptureEngine = "web-speech" | "recording" | null;
+
+const CLAUDE_INTERPRET_TIMEOUT_MS = 12_000;
+const MAX_RECORDING_MS = 15_000;
+const SPEECH_START_TIMEOUT_MS = 1_800;
+const FINALIZE_TIMEOUT_MS = 2_500;
 
 function speechErrorMessage(error?: string): string {
   if (error === "not-allowed" || error === "service-not-allowed") {
@@ -143,8 +131,6 @@ function isNavigationOnly(preview: VoicePreview): boolean {
   );
 }
 
-const CLAUDE_INTERPRET_TIMEOUT_MS = 12_000;
-
 function patientQueryFromPreview(preview: VoicePreview): string | undefined {
   for (const action of preview.plan.actions) {
     if (action.type === "patient.resolve" && action.query.trim()) return action.query.trim();
@@ -157,15 +143,8 @@ function patientQueryFromPreview(preview: VoicePreview): string | undefined {
 
 function bestRecorderMimeType(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
-  const options = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
+  const options = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
   return options.find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
-}
-
-function describeAction(action: LocalVoiceAction): string {
-  const sentence = voiceReadback([action], [])
-    .replace(/^Voy a /, "")
-    .replace(/\.$/, "");
-  return sentence === "No he detectado una acción concreta" ? action.type : sentence;
 }
 
 function policyMessage(result: AssistantPolicyResult, call?: AssistantToolCall): string {
@@ -178,10 +157,23 @@ function policyMessage(result: AssistantPolicyResult, call?: AssistantToolCall):
   if (result.reason === "UNKNOWN_TOOL") {
     return "Denty ha entendido la orden, pero esta acción todavía no está conectada.";
   }
-  if (result.reason === "CONSEQUENTIAL_ACTION") {
-    return "Esta acción modifica datos sensibles. Revisa y confirma antes de ejecutarla.";
-  }
   return call ? `No puedo ejecutar ${call.name} todavía.` : "No se pudo ejecutar la orden.";
+}
+
+/** Web Speech resends the whole session on every event, so it is rebuilt each time. */
+function sessionFromResults(results: ArrayLike<SpeechRecognitionResultLike>) {
+  const finals: string[] = [];
+  let interim = "";
+  for (let index = 0; index < results.length; index += 1) {
+    const result = results[index];
+    const transcript = result?.[0]?.transcript?.trim();
+    if (!transcript) continue;
+    if (result?.isFinal === false) interim = appendDictation(interim, transcript);
+    else finals.push(transcript);
+  }
+  if (finals[0] !== undefined) finals[0] = stripWakePhrase(finals[0]);
+  else interim = stripWakePhrase(interim);
+  return { finals, interim };
 }
 
 export function shouldRenderVoiceControls(role: string | null | undefined) {
@@ -210,30 +202,32 @@ function VoiceCommandBarInner({
   const reducedMotion = useReducedMotion();
   const patientsQuery = usePatientsQuery();
 
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
-  const [commandOpened, setCommandOpened] = useState(false);
+  const textRef = useRef("");
+  const [panelOpened, setPanelOpened] = useState(false);
   const [preview, setPreview] = useState<VoicePreview | null>(null);
-  const [listening, setListening] = useState(false);
-  const [voiceEngine, setVoiceEngine] = useState<VoiceEngine>(null);
-  const [executing, setExecuting] = useState(false);
-  const [executionError, setExecutionError] = useState<string | null>(null);
-  const [heard, setHeard] = useState<string | null>(null);
+  const [capture, setCapture] = useState<CaptureStatus>("idle");
+  const [captureEngine, setCaptureEngine] = useState<CaptureEngine>(null);
   const [interpreting, setInterpreting] = useState(false);
+  const [executing, setExecuting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [lastDone, setLastDone] = useState<string | null>(null);
-  const [voiceStatus, setVoiceStatus] = useState<
-    "connecting" | "listening" | "processing" | "idle" | "error"
-  >("idle");
+  const [keyboardDictationHint, setKeyboardDictationHint] = useState(false);
+  const executingRef = useRef(false);
   // Turned off for the session once the server says Claude isn't configured.
   const claudeAvailableRef = useRef(true);
-  const realtimeAdapterRef = useRef<VoiceRealtimeAdapter | null>(null);
-  const speechCommandBufferRef = useRef(createSpeechCommandBuffer());
-  // Commands run one at a time: overlapping speech must not interleave or execute twice.
+  // Interpretations run one at a time so a second tap can't interleave with the first.
   const commandQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const commandHandler = useLatestHandler<[string], Promise<void>>();
-  const dispatchCommand = commandHandler.dispatch;
-  const submitRealtimeToolResultRef = useRef<
-    (toolCallId: string, result: { success: boolean; message?: string; error?: string }) => void
-  >(() => undefined);
+
+  const updateText = useCallback((next: string) => {
+    textRef.current = next;
+    setText(next);
+  }, []);
+
+  useEffect(() => {
+    setKeyboardDictationHint(isAndroidUserAgent(navigator.userAgent));
+  }, []);
 
   const applyAssistantEffect = useCallback(
     (effect: AssistantExecutionEffect) => {
@@ -243,149 +237,6 @@ function VoiceCommandBarInner({
     [patchAssistantContext, router],
   );
 
-  const executeResolvedPreview = useCallback(
-    async (next: VoicePreview, options: { confirmed?: boolean } = {}) => {
-      if (!canExecuteVoicePreview(next)) return false;
-      const adaptation = localVoicePlanToToolCalls(next.plan);
-      if (adaptation.unsupported.length) {
-        setPreview(next);
-        setExecutionError(
-          `Denty ha entendido la orden, pero todavía no puede ejecutar: ${adaptation.unsupported.join(
-            ", ",
-          )}.`,
-        );
-        return false;
-      }
-
-      const policyContext = {
-        ...(next.plan.contextPatientId ? { patientId: next.plan.contextPatientId } : {}),
-        role,
-        permissions,
-      };
-      const policyResults = adaptation.calls.map((call) => ({
-        call,
-        result: evaluateAssistantCall(call, policyContext),
-      }));
-      const blocked = policyResults.find(({ result }) => result.decision === "BLOCK");
-      if (blocked) {
-        setPreview(next);
-        setExecutionError(policyMessage(blocked.result, blocked.call));
-        return false;
-      }
-      const confirmationCalls = policyResults
-        .filter(({ result }) => result.decision === "CONFIRM")
-        .map(({ call }) => call);
-      if (confirmationCalls.length && !options.confirmed) {
-        setPreview(next);
-        setExecutionError(
-          policyMessage({ decision: "CONFIRM", reason: "CONSEQUENTIAL_ACTION", risk: "RED" }),
-        );
-        return false;
-      }
-
-      setExecuting(true);
-      setExecutionError(null);
-      try {
-        const result = await executeAssistantCalls(adaptation.calls, {
-          confirmedCallIds: new Set(
-            options.confirmed ? confirmationCalls.map((call) => call.id) : [],
-          ),
-        });
-        if (result.pendingConfirmation) {
-          setPreview(next);
-          setExecutionError("Esta acción necesita confirmación explícita.");
-          return false;
-        }
-        for (const effect of result.effects) applyAssistantEffect(effect);
-        await queryClient.invalidateQueries();
-        setPreview(null);
-        setText("");
-        setLastDone(next.plan.readback);
-        return true;
-      } catch (error) {
-        setExecutionError(
-          error instanceof Error ? error.message : "No se pudo ejecutar el plan de voz.",
-        );
-        return false;
-      } finally {
-        setExecuting(false);
-      }
-    },
-    [applyAssistantEffect, permissions, queryClient, role],
-  );
-
-  // Realtime voice integration
-  const {
-    connected: realtimeConnected,
-    listening: realtimeListening,
-    error: realtimeError,
-    connect: connectRealtime,
-    disconnect: disconnectRealtime,
-    submitToolResult,
-  } = useRealtimeVoice({
-    onText: () => {
-      setVoiceStatus("processing");
-    },
-    onTranscript: (transcript) => {
-      void dispatchCommand(transcript);
-    },
-    onError: (error) => {
-      setVoiceStatus("error");
-      setExecutionError(error);
-    },
-    onToolCall: (toolCall) => {
-      void (async () => {
-        try {
-          const { processRealtimeToolCall } = await import("./realtime-tools");
-          const interpretation = processRealtimeToolCall(toolCall);
-          const next = resolvePreview(
-            previewFromClaude(
-              "Orden de voz en tiempo real",
-              {
-                actions: interpretation.actions,
-                ambiguities: interpretation.ambiguities,
-              },
-              { pathname },
-            ),
-          );
-          if (shouldAutoExecuteSpokenPreview(next)) {
-            const executed = await executeResolvedPreview(next);
-            submitRealtimeToolResultRef.current(
-              toolCall.id,
-              executed
-                ? { success: true, message: "Accion guardada en Denty" }
-                : { success: false, error: "No se pudo guardar la accion en Denty" },
-            );
-            return;
-          }
-          setPreview(next);
-          submitRealtimeToolResultRef.current(toolCall.id, {
-            success: false,
-            error: next.plan.ambiguities.length
-              ? next.plan.ambiguities.join("; ")
-              : "La accion necesita confirmacion",
-          });
-        } catch (error) {
-          submitRealtimeToolResultRef.current(toolCall.id, {
-            success: false,
-            error: error instanceof Error ? error.message : "No se pudo procesar la voz",
-          });
-        }
-      })();
-    },
-  });
-
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const keepListeningRef = useRef(false);
-  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const speechStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const speechStartedRef = useRef(false);
-
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const recorderStreamRef = useRef<MediaStream | null>(null);
-  const recorderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const recorderChunksRef = useRef<BlobPart[]>([]);
-
   const patients = useMemo<readonly VoicePatientCandidate[]>(() => {
     return (patientsQuery.data?.items ?? []).map((patient) => ({
       id: patient.id,
@@ -394,6 +245,16 @@ function VoiceCommandBarInner({
       ...(patient.recordNumber ? { recordNumber: patient.recordNumber } : {}),
     }));
   }, [patientsQuery.data]);
+
+  const patientLabel = useCallback(
+    (patientId: string) => {
+      const patient = patients.find((candidate) => candidate.id === patientId);
+      if (!patient) return "Paciente abierto";
+      const name = `${patient.firstName} ${patient.lastName}`.trim();
+      return patient.recordNumber ? `${name} · ficha ${patient.recordNumber}` : name;
+    },
+    [patients],
+  );
 
   const resolvePreview = useCallback(
     (base: VoicePreview): VoicePreview => {
@@ -450,42 +311,101 @@ function VoiceCommandBarInner({
     [patients],
   );
 
-  const preparePreview = useCallback(
-    (command: string) =>
-      resolvePreview(
-        previewVoiceCommand(command, {
-          pathname,
-          ...assistantContext,
-        }),
-      ),
-    [assistantContext, pathname, resolvePreview],
+  const executeConfirmedPreview = useCallback(
+    async (next: VoicePreview) => {
+      if (executingRef.current || !canExecuteVoicePreview(next)) return;
+      const adaptation = localVoicePlanToToolCalls(next.plan);
+      if (adaptation.unsupported.length) {
+        setError(
+          `Denty ha entendido la orden, pero todavía no puede ejecutar: ${adaptation.unsupported.join(
+            ", ",
+          )}.`,
+        );
+        return;
+      }
+      const policyContext = {
+        ...(next.plan.contextPatientId ? { patientId: next.plan.contextPatientId } : {}),
+        role,
+        permissions,
+      };
+      const policyResults = adaptation.calls.map((call) => ({
+        call,
+        result: evaluateAssistantCall(call, policyContext),
+      }));
+      const blocked = policyResults.find(({ result }) => result.decision === "BLOCK");
+      if (blocked) {
+        setError(policyMessage(blocked.result, blocked.call));
+        return;
+      }
+
+      executingRef.current = true;
+      setExecuting(true);
+      setError(null);
+      try {
+        const result = await executeAssistantCalls(adaptation.calls, {
+          // The person has just read the preview and pressed Confirmar.
+          confirmedCallIds: new Set(
+            policyResults
+              .filter(({ result: policy }) => policy.decision === "CONFIRM")
+              .map(({ call }) => call.id),
+          ),
+        });
+        if (result.pendingConfirmation) {
+          setError("Esta acción necesita confirmación explícita.");
+          return;
+        }
+        for (const effect of result.effects) applyAssistantEffect(effect);
+        // Refreshing every screen can be slow; the change is already saved.
+        void queryClient.invalidateQueries();
+        setPreview(null);
+        updateText("");
+        setLastDone(next.plan.readback);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "No se pudo ejecutar la orden.");
+      } finally {
+        executingRef.current = false;
+        setExecuting(false);
+      }
+    },
+    [applyAssistantEffect, permissions, queryClient, role, updateText],
+  );
+
+  const showInterpretation = useCallback(
+    (next: VoicePreview) => {
+      if (canExecuteVoicePreview(next) && isNavigationOnly(next)) {
+        const href = primaryHrefForVoicePlan(next.plan);
+        if (href) {
+          router.push(href);
+          setLastDone(next.plan.readback);
+          updateText("");
+          return;
+        }
+      }
+      if (!next.plan.actions.length) {
+        setError("No he entendido una acción concreta. Revisa el texto o concreta la instrucción.");
+        return;
+      }
+      setPreview(next);
+    },
+    [router, updateText],
   );
 
   const runCommand = useCallback(
     async (command: string) => {
       const clean = command.trim();
       if (!clean) return;
-      setText(clean);
-      setHeard(clean);
-      setExecutionError(null);
+      setError(null);
       setLastDone(null);
+      setPreview(null);
 
-      const next = preparePreview(clean);
-      if (canExecuteVoicePreview(next) && isNavigationOnly(next)) {
-        const href = primaryHrefForVoicePlan(next.plan);
-        if (href) {
-          router.push(href);
-          setPreview(null);
-          return;
-        }
-      }
+      const local = resolvePreview(previewVoiceCommand(clean, { pathname, ...assistantContext }));
 
       // The local rules are free: when they fully understood the order, Claude
       // isn't called. Claude (paid per call) handles only what they can't, and
       // the rules stay as the fallback when it isn't configured or doesn't answer.
       if (
         claudeAvailableRef.current &&
-        (!canExecuteVoicePreview(next) || isLiteralNoteFallback(next))
+        (!canExecuteVoicePreview(local) || isLiteralNoteFallback(local))
       ) {
         setInterpreting(true);
         try {
@@ -493,117 +413,97 @@ function VoiceCommandBarInner({
             getBrowserApi().voice.interpret({ text: clean, pathname }),
             CLAUDE_INTERPRET_TIMEOUT_MS,
           );
-          const interpreted = resolvePreview(
-            previewFromClaude(
-              clean,
-              { actions: result.actions as LocalVoiceAction[], ambiguities: result.ambiguities },
-              {
-                pathname,
-                ...assistantContext,
-              },
+          showInterpretation(
+            resolvePreview(
+              previewFromClaude(
+                clean,
+                { actions: result.actions as LocalVoiceAction[], ambiguities: result.ambiguities },
+                { pathname, ...assistantContext },
+              ),
             ),
           );
-          if (shouldAutoExecuteSpokenPreview(interpreted)) {
-            await executeResolvedPreview(interpreted);
-            return;
-          }
-          setPreview(interpreted);
           return;
-        } catch (error) {
-          if (error instanceof DentyApiError && error.code === "VOICE_AI_NOT_CONFIGURED") {
+        } catch (cause) {
+          if (cause instanceof DentyApiError && cause.code === "VOICE_AI_NOT_CONFIGURED") {
             claudeAvailableRef.current = false;
-          } else if (error instanceof VoiceTimeoutError) {
-            setExecutionError("La IA tardó demasiado; te muestro lo que entendí en local.");
-          } else if (error instanceof DentyApiError && error.code === "VOICE_AI_DECLINED") {
-            setExecutionError(error.message);
+          } else if (cause instanceof VoiceTimeoutError) {
+            setError("La IA tardó demasiado; te muestro lo que entendí en local.");
+          } else if (cause instanceof DentyApiError && cause.code === "VOICE_AI_DECLINED") {
+            setError(cause.message);
           }
         } finally {
           setInterpreting(false);
         }
       }
-      if (shouldAutoExecuteSpokenPreview(next)) {
-        await executeResolvedPreview(next);
-        return;
-      }
-      setPreview(next);
+      showInterpretation(local);
     },
-    [assistantContext, executeResolvedPreview, pathname, preparePreview, resolvePreview, router],
+    [assistantContext, pathname, resolvePreview, showInterpretation],
   );
-
-  const processCommand = useCallback(
-    (command: string): Promise<void> => {
-      const run = commandQueueRef.current.then(
-        () => runCommand(command),
-        () => runCommand(command),
-      );
-      commandQueueRef.current = run.catch(() => undefined);
-      return run;
-    },
-    [runCommand],
-  );
-
-  const bindCommandHandler = commandHandler.bind;
-  useEffect(() => {
-    bindCommandHandler(processCommand);
-  }, [bindCommandHandler, processCommand]);
 
   const interpret = useCallback(() => {
-    if (!text.trim()) return;
-    void processCommand(text);
-  }, [processCommand, text]);
+    // Android keyboards can update the DOM value after the last change event.
+    const value = inputRef.current?.value ?? textRef.current;
+    if (!value.trim()) return;
+    if (value !== textRef.current) updateText(value);
+    const run = commandQueueRef.current.then(
+      () => runCommand(value),
+      () => runCommand(value),
+    );
+    commandQueueRef.current = run.catch(() => undefined);
+  }, [runCommand, updateText]);
 
-  // Initialize the adapter with tool calling support
-  useEffect(() => {
-    submitRealtimeToolResultRef.current = submitToolResult;
-    const config: RealtimeVoiceConfig = {
-      onTranscript: (text) => {
-        void dispatchCommand(text);
-      },
-      onError: (error) => {
-        setExecutionError(error);
-      },
-      onStatusChange: (status) => {
-        setVoiceStatus(status);
-      },
-      submitToolResult: submitToolResult,
-    };
-    realtimeAdapterRef.current = new VoiceRealtimeAdapter(config);
-  }, [dispatchCommand, submitToolResult]);
+  const clear = useCallback(() => {
+    updateText("");
+    setPreview(null);
+    setError(null);
+    setLastDone(null);
+  }, [updateText]);
 
-  const execute = async () => {
-    if (!preview || !canExecuteVoicePreview(preview)) return;
-    await executeResolvedPreview(preview, { confirmed: true });
-  };
+  // ---- Audio capture -------------------------------------------------------
 
-  const clearSpeechTimers = useCallback(() => {
-    if (restartTimerRef.current) {
-      clearTimeout(restartTimerRef.current);
-      restartTimerRef.current = null;
-    }
-    if (speechStartTimerRef.current) {
-      clearTimeout(speechStartTimerRef.current);
-      speechStartTimerRef.current = null;
-    }
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const keepListeningRef = useRef(false);
+  const assemblerRef = useRef<TranscriptAssembler | null>(null);
+  const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recorderStreamRef = useRef<MediaStream | null>(null);
+  const recorderChunksRef = useRef<BlobPart[]>([]);
+
+  const schedule = useCallback((callback: () => void, delay: number) => {
+    const timer = setTimeout(() => {
+      timersRef.current.delete(timer);
+      callback();
+    }, delay);
+    timersRef.current.add(timer);
   }, []);
 
-  const cleanupRecorder = useCallback(() => {
-    if (recorderTimerRef.current) {
-      clearTimeout(recorderTimerRef.current);
-      recorderTimerRef.current = null;
-    }
+  const clearTimers = useCallback(() => {
+    for (const timer of timersRef.current) clearTimeout(timer);
+    timersRef.current.clear();
+  }, []);
+
+  const finishCapture = useCallback(() => {
+    keepListeningRef.current = false;
+    clearTimers();
     recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
     recorderStreamRef.current = null;
     recorderRef.current = null;
     recorderChunksRef.current = [];
-  }, []);
+    recognitionRef.current = null;
+    assemblerRef.current = null;
+    setCapture("idle");
+    setCaptureEngine(null);
+  }, [clearTimers]);
 
-  const transcribeRecordedAudio = useCallback(
+  const transcribeRecording = useCallback(
     async (blob: Blob) => {
-      setExecuting(true);
-      setExecutionError(null);
       try {
         const form = new FormData();
-        const extension = blob.type.includes("ogg") ? "ogg" : "webm";
+        const extension = blob.type.includes("ogg")
+          ? "ogg"
+          : blob.type.includes("mp4")
+            ? "mp4"
+            : "webm";
         form.set("audio", new File([blob], `denty-voice.${extension}`, { type: blob.type }));
         const response = await fetch("/api/voice/transcribe", {
           method: "POST",
@@ -615,33 +515,30 @@ function VoiceCommandBarInner({
           error?: { message?: unknown };
         } | null;
         if (!response.ok) {
-          const message =
+          throw new Error(
             typeof payload?.error?.message === "string"
               ? payload.error.message
-              : "No se pudo transcribir la grabación.";
-          throw new Error(message);
+              : "No se pudo transcribir la grabación.",
+          );
         }
-        const transcript = typeof payload?.text === "string" ? payload.text.trim() : "";
-        if (!transcript) throw new Error("No se ha detectado una orden de voz.");
-        void dispatchCommand(transcript);
-      } catch (error) {
-        setExecutionError(
-          error instanceof Error ? error.message : "No se pudo transcribir la grabación.",
-        );
+        const transcript = typeof payload?.text === "string" ? stripWakePhrase(payload.text) : "";
+        if (!transcript) throw new Error("No se ha detectado voz reconocible.");
+        updateText(appendDictation(textRef.current, transcript));
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "No se pudo transcribir la grabación.");
       } finally {
-        setExecuting(false);
+        finishCapture();
       }
     },
-    [dispatchCommand],
+    [finishCapture, updateText],
   );
 
-  const startRecordedFallback = useCallback(async () => {
+  const startRecording = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setExecutionError("Este navegador no admite voz.");
-      setCommandOpened(true);
+      setError("Este navegador no permite grabar audio. Usa el teclado o el dictado del teclado.");
+      finishCapture();
       return;
     }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       recorderStreamRef.current = stream;
@@ -651,202 +548,199 @@ function VoiceCommandBarInner({
         : new MediaRecorder(stream);
       recorderRef.current = recorder;
       recorderChunksRef.current = [];
-      keepListeningRef.current = true;
-      setVoiceEngine("recording");
-
+      setCaptureEngine("recording");
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) recorderChunksRef.current.push(event.data);
       };
       recorder.onerror = () => {
-        keepListeningRef.current = false;
-        setListening(false);
-        setVoiceEngine(null);
-        cleanupRecorder();
-        setExecutionError("No se pudo grabar el audio del micrófono.");
-        setCommandOpened(true);
+        setError("No se pudo grabar el audio del micrófono.");
+        finishCapture();
       };
-      recorder.onstart = () => setListening(true);
+      recorder.onstart = () => setCapture("listening");
       recorder.onstop = () => {
-        const chunks = recorderChunksRef.current;
-        const type = recorder.mimeType || mimeType || "audio/webm";
-        keepListeningRef.current = false;
-        setListening(false);
-        setVoiceEngine(null);
-        const blob = new Blob(chunks, { type });
-        cleanupRecorder();
-        if (blob.size > 0) void transcribeRecordedAudio(blob);
-        else setExecutionError("No se grabó audio. Inténtalo de nuevo.");
+        const blob = new Blob(recorderChunksRef.current, {
+          type: recorder.mimeType || mimeType || "audio/webm",
+        });
+        recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
+        if (blob.size === 0) {
+          setError("No se grabó audio. Inténtalo de nuevo.");
+          finishCapture();
+          return;
+        }
+        setCapture("finalizing");
+        void transcribeRecording(blob);
       };
-
       recorder.start(250);
-      recorderTimerRef.current = setTimeout(() => {
+      schedule(() => {
         if (recorder.state === "recording") recorder.stop();
-      }, 7_000);
-    } catch (error) {
-      keepListeningRef.current = false;
-      setListening(false);
-      setVoiceEngine(null);
-      cleanupRecorder();
-      const msg = error instanceof Error ? error.message : "No se pudo abrir el micrófono.";
-      setExecutionError(msg);
-      setCommandOpened(true);
+      }, MAX_RECORDING_MS);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo abrir el micrófono.");
+      finishCapture();
     }
-  }, [cleanupRecorder, transcribeRecordedAudio]);
+  }, [finishCapture, schedule, transcribeRecording]);
 
-  const stopListening = useCallback(() => {
+  const stopCapture = useCallback(() => {
     keepListeningRef.current = false;
-    clearSpeechTimers();
-
     const recorder = recorderRef.current;
     if (recorder?.state === "recording") {
-      if (recorderTimerRef.current) {
-        clearTimeout(recorderTimerRef.current);
-        recorderTimerRef.current = null;
-      }
       recorder.stop();
       return;
     }
-
-    try {
-      recognitionRef.current?.stop();
-    } catch {
-      // Some engines throw when stop() is called between sessions.
-    }
-    setListening(false);
-    setVoiceEngine(null);
-  }, [clearSpeechTimers]);
-
-  const listen = useCallback(async () => {
-    if (keepListeningRef.current || listening) {
-      stopListening();
+    const recognition = recognitionRef.current;
+    if (!recognition) {
+      finishCapture();
       return;
     }
+    setCapture("finalizing");
+    // If the engine never reports the end, release the microphone anyway.
+    schedule(() => {
+      try {
+        recognition.abort();
+      } catch {
+        // Some engines throw when aborting a session that already ended.
+      }
+      if (assemblerRef.current) updateText(assemblerRef.current.text());
+      finishCapture();
+    }, FINALIZE_TIMEOUT_MS);
+    try {
+      recognition.stop();
+    } catch {
+      finishCapture();
+    }
+  }, [finishCapture, schedule, updateText]);
 
-    setExecutionError(null);
-    setHeard(null);
-    speechCommandBufferRef.current.clear();
+  const startCapture = useCallback(async () => {
+    setPanelOpened(true);
+    setError(null);
+    setLastDone(null);
+    setPreview(null);
+    setCapture("requesting_permission");
     try {
       await requestMediaPermission("microphone");
-    } catch (error) {
-      const name = error instanceof DOMException ? error.name : "";
-      const msg =
+    } catch (cause) {
+      const name = cause instanceof DOMException ? cause.name : "";
+      setError(
         name === "NotAllowedError"
           ? speechErrorMessage("not-allowed")
-          : error instanceof Error
-            ? error.message
-            : "No se pudo acceder al micrófono.";
-      setExecutionError(msg);
-      setCommandOpened(true);
+          : cause instanceof Error
+            ? cause.message
+            : "No se pudo acceder al micrófono.",
+      );
+      finishCapture();
       return;
     }
 
     const speechWindow = window as WindowWithSpeech;
     const Constructor = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+    setCapture("connecting");
     if (!Constructor) {
-      await startRecordedFallback();
+      await startRecording();
       return;
     }
 
     const recognition = new Constructor();
     recognitionRef.current = recognition;
     keepListeningRef.current = true;
-    speechStartedRef.current = false;
-    setVoiceEngine("web-speech");
+    assemblerRef.current = createTranscriptAssembler(textRef.current);
+    let started = false;
+    setCaptureEngine("web-speech");
     recognition.lang = "es-ES";
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
-      speechStartedRef.current = true;
-      if (speechStartTimerRef.current) {
-        clearTimeout(speechStartTimerRef.current);
-        speechStartTimerRef.current = null;
-      }
-      setListening(true);
+      started = true;
+      setCapture("listening");
     };
     recognition.onresult = (event) => {
-      const start = event.resultIndex ?? 0;
-      for (let index = start; index < event.results.length; index += 1) {
-        const result = event.results[index];
-        const transcript = result?.[0]?.transcript?.trim();
-        if (!transcript || result?.isFinal === false) continue;
-        const command = speechCommandBufferRef.current.push(transcript);
-        if (command) void dispatchCommand(command);
-      }
+      const assembler = assemblerRef.current;
+      if (!assembler) return;
+      const { finals, interim } = sessionFromResults(event.results);
+      assembler.replaceSession(finals, interim);
+      updateText(assembler.text());
     };
     recognition.onerror = (event) => {
       if (event.error === "no-speech") return;
       const canFallback = event.error === "network" || event.error === "service-not-allowed";
       keepListeningRef.current = false;
-      setListening(false);
-      setVoiceEngine(null);
-      clearSpeechTimers();
+      try {
+        recognition.abort();
+      } catch {
+        // Ignore browser engine teardown errors.
+      }
       if (canFallback) {
-        try {
-          recognition.abort();
-        } catch {
-          // Ignore browser engine teardown errors.
-        }
-        void startRecordedFallback();
+        recognitionRef.current = null;
+        void startRecording();
         return;
       }
-      setExecutionError(speechErrorMessage(event.error));
-      setCommandOpened(true);
+      setError(speechErrorMessage(event.error));
+      finishCapture();
     };
     recognition.onend = () => {
-      setListening(false);
+      const assembler = assemblerRef.current;
+      if (recognitionRef.current !== recognition) return;
       if (!keepListeningRef.current) {
-        setVoiceEngine(null);
+        if (assembler) updateText(assembler.text());
+        finishCapture();
         return;
       }
-      restartTimerRef.current = setTimeout(() => {
+      // Engines end sessions on silence; a new session starts with what was already dictated.
+      assemblerRef.current = createTranscriptAssembler(assembler?.text() ?? textRef.current);
+      schedule(() => {
         if (!keepListeningRef.current) return;
         try {
           recognition.start();
         } catch {
-          keepListeningRef.current = false;
-          setListening(false);
-          setVoiceEngine(null);
+          finishCapture();
         }
       }, 250);
     };
 
     try {
       recognition.start();
-      speechStartTimerRef.current = setTimeout(() => {
-        if (speechStartedRef.current || !keepListeningRef.current) return;
+      schedule(() => {
+        if (started || !keepListeningRef.current) return;
+        // Some Chromium derivatives expose the API but never start it.
         keepListeningRef.current = false;
         try {
           recognition.abort();
         } catch {
-          // Some Chromium derivatives expose the API but never start it.
+          // Ignore teardown errors.
         }
-        setListening(false);
-        setVoiceEngine(null);
-        void startRecordedFallback();
-      }, 1_800);
+        recognitionRef.current = null;
+        void startRecording();
+      }, SPEECH_START_TIMEOUT_MS);
     } catch {
-      keepListeningRef.current = false;
-      setListening(false);
-      setVoiceEngine(null);
-      clearSpeechTimers();
-      await startRecordedFallback();
+      recognitionRef.current = null;
+      await startRecording();
     }
-  }, [clearSpeechTimers, dispatchCommand, listening, startRecordedFallback, stopListening]);
+  }, [finishCapture, schedule, startRecording, updateText]);
 
-  const safeListen = useCallback(() => {
-    listen().catch((err) => {
-      const msg = err instanceof Error ? err.message : "Error inesperado al iniciar la voz.";
-      setExecutionError(msg);
-      setCommandOpened(true);
+  const toggleCapture = useCallback(() => {
+    if (capture === "finalizing" || capture === "requesting_permission") return;
+    if (capture !== "idle") {
+      stopCapture();
+      return;
+    }
+    startCapture().catch((cause) => {
+      setError(cause instanceof Error ? cause.message : "Error inesperado al iniciar la voz.");
+      finishCapture();
     });
-  }, [listen]);
+  }, [capture, finishCapture, startCapture, stopCapture]);
+
+  // Leaving the page must release the microphone.
+  const capturePathRef = useRef(pathname);
+  useEffect(() => {
+    if (capturePathRef.current === pathname) return;
+    capturePathRef.current = pathname;
+    if (keepListeningRef.current || recorderRef.current) stopCapture();
+  }, [pathname, stopCapture]);
 
   useEffect(() => {
     return () => {
       keepListeningRef.current = false;
-      clearSpeechTimers();
       try {
         recognitionRef.current?.abort();
       } catch {
@@ -854,265 +748,130 @@ function VoiceCommandBarInner({
       }
       const recorder = recorderRef.current;
       if (recorder?.state === "recording") {
-        try {
-          recorder.stop();
-        } catch {
-          // Ignore teardown errors.
-        }
+        recorder.onstop = null;
+        recorder.stop();
       }
-      cleanupRecorder();
+      recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
+      for (const timer of timersRef.current) clearTimeout(timer);
     };
-  }, [cleanupRecorder, clearSpeechTimers]);
+  }, []);
 
-  useEffect(() => {
-    if (listening) setCommandOpened(true);
-  }, [listening]);
+  // ---- View ----------------------------------------------------------------
 
-  const listeningLabel =
-    voiceEngine === "recording"
-      ? "Grabando orden… pulsa de nuevo para enviar"
-      : "Escuchando… di «Oye Denty…»";
+  const listening = capture !== "idle";
+  const status = deriveVoiceStatus({
+    capture,
+    interpreting,
+    executing,
+    awaitingConfirmation: preview !== null,
+    done: lastDone !== null,
+    error: error !== null,
+  });
+  const previewView = useMemo(
+    () => (preview ? buildVoicePreviewView(preview, patientLabel) : null),
+    [patientLabel, preview],
+  );
+  const message: VoicePanelMessage | null = error
+    ? { tone: "error", text: error }
+    : lastDone
+      ? { tone: "done", text: `Hecho: ${lastDone}` }
+      : null;
+  const headerHint = listening
+    ? captureEngine === "recording"
+      ? "Grabando… pulsa de nuevo para terminar"
+      : "Escuchando… pulsa de nuevo para terminar"
+    : (error ?? "Dictar una instrucción");
 
   return (
-    <>
-      <Group gap={4} wrap="nowrap">
-        <Tooltip
-          label={
-            listening
-              ? listeningLabel
-              : executionError
-                ? executionError
-                : heard
-                  ? `Último: ${heard}`
-                  : "Oye Denty · activar voz"
-          }
-          multiline
-          maw={320}
+    <div className={motionStyles.voiceBar}>
+      <Tooltip label={headerHint} multiline maw={320}>
+        <div
+          className={motionStyles.voiceAction}
+          data-state={listening ? "listening" : executing ? "executing" : "idle"}
         >
-          <div
-            className={motionStyles.voiceAction}
-            data-state={listening ? "listening" : executing ? "executing" : "idle"}
-          >
-            <AnimatePresence>
-              {listening && !reducedMotion
-                ? [0, 1].map((pulse) => (
-                    <motion.span
-                      className={motionStyles.voicePulse}
-                      key={pulse}
-                      initial={{ opacity: 0.42, scale: 0.88 }}
-                      animate={{ opacity: 0, scale: 1.55 }}
-                      exit={{ opacity: 0 }}
-                      transition={{
-                        duration: 1.35,
-                        delay: pulse * 0.5,
-                        repeat: Infinity,
-                        ease: "easeOut",
-                      }}
-                      aria-hidden="true"
-                    />
-                  ))
-                : null}
-            </AnimatePresence>
-            <motion.div
-              className={motionStyles.voiceButtonLayer}
-              animate={
-                reducedMotion
-                  ? { scale: 1, rotate: 0 }
-                  : listening
-                    ? { scale: [1, 1.035, 1] }
-                    : executing
-                      ? { rotate: [0, 7, -7, 0] }
-                      : { scale: 1, rotate: 0 }
-              }
-              transition={
-                reducedMotion
-                  ? { duration: 0 }
-                  : listening
-                    ? { duration: 1.25, repeat: Infinity, ease: "easeInOut" }
-                    : { type: "spring", stiffness: 380, damping: 28 }
-              }
+          <AnimatePresence>
+            {capture === "listening" && !reducedMotion
+              ? [0, 1].map((pulse) => (
+                  <motion.span
+                    className={motionStyles.voicePulse}
+                    key={pulse}
+                    initial={{ opacity: 0.42, scale: 0.88 }}
+                    animate={{ opacity: 0, scale: 1.55 }}
+                    exit={{ opacity: 0 }}
+                    transition={{
+                      duration: 1.35,
+                      delay: pulse * 0.5,
+                      repeat: Infinity,
+                      ease: "easeOut",
+                    }}
+                    aria-hidden="true"
+                  />
+                ))
+              : null}
+          </AnimatePresence>
+          <div className={motionStyles.voiceButtonLayer}>
+            <ActionIcon
+              size="lg"
+              radius="xl"
+              color={listening || error ? "red" : "gray"}
+              variant={listening ? "filled" : "subtle"}
+              aria-label={listening ? "Detener escucha" : "Escuchar comando"}
+              onClick={toggleCapture}
+              loading={capture === "finalizing" || capture === "requesting_permission"}
             >
-              <ActionIcon
-                size="lg"
-                radius="xl"
-                color={listening || executionError ? "red" : "gray"}
-                variant={listening ? "filled" : "subtle"}
-                aria-label={listening ? "Detener escucha" : "Escuchar comando"}
-                onClick={safeListen}
-                loading={interpreting || (executing && voiceEngine === null && !preview)}
-              >
-                {listening ? <IconMicrophoneOff size={18} /> : <IconMicrophone size={18} />}
-              </ActionIcon>
-            </motion.div>
+              {listening ? <IconMicrophoneOff size={18} /> : <IconMicrophone size={18} />}
+            </ActionIcon>
           </div>
-        </Tooltip>
+        </div>
+      </Tooltip>
 
-        <Popover
-          opened={commandOpened}
-          onChange={setCommandOpened}
-          position="bottom-end"
-          offset={10}
-          shadow="md"
-          radius="lg"
-          width={320}
-          withinPortal
-        >
-          <Popover.Target>
-            <Tooltip label="Escribir una orden">
-              <ActionIcon
-                size="lg"
-                radius="xl"
-                variant="subtle"
-                color={executionError ? "red" : "gray"}
-                aria-label="Escribir comando para Denty"
-                onClick={() => setCommandOpened((opened) => !opened)}
-              >
-                <IconSparkles size={18} />
-              </ActionIcon>
-            </Tooltip>
-          </Popover.Target>
-          <Popover.Dropdown>
-            <Stack gap="sm">
-              <div>
-                <Text fw={750} size="sm">
-                  Oye Denty
-                </Text>
-                <Text size="xs" c="dimmed">
-                  Voz o texto, la misma inteligencia clínica.
-                </Text>
-              </div>
-              <TextInput
-                autoFocus
-                value={text}
-                onChange={(event) => setText(event.currentTarget.value)}
-                placeholder="Abre un paciente por nombre o número de ficha…"
-                aria-label="Comando para Denty"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    interpret();
-                    setCommandOpened(false);
-                  }
-                }}
-              />
-              {listening ? (
-                <Badge color="red" variant="light" size="sm" fullWidth>
-                  {voiceEngine === "recording"
-                    ? "Grabando… pulsa Detener para enviar"
-                    : "Escuchando… di tu orden"}
-                </Badge>
-              ) : executionError && !preview ? (
-                <Text size="xs" c="red">
-                  {executionError}
-                </Text>
-              ) : lastDone ? (
-                <Text size="xs" c="teal" lineClamp={3}>
-                  Hecho: {lastDone}
-                </Text>
-              ) : heard ? (
-                <Text size="xs" c="dimmed" lineClamp={2}>
-                  Último: {heard}
-                </Text>
-              ) : null}
-              <Group justify="space-between" wrap="nowrap">
-                <Button
-                  variant="subtle"
-                  size="xs"
-                  leftSection={<IconMicrophone size={15} />}
-                  onClick={safeListen}
-                >
-                  {listening ? "Detener" : "Hablar"}
-                </Button>
-                <Button
-                  size="xs"
-                  disabled={!text.trim()}
-                  onClick={() => {
-                    interpret();
-                    setCommandOpened(false);
-                  }}
-                >
-                  Ejecutar
-                </Button>
-              </Group>
-            </Stack>
-          </Popover.Dropdown>
-        </Popover>
-      </Group>
-
-      <Modal
-        opened={preview !== null}
-        onClose={() => setPreview(null)}
-        title="Previsualizar acción de Denty"
+      <Popover
+        opened={panelOpened}
+        onChange={setPanelOpened}
+        position="bottom-end"
+        offset={10}
+        shadow="md"
+        radius="lg"
+        width="min(380px, calc(100vw - 32px))"
+        closeOnClickOutside={!listening && !preview && !executing}
+        closeOnEscape={!listening}
+        withinPortal
       >
-        {preview ? (
-          <Stack gap="md">
-            <div>
-              <Text fw={800}>{preview.plan.readback}</Text>
-              <Group gap="xs" mt="xs">
-                <Badge variant="light">
-                  {Math.round(preview.plan.confidence * 100)}% confianza
-                </Badge>
-                <Badge variant="outline">Plan {preview.planToken.slice(0, 8)}</Badge>
-                {preview.plan.contextPatientId ? (
-                  <Badge color="teal">Paciente resuelto</Badge>
-                ) : null}
-                {preview.plan.source === "claude" ? (
-                  <Badge color="violet" variant="light">
-                    Claude
-                  </Badge>
-                ) : null}
-              </Group>
-            </div>
-
-            {preview.plan.ambiguities.length ? (
-              <Alert icon={<IconAlertCircle size={18} />} color="yellow" title="Faltan datos">
-                {preview.plan.ambiguities.join(" · ")}
-              </Alert>
-            ) : null}
-
-            {preview.unsupportedActions.length ? (
-              <Alert
-                icon={<IconAlertCircle size={18} />}
-                color="yellow"
-                title="Acción aún no ejecutable"
-              >
-                Denty ha entendido la orden, pero no la ejecutará hasta que estas acciones estén
-                conectadas al mismo comando transaccional que la interfaz:{" "}
-                {preview.unsupportedActions.join(" · ")}.
-              </Alert>
-            ) : null}
-
-            <List size="sm" spacing="xs">
-              {preview.plan.actions.map((action, index) => (
-                <List.Item key={`${action.type}-${index}`}>{describeAction(action)}</List.Item>
-              ))}
-            </List>
-
-            <Text c="dimmed" size="sm">
-              Las órdenes de navegación se ejecutan directamente. Cobros, ausencias y actos clínicos
-              realizados siguen requiriendo confirmación explícita.
-            </Text>
-
-            {executionError ? (
-              <Alert color="red" title="No se pudo ejecutar">
-                {executionError}
-              </Alert>
-            ) : null}
-
-            <Group justify="flex-end">
-              <Button variant="default" onClick={() => setPreview(null)}>
-                Cancelar
-              </Button>
-              <Button
-                disabled={!canExecuteVoicePreview(preview)}
-                loading={executing}
-                onClick={() => void execute()}
-              >
-                Confirmar y ejecutar
-              </Button>
-            </Group>
-          </Stack>
-        ) : null}
-      </Modal>
-    </>
+        <Popover.Target>
+          <Tooltip label="Escribir o dictar una instrucción">
+            <ActionIcon
+              size="lg"
+              radius="xl"
+              variant="subtle"
+              color={error ? "red" : "gray"}
+              aria-label="Escribir comando para Denty"
+              onClick={() => setPanelOpened((opened) => !opened)}
+            >
+              <IconSparkles size={18} />
+            </ActionIcon>
+          </Tooltip>
+        </Popover.Target>
+        <Popover.Dropdown>
+          <VoiceCommandPanel
+            inputRef={inputRef}
+            text={text}
+            onTextChange={updateText}
+            status={status}
+            listening={listening}
+            microphoneDisabled={capture === "finalizing" || capture === "requesting_permission"}
+            showKeyboardDictationHint={keyboardDictationHint}
+            preview={previewView}
+            message={message}
+            onToggleMicrophone={toggleCapture}
+            onInterpret={interpret}
+            onClear={clear}
+            onConfirm={() => {
+              if (preview) void executeConfirmedPreview(preview);
+            }}
+            onCancelPreview={() => setPreview(null)}
+          />
+        </Popover.Dropdown>
+      </Popover>
+    </div>
   );
 }
