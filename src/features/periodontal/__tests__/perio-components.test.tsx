@@ -19,3 +19,20 @@ test("compares only measured sites, skips absent and reports accessible graph", 
   render(<PerioToothGraph tooth="36" data={next.teeth["36"]!} />);
   expect(screen.getByRole("img")).toHaveAccessibleName("Margen rojo e inserción azul del 36");
 });
+
+test("periodontal view filters hide marks without changing recorded measurements", () => {
+  const exam = createPerioExam(deriveMouthState([]), [
+    { tooth: "36", site: "MV", probingDepth: 6, recession: 2 },
+  ]);
+
+  render(<PerioToothGraph tooth="36" data={exam.teeth["36"]!} visibleIndicators={["sondaje"]} />);
+
+  expect(screen.getByRole("img")).toHaveAccessibleName("Sondaje del 36");
+  expect(
+    screen.getByTestId("perio-graph-36").querySelector('[data-indicator="sondaje"]'),
+  ).toBeTruthy();
+  expect(
+    screen.getByTestId("perio-graph-36").querySelector('[data-indicator="recesion"]'),
+  ).toBeNull();
+  expect(exam.teeth["36"]?.sites.MV.pd).toBe(6);
+});

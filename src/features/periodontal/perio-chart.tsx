@@ -49,6 +49,7 @@ interface Props {
   readOnly: boolean;
   active: boolean;
   readings?: readonly Partial<PeriodontalReading>[];
+  visibleIndicators?: readonly string[];
   onReadingsChange?: (readings: PeriodontalReading[]) => void;
   owner?: PerioDraftOwner;
   onPresenceChange?: (tooth: string, presence: "missing" | "implant") => PerioPresenceChange;
@@ -61,6 +62,15 @@ export function PerioChart({
   readOnly,
   active,
   readings = empty,
+  visibleIndicators = [
+    "sondaje",
+    "recesion",
+    "sangrado",
+    "supuracion",
+    "placa",
+    "movilidad",
+    "furcas",
+  ],
   onReadingsChange,
   onPresenceChange,
   onPresenceRestore,
@@ -90,6 +100,12 @@ export function PerioChart({
     [feedback, setFeedback] = useState<string | null>("silent");
   const recognition = useRef<Recognition | null>(null),
     listeningRef = useRef(false);
+  const hasIndicator = (indicator: string) => visibleIndicators.includes(indicator);
+  const showSondaje = hasIndicator("sondaje");
+  const showRecession = hasIndicator("recesion");
+  const showMobility = hasIndicator("movilidad");
+  const showFurcation = hasIndicator("furcas");
+  const showGraph = showSondaje || showRecession;
   const latestExam = workflow.data?.periodontalExams[0];
   const previousParsed = perioExamDataSchema.safeParse(latestExam?.metadata?.perioExam);
   const previous =
@@ -470,12 +486,14 @@ export function PerioChart({
                   <th key={site}>
                     {site}
                     <br />
-                    PD / GM
+                    {[showSondaje ? "PD" : null, showRecession ? "GM" : null]
+                      .filter(Boolean)
+                      .join(" / ") || "—"}
                   </th>
                 ))}
-                <th>Movilidad</th>
-                <th>Furca B / L / M / D</th>
-                <th>Gráfico</th>
+                {showMobility ? <th>Movilidad</th> : null}
+                {showFurcation ? <th>Furca B / L / M / D</th> : null}
+                {showGraph ? <th>Gráfico</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -507,126 +525,153 @@ export function PerioChart({
                           "—"
                         ) : (
                           <>
-                            <Group gap={3} wrap="nowrap">
-                              {(["pd", "gm"] as const).map((field) => (
-                                <input
-                                  className={styles.input}
-                                  key={field}
-                                  type="number"
-                                  min={field === "pd" ? 0 : -15}
-                                  max={field === "pd" ? 15 : 5}
-                                  aria-label={`${tooth} ${site} ${field === "pd" ? "sondaje" : "margen"}`}
-                                  value={data.sites[site][field] ?? ""}
-                                  disabled={disabled}
-                                  onChange={(e) => {
-                                    const value = e.currentTarget.value;
-                                    run({
-                                      type: "site",
-                                      tooth,
-                                      site,
-                                      patch: { [field]: value === "" ? null : Number(value) },
-                                    });
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (
-                                      ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown"].includes(
-                                        e.key,
-                                      )
-                                    ) {
-                                      const inputs = Array.from(
-                                        e.currentTarget
-                                          .closest("table")!
-                                          .querySelectorAll<HTMLInputElement>(
-                                            "input[type=number]:not(:disabled)",
-                                          ),
-                                      );
-                                      const offset =
-                                        e.key === "ArrowRight"
-                                          ? 1
-                                          : e.key === "ArrowLeft"
-                                            ? -1
-                                            : e.key === "ArrowDown"
-                                              ? 12
-                                              : -12;
-                                      inputs[inputs.indexOf(e.currentTarget) + offset]?.focus();
-                                      e.preventDefault();
+                            {(showSondaje || showRecession) && (
+                              <Group gap={3} wrap="nowrap">
+                                {(["pd", "gm"] as const)
+                                  .filter((field) => (field === "pd" ? showSondaje : showRecession))
+                                  .map((field) => (
+                                    <input
+                                      className={styles.input}
+                                      key={field}
+                                      type="number"
+                                      min={field === "pd" ? 0 : -15}
+                                      max={field === "pd" ? 15 : 5}
+                                      aria-label={`${tooth} ${site} ${field === "pd" ? "sondaje" : "margen"}`}
+                                      value={data.sites[site][field] ?? ""}
+                                      disabled={disabled}
+                                      onChange={(e) => {
+                                        const value = e.currentTarget.value;
+                                        run({
+                                          type: "site",
+                                          tooth,
+                                          site,
+                                          patch: { [field]: value === "" ? null : Number(value) },
+                                        });
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (
+                                          [
+                                            "ArrowRight",
+                                            "ArrowLeft",
+                                            "ArrowUp",
+                                            "ArrowDown",
+                                          ].includes(e.key)
+                                        ) {
+                                          const inputs = Array.from(
+                                            e.currentTarget
+                                              .closest("table")!
+                                              .querySelectorAll<HTMLInputElement>(
+                                                "input[type=number]:not(:disabled)",
+                                              ),
+                                          );
+                                          const offset =
+                                            e.key === "ArrowRight"
+                                              ? 1
+                                              : e.key === "ArrowLeft"
+                                                ? -1
+                                                : e.key === "ArrowDown"
+                                                  ? 12
+                                                  : -12;
+                                          inputs[inputs.indexOf(e.currentTarget) + offset]?.focus();
+                                          e.preventDefault();
+                                        }
+                                      }}
+                                    />
+                                  ))}
+                              </Group>
+                            )}
+                            {(
+                              [
+                                ["bop", "sangrado"],
+                                ["plaque", "placa"],
+                                ["suppuration", "supuracion"],
+                              ] as const
+                            )
+                              .filter(([, indicator]) => hasIndicator(indicator))
+                              .map(([flag]) => (
+                                <label key={flag} className={styles.flag}>
+                                  <input
+                                    type="checkbox"
+                                    aria-label={`${tooth} ${site} ${flag}`}
+                                    checked={data.sites[site][flag]}
+                                    disabled={disabled}
+                                    onChange={(e) =>
+                                      run({
+                                        type: "site",
+                                        tooth,
+                                        site,
+                                        patch: { [flag]: e.currentTarget.checked },
+                                      })
                                     }
-                                  }}
-                                />
+                                  />
+                                  {flag === "bop"
+                                    ? "Sangrado"
+                                    : flag === "plaque"
+                                      ? "Placa"
+                                      : "Supura"}
+                                </label>
                               ))}
-                            </Group>
-                            {(["bop", "plaque", "suppuration"] as const).map((flag) => (
-                              <label key={flag} className={styles.flag}>
-                                <input
-                                  type="checkbox"
-                                  aria-label={`${tooth} ${site} ${flag}`}
-                                  checked={data.sites[site][flag]}
-                                  disabled={disabled}
-                                  onChange={(e) =>
-                                    run({
-                                      type: "site",
-                                      tooth,
-                                      site,
-                                      patch: { [flag]: e.currentTarget.checked },
-                                    })
-                                  }
-                                />
-                                {flag === "bop"
-                                  ? "Sangrado"
-                                  : flag === "plaque"
-                                    ? "Placa"
-                                    : "Supura"}
-                              </label>
-                            ))}
                           </>
                         )}
                       </td>
                     ))}
-                    <td>
-                      {!data.missing ? (
-                        <input
-                          className={styles.input}
-                          aria-label={`Movilidad ${tooth}`}
-                          type="number"
-                          min={0}
-                          max={3}
-                          value={data.mobility ?? ""}
-                          disabled={disabled}
-                          onChange={(e) => {
-                            const value = e.currentTarget.value;
-                            if (value === "") return;
-                            run({ type: "goTo", tooth });
-                            run({ type: "mobility", value: Number(value) });
-                          }}
-                        />
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td>
-                      {!data.missing
-                        ? (["b", "l", "m", "d"] as const).map((entry) => (
-                            <input
-                              key={entry}
-                              className={styles.input}
-                              aria-label={`Furca ${tooth} ${entry}`}
-                              type="number"
-                              min={0}
-                              max={3}
-                              value={data.furcation[entry] ?? ""}
-                              disabled={disabled}
-                              onChange={(e) => {
-                                const value = Number(e.currentTarget.value);
-                                run({ type: "goTo", tooth });
-                                run({ type: "furcation", value, entry });
-                              }}
-                            />
-                          ))
-                        : "—"}
-                    </td>
-                    <td className={styles.graph}>
-                      {!data.missing ? <PerioToothGraph tooth={tooth} data={data} /> : null}
-                    </td>
+                    {showMobility ? (
+                      <td>
+                        {!data.missing ? (
+                          <input
+                            className={styles.input}
+                            aria-label={`Movilidad ${tooth}`}
+                            type="number"
+                            min={0}
+                            max={3}
+                            value={data.mobility ?? ""}
+                            disabled={disabled}
+                            onChange={(e) => {
+                              const value = e.currentTarget.value;
+                              if (value === "") return;
+                              run({ type: "goTo", tooth });
+                              run({ type: "mobility", value: Number(value) });
+                            }}
+                          />
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    ) : null}
+                    {showFurcation ? (
+                      <td>
+                        {!data.missing
+                          ? (["b", "l", "m", "d"] as const).map((entry) => (
+                              <input
+                                key={entry}
+                                className={styles.input}
+                                aria-label={`Furca ${tooth} ${entry}`}
+                                type="number"
+                                min={0}
+                                max={3}
+                                value={data.furcation[entry] ?? ""}
+                                disabled={disabled}
+                                onChange={(e) => {
+                                  const value = Number(e.currentTarget.value);
+                                  run({ type: "goTo", tooth });
+                                  run({ type: "furcation", value, entry });
+                                }}
+                              />
+                            ))
+                          : "—"}
+                      </td>
+                    ) : null}
+                    {showGraph ? (
+                      <td className={styles.graph}>
+                        {!data.missing ? (
+                          <PerioToothGraph
+                            tooth={tooth}
+                            data={data}
+                            visibleIndicators={visibleIndicators}
+                          />
+                        ) : null}
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
             </tbody>
