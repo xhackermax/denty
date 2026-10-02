@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { NavigationProvider } from "@/shared/navigation/navigation-provider";
 import { OdontogramWorkspace } from "./odontogram-workspace";
@@ -41,7 +41,9 @@ vi.mock("@/shared/clinical/clinical-pipeline-card", () => ({ ClinicalPipelineCar
 vi.mock("@/shared/clinical/clinical-workspace", () => ({ ClinicalWorkspace: () => null }));
 vi.mock("@/shared/clinical/treatment-flow", () => ({ TreatmentFlowModal: () => null }));
 afterEach(cleanup);
-test("dirty tab navigation saves and retains destination after version remount", async () => {
+// Specialty tabs are view layers over the same odontogram since the layered redesign:
+// switching them must keep unsaved edits without a dialog and without saving on its own.
+test("switching layers keeps unsaved edits without prompting or saving", async () => {
   state.version = 1;
   state.save.mockClear();
   render(
@@ -53,13 +55,18 @@ test("dirty tab navigation saves and retains destination after version remount",
       </MantineProvider>
     </QueryClientProvider>,
   );
+  const save = screen.getByRole("button", { name: "Guardar" });
+  expect(save).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Aplicar al diente seleccionado" }));
+  expect(save).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "Cirugía" }));
-  const dialog = await screen.findByRole("dialog");
-  fireEvent.click(within(dialog).getByRole("button", { name: "Guardar" }));
-  await waitFor(() => expect(state.save).toHaveBeenCalledTimes(1));
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Cirugía" })).toHaveAttribute("data-active", "true"),
   );
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled();
+  expect(state.save).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+  await waitFor(() => expect(state.save).toHaveBeenCalledTimes(1));
   expect(state.version).toBe(2);
 });
