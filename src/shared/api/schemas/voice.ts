@@ -18,6 +18,16 @@ export const transcriptionSchema = z
   })
   .passthrough();
 
+/** Temporary credential: the permanent Deepgram key never reaches the browser. */
+export const deepgramTokenSchema = z.object({
+  accessToken: z.string().min(1),
+  expiresIn: z.number().positive(),
+  listenUrl: z
+    .string()
+    .url()
+    .refine((value) => value.startsWith("wss://api.deepgram.com/"), "URL de Deepgram inesperada"),
+});
+
 export const voiceInterpretSchema = z.object({
   text: z.string().trim().min(1).max(1000),
   pathname: z.string().max(300).optional(),

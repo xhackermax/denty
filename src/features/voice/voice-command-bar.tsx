@@ -56,6 +56,15 @@ import {
   type VoicePreview,
 } from "./voice-router";
 import { VoiceTimeoutError, withTimeout } from "./with-timeout";
+import {
+  createBrowserDeepgramDeps,
+  isDeepgramCaptureSupported,
+} from "./dictation/browser-deepgram";
+import {
+  DictationError,
+  startDeepgramDictation,
+  type DictationSession,
+} from "./dictation/deepgram-dictation";
 
 interface SpeechRecognitionAlternativeLike {
   transcript: string;
@@ -98,7 +107,7 @@ type WindowWithSpeech = Window & {
   webkitSpeechRecognition?: SpeechRecognitionConstructor;
 };
 
-type CaptureEngine = "web-speech" | "recording" | null;
+type CaptureEngine = "deepgram" | "web-speech" | "recording" | null;
 
 const CLAUDE_INTERPRET_TIMEOUT_MS = 12_000;
 const MAX_RECORDING_MS = 15_000;
@@ -462,6 +471,11 @@ function VoiceCommandBarInner({
   // ---- Audio capture -------------------------------------------------------
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const deepgramSessionRef = useRef<DictationSession | null>(null);
+  // Set while a Deepgram session is still opening, so Detener or leaving can reach it.
+  const deepgramOpeningRef = useRef<{ stop: boolean; cancel: boolean } | null>(null);
+  // Off for the rest of the visit once Deepgram turns out unconfigured or unsupported.
+  const deepgramUsableRef = useRef(true);
   const keepListeningRef = useRef(false);
   const assemblerRef = useRef<TranscriptAssembler | null>(null);
   const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
@@ -582,6 +596,15 @@ function VoiceCommandBarInner({
 
   const stopCapture = useCallback(() => {
     keepListeningRef.current = false;
+    if (deepgramSessionRef.current) {
+      deepgramSessionRef.current.stop();
+      return;
+    }
+    if (deepgramOpeningRef.current) {
+      deepgramOpeningRef.current.stop = true;
+      setCapture("finalizing");
+      return;
+    }
     const recorder = recorderRef.current;
     if (recorder?.state === "recording") {
       recorder.stop();
@@ -610,6 +633,70 @@ function VoiceCommandBarInner({
     }
   }, [finishCapture, schedule, updateText]);
 
+  /** Resolves false when Deepgram can't be used here and another engine should take over. */
+  const startDeepgram = useCallback(async (): Promise<boolean> => {
+    const assembler = createTranscriptAssembler(textRef.current);
+    assemblerRef.current = assembler;
+    let firstSegment = true;
+    let failed = false;
+    const spoken = (text: string) => (firstSegment ? stripWakePhrase(text) : text);
+    setCaptureEngine("deepgram");
+    const opening = { stop: false, cancel: false };
+    deepgramOpeningRef.current = opening;
+    try {
+      const session = await startDeepgramDictation(createBrowserDeepgramDeps(), {
+        onStatus: setCapture,
+        onInterim: (text) => {
+          assembler.setInterim(spoken(text));
+          updateText(assembler.text());
+        },
+        onFinal: (text) => {
+          assembler.commitFinal(spoken(text));
+          firstSegment = false;
+          updateText(assembler.text());
+        },
+        onError: (dictationError) => {
+          failed = true;
+          setError(dictationError.message);
+        },
+        onEnd: ({ graceful, heardSpeech }) => {
+          // A clean finish already turned every partial into a final segment.
+          updateText(graceful ? assembler.finalText() : assembler.text());
+          if (!heardSpeech && !failed) setError("No se ha detectado voz reconocible.");
+          deepgramSessionRef.current = null;
+          finishCapture();
+        },
+      });
+      deepgramOpeningRef.current = null;
+      if (opening.cancel) {
+        session.cancel();
+        return true;
+      }
+      deepgramSessionRef.current = session;
+      if (opening.stop) session.stop();
+      return true;
+    } catch (cause) {
+      deepgramOpeningRef.current = null;
+      deepgramSessionRef.current = null;
+      if (opening.cancel) return true;
+      if (opening.stop) {
+        // The person already pressed Detener: never fall back to another engine.
+        finishCapture();
+        return true;
+      }
+      if (
+        cause instanceof DictationError &&
+        (cause.code === "NOT_CONFIGURED" || cause.code === "UNSUPPORTED")
+      ) {
+        deepgramUsableRef.current = false;
+        return false;
+      }
+      setError(cause instanceof Error ? cause.message : "No se pudo iniciar el dictado.");
+      finishCapture();
+      return true;
+    }
+  }, [finishCapture, updateText]);
+
   const startCapture = useCallback(async () => {
     setPanelOpened(true);
     setError(null);
@@ -631,9 +718,13 @@ function VoiceCommandBarInner({
       return;
     }
 
+    setCapture("connecting");
+    if (deepgramUsableRef.current && isDeepgramCaptureSupported() && (await startDeepgram())) {
+      return;
+    }
+
     const speechWindow = window as WindowWithSpeech;
     const Constructor = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
-    setCapture("connecting");
     if (!Constructor) {
       await startRecording();
       return;
@@ -716,7 +807,7 @@ function VoiceCommandBarInner({
       recognitionRef.current = null;
       await startRecording();
     }
-  }, [finishCapture, schedule, startRecording, updateText]);
+  }, [finishCapture, schedule, startDeepgram, startRecording, updateText]);
 
   const toggleCapture = useCallback(() => {
     if (capture === "finalizing" || capture === "requesting_permission") return;
@@ -735,12 +826,21 @@ function VoiceCommandBarInner({
   useEffect(() => {
     if (capturePathRef.current === pathname) return;
     capturePathRef.current = pathname;
-    if (keepListeningRef.current || recorderRef.current) stopCapture();
+    if (
+      deepgramSessionRef.current ||
+      deepgramOpeningRef.current ||
+      keepListeningRef.current ||
+      recorderRef.current
+    ) {
+      stopCapture();
+    }
   }, [pathname, stopCapture]);
 
   useEffect(() => {
     return () => {
       keepListeningRef.current = false;
+      deepgramSessionRef.current?.cancel();
+      if (deepgramOpeningRef.current) deepgramOpeningRef.current.cancel = true;
       try {
         recognitionRef.current?.abort();
       } catch {

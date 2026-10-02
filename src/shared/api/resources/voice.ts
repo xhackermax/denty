@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { ApiClient } from "../client";
 import {
+  deepgramTokenSchema,
   transcribeVoiceSchema,
   transcriptionSchema,
   voiceCapabilitiesSchema,
@@ -22,6 +23,8 @@ export function createVoiceResource(client: ApiClient) {
         transcriptionSchema,
         transcribeVoiceSchema.parse(payload),
       ),
+    deepgramToken: () =>
+      client.mutation("/api/voice/deepgram-token", deepgramTokenSchema, undefined),
     interpret: (payload: z.input<typeof voiceInterpretSchema>) =>
       client.mutation(
         "/api/voice/interpret",

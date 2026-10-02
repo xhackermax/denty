@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas din\u00e1micas verificadas en source",
-  "routeCount": 253,
+  "routeCount": 254,
   "routes": [
     {
       "method": "GET",
@@ -1488,6 +1488,12 @@
       "method": "GET",
       "path": "/api/voice/capabilities",
       "source": "apps/api/src/modules/voice/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/voice/deepgram-token",
+      "source": "src/app/api/voice/deepgram-token/route.ts",
       "kind": "browser"
     },
     {

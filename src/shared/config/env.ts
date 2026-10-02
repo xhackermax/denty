@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+// Vercel keeps cleared variables as empty strings; treat them as not configured.
+const optionalSecret = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
+
 const serverEnvSchema = z.object({
   SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
@@ -21,6 +27,10 @@ const serverEnvSchema = z.object({
   STRIPE_DEFAULT_CONNECTED_ACCOUNT_ID: z.string().min(1).optional(),
   SUMUP_RETURN_URL: z.string().url().optional(),
   OPENAI_TRANSCRIBE_MODEL: z.string().min(1).default("gpt-4o-mini-transcribe"),
+  DEEPGRAM_API_KEY: optionalSecret,
+  DEEPGRAM_MODEL: z.string().min(1).default("nova-3"),
+  DEEPGRAM_LANGUAGE: z.string().min(1).default("es"),
+  DEEPGRAM_KEYTERMS: optionalSecret,
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
@@ -48,6 +58,10 @@ export function getServerEnv() {
     STRIPE_DEFAULT_CONNECTED_ACCOUNT_ID: process.env.STRIPE_DEFAULT_CONNECTED_ACCOUNT_ID,
     SUMUP_RETURN_URL: process.env.SUMUP_RETURN_URL,
     OPENAI_TRANSCRIBE_MODEL: process.env.OPENAI_TRANSCRIBE_MODEL,
+    DEEPGRAM_API_KEY: process.env.DEEPGRAM_API_KEY,
+    DEEPGRAM_MODEL: process.env.DEEPGRAM_MODEL || undefined,
+    DEEPGRAM_LANGUAGE: process.env.DEEPGRAM_LANGUAGE || undefined,
+    DEEPGRAM_KEYTERMS: process.env.DEEPGRAM_KEYTERMS,
     NODE_ENV: process.env.NODE_ENV,
   });
 }
