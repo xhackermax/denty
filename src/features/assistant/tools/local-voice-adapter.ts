@@ -71,7 +71,11 @@ function toArgs(action: LocalVoiceAction, plan: LocalVoicePlan): unknown | undef
           }
         : undefined;
     case "navigation.open":
-      return { destination: action.destination, ...(patientId ? { patientId } : {}) };
+      return {
+        destination: action.destination,
+        ...(patientId ? { patientId } : {}),
+        ...(action.dateText ? { dateText: action.dateText } : {}),
+      };
     case "navigation.patient":
       return patientId ? { patientId } : undefined;
     case "patient.create":

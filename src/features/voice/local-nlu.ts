@@ -22,7 +22,7 @@ export type LocalVoiceAction =
   | { type: "patient.create"; firstName: string; lastName: string; phone?: string; dni?: string }
   | { type: "patient.resolve"; query: string }
   | { type: "navigation.patient"; patientRef: string }
-  | { type: "navigation.open"; destination: string }
+  | { type: "navigation.open"; destination: string; dateText?: string }
   | { type: "appointment.arrive"; patientRef: string }
   | { type: "appointment.no_show"; patientRef: string }
   | {
@@ -1041,16 +1041,25 @@ function navigationAction(text: string): LocalVoiceAction | undefined {
   ) {
     return undefined;
   }
+  if (/\b(?:agenda|calendario|citas?)\b/.test(text)) {
+    const dateText = extractDate(text);
+    return {
+      type: "navigation.open",
+      destination: "agenda",
+      ...(dateText ? { dateText } : {}),
+    };
+  }
   const targets: readonly [RegExp, string][] = [
     [/\bodontograma\b/, "odontogram"],
     [/\bagenda\b/, "agenda"],
     [/\blaboratorio|trabajos\b/, "laboratory"],
     [/\bfinanzas|cobros\b/, "finance"],
     [/\btareas|pendientes\b/, "tasks"],
+    [/\bdocumentos\b/, "documents"],
     [/\bpacientes\b/, "patients"],
     [/\bajustes|configuracion\b/, "settings"],
     [/\badministrador|administracion\b/, "admin"],
-    [/\binicio|hoy\b/, "home"],
+    [/\binicio\b/, "home"],
   ];
   const match = targets.find(([pattern]) => pattern.test(text));
   return match ? { type: "navigation.open", destination: match[1] } : undefined;

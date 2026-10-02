@@ -8,9 +8,10 @@ import {
   IconPlayerStopFilled,
   IconSparkles,
 } from "@tabler/icons-react";
-import { useRef, type RefObject } from "react";
+import { useRef, useState, type RefObject } from "react";
 
 import { shouldSubmitOnKey, voiceStatusLabel, type VoiceStatus } from "./command-input";
+import { VOICE_CAPABILITY_GROUPS } from "./voice-capabilities";
 import styles from "./voice-command-bar.module.css";
 
 export interface VoicePreviewDetail {
@@ -80,6 +81,7 @@ export function VoiceCommandPanel({
 }: VoiceCommandPanelProps) {
   const composingRef = useRef(false);
   const interpretAfterCompositionRef = useRef(false);
+  const [showCommandGuide, setShowCommandGuide] = useState(false);
   const busy = BUSY.has(status);
   const empty = !text.trim();
 
@@ -135,6 +137,68 @@ export function VoiceCommandPanel({
           if (!empty && !busy && !listening) interpretNow();
         }}
       />
+
+      <div>
+        <Button
+          variant="subtle"
+          color="gray"
+          size="xs"
+          aria-expanded={showCommandGuide}
+          aria-controls="voice-command-guide"
+          onClick={() => setShowCommandGuide((visible) => !visible)}
+        >
+          Comandos de voz
+        </Button>
+        {showCommandGuide ? (
+          <section
+            id="voice-command-guide"
+            className={styles.commandGuide}
+            aria-label="Ejemplos de comandos por área"
+          >
+            <Text size="xs" c="dimmed">
+              Elige un ejemplo para editarlo. Interpretar lo prepara; solo se ejecuta al confirmar
+              la vista previa. La navegación abre directamente la sección.
+            </Text>
+            {VOICE_CAPABILITY_GROUPS.map((group) => (
+              <div key={group.area} className={styles.commandGroup}>
+                <Text size="sm" fw={700}>
+                  {group.area}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {group.description}
+                </Text>
+                <div className={styles.commandExamples}>
+                  {group.capabilities.map((capability) => (
+                    <Button
+                      key={capability.label}
+                      variant="default"
+                      color="gray"
+                      size="compact-xs"
+                      className={styles.commandExample}
+                      aria-label={`${capability.label}: ${capability.example}`}
+                      title={
+                        capability.safety === "navigation"
+                          ? "Al interpretar, abre esa sección."
+                          : "Rellena el campo; revisa la vista previa antes de confirmar."
+                      }
+                      onClick={() => {
+                        onTextChange(capability.example);
+                        setShowCommandGuide(false);
+                        inputRef.current?.focus();
+                      }}
+                    >
+                      {capability.label}
+                      <span className={styles.commandSafety}>
+                        {capability.safety === "navigation" ? "Abrir" : "Revisar"}
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </section>
+        ) : null}
+      </div>
 
       {showKeyboardDictationHint ? (
         <Text size="xs" c="dimmed">

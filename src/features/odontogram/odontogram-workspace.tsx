@@ -61,7 +61,7 @@ import parityStyles from "@/shared/ui/parity.module.css";
 import { DentyApiError } from "@/shared/api";
 import { usePatientQuery } from "@/shared/patients/patient-data";
 import { PageHeader } from "@/shared/ui";
-import { ClinicalTabs, type ClinicalTab } from "./clinical-tabs";
+import { type ClinicalTab } from "./clinical-tabs";
 import { EndodonticPanel } from "./endodontic-panel";
 import styles from "./odontogram.module.css";
 import {
@@ -75,6 +75,29 @@ import { TOOTH_STATE_LABELS as STATE_LABELS } from "@/shared/odontogram/tooth-st
 import { OrthodonticPanel } from "./orthodontic-panel";
 import { PediatricPanel } from "./pediatric-panel";
 import { SupernumeraryPanel } from "./supernumerary-panel";
+import { OdontogramLayerControls } from "./odontogram-layer-controls";
+import { readBrowserStorageItem, writeBrowserStorageItem } from "@/shared/browser/browser-storage";
+import {
+  applyViewPreset,
+  createInitialOdontogramViewState,
+  createOdontogramViewPreference,
+  isToothStatusVisible,
+  layerForToothState,
+  ODONTOGRAM_LAYER_LABELS,
+  resetOdontogramView,
+  restoreOdontogramViewPreference,
+  subfilterForToothStatus,
+  toggleOdontogramLayer,
+  toggleOdontogramSubfilter,
+  toggleShowAllLayers,
+  type OdontogramPresetId,
+  type OdontogramViewState,
+} from "./odontogram-view-state";
+import {
+  orthodonticMarkForTooth,
+  periodontalMarksForTooth,
+  pediatricReplacementForTooth,
+} from "./odontogram-layer-projection";
 
 import { SurgeryPanel } from "./surgery-panel";
 import { surgicalVisualsForTooth } from "./surgery-visuals";
@@ -82,6 +105,7 @@ const TOOL_OPTIONS = TOOTH_STATES.map((state) => ({
   value: state,
   label: STATE_LABELS[state],
 }));
+const VIEW_PREFERENCE_KEY = "denty:odontogram:view:v2";
 function triStateFamily(state: string | undefined): TriStateFamily | null {
   if (!state) return null;
   if (state.startsWith("filling")) return "filling";
@@ -115,6 +139,13 @@ function bridgeEndpointTeethFromEntity(entity: DentalEntity): string[] {
   }
   const teeth = bridgeTeethFromEntity(entity);
   return [teeth[0], teeth.at(-1)].filter((tooth): tooth is string => Boolean(tooth));
+}
+function surgicalMarkFilter(kind: string): string {
+  if (kind === "implant" || kind === "implant-lost") return "implantes";
+  if (kind === "graft") return "regeneracion";
+  if (kind === "lesion") return "lesiones";
+  if (kind === "extraction") return "extracciones";
+  return "tejidos";
 }
 function wholeEntity(
   state: OdontogramEntityState,
@@ -156,6 +187,8 @@ function surfaceState(
 interface ToothProps {
   tooth: string;
   state: OdontogramEntityState;
+  viewState: OdontogramViewState;
+  periodontalReadings: readonly PeriodontalReading[];
   selected: boolean;
   prosthesisRange: boolean;
   prosthesisEndpoint: boolean;
@@ -177,6 +210,8 @@ const SURFACE_NAMES: Readonly<Record<ToothSurface, string>> = {
 function Tooth({
   tooth,
   state,
+  viewState,
+  periodontalReadings,
   selected,
   prosthesisRange,
   prosthesisEndpoint,
@@ -190,7 +225,12 @@ function Tooth({
   const type = toothType(tooth);
   const arch = archForTooth(tooth);
   const map = surfaceMapLayout(tooth);
-  const statusFor = (surface: ToothSurface) => surfaceState(state, tooth, surface) ?? status ?? "";
+  const displayStatus = isToothStatusVisible(status, viewState) ? status : undefined;
+  const statusFor = (surface: ToothSurface) => {
+    const surfaceValue = surfaceState(state, tooth, surface);
+    if (surfaceValue && !isToothStatusVisible(surfaceValue, viewState)) return "";
+    return surfaceValue ?? displayStatus ?? "";
+  };
   const surfaceProps = (surface: ToothSurface) => ({
     onClick: (event: React.MouseEvent<SVGElement>) => {
       event.stopPropagation();
@@ -216,10 +256,29 @@ function Tooth({
   );
   const visualCode = endodonticDiagnosis?.attributes?.visualCode;
   const visualMark =
-    typeof visualCode === "string" && visualCode in ENDODONTIC_VISUAL_MARKS
+    viewState.visibleLayerIds.includes("endo") &&
+    (viewState.subfiltersByLayer.endo.includes("diagnosticos") ||
+      viewState.subfiltersByLayer.endo.includes("hallazgos_apicales")) &&
+    typeof visualCode === "string" &&
+    visualCode in ENDODONTIC_VISUAL_MARKS
       ? ENDODONTIC_VISUAL_MARKS[visualCode as keyof typeof ENDODONTIC_VISUAL_MARKS]
       : undefined;
-  const surgicalMarks = surgicalVisualsForTooth(tooth, Object.values(state.entitiesById));
+  const surgicalMarks =
+    viewState.visibleLayerIds.includes("surgery") && viewState.subfiltersByLayer.surgery.length > 0
+      ? surgicalVisualsForTooth(tooth, Object.values(state.entitiesById)).filter((mark) =>
+          viewState.subfiltersByLayer.surgery.includes(surgicalMarkFilter(mark.kind)),
+        )
+      : [];
+  const orthodonticMark = orthodonticMarkForTooth(state, tooth, viewState);
+  const replacement = pediatricReplacementForTooth(state, tooth, viewState);
+  const perioSummary = periodontalMarksForTooth(periodontalReadings, tooth, viewState);
+  const layerDescription = [
+    orthodonticMark ? `Ortodoncia: ${orthodonticMark}` : null,
+    replacement?.label ? `Recambio: ${replacement.label}` : null,
+    ...perioSummary,
+  ]
+    .filter((mark): mark is string => Boolean(mark))
+    .join(", ");
   return (
     <button
       className={styles.toothButton}
@@ -232,13 +291,32 @@ function Tooth({
       aria-disabled={readOnly}
       onClick={onSelect}
       onDoubleClick={onWholeAction}
-      aria-label={`Diente ${tooth}`}
+      aria-label={`Diente ${tooth}${layerDescription ? `, ${layerDescription}` : ""}`}
       title={`Diente ${tooth} · doble clic para cambiar el estado completo`}
     >
       <span className={styles.toothLabel}>{tooth}</span>
+      {orthodonticMark ? (
+        <span className={styles.toothLayerMark} data-layer="ortho">
+          Orto · {orthodonticMark}
+        </span>
+      ) : null}
+      {replacement ? (
+        <span className={styles.toothLayerMark} data-layer="replacement">
+          {replacement.label}
+        </span>
+      ) : null}
+      {perioSummary.length ? (
+        <span
+          className={styles.toothLayerMark}
+          data-layer="perio"
+          aria-label={perioSummary.join(", ")}
+        >
+          {perioSummary.join(" · ")}
+        </span>
+      ) : null}
       <svg
         className={styles.toothSvg}
-        data-state={status ?? "healthy"}
+        data-state={displayStatus ?? "healthy"}
         data-arch={arch}
         data-type={type}
         viewBox="0 0 64 90"
@@ -249,7 +327,7 @@ function Tooth({
         <path className={styles.crownBase} d={CROWN_PATHS[type]} />
         <path
           className={`${styles.surface} ${styles.crownFill}`}
-          data-state={status ?? ""}
+          data-state={displayStatus ?? ""}
           d={CROWN_PATHS[type]}
         />
         <path className={styles.crownOutline} d={CROWN_PATHS[type]} />
@@ -288,7 +366,7 @@ function Tooth({
       </svg>
       <svg
         className={styles.surfaceMap}
-        data-state={status ?? "healthy"}
+        data-state={displayStatus ?? "healthy"}
         viewBox="0 0 44 44"
         role="group"
         aria-label={`Caras del diente ${tooth}`}
@@ -384,6 +462,10 @@ function OdontogramEditor({
   const [bridgePick, setBridgePick] = useState<"from" | "to">("from");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
   const [advancedToolsOpen, setAdvancedToolsOpen] = useState(false);
+  const [perioEditorOpen, setPerioEditorOpen] = useState(false);
+  const [viewState, setViewState] = useState(createInitialOdontogramViewState);
+  const [viewPreferenceLoaded, setViewPreferenceLoaded] = useState(false);
+  const [viewPreferenceError, setViewPreferenceError] = useState(false);
   const patchAssistantContext = useOptionalAssistantContextPatch();
   const [clinicalRuleMessage, setClinicalRuleMessage] = useState<string | null>(null);
   const entities = useMemo(
@@ -422,10 +504,13 @@ function OdontogramEditor({
   }, [bridgeFrom, bridgeTo, placementMode]);
   const bridgeReady = bridgePreviewTeeth.length >= 2 && Boolean(bridgeFrom && bridgeTo);
   const legendSelection: OdontogramLegendSelection = { state: tool, placement: placementMode };
+  const activeToolLayer = layerForToothState(tool);
+  const activeToolFilter = subfilterForToothStatus(tool);
+  const activeToolVisible = isToothStatusVisible(tool, viewState);
   const dirty = history.present.revision !== 0;
   const discardChanges = () =>
     setHistory(createBoundedHistory(createOdontogramEntityState(initialEntities), 30));
-  const { confirmLeave } = useUnsavedChangesGuard({
+  useUnsavedChangesGuard({
     dirty: dirty && !historical,
     onSave: async () => {
       await onSave(Object.values(history.present.entitiesById));
@@ -436,6 +521,35 @@ function OdontogramEditor({
   useEffect(() => {
     setAdvancedToolsOpen(false);
   }, [activeTab]);
+
+  useEffect(() => {
+    let restored = createInitialOdontogramViewState();
+    const stored = readBrowserStorageItem(VIEW_PREFERENCE_KEY);
+    if (stored.ok && stored.value !== null) {
+      try {
+        restored = restoreOdontogramViewPreference(JSON.parse(stored.value));
+      } catch {
+        setViewPreferenceError(true);
+      }
+    } else if (!stored.ok) setViewPreferenceError(true);
+    if (initialAction === "implant-surgery" && !restored.visibleLayerIds.includes("surgery"))
+      restored = toggleOdontogramLayer(restored, "surgery");
+    if (initialSection === "diagnosis" && !restored.visibleLayerIds.includes("endo"))
+      restored = toggleOdontogramLayer(restored, "endo");
+    setViewState(restored);
+    setViewPreferenceLoaded(true);
+  }, [initialAction, initialSection]);
+
+  useEffect(() => {
+    if (!viewPreferenceLoaded) return;
+    if (
+      !writeBrowserStorageItem(
+        VIEW_PREFERENCE_KEY,
+        JSON.stringify(createOdontogramViewPreference(viewState)),
+      )
+    )
+      setViewPreferenceError(true);
+  }, [viewPreferenceLoaded, viewState]);
 
   useEffect(() => {
     patchAssistantContext({ patientId, selectedTooth });
@@ -603,12 +717,20 @@ function OdontogramEditor({
           key={tooth}
           tooth={tooth}
           state={history.present}
+          viewState={viewState}
+          periodontalReadings={currentPerioReadings}
           selected={selectedTooth === tooth}
-          prosthesisRange={bridgePreviewTeeth.includes(tooth) || persistedBridgeTeeth.has(tooth)}
-          prosthesisEndpoint={
-            tooth === bridgeFrom || tooth === bridgeTo || persistedBridgeEndpoints.has(tooth)
+          prosthesisRange={
+            viewState.visibleLayerIds.includes("prosthetics") &&
+            viewState.subfiltersByLayer.prosthetics.includes("fija") &&
+            (bridgePreviewTeeth.includes(tooth) || persistedBridgeTeeth.has(tooth))
           }
-          readOnly={historical}
+          prosthesisEndpoint={
+            viewState.visibleLayerIds.includes("prosthetics") &&
+            viewState.subfiltersByLayer.prosthetics.includes("fija") &&
+            (tooth === bridgeFrom || tooth === bridgeTo || persistedBridgeEndpoints.has(tooth))
+          }
+          readOnly={historical || !activeToolVisible}
           onSelect={() => {
             if (placementMode === "bridge") {
               pickBridgeTooth(tooth);
@@ -617,12 +739,15 @@ function OdontogramEditor({
             setSelectedTooth(tooth);
             if (!isSurfaceOnlyTool(tool)) applyWhole(tooth);
           }}
-          onWholeAction={() =>
-            placementMode === "bridge" ? undefined : cycleWholeTreatment(tooth)
-          }
+          onWholeAction={() => {
+            if (!activeToolVisible || historical) return;
+            if (placementMode !== "bridge") cycleWholeTreatment(tooth);
+          }}
           onSurfaceAction={(surface) => applySurface(tooth, surface)}
           onSurfaceCycle={(surface) =>
-            placementMode === "bridge" ? undefined : cycleSurfaceTreatment(tooth, surface)
+            activeToolVisible && !historical && placementMode !== "bridge"
+              ? cycleSurfaceTreatment(tooth, surface)
+              : undefined
           }
         />
       ))}
@@ -735,179 +860,224 @@ function OdontogramEditor({
           readOnly={historical}
         />
         <MouthMiniMap selectedTooth={selectedTooth} onSelect={setSelectedTooth} />
-        <ClinicalTabs
-          active={activeTab}
-          onChange={(tab) => confirmLeave(() => setActiveTab(tab))}
+        <OdontogramLayerControls
+          state={viewState}
+          onToggleLayer={(layerId) =>
+            setViewState((current) => toggleOdontogramLayer(current, layerId))
+          }
+          onToggleSubfilter={(layerId, subfilterId) =>
+            setViewState((current) => toggleOdontogramSubfilter(current, layerId, subfilterId))
+          }
+          onShowAll={() => setViewState((current) => toggleShowAllLayers(current))}
+          onApplyPreset={(presetId) =>
+            setViewState((current) => applyViewPreset(current, presetId))
+          }
+          onReset={() => setViewState((current) => resetOdontogramView(current))}
+          onOpenHistory={() => setActiveTab(activeTab === "history" ? "general" : "history")}
         />
-
-        {activeTab === "general" ? (
-          <>
-            <details
-              className={styles.advancedTools}
-              open={advancedToolsOpen}
-              onToggle={(event) => setAdvancedToolsOpen(event.currentTarget.open)}
+        {viewPreferenceError ? (
+          <Alert color="yellow" title="No se pudo restaurar o guardar la preferencia de vista">
+            Las capas siguen disponibles durante esta sesión. Comprueba el almacenamiento local del
+            navegador para conservar esta configuración.
+          </Alert>
+        ) : null}
+        {!activeToolVisible && activeToolLayer ? (
+          <Alert color="yellow" title="La herramienta activa pertenece a una capa oculta">
+            Reactiva {ODONTOGRAM_LAYER_LABELS[activeToolLayer]} o cambia de herramienta antes de
+            registrar una marca.
+            <Button
+              size="xs"
+              ml="sm"
+              onClick={() =>
+                setViewState((current) => {
+                  if (!current.visibleLayerIds.includes(activeToolLayer))
+                    return toggleOdontogramLayer(current, activeToolLayer);
+                  return activeToolFilter
+                    ? toggleOdontogramSubfilter(current, activeToolLayer, activeToolFilter)
+                    : current;
+                })
+              }
             >
-              <summary>
-                <span>
-                  <strong>Más herramientas</strong>
-                  <small>
-                    Plantillas, selección directa y prótesis por rango · diente {selectedTooth}
-                  </small>
-                </span>
-              </summary>
-              <section className={styles.controlPanel}>
-                <div className={styles.panelHeading}>
-                  <div>
-                    <Text fw={850}>Herramientas</Text>
-                    <Text size="xs" c="dimmed">
-                      Elige y marca.
-                    </Text>
-                  </div>
-                  <Badge variant="light">Diente {selectedTooth}</Badge>
+              Reactivar capa
+            </Button>
+          </Alert>
+        ) : null}
+
+        {viewState.visibleLayerIds.includes("general") ? (
+          <details
+            className={styles.advancedTools}
+            open={advancedToolsOpen}
+            onToggle={(event) => setAdvancedToolsOpen(event.currentTarget.open)}
+          >
+            <summary>
+              <span>
+                <strong>Más herramientas</strong>
+                <small>
+                  Plantillas, selección directa y prótesis por rango · diente {selectedTooth}
+                </small>
+              </span>
+            </summary>
+            <section className={styles.controlPanel}>
+              <div className={styles.panelHeading}>
+                <div>
+                  <Text fw={850}>Herramientas</Text>
+                  <Text size="xs" c="dimmed">
+                    Elige y marca.
+                  </Text>
                 </div>
-                <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                  <Select
-                    label="Herramienta"
-                    value={tool}
-                    onChange={(value) => selectTool((value ?? "caries") as ToothState)}
-                    data={[...TOOL_OPTIONS]}
-                    disabled={historical}
-                  />
-                  <Select
-                    label="Diente"
-                    value={selectedTooth}
-                    onChange={(value) => setSelectedTooth(value ?? "46")}
-                    data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
-                  />
-                </SimpleGrid>
-                {placementMode === "bridge" ? (
-                  <div className={styles.bridgePicker}>
-                    <div className={styles.bridgePickerHeading}>
-                      <div>
-                        <Text fw={820} size="sm">
-                          Prótesis fija / puente
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                          {bridgeReady && bridgeFrom && bridgeTo
-                            ? `Rango ${bridgeFrom} -> ${bridgeTo}. Confirma para aplicar.`
-                            : bridgePick === "from"
-                              ? "Pulsa el diente inicial en el odontograma."
-                              : `Inicio ${bridgeFrom}. Elige el final.`}
-                        </Text>
-                      </div>
-                      <Badge variant="light">{bridgePreviewTeeth.length || 0} dientes</Badge>
-                    </div>
-                    <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                      <Select
-                        label="Diente inicial"
-                        placeholder="Seleccionar"
-                        value={bridgeFrom}
-                        onChange={(value) => {
-                          setBridgeFrom(value);
-                          setBridgeTo(null);
-                          setBridgePick(value ? "to" : "from");
-                          setBridgeError(null);
-                        }}
-                        data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
-                        disabled={historical}
-                      />
-                      <Select
-                        label="Diente final"
-                        placeholder="Seleccionar"
-                        value={bridgeTo}
-                        onChange={(value) => {
-                          if (!value) {
-                            setBridgeTo(null);
-                            setBridgePick("to");
-                            return;
-                          }
-                          if (!bridgeFrom) {
-                            setBridgeError("Selecciona primero el diente inicial.");
-                            return;
-                          }
-                          try {
-                            const range = bridgeTeethFromEndpoints(bridgeFrom, value);
-                            if (range.length < 2) {
-                              setBridgeError("Elige otro diente final.");
-                              return;
-                            }
-                            setBridgeTo(value);
-                            setBridgePick("from");
-                            setBridgeError(null);
-                          } catch {
-                            setBridgeTo(null);
-                            setBridgeError("Usa la misma arcada.");
-                          }
-                        }}
-                        data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
-                        disabled={historical || !bridgeFrom}
-                      />
-                    </SimpleGrid>
-                    <Group justify="space-between" mt="sm">
+                <Badge variant="light">Diente {selectedTooth}</Badge>
+              </div>
+              <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                <Select
+                  label="Herramienta"
+                  value={tool}
+                  onChange={(value) => selectTool((value ?? "caries") as ToothState)}
+                  data={[...TOOL_OPTIONS]}
+                  disabled={historical}
+                />
+                <Select
+                  label="Diente"
+                  value={selectedTooth}
+                  onChange={(value) => setSelectedTooth(value ?? "46")}
+                  data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
+                />
+              </SimpleGrid>
+              {placementMode === "bridge" ? (
+                <div className={styles.bridgePicker}>
+                  <div className={styles.bridgePickerHeading}>
+                    <div>
+                      <Text fw={820} size="sm">
+                        Prótesis fija / puente
+                      </Text>
                       <Text size="xs" c="dimmed">
                         {bridgeReady && bridgeFrom && bridgeTo
-                          ? `Vista previa: ${bridgeFrom} → ${bridgeTo} · ${bridgePreviewTeeth.join(
-                              ", ",
-                            )}`
-                          : "El rango se ilumina antes de aplicarlo."}
+                          ? `Rango ${bridgeFrom} -> ${bridgeTo}. Confirma para aplicar.`
+                          : bridgePick === "from"
+                            ? "Pulsa el diente inicial en el odontograma."
+                            : `Inicio ${bridgeFrom}. Elige el final.`}
                       </Text>
-                      <Button
-                        size="xs"
-                        disabled={historical || !bridgeReady}
-                        onClick={() => applyTemplate("bridge")}
-                      >
-                        Aplicar prótesis / puente
-                      </Button>
-                    </Group>
-                    {bridgeError ? (
-                      <Text size="xs" c="red" mt="xs">
-                        {bridgeError}
-                      </Text>
-                    ) : null}
+                    </div>
+                    <Badge variant="light">{bridgePreviewTeeth.length || 0} dientes</Badge>
                   </div>
-                ) : null}
-                <Group mt="md">
-                  <Button
-                    size="xs"
-                    disabled={historical || placementMode === "bridge"}
-                    onClick={() => applyWhole(selectedTooth)}
-                  >
-                    Aplicar al diente seleccionado
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    disabled={historical}
-                    onClick={() => applyTemplate("implant")}
-                  >
-                    Implante + pilar + corona
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    disabled={historical}
-                    onClick={() => applyTemplate("endo")}
-                  >
-                    Endo + perno + corona
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    disabled={historical}
-                    onClick={() => selectTool("prosthesis_pending", "bridge")}
-                  >
-                    Seleccionar prótesis / puente
-                  </Button>
-                </Group>
-              </section>
-            </details>
-
-            <section className={styles.chartPanel}>
-              <div className={styles.chartHeader}>
-                <div>
-                  <Text fw={850}>Odontograma</Text>
+                  <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                    <Select
+                      label="Diente inicial"
+                      placeholder="Seleccionar"
+                      value={bridgeFrom}
+                      onChange={(value) => {
+                        setBridgeFrom(value);
+                        setBridgeTo(null);
+                        setBridgePick(value ? "to" : "from");
+                        setBridgeError(null);
+                      }}
+                      data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
+                      disabled={historical || !activeToolVisible}
+                    />
+                    <Select
+                      label="Diente final"
+                      placeholder="Seleccionar"
+                      value={bridgeTo}
+                      onChange={(value) => {
+                        if (!value) {
+                          setBridgeTo(null);
+                          setBridgePick("to");
+                          return;
+                        }
+                        if (!bridgeFrom) {
+                          setBridgeError("Selecciona primero el diente inicial.");
+                          return;
+                        }
+                        try {
+                          const range = bridgeTeethFromEndpoints(bridgeFrom, value);
+                          if (range.length < 2) {
+                            setBridgeError("Elige otro diente final.");
+                            return;
+                          }
+                          setBridgeTo(value);
+                          setBridgePick("from");
+                          setBridgeError(null);
+                        } catch {
+                          setBridgeTo(null);
+                          setBridgeError("Usa la misma arcada.");
+                        }
+                      }}
+                      data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
+                      disabled={historical || !activeToolVisible || !bridgeFrom}
+                    />
+                  </SimpleGrid>
+                  <Group justify="space-between" mt="sm">
+                    <Text size="xs" c="dimmed">
+                      {bridgeReady && bridgeFrom && bridgeTo
+                        ? `Vista previa: ${bridgeFrom} → ${bridgeTo} · ${bridgePreviewTeeth.join(
+                            ", ",
+                          )}`
+                        : "El rango se ilumina antes de aplicarlo."}
+                    </Text>
+                    <Button
+                      size="xs"
+                      disabled={historical || !activeToolVisible || !bridgeReady}
+                      onClick={() => applyTemplate("bridge")}
+                    >
+                      Aplicar prótesis / puente
+                    </Button>
+                  </Group>
+                  {bridgeError ? (
+                    <Text size="xs" c="red" mt="xs">
+                      {bridgeError}
+                    </Text>
+                  ) : null}
                 </div>
-              </div>
+              ) : null}
+              <Group mt="md">
+                <Button
+                  size="xs"
+                  disabled={historical || !activeToolVisible || placementMode === "bridge"}
+                  onClick={() => applyWhole(selectedTooth)}
+                >
+                  Aplicar al diente seleccionado
+                </Button>
+                <Button
+                  size="xs"
+                  variant="light"
+                  disabled={historical || !activeToolVisible}
+                  onClick={() => applyTemplate("implant")}
+                >
+                  Implante + pilar + corona
+                </Button>
+                <Button
+                  size="xs"
+                  variant="light"
+                  disabled={historical || !activeToolVisible}
+                  onClick={() => applyTemplate("endo")}
+                >
+                  Endo + perno + corona
+                </Button>
+                <Button
+                  size="xs"
+                  variant="light"
+                  disabled={historical || !activeToolVisible}
+                  onClick={() => selectTool("prosthesis_pending", "bridge")}
+                >
+                  Seleccionar prótesis / puente
+                </Button>
+              </Group>
+            </section>
+          </details>
+        ) : null}
+
+        <section className={styles.chartPanel}>
+          <div className={styles.chartHeader}>
+            <div>
+              <Text fw={850}>Odontograma</Text>
+            </div>
+            {!viewState.visibleLayerIds.includes("general") ? (
+              <Text size="xs" c="dimmed">
+                Anatomía, identidad y presencia permanecen visibles.
+              </Text>
+            ) : null}
+          </div>
+          {viewState.visibleLayerIds.includes("general") ? (
+            <>
               <OdontogramLegend
                 selection={legendSelection}
                 disabled={historical}
@@ -932,66 +1102,91 @@ function OdontogramEditor({
                   </span>
                 </div>
               ) : null}
-              <div className={styles.archBlock}>
-                <Text className={styles.archLabel} fw={800}>
-                  Maxilar
-                </Text>
-                {renderArch(PERMANENT_UPPER)}
-              </div>
-              <div className={styles.occlusalPlane}>
-                <span>Plano oclusal</span>
-              </div>
-              <div className={styles.archBlock}>
-                {renderArch(PERMANENT_LOWER)}
-                <Text className={styles.archLabel} fw={800}>
-                  Mandíbula
-                </Text>
-              </div>
-            </section>
-            <SupernumeraryPanel entities={entities} readOnly={historical} onCommit={commit} />
-          </>
+            </>
+          ) : null}
+          <div className={styles.archBlock}>
+            <Text className={styles.archLabel} fw={800}>
+              Maxilar
+            </Text>
+            {renderArch(PERMANENT_UPPER)}
+          </div>
+          <div className={styles.occlusalPlane}>
+            <span>Plano oclusal</span>
+          </div>
+          <div className={styles.archBlock}>
+            {renderArch(PERMANENT_LOWER)}
+            <Text className={styles.archLabel} fw={800}>
+              Mandíbula
+            </Text>
+          </div>
+        </section>
+        {viewState.visibleLayerIds.includes("general") ? (
+          <SupernumeraryPanel entities={entities} readOnly={historical} onCommit={commit} />
         ) : null}
 
-        <RetainedFlowStep active={activeTab === "periodontal"}>
-          <PerioChart
-            patientId={patientId}
-            active={activeTab === "periodontal"}
-            readOnly={historical}
-            readings={initialPeriodontal}
-            onReadingsChange={setCurrentPerioReadings}
-            owner={perioOwner}
-            onPresenceChange={changePresence}
-            onPresenceRestore={restorePresence}
-            onBeforeFinalize={async () => {
-              if (historyRef.current.present.revision !== 0)
-                await onSave(Object.values(historyRef.current.present.entitiesById));
-            }}
-          />
+        <RetainedFlowStep active={viewState.visibleLayerIds.includes("perio")}>
+          <details
+            className={styles.layerEditor}
+            onToggle={(event) => setPerioEditorOpen(event.currentTarget.open)}
+          >
+            <summary>Editar periodonto</summary>
+            <PerioChart
+              patientId={patientId}
+              active={viewState.visibleLayerIds.includes("perio") && perioEditorOpen}
+              readOnly={historical}
+              readings={initialPeriodontal}
+              visibleIndicators={viewState.subfiltersByLayer.perio}
+              onReadingsChange={setCurrentPerioReadings}
+              owner={perioOwner}
+              onPresenceChange={changePresence}
+              onPresenceRestore={restorePresence}
+              onBeforeFinalize={async () => {
+                if (historyRef.current.present.revision !== 0)
+                  await onSave(Object.values(historyRef.current.present.entitiesById));
+              }}
+            />
+          </details>
         </RetainedFlowStep>
-        {activeTab === "orthodontic" ? (
-          <OrthodonticPanel patientId={patientId} readOnly={historical} onCommit={commit} />
-        ) : null}
-        {activeTab === "pediatric" ? (
-          <PediatricPanel
-            patientId={patientId}
-            {...(birthDate === undefined ? {} : { birthDate })}
-            readOnly={historical}
-            initialEntities={entities}
-            onCommit={commit}
-          />
-        ) : null}
-        {activeTab === "endodontic" ? (
-          <EndodonticPanel selectedTooth={selectedTooth} readOnly={historical} onCommit={commit} />
-        ) : null}
-        {activeTab === "surgery" ? (
-          <SurgeryPanel
-            selectedTooth={selectedTooth}
-            entities={entities}
-            readOnly={historical}
-            onCommitBatch={commitBatch}
-            onWarning={setClinicalRuleMessage}
-          />
-        ) : null}
+        <RetainedFlowStep active={viewState.visibleLayerIds.includes("ortho")}>
+          <details className={styles.layerEditor}>
+            <summary>Editar ortodoncia</summary>
+            <OrthodonticPanel patientId={patientId} readOnly={historical} onCommit={commit} />
+          </details>
+        </RetainedFlowStep>
+        <RetainedFlowStep active={viewState.visibleLayerIds.includes("replacement")}>
+          <details className={styles.layerEditor}>
+            <summary>Editar recambio y dentición</summary>
+            <PediatricPanel
+              patientId={patientId}
+              {...(birthDate === undefined ? {} : { birthDate })}
+              readOnly={historical}
+              initialEntities={entities}
+              onCommit={commit}
+            />
+          </details>
+        </RetainedFlowStep>
+        <RetainedFlowStep active={viewState.visibleLayerIds.includes("endo")}>
+          <details className={styles.layerEditor}>
+            <summary>Editar endodoncia</summary>
+            <EndodonticPanel
+              selectedTooth={selectedTooth}
+              readOnly={historical}
+              onCommit={commit}
+            />
+          </details>
+        </RetainedFlowStep>
+        <RetainedFlowStep active={viewState.visibleLayerIds.includes("surgery")}>
+          <details className={styles.layerEditor}>
+            <summary>Editar cirugía</summary>
+            <SurgeryPanel
+              selectedTooth={selectedTooth}
+              entities={entities}
+              readOnly={historical}
+              onCommitBatch={commitBatch}
+              onWarning={setClinicalRuleMessage}
+            />
+          </details>
+        </RetainedFlowStep>
 
         {activeTab === "history" ? (
           <OdontogramHistory
@@ -999,6 +1194,11 @@ function OdontogramEditor({
             selectedSnapshotId={selectedSnapshotId}
             onSelectSnapshot={onSelectSnapshot}
           />
+        ) : null}
+        {viewState.visibleLayerIds.includes("proposal") ? (
+          <Alert color="blue" title="Propuestas del plan">
+            Selecciona un plan para mostrar sus propuestas.
+          </Alert>
         ) : null}
       </MouthStateProvider>
       <details

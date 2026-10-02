@@ -63,6 +63,7 @@ import {
   hhmm,
   madridLocalDateTime,
   todayMadrid,
+  resolveMadridDateQuery,
   toMadridISO,
 } from "@/domain/dates";
 import {
@@ -251,6 +252,7 @@ interface DragPayload {
 export function AgendaPage() {
   const searchParams = useSearchParams();
   const requestedPatientId = searchParams.get("patientId") ?? "";
+  const requestedDate = searchParams.get("date");
   // Arriving from the treatment flow ("Dar cita"): open the form with the plan item chosen.
   const requestedPlanItemId = searchParams.get("planItemId") ?? "";
   const requestedPlanItemHandled = useRef(false);
@@ -258,7 +260,9 @@ export function AgendaPage() {
   const { activeSiteId, setActiveSiteId } = useActiveTenant();
 
   // Navigation & presentation.
-  const [anchor, setAnchor] = useState(todayMadrid());
+  const [anchor, setAnchor] = useState(
+    () => (requestedDate ? resolveMadridDateQuery(requestedDate) : null) ?? todayMadrid(),
+  );
   const [dayCount, setDayCount] = useState<AgendaDayCount>(1);
   const [view, setView] = useState<"grid" | "pipeline" | "list">("grid");
   const [resourceMode, setResourceMode] = useState<ResourceMode>("staff");
@@ -271,6 +275,12 @@ export function AgendaPage() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!requestedDate) return;
+    const date = resolveMadridDateQuery(requestedDate);
+    if (date) setAnchor(date);
+  }, [requestedDate]);
 
   // Creation form. `date` is the day of the appointment being created.
   const [opened, setOpened] = useState(false);

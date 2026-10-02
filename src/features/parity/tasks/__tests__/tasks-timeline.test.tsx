@@ -80,19 +80,19 @@ describe("TasksTimeline", () => {
       mk({ id: "c", position: 3 }),
     ]);
     renderTimeline(api);
-    fireEvent.click(await screen.findByRole("button", { name: "Mover a la izquierda: B" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Mover arriba: B" }));
     await waitFor(() => expect(api.reorder).toHaveBeenCalledWith(["b", "a", "c"]));
     await waitFor(() => expect(titlesInOrder()).toEqual(["B", "A", "C"]));
-    fireEvent.click(screen.getByRole("button", { name: "Mover a la derecha: B" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mover abajo: B" }));
     await waitFor(() => expect(api.reorder).toHaveBeenLastCalledWith(["a", "b", "c"]));
   });
 
-  it("deshabilita mover a la izquierda en la primera y a la derecha en la última", async () => {
+  it("deshabilita mover arriba en la primera y abajo en la última", async () => {
     renderTimeline(makeApi([mk({ id: "a", position: 1 }), mk({ id: "b", position: 2 })]));
-    const up = await screen.findByRole("button", { name: "Mover a la izquierda: A" });
+    const up = await screen.findByRole("button", { name: "Mover arriba: A" });
     expect((up as HTMLButtonElement).disabled).toBe(true);
     expect(
-      (screen.getByRole("button", { name: "Mover a la derecha: B" }) as HTMLButtonElement).disabled,
+      (screen.getByRole("button", { name: "Mover abajo: B" }) as HTMLButtonElement).disabled,
     ).toBe(true);
   });
 
@@ -252,12 +252,12 @@ it("blocks manual reorder while replanning and waiting for refresh", async () =>
   renderTimeline(api);
   fireEvent.click(await screen.findByRole("button", { name: "Volver a planificar 1 tarea" }));
   await waitFor(() => expect(api.reorder).toHaveBeenCalledTimes(1));
-  expect(screen.getByRole("button", { name: "Mover a la derecha: A" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Mover a la derecha: A" }));
+  expect(screen.getByRole("button", { name: "Mover abajo: A" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Mover abajo: A" }));
   expect(api.reorder).toHaveBeenCalledTimes(1);
   release();
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Mover a la derecha: A" })).not.toBeDisabled(),
+    expect(screen.getByRole("button", { name: "Mover abajo: A" })).not.toBeDisabled(),
   );
   cleanup();
 });

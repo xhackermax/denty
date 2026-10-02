@@ -41,6 +41,21 @@ describe("voice router", () => {
     };
     expect(primaryHrefForVoicePlan(resolved)).toBe("/app/patients/patient-1");
   });
+
+  it("opens the requested date in the agenda without implying a write", () => {
+    const preview = previewVoiceCommand("muéstrame las citas de mañana");
+    expect(preview.plan.actions).toContainEqual({
+      type: "navigation.open",
+      destination: "agenda",
+      dateText: "manana",
+    });
+    expect(primaryHrefForVoicePlan(preview.plan)).toMatch(
+      /^\/app\/agenda\?date=\d{4}-\d{2}-\d{2}$/,
+    );
+    expect(preview.plan.actions.some((action) => action.type === "appointment.schedule")).toBe(
+      false,
+    );
+  });
 });
 
 function makePlan(

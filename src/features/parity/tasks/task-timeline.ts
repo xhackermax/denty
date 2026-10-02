@@ -225,6 +225,8 @@ export function buildSchedule(tasks: readonly TimelineTask[], options: ScheduleO
     });
   }
 
+  entries.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+
   for (const a of entries) {
     if (a.task.status === "DONE") continue;
     for (const b of entries) {

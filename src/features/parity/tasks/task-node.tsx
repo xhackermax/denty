@@ -9,8 +9,8 @@ import {
   IconCalendarEvent,
   IconCalendarPlus,
   IconCheck,
-  IconChevronRight,
-  IconChevronLeft,
+  IconChevronDown,
+  IconChevronUp,
   IconPencil,
 } from "@tabler/icons-react";
 import { useState, type DragEvent } from "react";
@@ -155,21 +155,21 @@ export function TaskNode({
             variant="subtle"
             color="gray"
             size="md"
-            aria-label={`Mover a la izquierda: ${task.title}`}
+            aria-label={`Mover arriba: ${task.title}`}
             disabled={isFirst || Boolean(handlers.ordering)}
             onClick={() => handlers.onMove(task.id, -1)}
           >
-            <IconChevronLeft size={18} />
+            <IconChevronUp size={18} />
           </ActionIcon>
           <ActionIcon
             variant="subtle"
             color="gray"
             size="md"
-            aria-label={`Mover a la derecha: ${task.title}`}
+            aria-label={`Mover abajo: ${task.title}`}
             disabled={isLast || Boolean(handlers.ordering)}
             onClick={() => handlers.onMove(task.id, 1)}
           >
-            <IconChevronRight size={18} />
+            <IconChevronDown size={18} />
           </ActionIcon>
           <ActionIcon
             variant="subtle"

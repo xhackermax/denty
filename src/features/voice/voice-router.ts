@@ -1,3 +1,4 @@
+import { resolveMadridDateQuery } from "@/domain/dates";
 import {
   planLocalVoiceCommand,
   voiceReadback,
@@ -19,6 +20,7 @@ const DESTINATIONS: Readonly<Record<string, string>> = {
   agenda: "/app/agenda",
   laboratory: "/app/laboratory",
   finance: "/app/finance",
+  documents: "/app/documents",
   tasks: "/app/tasks",
   settings: "/app/settings",
   admin: "/app/admin",
@@ -92,7 +94,14 @@ export function hrefForVoiceAction(
       ? `/app/patients/${encodeURIComponent(contextPatientId)}/odontogram`
       : "/app/patients";
   }
-  if (action.type === "navigation.open") return DESTINATIONS[action.destination];
+  if (action.type === "navigation.open") {
+    const destination = DESTINATIONS[action.destination];
+    if (action.destination === "agenda" && action.dateText) {
+      const date = resolveMadridDateQuery(action.dateText);
+      if (date) return `/app/agenda?date=${encodeURIComponent(date)}`;
+    }
+    return destination;
+  }
   if (action.type === "navigation.patient") {
     return contextPatientId
       ? `/app/patients/${encodeURIComponent(contextPatientId)}`

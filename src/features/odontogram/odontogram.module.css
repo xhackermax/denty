@@ -208,6 +208,25 @@
   line-height: 1;
 }
 
+.toothLayerMark {
+  max-width: 84px;
+  color: var(--denty-blue);
+  font-size: 0.54rem;
+  font-weight: 760;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.toothLayerMark[data-layer="perio"] {
+  color: var(--denty-orange);
+  font-variant-numeric: tabular-nums;
+}
+
+.toothLayerMark[data-layer="replacement"] {
+  color: var(--denty-violet);
+}
+
 .toothButton[data-arch="upper"] .toothSvg {
   order: 1;
   transform: scaleY(-1);
@@ -1433,6 +1452,125 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
   box-shadow: 0 4px 14px color-mix(in srgb, var(--denty-teal) 18%, transparent);
 }
 
+.layerControls {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--denty-card-solid) 84%, transparent);
+}
+
+.layerToolbar,
+.layerSecondaryActions,
+.layerButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.layerDisclosure {
+  position: relative;
+}
+
+.layerDisclosure > summary {
+  padding: 8px 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  list-style-position: inside;
+}
+
+.layerToggle,
+.layerAction {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 999px;
+  background: var(--denty-card-solid);
+  color: var(--denty-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.layerToggle[data-active="true"] {
+  border-color: color-mix(in srgb, var(--denty-teal) 60%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-teal) 12%, var(--denty-card-solid));
+  font-weight: 750;
+}
+
+.layerToggle[data-filtered="true"] {
+  border-style: dashed;
+}
+
+.layerPreset {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--denty-muted);
+  font-size: 0.84rem;
+}
+
+.layerPreset select {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--denty-line);
+  border-radius: 10px;
+  background: var(--denty-card-solid);
+  color: var(--denty-text);
+  font: inherit;
+}
+
+.layerFilterGroup input {
+  accent-color: var(--denty-teal);
+}
+
+.layerToggle:focus-visible,
+.layerAction:focus-visible,
+.layerPreset select:focus-visible,
+.layerFilterGroup input:focus-visible {
+  outline: 2px solid var(--denty-teal);
+  outline-offset: 2px;
+}
+
+.layerStatus {
+  margin: 0;
+  color: var(--denty-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.layerFilters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.layerFilterGroup {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--denty-line);
+  border-radius: 10px;
+}
+
+.layerFilterGroup legend {
+  padding: 0 4px;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.layerFilterGroup label {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 0.82rem;
+}
+
 .legendCard {
   gap: 10px;
   margin-bottom: 14px;
@@ -1683,4 +1821,26 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
 .supernumeraryCard[data-selected="true"] {
   border-color: var(--denty-blue);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--denty-blue) 18%, transparent);
+}
+
+.layerDisclosure > summary:focus-visible {
+  outline: 2px solid var(--denty-teal);
+  outline-offset: 2px;
+}
+
+.layerEditor {
+  border: 1px solid var(--denty-line);
+  border-radius: 14px;
+  background: var(--denty-card);
+}
+
+.layerEditor > summary {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.layerEditor[open] > summary {
+  border-bottom: 1px solid var(--denty-line);
 }

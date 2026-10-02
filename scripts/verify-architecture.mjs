@@ -13,6 +13,8 @@ const LOCAL_STORAGE_ALLOWLIST = new Set([
   path.normalize("src/app/_components/shell/time-color-scheme-provider.test.tsx"),
   path.normalize("src/app/layout.tsx"),
   path.normalize("src/shared/ui/density-provider.tsx"),
+  path.normalize("src/shared/browser/browser-storage.ts"),
+  path.normalize("src/shared/browser/browser-storage.test.ts"),
   // Remembers the site the reception desk works at (per-browser preference).
   path.normalize("src/shared/tenancy/active-context.tsx"),
   path.normalize("src/shared/ui/shared-ui.test.tsx"),
