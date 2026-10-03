@@ -106,6 +106,30 @@ describe("DashboardCalendar", () => {
     );
   });
 
+  it("names statuses exactly as the agenda does", async () => {
+    mocks.list.mockImplementation(async (date: string) => [
+      {
+        id: "s1",
+        patientId: "p1",
+        startsAt: `${date}T08:00:00Z`,
+        endsAt: `${date}T08:30:00Z`,
+        status: "PLANNED",
+        title: "Revisión",
+      },
+      {
+        id: "s2",
+        patientId: "p2",
+        startsAt: `${date}T09:00:00Z`,
+        endsAt: `${date}T09:30:00Z`,
+        status: "WAITING",
+        title: "Revisión",
+      },
+    ]);
+    mount();
+    expect(await screen.findByText("Pendiente")).toBeInTheDocument();
+    expect(screen.getByText("En sala")).toBeInTheDocument();
+  });
+
   it("says when the chosen day is free", async () => {
     mount();
     fireEvent.click(await screen.findByRole("button", { name: /20 de octubre, sin citas/i }));

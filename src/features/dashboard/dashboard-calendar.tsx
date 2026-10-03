@@ -11,6 +11,8 @@ import { hhmm } from "@/domain/dates";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 
+import { AGENDA_STATUS_META } from "@/features/agenda/agenda-status";
+
 import styles from "./dashboard-calendar.module.css";
 
 const WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"];
@@ -18,18 +20,6 @@ const WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"];
 const MAX_AVATARS = 1;
 // The card is a glance, not the agenda: the next two visits, then a link to the rest.
 const MAX_LISTED = 2;
-
-const STATUS_LABELS: Readonly<Record<string, string>> = {
-  PLANNED: "Planificada",
-  CONFIRMED: "Confirmada",
-  ARRIVED: "Ha llegado",
-  WAITING: "En espera",
-  IN_CHAIR: "En gabinete",
-  COMPLETED: "Atendida",
-  NO_SHOW: "No vino",
-  CANCELLED: "Cancelada",
-  RUNNING_LATE: "Con retraso",
-};
 
 // Grid dates are calendar days, so they are formatted in UTC to avoid shifting a day.
 const monthTitle = new Intl.DateTimeFormat("es-ES", {
@@ -61,6 +51,13 @@ function initials(name: string | undefined): string | null {
     .map((word) => word[0]?.toLocaleUpperCase("es") ?? "")
     .join("");
   return letters || null;
+}
+
+// One vocabulary for appointment states across Denty: the agenda's.
+function statusLabel(status: string): string {
+  return status in AGENDA_STATUS_META
+    ? AGENDA_STATUS_META[status as keyof typeof AGENDA_STATUS_META].label
+    : status;
 }
 
 function countLabel(count: number): string {
@@ -260,7 +257,7 @@ export function DashboardCalendar({
                   {patientName(appointment.patientId) ?? appointment.title}
                 </span>
                 <span className={styles.status} data-status={appointment.status}>
-                  {STATUS_LABELS[appointment.status] ?? appointment.status}
+                  {statusLabel(appointment.status)}
                 </span>
               </li>
             ))}
