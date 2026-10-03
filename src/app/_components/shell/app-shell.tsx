@@ -16,7 +16,6 @@ import {
   moreSections,
   navItemsFor,
   type NavigationItem,
-  type NavigationSection,
 } from "@/features/navigation/catalog";
 import { useResolvedNavigation } from "@/features/navigation/use-navigation-layout";
 import { VoiceCommandBar } from "@/features/voice/voice-command-bar";
@@ -26,11 +25,8 @@ import { OfflineBanner } from "@/shared/ui";
 import { DevicePermissions } from "@/shared/ui/device-permissions";
 
 import styles from "./app-shell.module.css";
+import { MoreMenu, isActive } from "./more-menu";
 import { ShellPreferences } from "./shell-preferences";
-
-function isActive(pathname: string, href: string): boolean {
-  return href === "/app" ? pathname === href : pathname.startsWith(href);
-}
 
 export function DentyAppShell({ children }: { children: ReactNode }) {
   const tNav = useTranslations("Navigation");
@@ -91,33 +87,6 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
     );
   };
 
-  const renderMore = (sections: readonly NavigationSection[]) => (
-    <div className={styles.moreSections}>
-      {sections.map((section) => (
-        <section key={section.key} className={styles.moreSection}>
-          <span className={styles.moreSectionLabel}>{tShell(section.key)}</span>
-          <div className={styles.moreGrid}>
-            {section.items.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  className={styles.moreLink}
-                  data-tone={item.tone}
-                  data-active={isActive(pathname, item.href)}
-                  href={item.href}
-                >
-                  <Icon size={18} aria-hidden={true} />
-                  <span>{tNav(item.key)}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-
   return (
     <div className={styles.root}>
       <MotionAmbientBackdrop />
@@ -139,15 +108,17 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
 
         <nav className={styles.nav}>{sidebarItems.map(renderLink)}</nav>
 
-        <Menu position="right-start" width={320} withinPortal shadow="lg">
-          <Menu.Target>
+        <MoreMenu
+          sections={moreSections(pinned)}
+          pathname={pathname}
+          position="right-start"
+          trigger={
             <button className={`${styles.navLink} ${styles.moreNavButton}`} type="button">
               <IconDots size={20} stroke={1.8} aria-hidden={true} />
               <span className={styles.navLabel}>{tCommon("more")}</span>
             </button>
-          </Menu.Target>
-          <Menu.Dropdown>{renderMore(moreSections(pinned))}</Menu.Dropdown>
-        </Menu>
+          }
+        />
 
         <div className={styles.sidebarBottom}>
           <LogoutButton label={tCommon("logout")} />
@@ -245,15 +216,17 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
             </Link>
           );
         })}
-        <Menu position="top-end" width={320} withinPortal>
-          <Menu.Target>
+        <MoreMenu
+          sections={moreSections(mobileBar)}
+          pathname={pathname}
+          position="top-end"
+          trigger={
             <button className={styles.bottomButton} type="button" aria-label={tNav("moreTools")}>
               <IconDots size={20} aria-hidden={true} />
               <span>{tCommon("more")}</span>
             </button>
-          </Menu.Target>
-          <Menu.Dropdown>{renderMore(moreSections(mobileBar))}</Menu.Dropdown>
-        </Menu>
+          }
+        />
       </nav>
     </div>
   );
