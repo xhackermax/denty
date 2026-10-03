@@ -87,7 +87,6 @@ import {
   type AgendaZoom,
 } from "@/domain";
 import {
-  useAgendaAvailabilityQuery,
   useAgendaBlocksRangeQuery,
   useAgendaContextQuery,
   useAppointmentsRangeQuery,
@@ -315,11 +314,7 @@ export function AgendaPage() {
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
   const [agendaNotice, setAgendaNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingChange | null>(null);
-  const [slotSearch, setSlotSearch] = useState<{
-    date: string;
-    staffId: string;
-    durationMin: number;
-  } | null>(null);
+  const [slotSearchOpened, setSlotSearchOpened] = useState(false);
   const [resizePreview, setResizePreview] = useState<{ id: string; duration: number } | null>(null);
   const resizingRef = useRef<{ id: string; startY: number; initialDuration: number } | null>(null);
   const touchRef = useRef<{ x: number; y: number } | null>(null);
@@ -344,9 +339,6 @@ export function AgendaPage() {
   const moveMutation = useMoveAppointmentMutation();
   const blockMutation = useCreateAgendaBlockMutation();
   const transitions = useAppointmentTransitionMutation(date);
-  const availabilityQuery = useAgendaAvailabilityQuery(
-    slotSearch ? { ...slotSearch, siteId: activeSiteId } : null,
-  );
   const prefetchDays = usePrefetchAppointmentDays();
 
   useEffect(() => {
@@ -380,6 +372,17 @@ export function AgendaPage() {
     [appointmentsQuery.data, patients],
   );
   const staff = useMemo(() => projectApiStaff(contextQuery.data), [contextQuery.data]);
+  const doctorOptions = useMemo(
+    () =>
+      (contextQuery.data?.staff ?? [])
+        .filter((member) => !member.role || member.role === "DENTIST")
+        .map((member) => ({
+          id: member.id,
+          name: member.displayName,
+          hasRota: (member.schedules ?? []).length > 0,
+        })),
+    [contextQuery.data],
+  );
   const sites = useMemo(() => projectApiSites(contextQuery.data), [contextQuery.data]);
   const cabinets = useMemo(
     () =>
@@ -821,28 +824,32 @@ export function AgendaPage() {
     );
   };
 
-  const applySlot = async (slotStartsAt: string) => {
+  // The slot may be on another day or with another doctor than the clashing change.
+  const applySlot = async (slot: { startsAt: string; staffId: string }) => {
     if (!pending) return;
-    const time = hhmm(slotStartsAt);
+    const time = hhmm(slot.startsAt);
+    const slotDate = dateYMDMadrid(slot.startsAt);
     setPending(null);
-    setSlotSearch(null);
+    setSlotSearchOpened(false);
     if (pending.kind === "create") {
-      setDate(pending.date);
+      setDate(slotDate);
       setAppointmentTime(time);
+      setStaffId(slot.staffId);
       setAgendaNotice(`Hueco ${time} seleccionado. Revisa y guarda la cita.`);
       return;
     }
     if (pending.appointment) {
-      const startsAt = madridLocalDateTime(pending.date, time);
+      const startsAt = madridLocalDateTime(slotDate, time);
       await commitMove(
         pending.appointment,
         {
           ...pending.patch,
+          ...(slot.staffId !== pending.staffId ? { staffId: slot.staffId } : {}),
           expectedVersion: pending.appointment.version,
           startsAt: toMadridISO(startsAt),
           endsAt: toMadridISO(addMinutes(startsAt, pending.durationMinutes)),
         },
-        pending.date,
+        slotDate,
       );
     }
   };
@@ -1727,7 +1734,7 @@ export function AgendaPage() {
           opened={pending !== null}
           onClose={() => {
             setPending(null);
-            setSlotSearch(null);
+            setSlotSearchOpened(false);
           }}
           title="Ese hueco no está libre"
         >
@@ -1744,47 +1751,30 @@ export function AgendaPage() {
               <Text size="xs" c="dimmed">
                 Denty no permite dobles reservas del mismo profesional o gabinete.
               </Text>
-              {slotSearch ? (
-                availabilityQuery.isLoading ? (
-                  <Text size="sm">Buscando huecos…</Text>
-                ) : (availabilityQuery.data?.slots ?? []).length ? (
-                  <div className={styles.slotChoices}>
-                    {(availabilityQuery.data?.slots ?? []).slice(0, 12).map((slot) => (
-                      <Button
-                        key={slot.startsAt}
-                        size="xs"
-                        variant="light"
-                        onClick={() => void applySlot(slot.startsAt)}
-                      >
-                        {hhmm(slot.startsAt)}
-                      </Button>
-                    ))}
-                  </div>
-                ) : (
-                  <Text size="sm">No hay huecos libres ese día para esa duración.</Text>
-                )
+              {slotSearchOpened ? (
+                <NextSlotFinder
+                  today={today}
+                  siteId={activeSiteId}
+                  doctors={doctorOptions}
+                  initialStaffId={pending.staffId}
+                  initialDurationMin={pending.durationMinutes}
+                  from={pending.date}
+                  onPick={(slot) => void applySlot(slot)}
+                />
               ) : null}
               <Group justify="flex-end">
                 <Button
                   variant="default"
                   onClick={() => {
                     setPending(null);
-                    setSlotSearch(null);
+                    setSlotSearchOpened(false);
                   }}
                 >
                   Cancelar
                 </Button>
-                <Button
-                  onClick={() =>
-                    setSlotSearch({
-                      date: pending.date,
-                      staffId: pending.staffId,
-                      durationMin: pending.durationMinutes,
-                    })
-                  }
-                >
-                  Buscar otro hueco
-                </Button>
+                {slotSearchOpened ? null : (
+                  <Button onClick={() => setSlotSearchOpened(true)}>Buscar otro hueco</Button>
+                )}
               </Group>
             </Stack>
           ) : null}
@@ -1953,13 +1943,7 @@ export function AgendaPage() {
           <NextSlotFinder
             today={today}
             siteId={activeSiteId}
-            doctors={(contextQuery.data?.staff ?? [])
-              .filter((member) => !member.role || member.role === "DENTIST")
-              .map((member) => ({
-                id: member.id,
-                name: member.displayName,
-                hasRota: (member.schedules ?? []).length > 0,
-              }))}
+            doctors={doctorOptions}
             onPick={(slot, durationMin) => {
               setSlotFinderOpened(false);
               openCreate({ date: dateYMDMadrid(slot.startsAt), minute: 0, staffId: slot.staffId });

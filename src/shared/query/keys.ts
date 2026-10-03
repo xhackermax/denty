@@ -20,9 +20,6 @@ export const dentyQueryKeys = {
     dayRoot: ["denty", "appointments", "day"] as const,
     month: (month: string, siteId?: string | null) =>
       ["denty", "appointments", "month", { month, siteId: siteId ?? null }] as const,
-    availabilityIdle: ["denty", "appointments", "availability", "idle"] as const,
-    availability: (date: string, staffId: string, siteId: string | null, durationMin: number) =>
-      ["denty", "appointments", "availability", { date, staffId, siteId, durationMin }] as const,
     context: ["denty", "appointments", "context"] as const,
     nextSlots: (scope: Record<string, unknown>) =>
       ["denty", "appointments", "next-slots", scope] as const,

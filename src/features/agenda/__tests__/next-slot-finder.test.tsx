@@ -15,7 +15,11 @@ const slot = (startsAt: string, staffId = "ana", staffName = "Dra. Ana") => ({
   staffName,
 });
 
-function mount(api: NextSlotFinderApi, onPick = vi.fn()) {
+function mount(
+  api: NextSlotFinderApi,
+  onPick = vi.fn(),
+  extra: Partial<Parameters<typeof NextSlotFinder>[0]> = {},
+) {
   render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
@@ -30,6 +34,7 @@ function mount(api: NextSlotFinderApi, onPick = vi.fn()) {
             { id: "luis", name: "Dr. Luis", hasRota: false },
           ]}
           onPick={onPick}
+          {...extra}
         />
       </MantineProvider>
     </QueryClientProvider>,
@@ -100,6 +105,26 @@ describe("NextSlotFinder", () => {
     });
     fireEvent.click(await screen.findByRole("button", { name: /16:30/ }));
     expect(onPick).toHaveBeenCalledWith(chosen, 30);
+  });
+
+  it("starts from a given doctor, length and day when resolving a clash", async () => {
+    const nextSlots = vi.fn(async () => ({ part: null, durationMin: 40, slots: [] }));
+    mount({ nextSlots }, vi.fn(), {
+      initialStaffId: "luis",
+      initialDurationMin: 40,
+      from: "2026-10-09",
+    });
+    await waitFor(() =>
+      expect(nextSlots).toHaveBeenCalledWith({
+        durationMin: 40,
+        staffId: "luis",
+        siteId: "site",
+        from: "2026-10-09",
+        limit: 6,
+      }),
+    );
+    expect(screen.getByLabelText("Doctor")).toHaveValue("luis");
+    expect(screen.getByLabelText("Duración")).toHaveValue("40");
   });
 
   it("explains empty results, failures and the default hours of doctors without a rota", async () => {

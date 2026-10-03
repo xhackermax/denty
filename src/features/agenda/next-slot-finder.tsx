@@ -19,6 +19,7 @@ export interface NextSlotQuery {
   durationMin: number;
   staffId?: string;
   siteId?: string;
+  from?: string;
   limit: number;
 }
 
@@ -31,6 +32,12 @@ const browserApi: NextSlotFinderApi = {
 };
 
 const PAGE = 6;
+
+// A resized appointment can last 40 min: keep its length selectable instead of rounding it.
+function durationOptions(current: number): number[] {
+  const standard: number[] = [...ALLOWED_DURATIONS];
+  return standard.includes(current) ? standard : [...standard, current].sort((a, b) => a - b);
+}
 const PART_ICONS = { AM: IconSun, PM: IconMoon } as const;
 
 const dayLabel = new Intl.DateTimeFormat("es-ES", {
@@ -46,6 +53,10 @@ export interface NextSlotFinderProps {
   siteId?: string | null;
   doctors: readonly { id: string; name: string; hasRota: boolean }[];
   onPick: (slot: NextSlot, durationMin: number) => void;
+  initialStaffId?: string;
+  initialDurationMin?: number;
+  /** First day to search (YYYY-MM-DD); defaults to now. */
+  from?: string;
 }
 
 export function NextSlotFinder({
@@ -54,10 +65,13 @@ export function NextSlotFinder({
   siteId,
   doctors,
   onPick,
+  initialStaffId = "",
+  initialDurationMin = 30,
+  from,
 }: NextSlotFinderProps) {
   const [part, setPart] = useState<DayPart | null>(null);
-  const [staffId, setStaffId] = useState("");
-  const [durationMin, setDurationMin] = useState(30);
+  const [staffId, setStaffId] = useState(initialStaffId);
+  const [durationMin, setDurationMin] = useState(initialDurationMin);
   const [limit, setLimit] = useState(PAGE);
 
   const query: NextSlotQuery = {
@@ -65,6 +79,7 @@ export function NextSlotFinder({
     durationMin,
     ...(staffId ? { staffId } : {}),
     ...(siteId ? { siteId } : {}),
+    ...(from ? { from } : {}),
     limit,
   };
   const slots = useQuery({
@@ -129,7 +144,7 @@ export function NextSlotFinder({
             setDurationMin(Number(event.currentTarget.value));
             setLimit(PAGE);
           }}
-          data={ALLOWED_DURATIONS.map((minutes) => ({
+          data={durationOptions(durationMin).map((minutes) => ({
             value: String(minutes),
             label: `${minutes} min`,
           }))}

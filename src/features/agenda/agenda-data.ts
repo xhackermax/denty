@@ -52,31 +52,6 @@ export function usePrefetchAppointmentDays() {
   };
 }
 
-export function useAgendaAvailabilityQuery(
-  input: { date: string; staffId: string; siteId: string | null; durationMin: number } | null,
-) {
-  return useQuery({
-    queryKey: input
-      ? dentyQueryKeys.appointments.availability(
-          input.date,
-          input.staffId,
-          input.siteId,
-          input.durationMin,
-        )
-      : dentyQueryKeys.appointments.availabilityIdle,
-    queryFn: () => {
-      if (!input) throw new Error("Availability query without input");
-      return getBrowserApi().agenda.availability({
-        date: input.date,
-        staffId: input.staffId,
-        ...(input.siteId ? { siteId: input.siteId } : {}),
-        durationMin: input.durationMin,
-      });
-    },
-    enabled: Boolean(input),
-  });
-}
-
 export function useCreateAgendaBlockMutation() {
   const queryClient = useQueryClient();
   return useMutation({
