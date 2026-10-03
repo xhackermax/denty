@@ -25,6 +25,9 @@ import { useActiveTenant } from "@/shared/tenancy/active-context";
 import { PageHeader } from "@/shared/ui";
 import styles from "@/shared/ui/parity.module.css";
 
+import { DashboardCalendar } from "./dashboard-calendar";
+import layout from "./dashboard-layout.module.css";
+
 const QUICK = [
   ["Pacientes", "Abrir ficha", "/app/patients", IconUsers, "teal"],
   ["Agenda", "Ver el día", "/app/agenda", IconCalendar, "green"],
@@ -87,94 +90,109 @@ export function Dashboard() {
         </section>
       )}
 
-      <MotionScrollReveal intensity="normal">
-        <div className={styles.dashboardNowGrid}>
-          <MotionPressable intensity="expressive" className={styles.nowCardMotion}>
-            <section className={styles.nowCard} data-tone="green">
-              <div className={styles.nowCardHeader}>
-                <Badge color="green" variant="light">
-                  En gabinete
-                </Badge>
-                <MotionParallax className={styles.nowIcon} intensity="subtle">
-                  <IconMicroscope size={18} />
-                </MotionParallax>
-              </div>
-              <h3>{patientName(current?.patientId)}</h3>
-              <p>
-                {current?.reason ?? current?.title ?? "No hay una cita activa en este momento."}
-              </p>
-              <Button component="a" href="/app/agenda" size="xs">
-                Agenda
-              </Button>
-            </section>
-          </MotionPressable>
-          <MotionPressable intensity="expressive" className={styles.nowCardMotion}>
-            <section className={styles.nowCard} data-tone="amber">
-              <div className={styles.nowCardHeader}>
-                <Badge color="yellow" variant="light">
-                  Siguiente
-                </Badge>
-                <MotionParallax className={styles.nowIcon} intensity="subtle">
-                  <IconCalendar size={18} />
-                </MotionParallax>
-              </div>
-              <h3>{next ? patientName(next.patientId) : "Jornada despejada"}</h3>
-              <p>{next?.reason ?? next?.title ?? "No hay otra cita pendiente en sala."}</p>
-              <Button component="a" href="/app/agenda" size="xs" variant="light">
-                Ver
-              </Button>
-            </section>
-          </MotionPressable>
-          {canReadAlerts ? (
-            <MotionPressable intensity="expressive" className={styles.nowCardMotion}>
-              <section className={styles.nowCard} data-tone="red">
-                <div className={styles.nowCardHeader}>
-                  <Badge color="red" variant="light">
-                    Atención
-                  </Badge>
-                  <MotionParallax className={styles.nowIcon} intensity="subtle">
-                    <IconClipboardCheck size={18} />
-                  </MotionParallax>
-                </div>
-                <h3>{alerts.data?.openCount ?? 0} alertas</h3>
-                <p>Solo alertas persistidas que requieren seguimiento.</p>
-                <Button component="a" href="/app/alerts" size="xs" variant="light">
-                  Revisar
-                </Button>
-              </section>
-            </MotionPressable>
-          ) : null}
-        </div>
-      </MotionScrollReveal>
-
-      <MotionScrollReveal intensity="normal" delay={0.04}>
-        <section className={styles.quickSection} aria-label="Acciones rápidas">
-          <div className={styles.quickSectionHeader}>
-            <div>
-              <h2>Rápido</h2>
-              <p>Lo más usado.</p>
-            </div>
-          </div>
-          <div className={styles.quickActionGrid}>
-            {QUICK.map(([title, description, href, Icon, tone]) => (
-              <MotionPressable key={title} intensity="normal" className={styles.quickActionMotion}>
-                <Link className={styles.quickAction} data-tone={tone} href={href}>
-                  <span className={styles.quickActionIcon}>
-                    <Icon size={20} aria-hidden={true} />
-                  </span>
-                  <span className={styles.quickActionTitle}>{title}</span>
-                  <span className={styles.quickActionDescription}>{description}</span>
-                  <IconChevronRight
-                    className={styles.quickActionChevron}
-                    size={17}
-                    aria-hidden={true}
-                  />
-                </Link>
+      <div className={layout.main}>
+        <div className={layout.primary}>
+          <MotionScrollReveal intensity="normal">
+            <div className={styles.dashboardNowGrid}>
+              <MotionPressable intensity="expressive" className={styles.nowCardMotion}>
+                <section className={styles.nowCard} data-tone="green">
+                  <div className={styles.nowCardHeader}>
+                    <Badge color="green" variant="light">
+                      En gabinete
+                    </Badge>
+                    <MotionParallax className={styles.nowIcon} intensity="subtle">
+                      <IconMicroscope size={18} />
+                    </MotionParallax>
+                  </div>
+                  <h3>{patientName(current?.patientId)}</h3>
+                  <p>
+                    {current?.reason ?? current?.title ?? "No hay una cita activa en este momento."}
+                  </p>
+                  <Button component="a" href="/app/agenda" size="xs">
+                    Agenda
+                  </Button>
+                </section>
               </MotionPressable>
-            ))}
-          </div>
-        </section>
-      </MotionScrollReveal>
+              <MotionPressable intensity="expressive" className={styles.nowCardMotion}>
+                <section className={styles.nowCard} data-tone="amber">
+                  <div className={styles.nowCardHeader}>
+                    <Badge color="yellow" variant="light">
+                      Siguiente
+                    </Badge>
+                    <MotionParallax className={styles.nowIcon} intensity="subtle">
+                      <IconCalendar size={18} />
+                    </MotionParallax>
+                  </div>
+                  <h3>{next ? patientName(next.patientId) : "Jornada despejada"}</h3>
+                  <p>{next?.reason ?? next?.title ?? "No hay otra cita pendiente en sala."}</p>
+                  <Button component="a" href="/app/agenda" size="xs" variant="light">
+                    Ver
+                  </Button>
+                </section>
+              </MotionPressable>
+              {canReadAlerts ? (
+                <MotionPressable intensity="expressive" className={styles.nowCardMotion}>
+                  <section className={styles.nowCard} data-tone="red">
+                    <div className={styles.nowCardHeader}>
+                      <Badge color="red" variant="light">
+                        Atención
+                      </Badge>
+                      <MotionParallax className={styles.nowIcon} intensity="subtle">
+                        <IconClipboardCheck size={18} />
+                      </MotionParallax>
+                    </div>
+                    <h3>{alerts.data?.openCount ?? 0} alertas</h3>
+                    <p>Solo alertas persistidas que requieren seguimiento.</p>
+                    <Button component="a" href="/app/alerts" size="xs" variant="light">
+                      Revisar
+                    </Button>
+                  </section>
+                </MotionPressable>
+              ) : null}
+            </div>
+          </MotionScrollReveal>
+
+          <MotionScrollReveal intensity="normal" delay={0.04}>
+            <section className={styles.quickSection} aria-label="Acciones rápidas">
+              <div className={styles.quickSectionHeader}>
+                <div>
+                  <h2>Rápido</h2>
+                  <p>Lo más usado.</p>
+                </div>
+              </div>
+              <div className={styles.quickActionGrid}>
+                {QUICK.map(([title, description, href, Icon, tone]) => (
+                  <MotionPressable
+                    key={title}
+                    intensity="normal"
+                    className={styles.quickActionMotion}
+                  >
+                    <Link className={styles.quickAction} data-tone={tone} href={href}>
+                      <span className={styles.quickActionIcon}>
+                        <Icon size={20} aria-hidden={true} />
+                      </span>
+                      <span className={styles.quickActionTitle}>{title}</span>
+                      <span className={styles.quickActionDescription}>{description}</span>
+                      <IconChevronRight
+                        className={styles.quickActionChevron}
+                        size={17}
+                        aria-hidden={true}
+                      />
+                    </Link>
+                  </MotionPressable>
+                ))}
+              </div>
+            </section>
+          </MotionScrollReveal>
+        </div>
+        <aside className={layout.side} aria-label="Calendario">
+          <DashboardCalendar
+            today={day}
+            siteId={activeSiteId}
+            patientName={(id) => names.get(id)}
+          />
+        </aside>
+      </div>
 
       <details className={styles.disclosure}>
         <summary>

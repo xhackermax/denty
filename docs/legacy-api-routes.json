@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas din\u00e1micas verificadas en source",
-  "routeCount": 253,
+  "routeCount": 254,
   "routes": [
     {
       "method": "GET",
@@ -266,6 +266,12 @@
       "kind": "legacy_bug",
       "correctedPath": "/api/agenda/schedule-plan-item/:planItemId",
       "note": "El handler 2.3.7 declara Params.planItemId sin incluir :planItemId en la URL."
+    },
+    {
+      "method": "GET",
+      "path": "/api/agenda/month-summary",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
     },
     {
       "method": "GET",

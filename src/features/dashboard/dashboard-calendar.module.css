@@ -1,0 +1,228 @@
+.card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-card);
+  background: var(--denty-card);
+  box-shadow: var(--denty-card-shadow);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+}
+
+.subtitle {
+  margin: 2px 0 0;
+  color: var(--denty-muted);
+  font-size: 0.8rem;
+}
+
+.monthBar {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+.monthTitle {
+  font-weight: 700;
+  text-align: center;
+}
+
+.grid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.weekday {
+  color: var(--denty-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  aspect-ratio: 1 / 1.08;
+  padding: 6px;
+  border: 0;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--denty-text) 5%, transparent);
+  color: var(--denty-text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.day:hover {
+  background: color-mix(in srgb, var(--denty-text) 10%, transparent);
+}
+
+.day:focus-visible {
+  outline: 2px solid var(--denty-blue);
+  outline-offset: 2px;
+}
+
+.day[data-outside="true"] {
+  opacity: 0.38;
+}
+
+.day[data-today="true"] {
+  background: color-mix(in srgb, var(--denty-green) 32%, transparent);
+}
+
+.day[data-selected="true"] {
+  background: var(--denty-text);
+  color: var(--denty-bg);
+}
+
+.number {
+  margin-top: auto;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.people {
+  display: flex;
+  overflow: hidden;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.avatar,
+.more {
+  display: grid;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-left: -5px;
+  border: 2px solid var(--denty-card-solid);
+  border-radius: 999px;
+  background: var(--denty-blue);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 800;
+  place-items: center;
+}
+
+.people > :first-child {
+  margin-left: 0;
+}
+
+.avatar:nth-child(2) {
+  background: var(--denty-violet);
+}
+
+.more {
+  background: var(--denty-card-solid);
+  color: var(--denty-text);
+}
+
+.dayPanel {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--denty-line);
+}
+
+.dayHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dayTitle {
+  font-size: 0.9rem;
+}
+
+.dayCount,
+.empty {
+  margin: 0;
+  color: var(--denty-muted);
+  font-size: 0.8rem;
+}
+
+.list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--denty-text) 4%, transparent);
+  font-size: 0.85rem;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.patient {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--denty-glow);
+  color: var(--denty-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.status[data-status="IN_CHAIR"],
+.status[data-status="ARRIVED"] {
+  background: color-mix(in srgb, var(--denty-green) 20%, transparent);
+  color: var(--denty-green);
+}
+
+.openDay {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 4px;
+  min-height: 36px;
+  color: var(--denty-blue);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day {
+    transition: none;
+  }
+}

@@ -1,3 +1,8 @@
+import {
+  monthBoundsMadrid,
+  summarizeAppointmentsByDay,
+  type MonthDaySummary,
+} from "@/domain/agenda/month-calendar";
 import { addDaysMadrid, madridLocalDateTime, toMadridISO } from "@/domain/dates";
 import type { Appointment, CreateAppointment, UpdateAppointment } from "@/shared/api";
 import type { CreateAgendaBlock, CreateWaitlistEntry } from "@/shared/api/schemas/agenda";
@@ -164,6 +169,37 @@ export class AgendaRepository {
     }
     const rows = await this.client.select<AppointmentRow>("appointments", query);
     return this.attachClinicalContext(rows.map(mapAppointment));
+  }
+
+  /** Counts per day for a month; reads three columns instead of whole appointments. */
+  async monthSummary(
+    month: string,
+    siteId?: string,
+  ): Promise<{ month: string; days: MonthDaySummary[] }> {
+    const { start, end } = monthBoundsMadrid(month);
+    const query: Record<string, string> = {
+      select: "starts_at,patient_id,status",
+      clinic_id: `eq.${this.clinicId}`,
+      starts_at: `gte.${start}`,
+      and: `(starts_at.lt.${end})`,
+      order: "starts_at.asc",
+    };
+    if (siteId) query.site_id = `eq.${siteId}`;
+    const rows = await this.client.select<{
+      starts_at: string;
+      patient_id: string;
+      status: string;
+    }>("appointments", query);
+    return {
+      month,
+      days: summarizeAppointmentsByDay(
+        rows.map((row) => ({
+          startsAt: row.starts_at,
+          patientId: row.patient_id,
+          status: row.status,
+        })),
+      ),
+    };
   }
 
   /**

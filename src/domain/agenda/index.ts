@@ -205,3 +205,4 @@ export * from "./rota";
 export * from "./view";
 
 export * from "./treatment-options";
+export * from "./month-calendar";

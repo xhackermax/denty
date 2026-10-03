@@ -219,3 +219,14 @@ export const waitTimeMetricsSchema = z.object({
 });
 export type CreateAgendaBlock = z.input<typeof createAgendaBlockSchema>;
 export type CreateWaitlistEntry = z.input<typeof createWaitlistEntrySchema>;
+
+export const agendaMonthSummarySchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/),
+  days: z.array(
+    z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      count: z.number().int().nonnegative(),
+      patientIds: z.array(z.string()),
+    }),
+  ),
+});

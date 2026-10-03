@@ -9,6 +9,7 @@ import {
   agendaBlocksSchema,
   agendaContextSchema,
   agendaGameStatusSchema,
+  agendaMonthSummarySchema,
   agendaSettingsSchema,
   updateAgendaSettingsSchema,
   waitTimeMetricsSchema,
@@ -45,6 +46,11 @@ export function createAgendaResource(client: ApiClient) {
         ),
     },
     context: () => client.request("/api/agenda/context", agendaContextSchema),
+    monthSummary: (month: string, siteId?: string) =>
+      client.request(
+        withQuery("/api/agenda/month-summary", { month, siteId }),
+        agendaMonthSummarySchema,
+      ),
     gameStatus: () => client.request("/api/agenda/game-status", agendaGameStatusSchema),
     settings: {
       get: (staffId?: string) =>

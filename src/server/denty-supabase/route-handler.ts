@@ -1790,6 +1790,22 @@ export async function handleSupabaseDentyRoute(
       parts.length === 3 &&
       parts[0] === "api" &&
       parts[1] === "agenda" &&
+      parts[2] === "month-summary" &&
+      method === "GET"
+    ) {
+      if (identity.actor.role === "PATIENT")
+        return error(403, "FORBIDDEN", "El resumen de agenda es solo para el equipo.");
+      const url = new URL(request.url);
+      const month = url.searchParams.get("month") ?? "";
+      if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month))
+        return error(400, "INVALID_MONTH", "Indica el mes con el formato AAAA-MM.");
+      const siteId = url.searchParams.get("siteId") ?? undefined;
+      return json(200, await agenda.monthSummary(month, siteId), headers);
+    }
+    if (
+      parts.length === 3 &&
+      parts[0] === "api" &&
+      parts[1] === "agenda" &&
       parts[2] === "context" &&
       method === "GET"
     ) {

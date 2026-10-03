@@ -18,6 +18,8 @@ export const dentyQueryKeys = {
     blocks: (date: string, siteId?: string | null) =>
       ["denty", "appointments", "blocks", { date, siteId: siteId ?? null }] as const,
     dayRoot: ["denty", "appointments", "day"] as const,
+    month: (month: string, siteId?: string | null) =>
+      ["denty", "appointments", "month", { month, siteId: siteId ?? null }] as const,
     availabilityIdle: ["denty", "appointments", "availability", "idle"] as const,
     availability: (date: string, staffId: string, siteId: string | null, durationMin: number) =>
       ["denty", "appointments", "availability", { date, staffId, siteId, durationMin }] as const,
