@@ -11,6 +11,7 @@ import {
   agendaGameStatusSchema,
   agendaMonthSummarySchema,
   agendaSettingsSchema,
+  nextSlotsSchema,
   updateAgendaSettingsSchema,
   waitTimeMetricsSchema,
   cancelCascadeResultSchema,
@@ -66,6 +67,14 @@ export function createAgendaResource(client: ApiClient) {
     waitTimeMetrics: (query: { from: string; to: string; siteId?: string; staffId?: string }) =>
       client.request(withQuery("/api/analytics/wait-times", query), waitTimeMetricsSchema),
 
+    nextSlots: (query: {
+      part?: "AM" | "PM";
+      durationMin?: number;
+      staffId?: string;
+      siteId?: string;
+      from?: string;
+      limit?: number;
+    }) => client.request(withQuery("/api/agenda/next-slots", query), nextSlotsSchema),
     availability: (query: {
       date?: string;
       staffId?: string;

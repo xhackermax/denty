@@ -24,6 +24,8 @@ export const dentyQueryKeys = {
     availability: (date: string, staffId: string, siteId: string | null, durationMin: number) =>
       ["denty", "appointments", "availability", { date, staffId, siteId, durationMin }] as const,
     context: ["denty", "appointments", "context"] as const,
+    nextSlots: (scope: Record<string, unknown>) =>
+      ["denty", "appointments", "next-slots", scope] as const,
     settings: ["denty", "appointments", "settings"] as const,
   },
   clinical: {

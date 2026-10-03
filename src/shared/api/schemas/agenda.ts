@@ -230,3 +230,17 @@ export const agendaMonthSummarySchema = z.object({
     }),
   ),
 });
+
+export const nextSlotSchema = z.object({
+  startsAt: z.coerce.string(),
+  endsAt: z.coerce.string(),
+  staffId: idSchema,
+  staffName: z.string().min(1),
+});
+
+export const nextSlotsSchema = z.object({
+  part: z.enum(["AM", "PM"]).nullable(),
+  durationMin: z.number().int().positive(),
+  slots: z.array(nextSlotSchema),
+});
+export type NextSlot = z.infer<typeof nextSlotSchema>;

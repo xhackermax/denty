@@ -34,6 +34,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconClipboard,
+  IconClockSearch,
   IconCopy,
   IconDotsVertical,
   IconFirstAidKit,
@@ -108,6 +109,7 @@ import {
 import { AgendaAppointmentCard } from "./agenda-appointment-card";
 import { AgendaMiniCalendar } from "./agenda-mini-calendar";
 import { AgendaQuickView, type QuickViewEdit } from "./agenda-quick-view";
+import { NextSlotFinder } from "./next-slot-finder";
 import { AGENDA_STATUS_META } from "./agenda-status";
 import styles from "./agenda.module.css";
 import parityStyles from "@/shared/ui/parity.module.css";
@@ -301,6 +303,7 @@ export function AgendaPage() {
 
   // Blocks.
   const [blockOpened, setBlockOpened] = useState(false);
+  const [slotFinderOpened, setSlotFinderOpened] = useState(false);
   const [blockKind, setBlockKind] = useState("MEETING");
   const [blockReason, setBlockReason] = useState("");
   const [blockFrom, setBlockFrom] = useState("14:00");
@@ -1267,6 +1270,15 @@ export function AgendaPage() {
 
       <span className={styles.toolbarSpacer} />
 
+      <Button
+        size="xs"
+        variant="light"
+        leftSection={<IconClockSearch size={15} />}
+        onClick={() => setSlotFinderOpened(true)}
+      >
+        Próximo hueco
+      </Button>
+
       <TextInput
         ref={searchRef}
         size="xs"
@@ -1931,6 +1943,31 @@ export function AgendaPage() {
               </Button>
             </Group>
           </Stack>
+        </Modal>
+
+        <Modal
+          opened={slotFinderOpened}
+          onClose={() => setSlotFinderOpened(false)}
+          title="Próximo hueco libre"
+        >
+          <NextSlotFinder
+            today={today}
+            siteId={activeSiteId}
+            doctors={(contextQuery.data?.staff ?? [])
+              .filter((member) => !member.role || member.role === "DENTIST")
+              .map((member) => ({
+                id: member.id,
+                name: member.displayName,
+                hasRota: (member.schedules ?? []).length > 0,
+              }))}
+            onPick={(slot, durationMin) => {
+              setSlotFinderOpened(false);
+              openCreate({ date: dateYMDMadrid(slot.startsAt), minute: 0, staffId: slot.staffId });
+              // openCreate expects minutes after the grid's first hour; set the exact time instead.
+              setAppointmentTime(hhmm(slot.startsAt));
+              setAppointmentDuration(durationMin);
+            }}
+          />
         </Modal>
 
         <Modal opened={blockOpened} onClose={() => setBlockOpened(false)} title="Bloquear agenda">

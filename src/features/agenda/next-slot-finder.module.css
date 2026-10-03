@@ -1,0 +1,39 @@
+.parts {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.parts :global(.mantine-Button-label) {
+  overflow: visible;
+}
+
+.results {
+  display: grid;
+  gap: 6px;
+}
+
+/* Mantine wraps the label; lay day · time · doctor out as one row that truncates the name. */
+.slot :global(.mantine-Button-label) {
+  display: grid;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  grid-template-columns: 7.5em 3.2em minmax(0, 1fr);
+  text-align: left;
+}
+
+.day {
+  font-weight: 600;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.doctor {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

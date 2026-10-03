@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas din\u00e1micas verificadas en source",
-  "routeCount": 257,
+  "routeCount": 258,
   "routes": [
     {
       "method": "GET",
@@ -271,6 +271,12 @@
       "method": "GET",
       "path": "/api/agenda/month-summary",
       "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agenda/next-slots",
+      "source": "src/server/denty-supabase/next-slots-route.ts",
       "kind": "browser"
     },
     {

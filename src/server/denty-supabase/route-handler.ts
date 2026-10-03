@@ -1,6 +1,7 @@
 import { handlePerioDraftsRoute } from "./perio-drafts-route";
 import { handleDiagnosesRoute } from "./diagnoses-route";
 import { handleNavigationRoute } from "./navigation-route";
+import { handleNextSlotsRoute } from "./next-slots-route";
 import { ExportRepository } from "./export-repository";
 import { exportFile } from "./export-file";
 import { z } from "zod";
@@ -2669,6 +2670,13 @@ export async function handleSupabaseDentyRoute(
         headers,
       );
     }
+    if (
+      parts.length === 3 &&
+      parts[0] === "api" &&
+      parts[1] === "agenda" &&
+      parts[2] === "next-slots"
+    )
+      return await handleNextSlotsRoute(request, identity, headers);
     if (parts[0] === "api" && parts[1] === "navigation" && parts[2] === "layout")
       return await handleNavigationRoute(request, parts, identity, headers);
     if (parts[0] === "api" && parts[1] === "patients" && parts[3] === "perio-draft")
