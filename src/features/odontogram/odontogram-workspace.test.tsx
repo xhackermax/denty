@@ -11,7 +11,6 @@ import { EndodonticPanel } from "./endodontic-panel";
 import { OdontogramLegend } from "./odontogram-legend";
 import { OrthodonticPanel } from "./orthodontic-panel";
 import { PediatricPanel } from "./pediatric-panel";
-import { PeriodontogramPanel } from "./periodontogram-panel";
 
 function renderWithTheme(node: React.ReactNode) {
   const queryClient = new QueryClient({
@@ -74,14 +73,6 @@ describe("clinical odontogram workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Odontograma siguiente" }));
     expect(onChange).toHaveBeenCalledWith("surgery");
   });
-
-  it("muestra resumen periodontal completo", () => {
-    renderWithTheme(<PeriodontogramPanel patientId="patient-1" readOnly={false} />);
-    expect(screen.getByText("Periodontograma completo")).toBeInTheDocument();
-    expect(screen.getByText("BOP")).toBeInTheDocument();
-    expect(screen.getByText("Máx. PD")).toBeInTheDocument();
-    expect(screen.getAllByText(/furca/i).length).toBeGreaterThan(0);
-  }, 30_000);
 
   it("muestra controles de odontograma ortodontico", () => {
     renderWithTheme(

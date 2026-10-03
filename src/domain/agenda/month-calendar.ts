@@ -71,8 +71,15 @@ export function summarizeAppointmentsByDay(
   return [...days.values()].sort((left, right) => left.date.localeCompare(right.date));
 }
 
-/** Whole Monday-first weeks covering the month. Days step from noon so DST never skips one. */
-export function buildMonthGrid(month: string, today: string): MonthGridDay[][] {
+/**
+ * Whole Monday-first weeks covering the month. Days step from noon so DST never skips one.
+ * `minWeeks` pads with next-month days so a calendar keeps one height from month to month.
+ */
+export function buildMonthGrid(
+  month: string,
+  today: string,
+  options: { minWeeks?: number } = {},
+): MonthGridDay[][] {
   parseMonth(month);
   const first = `${month}-01`;
   const leading = (weekdayMadrid(first) + 6) % 7;
@@ -80,7 +87,7 @@ export function buildMonthGrid(month: string, today: string): MonthGridDay[][] {
     addDaysMadrid(madridLocalDateTime(`${shiftMonth(month, 1)}-01`, "12:00"), -1),
   );
   const daysInMonth = Number(lastDay.slice(8));
-  const total = Math.ceil((leading + daysInMonth) / 7) * 7;
+  const total = Math.max(Math.ceil((leading + daysInMonth) / 7), options.minWeeks ?? 0) * 7;
   const start = addDaysMadrid(madridLocalDateTime(first, "12:00"), -leading);
   const weeks: MonthGridDay[][] = [];
   for (let index = 0; index < total; index += 1) {

@@ -86,6 +86,14 @@ describe("buildMonthGrid", () => {
     expect(days.find((day) => day.date === "2026-10-31")?.inMonth).toBe(true);
   });
 
+  it("pads to a minimum number of weeks so side calendars keep their height", () => {
+    // February 2027 starts on Monday and spans exactly four weeks.
+    expect(buildMonthGrid("2027-02", "2027-02-01")).toHaveLength(4);
+    const padded = buildMonthGrid("2027-02", "2027-02-01", { minWeeks: 6 });
+    expect(padded).toHaveLength(6);
+    expect(padded.at(-1)?.at(-1)).toMatchObject({ date: "2027-03-14", inMonth: false });
+  });
+
   it("never skips or repeats a day across daylight-saving changes", () => {
     for (const month of ["2026-03", "2026-10"]) {
       const dates = buildMonthGrid(month, "2026-01-01")

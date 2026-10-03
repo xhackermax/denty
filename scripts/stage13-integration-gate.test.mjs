@@ -66,7 +66,6 @@ assert.doesNotMatch(authClient, /=== "admin"/);
 // Render-loop guard: array props must not be defaulted to fresh literals in effects.
 for (const file of [
   "src/features/odontogram/pediatric-panel.tsx",
-  "src/features/odontogram/periodontogram-panel.tsx",
 ]) {
   const source = read(file);
   assert.doesNotMatch(

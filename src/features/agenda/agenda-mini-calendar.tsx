@@ -4,7 +4,7 @@ import { ActionIcon, Group, Text, UnstyledButton } from "@mantine/core";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
 
-import { addDaysYMD, rangeStartFor } from "@/domain";
+import { buildMonthGrid, monthOf, shiftMonth } from "@/domain/agenda";
 import { todayMadrid } from "@/domain/dates";
 import styles from "./agenda.module.css";
 
@@ -24,12 +24,6 @@ const MONTHS = [
 ];
 const WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"];
 
-function shiftMonth(month: string, delta: number): string {
-  const [year = 0, index = 1] = month.split("-").map(Number);
-  const total = year * 12 + (index - 1) + delta;
-  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}`;
-}
-
 export function AgendaMiniCalendar({
   selected,
   visible,
@@ -39,11 +33,10 @@ export function AgendaMiniCalendar({
   visible: readonly string[];
   onSelect: (date: string) => void;
 }) {
-  const [month, setMonth] = useState(selected.slice(0, 7));
+  const [month, setMonth] = useState(monthOf(selected));
   const [year = 0, monthIndex = 1] = month.split("-").map(Number);
-  const gridStart = rangeStartFor(`${month}-01`, 7);
-  const days = Array.from({ length: 42 }, (_, index) => addDaysYMD(gridStart, index));
-  const today = todayMadrid();
+  // Six rows always: the side panel must not change height between months.
+  const days = buildMonthGrid(month, todayMadrid(), { minWeeks: 6 }).flat();
   const visibleSet = new Set(visible);
 
   return (
@@ -75,18 +68,18 @@ export function AgendaMiniCalendar({
             {day}
           </span>
         ))}
-        {days.map((day) => (
+        {days.map(({ date, inMonth, isToday }) => (
           <UnstyledButton
-            key={day}
+            key={date}
             className={styles.miniCalendarDay}
-            data-outside={!day.startsWith(month)}
-            data-today={day === today}
-            data-visible={visibleSet.has(day)}
-            data-selected={day === selected}
-            aria-label={day}
-            onClick={() => onSelect(day)}
+            data-outside={!inMonth}
+            data-today={isToday}
+            data-visible={visibleSet.has(date)}
+            data-selected={date === selected}
+            aria-label={date}
+            onClick={() => onSelect(date)}
           >
-            {Number(day.slice(8))}
+            {Number(date.slice(8))}
           </UnstyledButton>
         ))}
       </div>
