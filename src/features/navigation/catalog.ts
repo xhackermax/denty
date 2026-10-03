@@ -18,23 +18,9 @@ import {
 } from "@tabler/icons-react";
 import type { ComponentType } from "react";
 
-export type NavigationKey =
-  | "home"
-  | "patients"
-  | "agenda"
-  | "laboratory"
-  | "prescriptions"
-  | "communications"
-  | "documents"
-  | "finance"
-  | "clinic-contacts"
-  | "analysis"
-  | "campaigns"
-  | "alerts"
-  | "attendance"
-  | "settings"
-  | "tasks"
-  | "admin";
+import { NAVIGATION_KEYS, type NavigationKey } from "@/domain/navigation";
+
+export type { NavigationKey };
 
 export type NavigationTone = "teal" | "blue" | "green" | "amber" | "violet" | "cyan";
 
@@ -46,7 +32,7 @@ export interface NavigationItem {
 }
 
 export interface NavigationSection {
-  key: "clinicalTools" | "management" | "system";
+  key: "general" | "clinicalTools" | "management" | "system";
   items: readonly NavigationItem[];
 }
 
@@ -89,4 +75,37 @@ export const SECONDARY_NAV: readonly NavigationItem[] = [
   ...CLINICAL_NAV,
   ...MANAGEMENT_NAV,
   ...SYSTEM_NAV,
+];
+
+const ALL_NAV: readonly NavigationItem[] = [...PRIMARY_NAV, ...SECONDARY_NAV];
+
+export const NAV_ITEMS = Object.fromEntries(
+  ALL_NAV.map((item) => [item.key, item] as const),
+) as Readonly<Record<NavigationKey, NavigationItem>>;
+
+export const navItemsFor = (keys: readonly NavigationKey[]): NavigationItem[] =>
+  keys.map((key) => NAV_ITEMS[key]);
+
+/** “Más” lists every section minus what is already a tap away in the bar. */
+export function moreSections(visible: readonly NavigationKey[]): NavigationSection[] {
+  const shown = new Set(visible);
+  const hidden = NAVIGATION_KEYS.filter((key) => !shown.has(key)).map((key) => NAV_ITEMS[key]);
+  const sectionOf = (item: NavigationItem) =>
+    NAV_SECTIONS.find((section) => section.items.includes(item))?.key ?? "general";
+  const groups = new Map<NavigationSection["key"], NavigationItem[]>();
+  for (const item of hidden) {
+    const key = sectionOf(item);
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  return SECTION_ORDER.filter((key) => groups.has(key)).map((key) => ({
+    key,
+    items: groups.get(key) ?? [],
+  }));
+}
+
+const SECTION_ORDER: readonly NavigationSection["key"][] = [
+  "general",
+  "clinicalTools",
+  "management",
+  "system",
 ];

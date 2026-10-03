@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { ChangePasswordForm } from "@/features/auth";
+import { NavigationLayoutEditor } from "@/features/navigation/navigation-layout-editor";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
@@ -114,6 +115,14 @@ export function SettingsModule() {
           onChange={(value) => setVisitGapDays(typeof value === "number" ? value : 7)}
           suffix=" días"
         />
+      </section>
+
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>Tu menú</h3>
+        <p className={styles.sectionDescription}>
+          Ordena los apartados del menú lateral a tu gusto. Solo cambia para ti.
+        </p>
+        <NavigationLayoutEditor scope="me" />
       </section>
 
       <section className={styles.section}>

@@ -89,6 +89,7 @@ export const dentyQueryKeys = {
     waitTimes: (scope: Record<string, unknown> = {}) =>
       ["denty", "analytics", "wait-times", scope] as const,
   },
+  navigation: { layout: ["denty", "navigation", "layout"] as const },
   dashboard: { root: root("dashboard"), today: ["denty", "dashboard", "today"] as const },
   settings: {
     root: root("settings"),

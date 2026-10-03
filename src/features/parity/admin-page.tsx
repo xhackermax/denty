@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import styles from "@/shared/ui/parity.module.css";
 import { PageHeader } from "@/shared/ui";
+import { NavigationLayoutEditor } from "@/features/navigation/navigation-layout-editor";
+
 import { AdminExportPanel } from "./admin-export-panel";
 import { AdminUsersPanel } from "./admin-users-panel";
 import { AdminPaymentTerminalsPanel } from "./admin-payment-terminals-panel";
@@ -12,7 +14,7 @@ import { AdminTreatmentCatalogPanel } from "./admin-treatment-catalog-panel";
 export function AdminPage({
   section = "home",
 }: {
-  section?: "home" | "users" | "catalog" | "sites" | "payments" | "export";
+  section?: "home" | "users" | "catalog" | "sites" | "payments" | "export" | "navigation";
 }) {
   return (
     <div className={styles.grid}>
@@ -29,7 +31,9 @@ export function AdminPage({
                   ? "Cobros y datáfonos"
                   : section === "export"
                     ? "Exportar datos"
-                    : "Catálogo"
+                    : section === "navigation"
+                      ? "Menú de la clínica"
+                      : "Catálogo"
         }
         description="Usuarios, sedes y configuración."
       />
@@ -67,6 +71,12 @@ export function AdminPage({
             <span className={styles.cardLinkTitle}>Exportar datos</span>
             <span className={styles.cardLinkDescription}>Pacientes, citas y tratamientos</span>
           </Link>
+          <Link className={styles.cardLink} href="/app/admin/navigation">
+            <span className={styles.cardLinkTitle}>Menú de la clínica</span>
+            <span className={styles.cardLinkDescription}>
+              Orden del menú lateral por defecto; cada usuario puede personalizar el suyo
+            </span>
+          </Link>
           <Link className={styles.cardLink} href="/app/settings">
             <span className={styles.cardLinkTitle}>Seguridad y privacidad</span>
             <span className={styles.cardLinkDescription}>Sesiones, RGPD, copias y receta</span>
@@ -78,6 +88,15 @@ export function AdminPage({
       {section === "sites" ? <AdminSitesPanel /> : null}
       {section === "payments" ? <AdminPaymentTerminalsPanel /> : null}
       {section === "export" ? <AdminExportPanel /> : null}
+      {section === "navigation" ? (
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Orden por defecto</h3>
+          <p className={styles.sectionDescription}>
+            Lo verá todo el equipo salvo quien haya personalizado su menú en Ajustes.
+          </p>
+          <NavigationLayoutEditor scope="clinic" />
+        </section>
+      ) : null}
     </div>
   );
 }

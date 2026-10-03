@@ -9,7 +9,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
+import { MOBILE_BAR_SIZE, splitForBar } from "@/domain/navigation";
 import { LogoutButton } from "@/features/auth";
+import {
+  NAV_ITEMS,
+  moreSections,
+  navItemsFor,
+  type NavigationItem,
+  type NavigationSection,
+} from "@/features/navigation/catalog";
+import { useResolvedNavigation } from "@/features/navigation/use-navigation-layout";
 import { VoiceCommandBar } from "@/features/voice/voice-command-bar";
 import { MotionAmbientBackdrop, MotionPage } from "@/shared/motion";
 import { resolveRouteTransition } from "@/shared/motion/route-transition";
@@ -17,7 +26,6 @@ import { OfflineBanner } from "@/shared/ui";
 import { DevicePermissions } from "@/shared/ui/device-permissions";
 
 import styles from "./app-shell.module.css";
-import { NAV_SECTIONS, PRIMARY_NAV, SECONDARY_NAV } from "./navigation";
 import { ShellPreferences } from "./shell-preferences";
 
 function isActive(pathname: string, href: string): boolean {
@@ -39,11 +47,16 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
     previousPathnameRef.current = pathname;
   }, [pathname]);
 
-  const currentItem = [...PRIMARY_NAV, ...SECONDARY_NAV]
+  const { pinned } = useResolvedNavigation();
+  const sidebarItems = navItemsFor(pinned);
+  const mobileBar = splitForBar(pinned, MOBILE_BAR_SIZE).bar;
+  const mobileItems = navItemsFor(mobileBar);
+
+  const currentItem = Object.values(NAV_ITEMS)
     .sort((left, right) => right.href.length - left.href.length)
     .find((item) => isActive(pathname, item.href));
 
-  const renderLink = (item: (typeof PRIMARY_NAV)[number] | (typeof SECONDARY_NAV)[number]) => {
+  const renderLink = (item: NavigationItem) => {
     const Icon = item.icon;
     const active = isActive(pathname, item.href);
 
@@ -78,9 +91,9 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
     );
   };
 
-  const moreMenuContents = (
+  const renderMore = (sections: readonly NavigationSection[]) => (
     <div className={styles.moreSections}>
-      {NAV_SECTIONS.map((section) => (
+      {sections.map((section) => (
         <section key={section.key} className={styles.moreSection}>
           <span className={styles.moreSectionLabel}>{tShell(section.key)}</span>
           <div className={styles.moreGrid}>
@@ -124,7 +137,7 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
           </span>
         </Link>
 
-        <nav className={styles.nav}>{PRIMARY_NAV.map(renderLink)}</nav>
+        <nav className={styles.nav}>{sidebarItems.map(renderLink)}</nav>
 
         <Menu position="right-start" width={320} withinPortal shadow="lg">
           <Menu.Target>
@@ -133,7 +146,7 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
               <span className={styles.navLabel}>{tCommon("more")}</span>
             </button>
           </Menu.Target>
-          <Menu.Dropdown>{moreMenuContents}</Menu.Dropdown>
+          <Menu.Dropdown>{renderMore(moreSections(pinned))}</Menu.Dropdown>
         </Menu>
 
         <div className={styles.sidebarBottom}>
@@ -199,7 +212,7 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
       </main>
 
       <nav className={styles.bottomNav} aria-label={tShell("clinic")}>
-        {PRIMARY_NAV.map((item) => {
+        {mobileItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(pathname, item.href);
 
@@ -239,9 +252,7 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
               <span>{tCommon("more")}</span>
             </button>
           </Menu.Target>
-          <Menu.Dropdown>
-            <div className={styles.moreSections}>{moreMenuContents}</div>
-          </Menu.Dropdown>
+          <Menu.Dropdown>{renderMore(moreSections(mobileBar))}</Menu.Dropdown>
         </Menu>
       </nav>
     </div>

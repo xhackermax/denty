@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas din\u00e1micas verificadas en source",
-  "routeCount": 255,
+  "routeCount": 258,
   "routes": [
     {
       "method": "GET",
@@ -271,6 +271,24 @@
       "method": "GET",
       "path": "/api/agenda/month-summary",
       "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/navigation/layout",
+      "source": "src/server/denty-supabase/navigation-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/navigation/layout/clinic",
+      "source": "src/server/denty-supabase/navigation-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/navigation/layout/me",
+      "source": "src/server/denty-supabase/navigation-route.ts",
       "kind": "browser"
     },
     {

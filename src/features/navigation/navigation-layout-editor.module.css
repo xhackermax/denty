@@ -1,0 +1,72 @@
+.editor {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid var(--denty-line);
+  border-radius: 12px;
+  background: var(--denty-card);
+}
+
+.position {
+  width: 18px;
+  color: var(--denty-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: center;
+}
+
+.label {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.name,
+.hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--denty-muted);
+  font-size: 0.7rem;
+}
+
+.actions {
+  flex: none;
+}
+
+.rest {
+  display: grid;
+  gap: 8px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
