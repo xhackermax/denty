@@ -436,20 +436,19 @@
     position: static;
   }
 }
-@media (prefers-color-scheme: dark) {
-  .ov {
-    --ov-bg: #101722;
-    --ov-panel: #182231;
-    --ov-text: #e3eaf4;
-    --ov-muted: #a4b3c7;
-    --ov-border: #334258;
-    --ov-accent: #8cb5ff;
-    --ov-selected: #243959;
-    --ov-observed: #422923;
-    --ov-planned: #332745;
-    --ov-completed: #203b33;
-  }
-  .ov .ov-edit {
-    color: #101722;
-  }
+/* Follow the theme chosen in Denty, not the operating system. */
+:root[data-mantine-color-scheme="dark"] .ov {
+  --ov-bg: #101722;
+  --ov-panel: #182231;
+  --ov-text: #e3eaf4;
+  --ov-muted: #a4b3c7;
+  --ov-border: #334258;
+  --ov-accent: #8cb5ff;
+  --ov-selected: #243959;
+  --ov-observed: #422923;
+  --ov-planned: #332745;
+  --ov-completed: #203b33;
+}
+:root[data-mantine-color-scheme="dark"] .ov .ov-edit {
+  color: #101722;
 }

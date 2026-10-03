@@ -1,6 +1,9 @@
 "use client";
 import { QuickDiagnosisBar } from "@/features/diagnosis/quick-diagnosis-bar";
 import { deriveMouthState } from "@/domain/odontogram/mouth-state";
+import OdontogramVisual from "./visual/odontogram-visual";
+import { OdontogramViewSwitch } from "./visual/odontogram-view-switch";
+import { toVisualDentition, toVisualTeeth } from "./visual/visual-adapter";
 import { MouthStateProvider } from "./mouth-state-context";
 import { MouthMiniMap } from "./mouth-mini-map";
 import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
@@ -1319,6 +1322,7 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   );
   const expectedVersion = historical ? undefined : query.data.version;
   const birthDate = patientQuery.data?.birthDate ?? undefined;
+  const mouth = deriveMouthState(initialEntities, birthDate ? { birthDate } : {});
   const editorKey = selectedSnapshot
     ? `snapshot-${selectedSnapshot.id}`
     : `${query.data.id ?? patientId}-${expectedVersion ?? 0}`;
@@ -1329,31 +1333,43 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
         opened={treatmentFlowOpen}
         onClose={() => setTreatmentFlowOpen(false)}
       />
-      <OdontogramEditor
-        perioOwner={perioOwner}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        key={`${editorKey}-${initialSection}-${initialAction ?? "default"}`}
-        patientId={patientId}
-        initialSection={initialSection}
-        {...(initialAction ? { initialAction } : {})}
-        {...(birthDate === undefined ? {} : { birthDate })}
-        initialEntities={initialEntities}
-        initialPeriodontal={initialPeriodontal}
-        expectedVersion={expectedVersion}
-        saving={saveMutation.isPending}
-        saveError={saveMutation.error}
-        historical={historical}
-        historicalLabel={selectedSnapshot?.label ?? undefined}
-        selectedSnapshotId={selectedSnapshotId}
-        onSelectSnapshot={(snapshotId) => setSelectedSnapshotId(snapshotId ?? undefined)}
-        onSave={async (entities) => {
-          if (expectedVersion === undefined) return;
-          await saveMutation.mutateAsync({ expectedVersion, entities });
-          // New caries or treatments: carry on straight to plan, budget and appointments.
-          if (hasNewTreatmentWork(currentEntities, entities)) setTreatmentFlowOpen(true);
-        }}
-        onOpenTreatmentFlow={() => setTreatmentFlowOpen(true)}
+      <OdontogramViewSwitch
+        editor={
+          <OdontogramEditor
+            perioOwner={perioOwner}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            key={`${editorKey}-${initialSection}-${initialAction ?? "default"}`}
+            patientId={patientId}
+            initialSection={initialSection}
+            {...(initialAction ? { initialAction } : {})}
+            {...(birthDate === undefined ? {} : { birthDate })}
+            initialEntities={initialEntities}
+            initialPeriodontal={initialPeriodontal}
+            expectedVersion={expectedVersion}
+            saving={saveMutation.isPending}
+            saveError={saveMutation.error}
+            historical={historical}
+            historicalLabel={selectedSnapshot?.label ?? undefined}
+            selectedSnapshotId={selectedSnapshotId}
+            onSelectSnapshot={(snapshotId) => setSelectedSnapshotId(snapshotId ?? undefined)}
+            onSave={async (entities) => {
+              if (expectedVersion === undefined) return;
+              await saveMutation.mutateAsync({ expectedVersion, entities });
+              // New caries or treatments: carry on straight to plan, budget and appointments.
+              if (hasNewTreatmentWork(currentEntities, entities)) setTreatmentFlowOpen(true);
+            }}
+            onOpenTreatmentFlow={() => setTreatmentFlowOpen(true)}
+          />
+        }
+        visual={(openEditor) => (
+          <OdontogramVisual
+            recordKey={editorKey}
+            teeth={toVisualTeeth(initialEntities, initialPeriodontal, mouth)}
+            dentition={toVisualDentition(mouth)}
+            onEdit={openEditor}
+          />
+        )}
       />
     </>
   );
