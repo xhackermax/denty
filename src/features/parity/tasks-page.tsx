@@ -9,6 +9,7 @@ import {
 } from "@tabler/icons-react";
 import Link from "next/link";
 
+import type { TasksApi } from "./tasks/task-types";
 import { TasksTimeline } from "./tasks/tasks-timeline";
 import styles from "./tasks-page.module.css";
 
@@ -20,7 +21,7 @@ const QUICK_ACTIONS = [
   { title: "Laboratorio", href: "/app/laboratory", icon: IconFlask },
 ] as const;
 
-export function TasksPage() {
+export function TasksPage({ tasksApi }: { tasksApi?: TasksApi } = {}) {
   return (
     <div className={styles.workspace}>
       <nav className={styles.quickActions} aria-label="Acciones rápidas">
@@ -37,7 +38,7 @@ export function TasksPage() {
         </div>
       </nav>
       <section className={styles.tasksPanel} aria-label="Tareas">
-        <TasksTimeline />
+        <TasksTimeline {...(tasksApi ? { api: tasksApi } : {})} />
       </section>
     </div>
   );

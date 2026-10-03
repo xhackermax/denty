@@ -614,6 +614,23 @@
   font-size: 0.85rem;
 }
 
+/* Phones: the card already shows its time range, so the time column gives its width to the card. */
+@media (width < 48em) {
+  .item {
+    gap: 0 8px;
+    grid-template-columns: 28px 34px minmax(0, 1fr);
+  }
+
+  .item > .time {
+    display: none;
+  }
+
+  .card,
+  .gap {
+    grid-column: 3;
+  }
+}
+
 @media (width >= 48em) {
   .dock {
     bottom: 16px;
