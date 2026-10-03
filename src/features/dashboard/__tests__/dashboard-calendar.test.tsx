@@ -87,6 +87,25 @@ describe("DashboardCalendar", () => {
     );
   });
 
+  it("shows only the next two appointments and links to the rest", async () => {
+    mocks.list.mockImplementation(async (date: string) =>
+      ["08:00", "09:00", "10:00", "11:00"].map((time, index) => ({
+        id: `b${index}`,
+        patientId: index % 2 ? "p2" : "p1",
+        startsAt: `${date}T${time}:00Z`,
+        endsAt: `${date}T${time}:30Z`,
+        status: "CONFIRMED",
+        title: "Revisión",
+      })),
+    );
+    mount();
+    expect(await screen.findAllByRole("listitem")).toHaveLength(2);
+    expect(screen.getByRole("link", { name: "Ver 2 citas más" })).toHaveAttribute(
+      "href",
+      "/app/agenda?date=2026-10-03",
+    );
+  });
+
   it("says when the chosen day is free", async () => {
     mount();
     fireEvent.click(await screen.findByRole("button", { name: /20 de octubre, sin citas/i }));

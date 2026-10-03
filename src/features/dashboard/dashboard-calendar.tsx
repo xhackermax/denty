@@ -14,9 +14,10 @@ import { dentyQueryKeys } from "@/shared/query";
 import styles from "./dashboard-calendar.module.css";
 
 const WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"];
-// A day tile is ~44 px wide on phones and in the side column: one face plus a count fits.
+// A day tile is ~38 px wide: one face plus a count fits.
 const MAX_AVATARS = 1;
-const MAX_LISTED = 5;
+// The card is a glance, not the agenda: the next two visits, then a link to the rest.
+const MAX_LISTED = 2;
 
 const STATUS_LABELS: Readonly<Record<string, string>> = {
   PLANNED: "Planificada",
@@ -116,21 +117,23 @@ export function DashboardCalendar({
     [summary.data],
   );
   const monthTotal = (summary.data?.days ?? []).reduce((total, day) => total + day.count, 0);
-  const visible = (dayAppointments.data ?? [])
-    .filter((appointment) => appointment.status !== "CANCELLED")
-    .slice(0, MAX_LISTED);
-  const selectedCount = byDay.get(selected)?.count ?? visible.length;
+  const active = (dayAppointments.data ?? []).filter(
+    (appointment) => appointment.status !== "CANCELLED",
+  );
+  const visible = active.slice(0, MAX_LISTED);
+  const hidden = active.length - visible.length;
+  const selectedCount = byDay.get(selected)?.count ?? active.length;
 
   return (
     <section className={styles.card} aria-labelledby="dashboard-calendar-title">
       <header className={styles.header}>
-        <div>
+        <div className={styles.heading}>
           <h2 className={styles.title} id="dashboard-calendar-title">
             Agenda
           </h2>
           <p className={styles.subtitle}>
             {summary.isLoading
-              ? "Cargando el mes…"
+              ? "Cargando…"
               : summary.isError
                 ? "No se pudo cargar el mes."
                 : `${countLabel(monthTotal)} este mes`}
@@ -141,35 +144,38 @@ export function DashboardCalendar({
           href={`/app/agenda?date=${selected}`}
           variant="default"
           radius="xl"
-          size="lg"
           aria-label="Abrir agenda"
         >
-          <IconArrowUpRight size={18} />
+          <IconArrowUpRight size={15} />
         </ActionIcon>
       </header>
 
       <div className={styles.monthBar}>
         <ActionIcon
-          variant="default"
+          variant="subtle"
+          color="gray"
           radius="xl"
+          size="sm"
           aria-label="Mes anterior"
           onClick={() => setMonth((current) => shiftMonth(current, -1))}
         >
-          <IconChevronLeft size={16} />
+          <IconChevronLeft size={15} />
         </ActionIcon>
         <span className={styles.monthTitle}>
           {sentence(monthTitle.format(asDate(`${month}-01`)))}
         </span>
         <ActionIcon
-          variant="default"
+          variant="subtle"
+          color="gray"
           radius="xl"
+          size="sm"
           aria-label="Mes siguiente"
           onClick={() => setMonth((current) => shiftMonth(current, 1))}
         >
-          <IconChevronRight size={16} />
+          <IconChevronRight size={15} />
         </ActionIcon>
         <Button
-          size="compact-sm"
+          size="compact-xs"
           variant="subtle"
           radius="xl"
           onClick={() => {
@@ -230,7 +236,14 @@ export function DashboardCalendar({
       <div className={styles.dayPanel} aria-live="polite">
         <div className={styles.dayHeader}>
           <strong className={styles.dayTitle}>{sentence(longDay.format(asDate(selected)))}</strong>
-          <span className={styles.dayCount}>{countLabel(selectedCount)}</span>
+          <Link
+            className={styles.openDay}
+            href={`/app/agenda?date=${selected}`}
+            aria-label={`Abrir la agenda del ${dayMonth.format(asDate(selected))}`}
+          >
+            {countLabel(selectedCount)}
+            <IconArrowUpRight size={13} aria-hidden="true" />
+          </Link>
         </div>
         {dayAppointments.isLoading ? (
           <p className={styles.empty}>Cargando citas…</p>
@@ -253,14 +266,11 @@ export function DashboardCalendar({
             ))}
           </ul>
         )}
-        <Link
-          className={styles.openDay}
-          href={`/app/agenda?date=${selected}`}
-          aria-label={`Abrir la agenda del ${dayMonth.format(asDate(selected))}`}
-        >
-          Abrir la agenda de este día
-          <IconArrowUpRight size={15} aria-hidden="true" />
-        </Link>
+        {hidden > 0 ? (
+          <Link className={styles.moreLink} href={`/app/agenda?date=${selected}`}>
+            Ver {hidden === 1 ? "1 cita más" : `${hidden} citas más`}
+          </Link>
+        ) : null}
       </div>
     </section>
   );
