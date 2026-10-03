@@ -11,6 +11,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
+import { IconBrandFacebook, IconBrandGoogle } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { getBrowserApi } from "@/shared/api/browser";
@@ -18,6 +19,11 @@ import { dentyQueryKeys } from "@/shared/query";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import styles from "@/shared/ui/parity.module.css";
 import { ActionErrorAlert } from "./action-error-alert";
+
+const AD_PLATFORMS = [
+  { label: "Google Ads", href: "https://ads.google.com", icon: IconBrandGoogle },
+  { label: "Meta Ads", href: "https://business.facebook.com", icon: IconBrandFacebook },
+] as const;
 
 export function CampaignsModule() {
   const qc = useQueryClient();
@@ -55,6 +61,27 @@ export function CampaignsModule() {
   return (
     <Stack gap="md">
       <ActionErrorAlert errors={[createCampaign.error, status.error]} />
+      <section className={styles.section}>
+        <Text fw={700}>Plataformas publicitarias</Text>
+        <Text size="sm" c="dimmed">
+          Abre tus cuentas de anuncios en una pestaña nueva.
+        </Text>
+        <Group mt="sm">
+          {AD_PLATFORMS.map(({ label, href, icon: Icon }) => (
+            <Button
+              key={href}
+              component="a"
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="light"
+              leftSection={<Icon size={18} />}
+            >
+              {label}
+            </Button>
+          ))}
+        </Group>
+      </section>
       {canManageCampaigns ? (
         <section className={styles.section}>
           <Text fw={700}>Nueva campaña</Text>
