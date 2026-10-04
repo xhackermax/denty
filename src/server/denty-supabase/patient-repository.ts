@@ -646,7 +646,6 @@ function currentPeriodontalMeasurements(
   return [...latest.values()];
 }
 
-
 function createRecordNumber(): string {
   return `DNT-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto
     .randomUUID()

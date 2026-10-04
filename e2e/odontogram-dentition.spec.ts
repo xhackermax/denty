@@ -51,7 +51,9 @@ test("a four-year-old's chart has only primary teeth", async ({ page }) => {
     timeout: 15_000,
   });
   const saved = (await fakeSupabase.state()).dental_entities!;
-  expect(saved.some((row) => row.active && row.tooth === "85" && row.entity_type === "CARIES")).toBe(true);
+  expect(
+    saved.some((row) => row.active && row.tooth === "85" && row.entity_type === "CARIES"),
+  ).toBe(true);
   expect(failures).toEqual([]);
 });
 

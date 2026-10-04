@@ -206,15 +206,12 @@ export class ClinicalRepository {
 
   async getClinicalSync(patientId: string): Promise<ClinicalSyncState> {
     const [entities, snapshots, plans, budgets, odontogramVersion] = await Promise.all([
-      this.client.select<{ status: string; created_at: string }>(
-        "dental_entities",
-        {
-          select: "status,created_at",
-          patient_id: `eq.${patientId}`,
-          active: "eq.true",
-          order: "created_at.desc",
-        },
-      ),
+      this.client.select<{ status: string; created_at: string }>("dental_entities", {
+        select: "status,created_at",
+        patient_id: `eq.${patientId}`,
+        active: "eq.true",
+        order: "created_at.desc",
+      }),
       this.client.select<{ id: string }>("odontogram_snapshots", {
         select: "id",
         patient_id: `eq.${patientId}`,

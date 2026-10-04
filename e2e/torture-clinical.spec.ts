@@ -12,29 +12,59 @@ test.beforeEach(async ({ context, baseURL }) => {
   await signIn(context, baseURL!);
 });
 
-for (const entityType of ["SURGERY", "BONE_GRAFT", "MEMBRANE", "SINUS_LIFT", "SURGICAL_LESION", "IMPLANT_COMPONENT", "PROSTHETIC_STRUCTURE", "PERIODONTAL_FINDING"]) {
-  test(`RG005 reload persisted ${entityType} without losing the odontogram editor`, async ({ page }, info) => {
+for (const entityType of [
+  "SURGERY",
+  "BONE_GRAFT",
+  "MEMBRANE",
+  "SINUS_LIFT",
+  "SURGICAL_LESION",
+  "IMPLANT_COMPONENT",
+  "PROSTHETIC_STRUCTURE",
+  "PERIODONTAL_FINDING",
+]) {
+  test(`RG005 reload persisted ${entityType} without losing the odontogram editor`, async ({
+    page,
+  }, info) => {
     const failures = await isolatePage(page);
     // Seed the external backend, then exercise the actual Next route, decoder and React editor.
     const inserted = await fetch(`${backend}/rest/v1/dental_entities`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: entityId, clinic_id: clinic, patient_id: PATIENT_ID,
-        tooth: "36", entity_type: entityType, status: "planned", active: true,
-        version: 2, surfaces_json: [], attributes_json: {}, parent_id: null,
-        created_at: new Date().toISOString() }),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: entityId,
+        clinic_id: clinic,
+        patient_id: PATIENT_ID,
+        tooth: "36",
+        entity_type: entityType,
+        status: "planned",
+        active: true,
+        version: 2,
+        surfaces_json: [],
+        attributes_json: {},
+        parent_id: null,
+        created_at: new Date().toISOString(),
+      }),
     });
     expect(inserted.ok).toBe(true);
     await page.goto(editor);
     try {
-      await expect(page.getByRole("button", { name: "Diente 36 superficie oclusal", exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Diente 36 superficie oclusal", exact: true }),
+      ).toBeVisible();
       expect(failures).toEqual([]);
     } finally {
       const screenshot = info.outputPath("persisted-entity-reload.png");
       await page.screenshot({ path: screenshot, fullPage: true });
-      await info.attach("persisted-entity-reload.png", { path: screenshot, contentType: "image/png" });
+      await info.attach("persisted-entity-reload.png", {
+        path: screenshot,
+        contentType: "image/png",
+      });
       const errors = info.outputPath("javascript-errors.json");
       await writeFile(errors, JSON.stringify(failures));
-      await info.attach("javascript-errors.json", { path: errors, contentType: "application/json" });
+      await info.attach("javascript-errors.json", {
+        path: errors,
+        contentType: "application/json",
+      });
     }
   });
 }
@@ -48,22 +78,35 @@ for (const [name, entity] of [
 ] as const) {
   test(`BD API rejects ${name} before any database write`, async ({ context, baseURL }, info) => {
     const response = await context.request.post(`/api/patients/${PATIENT_ID}/odontogram/batch`, {
-      headers: { Origin: baseURL! }, data: { expectedVersion: 1, entities: [{ id: entityId, ...entity, active: true }] },
+      headers: { Origin: baseURL! },
+      data: { expectedVersion: 1, entities: [{ id: entityId, ...entity, active: true }] },
     });
     const responsePath = info.outputPath("api-response.json");
-    await writeFile(responsePath, JSON.stringify({ status: response.status(), body: await response.json() }));
+    await writeFile(
+      responsePath,
+      JSON.stringify({ status: response.status(), body: await response.json() }),
+    );
     await info.attach("api-response.json", { path: responsePath, contentType: "application/json" });
     expect(response.status()).toBe(400);
     expect((await fakeSupabase.state()).dental_entities).toHaveLength(0);
   });
 }
 
-test("SQ snapshot selection before autosave preserves the pending clinical edit", async ({ page }, info) => {
+test("SQ snapshot selection before autosave preserves the pending clinical edit", async ({
+  page,
+}, info) => {
   const inserted = await fetch(`${backend}/rest/v1/odontogram_snapshots`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: entityId, clinic_id: clinic, patient_id: PATIENT_ID,
-      label: "Control previo", version: 1, created_at: new Date().toISOString(),
-      payload_json: { version: 1, entities: [], periodontal: [] } }),
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: entityId,
+      clinic_id: clinic,
+      patient_id: PATIENT_ID,
+      label: "Control previo",
+      version: 1,
+      created_at: new Date().toISOString(),
+      payload_json: { version: 1, entities: [], periodontal: [] },
+    }),
   });
   expect(inserted.ok).toBe(true);
   const failures = await isolatePage(page);
@@ -91,11 +134,20 @@ test("RG002 undo the final saved finding persists an empty odontogram", async ({
   const failures = await isolatePage(page);
   await page.goto(editor);
   await page.getByRole("button", { name: "Diente 36 superficie oclusal", exact: true }).click();
-  await expect(page.getByText("Guardado · plan y presupuesto al día", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Guardado · plan y presupuesto al día", { exact: true })).toBeVisible(
+    { timeout: 15_000 },
+  );
   await page.getByRole("button", { name: "Deshacer", exact: true }).click();
   try {
-    await expect(page.getByText("Guardado · plan y presupuesto al día", { exact: true })).toBeVisible({ timeout: 15_000 });
-    await expect.poll(async () => (await fakeSupabase.state()).dental_entities?.filter(row => row.active).length).toBe(0);
+    await expect(
+      page.getByText("Guardado · plan y presupuesto al día", { exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect
+      .poll(
+        async () =>
+          (await fakeSupabase.state()).dental_entities?.filter((row) => row.active).length,
+      )
+      .toBe(0);
     await page.reload();
     await expect(page.getByText("v3", { exact: true })).toBeVisible();
     expect(failures).toEqual([]);

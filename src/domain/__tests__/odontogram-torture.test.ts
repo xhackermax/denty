@@ -25,7 +25,12 @@ import {
   isSurgicalSite,
   isEndoCandidate,
 } from "../odontogram/mouth-state";
-import { dentalEntitySchema, odontogramBatchSchema, periodontalMeasurementSchema, createOdontogramSnapshotSchema } from "@/shared/api/schemas/clinical";
+import {
+  dentalEntitySchema,
+  odontogramBatchSchema,
+  periodontalMeasurementSchema,
+  createOdontogramSnapshotSchema,
+} from "@/shared/api/schemas/clinical";
 import { validatePeriodontalReading } from "@/domain/periodontal";
 import {
   domainEntityToApiInput,
@@ -57,26 +62,50 @@ function roundtrip(value: DentalEntity): DentalEntity {
 
 describe("BOUNDARIES: odontogram torture", () => {
   it.each([1, 120])("BD snapshot label permitted length %i", (length) => {
-    expect(createOdontogramSnapshotSchema.safeParse({ label: "a".repeat(length) }).success).toBe(true);
+    expect(createOdontogramSnapshotSchema.safeParse({ label: "a".repeat(length) }).success).toBe(
+      true,
+    );
   });
-  it.each(["", "   ", "a".repeat(121)])("BD snapshot label rejects empty/over-limit %j", (label) => {
-    expect(createOdontogramSnapshotSchema.safeParse({ label }).success).toBe(false);
-  });
+  it.each(["", "   ", "a".repeat(121)])(
+    "BD snapshot label rejects empty/over-limit %j",
+    (label) => {
+      expect(createOdontogramSnapshotSchema.safeParse({ label }).success).toBe(false);
+    },
+  );
   it.each([
-    { probingDepth: 16 }, { probingDepth: 1_000_000_000 },
-    { recession: -6 }, { recession: 16 }, { mobility: 4 }, { furcation: 4 },
+    { probingDepth: 16 },
+    { probingDepth: 1_000_000_000 },
+    { recession: -6 },
+    { recession: 16 },
+    { mobility: 4 },
+    { furcation: 4 },
   ])("BD API and domain both reject out-of-range periodontal measurement %j", (variation) => {
-    const reading = { tooth: "36", site: "MV" as const, probingDepth: 3, recession: 0, bleeding: false, plaque: false, ...variation };
+    const reading = {
+      tooth: "36",
+      site: "MV" as const,
+      probingDepth: 3,
+      recession: 0,
+      bleeding: false,
+      plaque: false,
+      ...variation,
+    };
     expect(() => validatePeriodontalReading(reading)).toThrow(RangeError);
     expect(periodontalMeasurementSchema.safeParse(reading).success).toBe(false);
   });
-  it.each([{ probingDepth: 0, recession: -5, mobility: 0, furcation: 0 }, { probingDepth: 15, recession: 15, mobility: 3, furcation: 3 }])(
-    "BD valid periodontal minimum and maximum %j", (variation) => {
-      const reading = { tooth: "36", site: "MV" as const, bleeding: false, plaque: false, ...variation };
-      expect(() => validatePeriodontalReading(reading)).not.toThrow();
-      expect(periodontalMeasurementSchema.safeParse(reading).success).toBe(true);
-    },
-  );
+  it.each([
+    { probingDepth: 0, recession: -5, mobility: 0, furcation: 0 },
+    { probingDepth: 15, recession: 15, mobility: 3, furcation: 3 },
+  ])("BD valid periodontal minimum and maximum %j", (variation) => {
+    const reading = {
+      tooth: "36",
+      site: "MV" as const,
+      bleeding: false,
+      plaque: false,
+      ...variation,
+    };
+    expect(() => validatePeriodontalReading(reading)).not.toThrow();
+    expect(periodontalMeasurementSchema.safeParse(reading).success).toBe(true);
+  });
   it.each(["11", "18", "41", "48", "51", "55", "81", "85"])(
     "BD001 valid FDI boundary %s",
     (tooth) => {
@@ -150,32 +179,52 @@ describe("BOUNDARIES: odontogram torture", () => {
 });
 
 describe("SEQUENCES: odontogram torture", () => {
-  it.each(["ABC", "ACB", "BAC"])("SQ action order %s is reversible (A=create, B=edit, C=deactivate)", (ordering) => {
-    let history = emptyHistory();
-    const states = [history.present];
-    for (const action of ordering) {
-      if (action === "B" && !history.present.entitiesById[entity().id]) {
-        const before = history.present;
-        expect(() => executeOdontogramCommand(history, { type: "SET_ENTITY_STATUS", entityId: entity().id, status: "filling" })).toThrow(RangeError);
-        expect(history.present).toBe(before);
-        continue;
+  it.each(["ABC", "ACB", "BAC"])(
+    "SQ action order %s is reversible (A=create, B=edit, C=deactivate)",
+    (ordering) => {
+      let history = emptyHistory();
+      const states = [history.present];
+      for (const action of ordering) {
+        if (action === "B" && !history.present.entitiesById[entity().id]) {
+          const before = history.present;
+          expect(() =>
+            executeOdontogramCommand(history, {
+              type: "SET_ENTITY_STATUS",
+              entityId: entity().id,
+              status: "filling",
+            }),
+          ).toThrow(RangeError);
+          expect(history.present).toBe(before);
+          continue;
+        }
+        const next = executeOdontogramCommand(
+          history,
+          action === "A"
+            ? { type: "UPSERT_ENTITY", entity: entity() }
+            : action === "B"
+              ? { type: "SET_ENTITY_STATUS", entityId: entity().id, status: "filling" }
+              : { type: "DEACTIVATE_ENTITY", entityId: entity().id },
+        );
+        if (next !== history) states.push(next.present);
+        history = next;
       }
-      const next = executeOdontogramCommand(history, action === "A"
-        ? { type: "UPSERT_ENTITY", entity: entity() }
-        : action === "B" ? { type: "SET_ENTITY_STATUS", entityId: entity().id, status: "filling" }
-          : { type: "DEACTIVATE_ENTITY", entityId: entity().id });
-      if (next !== history) states.push(next.present);
-      history = next;
-    }
-    expect(Object.keys(history.present.entitiesById)).toHaveLength(1);
-    for (let index = states.length - 2; index >= 0; index--) {
-      history = undoHistory(history);
-      expect(history.present).toEqual(states[index]);
-    }
-  });
+      expect(Object.keys(history.present.entitiesById)).toHaveLength(1);
+      for (let index = states.length - 2; index >= 0; index--) {
+        history = undoHistory(history);
+        expect(history.present).toEqual(states[index]);
+      }
+    },
+  );
   it("SQ create-edit-delete-create keeps exactly the new entity", () => {
-    let history = executeOdontogramCommand(emptyHistory(), { type: "UPSERT_ENTITY", entity: entity() });
-    history = executeOdontogramCommand(history, { type: "SET_ENTITY_STATUS", entityId: entity().id, status: "filling" });
+    let history = executeOdontogramCommand(emptyHistory(), {
+      type: "UPSERT_ENTITY",
+      entity: entity(),
+    });
+    history = executeOdontogramCommand(history, {
+      type: "SET_ENTITY_STATUS",
+      entityId: entity().id,
+      status: "filling",
+    });
     history = executeOdontogramCommand(history, { type: "REMOVE_ENTITY", entityId: entity().id });
     const replacement = { ...entity(), attributes: { notes: "nuevo" } };
     history = executeOdontogramCommand(history, { type: "UPSERT_ENTITY", entity: replacement });
@@ -183,7 +232,11 @@ describe("SEQUENCES: odontogram torture", () => {
   });
   it("SQ duplicate entity command creates no duplicate data", () => {
     let history = emptyHistory();
-    for (let index = 0; index < 3; index++) history = executeOdontogramCommand(history, { type: "UPSERT_ENTITY", entity: { ...entity() } });
+    for (let index = 0; index < 3; index++)
+      history = executeOdontogramCommand(history, {
+        type: "UPSERT_ENTITY",
+        entity: { ...entity() },
+      });
     expect(Object.values(history.present.entitiesById)).toEqual([entity()]);
   });
   it.each([0, 1, 7, 31])(

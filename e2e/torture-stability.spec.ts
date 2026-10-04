@@ -3,11 +3,14 @@ import { PATIENT_ID, fakeSupabase, isolatePage, signIn } from "./support/session
 
 const odontogram = `/app/patients/${PATIENT_ID}/odontogram`;
 const saved = "Guardado · plan y presupuesto al día";
-const face = (page: Page, tooth: string) => page.getByRole("button", { name: `Diente ${tooth} superficie oclusal` });
+const face = (page: Page, tooth: string) =>
+  page.getByRole("button", { name: `Diente ${tooth} superficie oclusal` });
 
 async function assertOneFinding(tooth: string, version: number) {
   const state = await fakeSupabase.state();
-  expect(state.dental_entities).toEqual([expect.objectContaining({ tooth, entity_type: "CARIES", surfaces_json: ["O"], version })]);
+  expect(state.dental_entities).toEqual([
+    expect.objectContaining({ tooth, entity_type: "CARIES", surfaces_json: ["O"], version }),
+  ]);
   expect(state.clinical_plan_items).toHaveLength(1);
   expect(state.budgets).toHaveLength(1);
   expect(state.budgets![0]).toMatchObject({ total_cents: 4500 });
@@ -35,11 +38,15 @@ test("ST-001: 100 real reloads retain one persisted odontogram and version", asy
       expect((await fakeSupabase.state()).dental_entities).toEqual(original.dental_entities);
     });
   }
-  expect((await fakeSupabase.log()).filter(entry => entry.name === "save_odontogram_batch")).toHaveLength(1);
+  expect(
+    (await fakeSupabase.log()).filter((entry) => entry.name === "save_odontogram_batch"),
+  ).toHaveLength(1);
   expect(failures).toEqual([]);
 });
 
-test("ST-002: 100 menu and appointment modal open-close cycles release overlays", async ({ page }) => {
+test("ST-002: 100 menu and appointment modal open-close cycles release overlays", async ({
+  page,
+}) => {
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 360, height: 780 });
   const failures = await isolatePage(page);
@@ -61,16 +68,22 @@ test("ST-002: 100 menu and appointment modal open-close cycles release overlays"
 });
 
 for (const clicks of [2, 3]) {
-  test(`ST-003: ${clicks} rapid save clicks and an action during saving create no duplicates`, async ({ page }) => {
+  test(`ST-003: ${clicks} rapid save clicks and an action during saving create no duplicates`, async ({
+    page,
+  }) => {
     test.setTimeout(45_000);
     const failures = await isolatePage(page);
     await page.goto(odontogram);
     await expect(face(page, "36")).toBeVisible();
     let release!: () => void;
-    const gate = new Promise<void>(resolve => { release = resolve; });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     let arrived!: () => void;
-    const intercepted = new Promise<void>(resolve => { arrived = resolve; });
-    await page.route(/\/api\/.*\/odontogram\/batch/, async route => {
+    const intercepted = new Promise<void>((resolve) => {
+      arrived = resolve;
+    });
+    await page.route(/\/api\/.*\/odontogram\/batch/, async (route) => {
       if (route.request().method() === "POST") {
         arrived();
         await gate;
@@ -93,24 +106,34 @@ for (const clicks of [2, 3]) {
     await expect(page.getByText(saved)).toBeVisible({ timeout: 15_000 });
     await expect.poll(async () => (await fakeSupabase.state()).dental_entities?.length).toBe(2);
     await expect.poll(async () => (await fakeSupabase.state()).clinical_plan_items?.length).toBe(2);
-    await expect.poll(async () => (await fakeSupabase.state()).budgets?.[0]?.total_cents).toBe(9000);
+    await expect
+      .poll(async () => (await fakeSupabase.state()).budgets?.[0]?.total_cents)
+      .toBe(9000);
     const state = await fakeSupabase.state();
-    expect(state.dental_entities!.map(row => row.tooth).sort()).toEqual(["36", "46"]);
-    expect(new Set(state.dental_entities!.map(row => row.id)).size).toBe(2);
+    expect(state.dental_entities!.map((row) => row.tooth).sort()).toEqual(["36", "46"]);
+    expect(new Set(state.dental_entities!.map((row) => row.id)).size).toBe(2);
     expect(state.clinical_plan_items).toHaveLength(2);
     expect(state.budgets).toHaveLength(1);
     expect(state.budgets![0]).toMatchObject({ total_cents: 9000 });
-    const writes = (await fakeSupabase.log()).filter(entry => entry.name === "save_odontogram_batch");
-    expect(writes.map(entry => entry.body?.p_expected_version)).toEqual([1, 2]);
+    const writes = (await fakeSupabase.log()).filter(
+      (entry) => entry.name === "save_odontogram_batch",
+    );
+    expect(writes.map((entry) => entry.body?.p_expected_version)).toEqual([1, 2]);
     expect(failures).toEqual([]);
   });
 }
 
-test("NV-001 NV-002: direct protected routes, navigation permutations, back and forward", async ({ page }) => {
+test("NV-001 NV-002: direct protected routes, navigation permutations, back and forward", async ({
+  page,
+}) => {
   test.setTimeout(90_000);
   const failures = await isolatePage(page);
   const routes = ["/app", "/app/patients", "/app/agenda", "/app/tasks", odontogram];
-  for (const ordering of [routes, [...routes].reverse(), [routes[2]!, routes[0]!, routes[4]!, routes[1]!, routes[3]!]]) {
+  for (const ordering of [
+    routes,
+    [...routes].reverse(),
+    [routes[2]!, routes[0]!, routes[4]!, routes[1]!, routes[3]!],
+  ]) {
     for (const route of ordering) {
       const response = await page.goto(route);
       expect(response?.status()).toBe(200);
@@ -125,7 +148,10 @@ test("NV-001 NV-002: direct protected routes, navigation permutations, back and 
   expect(failures).toEqual([]);
 });
 
-test("NV-003 NV-004: absent session redirects protected URLs and unknown route returns 404", async ({ page, context }) => {
+test("NV-003 NV-004: absent session redirects protected URLs and unknown route returns 404", async ({
+  page,
+  context,
+}) => {
   const failures = await isolatePage(page);
   await context.clearCookies();
   for (const route of ["/app", odontogram, "/app/agenda"]) {
@@ -138,7 +164,10 @@ test("NV-003 NV-004: absent session redirects protected URLs and unknown route r
   expect(failures).toEqual([]);
 });
 
-test("ST-004: two tabs editing the same version reject a stale write without overwriting", async ({ page, context }) => {
+test("ST-004: two tabs editing the same version reject a stale write without overwriting", async ({
+  page,
+  context,
+}) => {
   test.setTimeout(60_000);
   const second = await context.newPage();
   const failures = await isolatePage(page);
@@ -157,8 +186,8 @@ test("ST-004: two tabs editing the same version reject a stale write without ove
     await face(second, "46").click();
     await expect(second.getByText(saved)).toBeVisible({ timeout: 15_000 });
     const state = await fakeSupabase.state();
-    expect(state.dental_entities!.map(row => row.tooth).sort()).toEqual(["36", "46"]);
-    expect(state.dental_entities!.every(row => row.version === 3)).toBe(true);
+    expect(state.dental_entities!.map((row) => row.tooth).sort()).toEqual(["36", "46"]);
+    expect(state.dental_entities!.every((row) => row.version === 3)).toBe(true);
     expect(state.clinical_plan_items).toHaveLength(2);
     expect(state.budgets).toHaveLength(1);
     expect(failures).toEqual([]);
