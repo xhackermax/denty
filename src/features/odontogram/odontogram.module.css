@@ -1862,3 +1862,21 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 .layerEditor[open] > summary {
   border-bottom: 1px solid var(--denty-line);
 }
+
+/* Press feedback: the tooth answers the moment the finger lands, not when it lifts. Scale stays
+   subtle (0.97) and skips users who ask for less motion; faces darken since a path cannot scale
+   in place. Placed last so the compact layout's `transform: none` hover reset cannot cancel it. */
+@media (prefers-reduced-motion: no-preference) {
+  .toothButton:active:not([aria-disabled="true"]),
+  .orthoTooth:active,
+  .pediatricToothButton:active,
+  .legendEntry:active:not(:disabled) {
+    transform: scale(0.97);
+    transition-duration: 100ms;
+    transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}
+
+.surface:active {
+  filter: brightness(0.92);
+}

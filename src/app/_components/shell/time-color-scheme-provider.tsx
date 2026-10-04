@@ -20,6 +20,8 @@ import {
   type DentyColorScheme,
 } from "@/domain/appearance-schedule";
 
+import { syncThemeColor } from "./theme-color";
+
 interface DentyAppearanceContextValue {
   preference: DentyAppearancePreference;
   resolvedScheme: DentyColorScheme;
@@ -55,6 +57,7 @@ export function TimeColorSchemeProvider({ children }: { children: ReactNode }) {
       const scheme = resolveAppearanceScheme(preference, now);
       setResolvedScheme(scheme);
       setColorScheme(scheme);
+      syncThemeColor(scheme);
 
       if (preference === "time") {
         const delay = Math.max(0, nextSchemeBoundary(now).getTime() - now.getTime()) + 25;

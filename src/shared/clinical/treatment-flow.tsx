@@ -333,7 +333,9 @@ function PlanStep({
               <NumberInput
                 key={`${item.id}-${item.priceCents ?? 0}`}
                 aria-label={`Precio de ${item.label}${item.tooth ? ` en el diente ${item.tooth}` : ""}`}
-                w={130}
+                // Room for "99.999,99 €" at the 16 px touch font; steppers are useless for prices.
+                w={160}
+                hideControls
                 min={0}
                 decimalScale={2}
                 decimalSeparator=","
@@ -619,7 +621,9 @@ function BudgetStep({
                 {item.description}
               </span>
             </div>
-            <Text fw={600}>{formatEUR(item.totalCents)}</Text>
+            <Text fw={600} className={styles.rowAmount}>
+              {formatEUR(item.totalCents)}
+            </Text>
           </div>
         ))}
       </div>

@@ -102,7 +102,16 @@
 
 .rowMain {
   display: grid;
+  min-width: 0; /* lets a long description wrap instead of pushing the amount off the row */
   gap: 2px;
+  overflow-wrap: anywhere;
+}
+
+/* Amounts never wrap mid-number ("99.999.999,99 €") and line up across rows. */
+.rowAmount {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .rowTitle {
