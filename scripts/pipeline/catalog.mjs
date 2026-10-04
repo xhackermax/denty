@@ -111,6 +111,14 @@ export const stages = {
     command: nodeScript("scripts/verify-architecture.mjs"),
     timeoutMs: 30_000,
   },
+  contracts: {
+    description: "Run the stage 1–13 contract gate (gate:stage13)",
+    // Left out of CI, these contracts drifted from the code until an audit found the gate
+    // stopping at stage 3; running them with the other quality checks keeps them honest.
+    needs: ["install"],
+    command: npm(["run", "-s", "gate:stage13"]),
+    timeoutMs: 10 * MINUTE,
+  },
   format: {
     description: "Check formatting without mutating the source",
     needs: ["install"],
@@ -218,7 +226,16 @@ export const targets = {
     roots: ["capture-lock"],
   },
   verify: {
-    roots: ["domain-smoke", "architecture", "format", "lint", "styles", "typecheck", "unit"],
+    roots: [
+      "domain-smoke",
+      "architecture",
+      "contracts",
+      "format",
+      "lint",
+      "styles",
+      "typecheck",
+      "unit",
+    ],
     assume: ["install", "lock-bootstrap"],
   },
   test: {
@@ -270,6 +287,15 @@ export const targets = {
     ],
   },
   ci: {
-    roots: ["architecture", "format", "lint", "styles", "typecheck", "coverage", "package"],
+    roots: [
+      "architecture",
+      "contracts",
+      "format",
+      "lint",
+      "styles",
+      "typecheck",
+      "coverage",
+      "package",
+    ],
   },
 };

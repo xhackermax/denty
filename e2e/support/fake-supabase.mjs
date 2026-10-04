@@ -185,6 +185,21 @@ function query(table, params) {
     if (RESERVED.has(key)) continue;
     rows = rows.filter((row) => matches(row, key, condition));
   }
+  // Like PostgREST, order before limiting: "latest version" reads take the first row.
+  const order = params.get("order");
+  if (order) {
+    const keys = order.split(",").map((part) => {
+      const [column, direction = "asc"] = part.split(".");
+      return { column, sign: direction === "desc" ? -1 : 1 };
+    });
+    rows.sort((left, right) => {
+      for (const { column, sign } of keys) {
+        const compared = compareValues(left[column], String(right[column] ?? ""));
+        if (compared) return sign * compared;
+      }
+      return 0;
+    });
+  }
   const limit = params.get("limit");
   return limit ? rows.slice(0, Number(limit)) : rows;
 }
