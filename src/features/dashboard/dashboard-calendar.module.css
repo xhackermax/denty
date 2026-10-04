@@ -83,8 +83,10 @@
   transition: background 0.15s ease;
 }
 
-.day:hover {
-  background: color-mix(in srgb, var(--denty-text) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .day:hover {
+    background: color-mix(in srgb, var(--denty-text) 10%, transparent);
+  }
 }
 
 .day:focus-visible {
@@ -237,8 +239,10 @@
   text-decoration: none;
 }
 
-.moreLink:hover {
-  color: var(--denty-blue);
+@media (hover: hover) and (pointer: fine) {
+  .moreLink:hover {
+    color: var(--denty-blue);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

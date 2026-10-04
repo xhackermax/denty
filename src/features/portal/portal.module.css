@@ -60,8 +60,10 @@
     box-shadow 140ms ease;
 }
 
-.tab:hover {
-  color: var(--denty-text);
+@media (hover: hover) and (pointer: fine) {
+  .tab:hover {
+    color: var(--denty-text);
+  }
 }
 
 .tab[data-active="true"] {

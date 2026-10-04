@@ -8,7 +8,9 @@
 }
 
 .pageHeaderText {
+  max-width: 100%;
   min-width: 0;
+  overflow-wrap: anywhere; /* an unbroken email or name wraps instead of widening the page */
 }
 
 .pageHeaderText h1 {
@@ -26,6 +28,7 @@
 
 .eyebrow {
   display: inline-flex;
+  max-width: 100%;
   margin: 0 0 7px;
   color: var(--denty-blue);
   font-size: 0.67rem;

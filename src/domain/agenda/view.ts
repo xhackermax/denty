@@ -60,8 +60,11 @@ export function appointmentCardSize(heightPx: number): AppointmentCardSize {
   return "large";
 }
 
+// Spanish surnames often start with a particle ("de la Fuente"); its letter identifies nobody.
+const NAME_PARTICLES = new Set(["de", "del", "la", "las", "los", "y", "e", "da", "van", "von"]);
+
 export function shortPatientName(fullName: string): string {
   const [first = "", ...rest] = fullName.trim().split(/\s+/);
-  const initial = rest[0]?.[0];
-  return initial ? `${first} ${initial}.` : first;
+  const initial = rest.find((word) => !NAME_PARTICLES.has(word.toLocaleLowerCase("es")))?.[0];
+  return initial ? `${first} ${initial.toLocaleUpperCase("es")}.` : first;
 }

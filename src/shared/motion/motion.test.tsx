@@ -5,6 +5,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
   MotionPage,
+  PAGE_ENTER,
   MotionPressable,
   MotionScrollReveal,
   SpeedingMetric,
@@ -42,6 +43,11 @@ describe("Denty motion foundation", () => {
     );
 
     expect(screen.getByRole("button", { name: "Abrir paciente" })).toBeInTheDocument();
+  });
+
+  it("enters a page with a short fade only: navigation happens hundreds of times a day", () => {
+    expect(PAGE_ENTER.initial).toEqual({ opacity: 0 });
+    expect(PAGE_ENTER.duration).toBeLessThanOrEqual(0.15);
   });
 
   it("formats protagonist metrics for euro and percent values", () => {

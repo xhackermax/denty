@@ -1,5 +1,9 @@
 .grid {
   display: grid;
+
+  /* One column that never grows past the screen: an implicit auto track widens to fit the
+     widest unbreakable child (a tab strip, a long email) and drags the whole page sideways. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -29,9 +33,11 @@
   text-decoration: none;
 }
 
-.cardLink:hover {
-  border-color: color-mix(in srgb, var(--denty-teal) 45%, var(--denty-line));
-  box-shadow: 0 12px 34px rgb(15 35 55 / 8%);
+@media (hover: hover) and (pointer: fine) {
+  .cardLink:hover {
+    border-color: color-mix(in srgb, var(--denty-teal) 45%, var(--denty-line));
+    box-shadow: 0 12px 34px rgb(15 35 55 / 8%);
+  }
 }
 
 .cardLinkTitle {
@@ -234,9 +240,11 @@
     background 180ms ease;
 }
 
-.patientCarouselCard:hover {
-  border-color: color-mix(in srgb, var(--denty-teal) 42%, var(--denty-line));
-  box-shadow: 0 10px 28px rgb(15 35 55 / 9%);
+@media (hover: hover) and (pointer: fine) {
+  .patientCarouselCard:hover {
+    border-color: color-mix(in srgb, var(--denty-teal) 42%, var(--denty-line));
+    box-shadow: 0 10px 28px rgb(15 35 55 / 9%);
+  }
 }
 
 .patientCarouselCardLink {
@@ -333,10 +341,16 @@
     transform 180ms ease;
 }
 
-.patientCarouselCard:hover .patientCarouselOpenIcon,
 .patientCarouselCard[data-active="true"] .patientCarouselOpenIcon {
   color: var(--denty-teal);
   transform: translateX(2px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .patientCarouselCard:hover .patientCarouselOpenIcon {
+    color: var(--denty-teal);
+    transform: translateX(2px);
+  }
 }
 
 .metricGrid {
@@ -631,10 +645,12 @@
   }
 }
 
-.quickAction:hover {
-  border-color: color-mix(in srgb, var(--quick-accent) 35%, var(--denty-line));
-  box-shadow: var(--denty-card-shadow-hover);
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .quickAction:hover {
+    border-color: color-mix(in srgb, var(--quick-accent) 35%, var(--denty-line));
+    box-shadow: var(--denty-card-shadow-hover);
+    transform: translateY(-2px);
+  }
 }
 
 .quickActionIcon {
@@ -916,8 +932,10 @@ html[data-mantine-color-scheme="dark"] .patientCarouselCard[data-active="true"] 
   white-space: nowrap;
 }
 
-.agendaAppointmentName:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .agendaAppointmentName:hover {
+    text-decoration: underline;
+  }
 }
 
 .agendaAppointmentReason {
@@ -941,8 +959,10 @@ html[data-mantine-color-scheme="dark"] .patientCarouselCard[data-active="true"] 
   opacity: 0.62;
 }
 
-.agendaResizeHandle:hover {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .agendaResizeHandle:hover {
+    opacity: 1;
+  }
 }
 
 @media (width <= 48em) {
@@ -1019,10 +1039,12 @@ html[data-mantine-color-scheme="dark"] .patientCarouselCard[data-active="true"] 
   box-shadow: none;
 }
 
-.cardLink:hover {
-  border-color: color-mix(in srgb, var(--denty-blue) 28%, var(--denty-line));
-  background: color-mix(in srgb, var(--denty-blue) 4%, var(--denty-card));
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .cardLink:hover {
+    border-color: color-mix(in srgb, var(--denty-blue) 28%, var(--denty-line));
+    background: color-mix(in srgb, var(--denty-blue) 4%, var(--denty-card));
+    box-shadow: none;
+  }
 }
 
 .dashboardNowGrid {
@@ -1080,11 +1102,13 @@ html[data-mantine-color-scheme="dark"] .patientCarouselCard[data-active="true"] 
   box-shadow: none;
 }
 
-.quickAction:hover {
-  border-color: color-mix(in srgb, var(--quick-accent) 24%, var(--denty-line));
-  background: color-mix(in srgb, var(--quick-accent) 4%, var(--denty-card));
-  box-shadow: none;
-  transform: none;
+@media (hover: hover) and (pointer: fine) {
+  .quickAction:hover {
+    border-color: color-mix(in srgb, var(--quick-accent) 24%, var(--denty-line));
+    background: color-mix(in srgb, var(--quick-accent) 4%, var(--denty-card));
+    box-shadow: none;
+    transform: none;
+  }
 }
 
 .quickActionIcon {
@@ -1249,7 +1273,10 @@ html[data-mantine-color-scheme="dark"] .patientCarouselCard[data-active="true"] 
 
 .patientHeroStatus {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .patientAlertStrip {
@@ -1329,9 +1356,11 @@ html[data-mantine-color-scheme="dark"] .patientCarouselCard[data-active="true"] 
     border-color 150ms ease;
 }
 
-.patientRouteCard:hover {
-  border-color: color-mix(in srgb, var(--denty-blue) 25%, var(--denty-line));
-  background: color-mix(in srgb, var(--denty-blue) 4%, var(--denty-card));
+@media (hover: hover) and (pointer: fine) {
+  .patientRouteCard:hover {
+    border-color: color-mix(in srgb, var(--denty-blue) 25%, var(--denty-line));
+    background: color-mix(in srgb, var(--denty-blue) 4%, var(--denty-card));
+  }
 }
 
 .patientRouteIcon {
@@ -1386,10 +1415,12 @@ html[data-mantine-color-scheme="dark"] .patientCarouselCard[data-active="true"] 
   box-shadow: none;
 }
 
-.patientCarouselCard:hover {
-  border-color: var(--denty-line);
-  background: color-mix(in srgb, var(--denty-card-solid) 72%, transparent);
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .patientCarouselCard:hover {
+    border-color: var(--denty-line);
+    background: color-mix(in srgb, var(--denty-card-solid) 72%, transparent);
+    box-shadow: none;
+  }
 }
 
 .patientCarouselCard[data-active="true"] {
@@ -1470,6 +1501,7 @@ html[data-mantine-color-scheme="dark"] .disclosure {
 
 @media (width <= 48em) {
   .patientHero {
+    flex-wrap: wrap;
     align-items: flex-start;
   }
 
@@ -1857,8 +1889,6 @@ html[data-mantine-color-scheme="dark"] .disclosure {
   filter: blur(12px);
   opacity: 0.65;
   pointer-events: none;
-  transform: translate3d(0, 0, 0);
-  animation: denty-card-drift 7s ease-in-out infinite alternate;
 }
 
 .analysisMetricMotion {
@@ -1872,25 +1902,6 @@ html[data-mantine-color-scheme="dark"] .disclosure {
   box-shadow:
     0 22px 54px rgb(15 35 55 / 10%),
     inset 0 1px 0 rgb(255 255 255 / 34%);
-}
-
-.analysisMetric::before {
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(
-    120deg,
-    transparent 0%,
-    transparent 38%,
-    color-mix(in srgb, white 38%, transparent) 49%,
-    transparent 60%,
-    transparent 100%
-  );
-  content: "";
-  opacity: 0.55;
-  pointer-events: none;
-  transform: translateX(-120%);
-  animation: denty-metric-sheen 5.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
 .analysisMetricValue {
@@ -1913,7 +1924,6 @@ html[data-mantine-color-scheme="dark"] .disclosure {
   box-shadow:
     inset 0 0 46px color-mix(in srgb, var(--denty-teal) 10%, transparent),
     0 0 42px color-mix(in srgb, var(--denty-teal) 10%, transparent);
-  animation: denty-focus-breathe 3.6s ease-in-out infinite;
 }
 
 .patientCarouselCard[data-active="true"] {
@@ -1928,49 +1938,6 @@ html[data-mantine-color-scheme="dark"] .disclosure {
   box-shadow:
     0 24px 54px rgb(15 35 55 / 16%),
     0 0 0 1px color-mix(in srgb, var(--denty-teal) 13%, transparent);
-}
-
-@keyframes denty-card-drift {
-  from {
-    transform: translate3d(-8px, -4px, 0) scale(0.96);
-  }
-
-  to {
-    transform: translate3d(34px, 24px, 0) scale(1.12);
-  }
-}
-
-@keyframes denty-metric-sheen {
-  0%,
-  58% {
-    transform: translateX(-120%);
-  }
-
-  82%,
-  100% {
-    transform: translateX(120%);
-  }
-}
-
-@keyframes denty-focus-breathe {
-  0%,
-  100% {
-    opacity: 0.72;
-    transform: translateY(-50%) scale(0.985);
-  }
-
-  50% {
-    opacity: 1;
-    transform: translateY(-50%) scale(1.01);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nowCard::before,
-  .analysisMetric::before,
-  .patientCarouselFocus {
-    animation: none;
-  }
 }
 
 .pipelineStep[data-disabled="true"] {

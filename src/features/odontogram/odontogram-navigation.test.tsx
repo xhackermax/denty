@@ -35,7 +35,9 @@ vi.mock("./odontogram-data", async (importOriginal) => {
   };
 });
 vi.mock("@/shared/patients/patient-data", () => ({
-  usePatientQuery: () => ({ data: { birthDate: null } }),
+  usePatientQuery: () => ({
+    data: { birthDate: null, firstName: "Lucía", lastName: "Martín", recordNumber: "DNT-0042" },
+  }),
 }));
 vi.mock("@/shared/clinical/clinical-pipeline-card", () => ({ ClinicalPipelineCard: () => null }));
 vi.mock("@/shared/clinical/clinical-workspace", () => ({ ClinicalWorkspace: () => null }));

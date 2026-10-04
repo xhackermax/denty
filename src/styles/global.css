@@ -12,6 +12,8 @@ body {
 html {
   background: var(--denty-bg);
   scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent; /* controls give their own press feedback */
+  text-size-adjust: 100%; /* no font inflation in landscape */
 }
 
 body {
@@ -43,6 +45,7 @@ html[data-mantine-color-scheme="dark"] body::before {
 
 a {
   color: inherit;
+  touch-action: manipulation;
 }
 
 button,
@@ -50,6 +53,27 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+/* Taps fire at once (no double-tap-zoom wait) and long-press does not select a control's label.
+   Body text stays selectable: users copy addresses, phone numbers and error messages. */
+button,
+[role="button"],
+.mantine-Button-root,
+.mantine-ActionIcon-root,
+.mantine-SegmentedControl-control {
+  touch-action: manipulation;
+  user-select: none;
+}
+
+/* iOS zooms into any field under 16px and does not zoom back out. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select,
+  .mantine-Input-input {
+    font-size: 16px;
+  }
 }
 
 ::selection {

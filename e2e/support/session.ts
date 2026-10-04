@@ -21,6 +21,11 @@ export const fakeSupabase = {
   reset: async () => void (await fetch(`${FAKE_SUPABASE}/__reset`)),
   log: async () => (await (await fetch(`${FAKE_SUPABASE}/__log`)).json()) as FakeLogEntry[],
   state: async () => (await (await fetch(`${FAKE_SUPABASE}/__state`)).json()) as FakeTables,
+  patch: async (table: string, filter: string, body: Record<string, unknown>) =>
+    void (await fetch(`${FAKE_SUPABASE}/rest/v1/${table}?${filter}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    })),
 };
 
 /** Signs the browser in as the seeded clinic admin (the fake accepts any access token). */

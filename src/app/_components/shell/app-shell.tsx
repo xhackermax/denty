@@ -4,10 +4,10 @@ import { ActionIcon, Menu, Text, Tooltip } from "@mantine/core";
 import { IconChecklist, IconDots, IconSettings } from "@tabler/icons-react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { MOBILE_BAR_SIZE, splitForBar } from "@/domain/navigation";
 import { LogoutButton } from "@/features/auth";
@@ -19,8 +19,7 @@ import {
 } from "@/features/navigation/catalog";
 import { useResolvedNavigation } from "@/features/navigation/use-navigation-layout";
 import { VoiceCommandBar } from "@/features/voice/voice-command-bar";
-import { MotionAmbientBackdrop, MotionPage } from "@/shared/motion";
-import { resolveRouteTransition } from "@/shared/motion/route-transition";
+import { MotionPage } from "@/shared/motion";
 import { OfflineBanner } from "@/shared/ui";
 import { DevicePermissions } from "@/shared/ui/device-permissions";
 
@@ -33,15 +32,6 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
   const tShell = useTranslations("Shell");
   const tCommon = useTranslations("Common");
   const pathname = usePathname();
-  const previousPathnameRef = useRef(pathname);
-  const routeTransition = useMemo(
-    () => resolveRouteTransition(previousPathnameRef.current, pathname),
-    [pathname],
-  );
-
-  useEffect(() => {
-    previousPathnameRef.current = pathname;
-  }, [pathname]);
 
   const { pinned } = useResolvedNavigation();
   const sidebarItems = navItemsFor(pinned);
@@ -89,7 +79,6 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className={styles.root}>
-      <MotionAmbientBackdrop />
       <aside className={styles.sidebar} aria-label={tShell("clinic")}>
         <Link className={styles.brand} href="/app" aria-label={tShell("brand")}>
           <Image
@@ -168,17 +157,7 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
           <div className={styles.banners}>
             <OfflineBanner message={tShell("offline")} />
           </div>
-          <div className={styles.routeStage} data-transition-kind={routeTransition.kind}>
-            <AnimatePresence mode="popLayout" initial={false}>
-              <MotionPage
-                key={pathname}
-                transitionKind={routeTransition.kind}
-                transitionDirection={routeTransition.direction}
-              >
-                {children}
-              </MotionPage>
-            </AnimatePresence>
-          </div>
+          <MotionPage key={pathname}>{children}</MotionPage>
         </div>
       </main>
 

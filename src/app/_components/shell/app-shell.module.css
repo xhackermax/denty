@@ -129,9 +129,11 @@
   --nav-accent: var(--denty-cyan);
 }
 
-.navLink:hover {
-  background: color-mix(in srgb, var(--denty-text) 5%, transparent);
-  color: var(--denty-text);
+@media (hover: hover) and (pointer: fine) {
+  .navLink:hover {
+    background: color-mix(in srgb, var(--denty-text) 5%, transparent);
+    color: var(--denty-text);
+  }
 }
 
 .navLink[data-active="true"] {
@@ -224,7 +226,7 @@
 .bottomNav {
   position: fixed;
   z-index: 200;
-  inset: auto 8px 8px;
+  inset: auto 8px calc(8px + env(safe-area-inset-bottom, 0px));
   display: grid;
   min-height: 62px;
   grid-template-columns: repeat(5, 1fr);
@@ -326,9 +328,14 @@
   color: var(--nav-accent);
 }
 
-.moreLink:hover,
 .moreLink[data-active="true"] {
   background: color-mix(in srgb, var(--nav-accent) 8%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .moreLink:hover {
+    background: color-mix(in srgb, var(--nav-accent) 8%, transparent);
+  }
 }
 
 @media (width >= 48em) {
@@ -408,32 +415,31 @@
   }
 }
 
-/* R8 mobile navigation: swipe instead of compressed labels */
+/* Phones: the pinned tabs plus "Más" share the width. The bar holds at most MOBILE_BAR_SIZE + 1
+   items, so nothing has to hide behind a sideways swipe nobody discovers. */
 @media (width < 48em) {
   .bottomNav {
-    display: flex;
-    overflow: auto hidden;
     grid-template-columns: none;
-    scroll-snap-type: x mandatory;
-    scroll-padding-inline: 12px;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-inline: contain;
-    padding-inline: 6px;
-  }
-
-  .bottomNav::-webkit-scrollbar {
-    display: none;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    padding-inline: 4px;
   }
 
   .bottomLink,
   .bottomButton {
-    flex: 0 0 88px;
-    min-width: 88px;
     min-height: 60px;
-    scroll-snap-align: center;
+  }
+
+  .bottomLinkContent {
+    max-width: 100%;
+  }
+
+  .bottomLinkContent > span,
+  .bottomButton > span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.7rem;
   }
 }
 
@@ -454,17 +460,4 @@
 
 .header {
   box-shadow: 0 10px 36px rgb(15 35 55 / 4%);
-}
-
-.routeStage {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-  perspective: 1400px;
-  perspective-origin: 50% 42%;
-  transform-style: preserve-3d;
-}
-
-.routeStage[data-transition-kind="cube"] {
-  perspective: 1180px;
 }

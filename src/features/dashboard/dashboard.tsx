@@ -18,7 +18,7 @@ import { formatEUR } from "@/domain/money";
 import { useAppointmentsQuery } from "@/features/agenda/agenda-data";
 import { getBrowserApi } from "@/shared/api/browser";
 import { ClinicalPipelineCard } from "@/shared/clinical/clinical-pipeline-card";
-import { MotionParallax, MotionPressable, MotionScrollReveal } from "@/shared/motion";
+import { MotionPressable, MotionScrollReveal } from "@/shared/motion";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { dentyQueryKeys } from "@/shared/query";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
@@ -100,9 +100,9 @@ export function Dashboard() {
                     <Badge color="green" variant="light">
                       En gabinete
                     </Badge>
-                    <MotionParallax className={styles.nowIcon} intensity="subtle">
+                    <div className={styles.nowIcon}>
                       <IconMicroscope size={18} />
-                    </MotionParallax>
+                    </div>
                   </div>
                   <h3>{patientName(current?.patientId)}</h3>
                   <p>
@@ -119,9 +119,9 @@ export function Dashboard() {
                     <Badge color="yellow" variant="light">
                       Siguiente
                     </Badge>
-                    <MotionParallax className={styles.nowIcon} intensity="subtle">
+                    <div className={styles.nowIcon}>
                       <IconCalendar size={18} />
-                    </MotionParallax>
+                    </div>
                   </div>
                   <h3>{next ? patientName(next.patientId) : "Jornada despejada"}</h3>
                   <p>{next?.reason ?? next?.title ?? "No hay otra cita pendiente en sala."}</p>
@@ -137,9 +137,9 @@ export function Dashboard() {
                       <Badge color="red" variant="light">
                         Atención
                       </Badge>
-                      <MotionParallax className={styles.nowIcon} intensity="subtle">
+                      <div className={styles.nowIcon}>
                         <IconClipboardCheck size={18} />
-                      </MotionParallax>
+                      </div>
                     </div>
                     <h3>{alerts.data?.openCount ?? 0} alertas</h3>
                     <p>Solo alertas persistidas que requieren seguimiento.</p>

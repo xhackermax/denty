@@ -82,8 +82,10 @@
   font: inherit;
 }
 
-.day:hover {
-  background: var(--denty-glow);
+@media (hover: hover) and (pointer: fine) {
+  .day:hover {
+    background: var(--denty-glow);
+  }
 }
 
 .day:focus-visible {
@@ -112,8 +114,10 @@
   color: #fff;
 }
 
-.daySelected:hover {
-  background: var(--denty-blue);
+@media (hover: hover) and (pointer: fine) {
+  .daySelected:hover {
+    background: var(--denty-blue);
+  }
 }
 
 .daySelected .dayName {
@@ -493,8 +497,10 @@
     border-color 0.15s ease;
 }
 
-.check:hover {
-  border-color: var(--denty-green);
+@media (hover: hover) and (pointer: fine) {
+  .check:hover {
+    border-color: var(--denty-green);
+  }
 }
 
 .check:focus-visible {

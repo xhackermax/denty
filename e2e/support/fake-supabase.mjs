@@ -83,6 +83,7 @@ function seed() {
         email: "paciente@denty.test",
         archived_at: null,
         active: true,
+        version: 1,
         created_at: now(),
         updated_at: now(),
       },

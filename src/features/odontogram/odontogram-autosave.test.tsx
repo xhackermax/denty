@@ -31,7 +31,9 @@ vi.mock("@/shared/api/browser", () => ({
   }),
 }));
 vi.mock("@/shared/patients/patient-data", () => ({
-  usePatientQuery: () => ({ data: { birthDate: null } }),
+  usePatientQuery: () => ({
+    data: { birthDate: null, firstName: "Lucía", lastName: "Martín", recordNumber: "DNT-0042" },
+  }),
 }));
 vi.mock("@/shared/clinical/clinical-pipeline-card", () => ({ ClinicalPipelineCard: () => null }));
 vi.mock("@/shared/clinical/clinical-workspace", () => ({ ClinicalWorkspace: () => null }));
@@ -82,6 +84,7 @@ test("edits save themselves, keep the editor in place and bring plan and budget 
     </QueryClientProvider>,
   );
 
+  expect(screen.getByText("Lucía Martín · DNT-0042")).toBeInTheDocument();
   expect(screen.getByText("Se guarda automáticamente")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Aplicar al diente seleccionado" }));
   expect(screen.getByText("Cambios pendientes…")).toBeInTheDocument();

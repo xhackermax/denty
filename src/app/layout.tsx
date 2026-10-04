@@ -1,12 +1,12 @@
 import "@mantine/core/styles.css";
 
 import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import type { ReactNode } from "react";
 
 import { ES_MESSAGES } from "@/i18n/messages";
-import { APP_NAME } from "@/shared/lib/app-meta";
+import { APP_NAME, APP_VIEWPORT } from "@/shared/lib/app-meta";
 import "@/styles/global.css";
 
 import { Providers } from "./providers";
@@ -45,6 +45,8 @@ export const metadata: Metadata = {
   description: ES_MESSAGES.Shell.brandSubtitle,
   icons: { icon: "/assets/denty-logo.png" },
 };
+
+export const viewport: Viewport = APP_VIEWPORT;
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (

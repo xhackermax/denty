@@ -93,4 +93,11 @@ describe("agenda view helpers", () => {
     expect(shortPatientName("Fernando García López")).toBe("Fernando G.");
     expect(shortPatientName("Esther")).toBe("Esther");
   });
+
+  it("no toma partículas como inicial del apellido", () => {
+    expect(shortPatientName("María de la Fuente")).toBe("María F.");
+    expect(shortPatientName("José del Río y Sanz")).toBe("José R.");
+    expect(shortPatientName("ana de")).toBe("ana");
+    expect(shortPatientName("  ")).toBe("");
+  });
 });

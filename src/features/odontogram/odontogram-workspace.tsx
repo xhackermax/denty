@@ -106,6 +106,7 @@ import {
   pediatricReplacementForTooth,
 } from "./odontogram-layer-projection";
 
+import { patientEyebrow } from "./patient-eyebrow";
 import { SurgeryPanel } from "./surgery-panel";
 import { surgicalVisualsForTooth } from "./surgery-visuals";
 const TOOL_OPTIONS = TOOTH_STATES.map((state) => ({
@@ -529,6 +530,7 @@ function OdontogramEditor({
   const activeToolFilter = subfilterForToothStatus(tool);
   const activeToolVisible = isToothStatusVisible(tool, viewState);
   // Every edit is saved on its own a moment later; plan and budget follow (see the workspace).
+  const patient = usePatientQuery(patientId).data;
   const autosave = useAutosave({
     value: history.present.entitiesById,
     enabled: !historical,
@@ -787,7 +789,7 @@ function OdontogramEditor({
   return (
     <div className={styles.board}>
       <PageHeader
-        eyebrow={historical ? "Histórico" : `Paciente ${patientId}`}
+        eyebrow={historical ? "Histórico" : patientEyebrow(patient)}
         title={historicalLabel ?? "Odontograma"}
         description={historical ? "Solo lectura." : "Marca hallazgos y tratamientos."}
         actions={

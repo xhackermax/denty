@@ -120,10 +120,12 @@
   margin-right: 10px;
 }
 
-.toothButton:hover {
-  border-color: color-mix(in srgb, var(--denty-teal) 25%, transparent);
-  background: color-mix(in srgb, var(--denty-teal) 5%, transparent);
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .toothButton:hover {
+    border-color: color-mix(in srgb, var(--denty-teal) 25%, transparent);
+    background: color-mix(in srgb, var(--denty-teal) 5%, transparent);
+    transform: translateY(-2px);
+  }
 }
 
 .surgeryVisualMark {
@@ -276,11 +278,13 @@
     filter 120ms ease;
 }
 
-.surface:hover {
-  fill: color-mix(in srgb, var(--denty-teal) 13%, var(--denty-card-solid));
-  stroke: var(--denty-teal);
-  stroke-width: 1.8;
-  filter: brightness(1.03);
+@media (hover: hover) and (pointer: fine) {
+  .surface:hover {
+    fill: color-mix(in srgb, var(--denty-teal) 13%, var(--denty-card-solid));
+    stroke: var(--denty-teal);
+    stroke-width: 1.8;
+    filter: brightness(1.03);
+  }
 }
 
 /* Whole-tooth state on the anatomical crown; surfaces are edited on the map. */
@@ -655,8 +659,10 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   fill: rgb(17 32 49 / 94%);
 }
 
-html[data-mantine-color-scheme="dark"] .surface:hover {
-  fill: rgb(27 65 82 / 96%);
+@media (hover: hover) and (pointer: fine) {
+  html[data-mantine-color-scheme="dark"] .surface:hover {
+    fill: rgb(27 65 82 / 96%);
+  }
 }
 
 @media (width <= 70em) {
@@ -773,10 +779,12 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
     transform 140ms ease;
 }
 
-.legendEntry:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--denty-teal) 42%, var(--denty-line));
-  background: color-mix(in srgb, var(--denty-teal) 7%, var(--denty-card));
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .legendEntry:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--denty-teal) 42%, var(--denty-line));
+    background: color-mix(in srgb, var(--denty-teal) 7%, var(--denty-card));
+    transform: translateY(-1px);
+  }
 }
 
 .legendEntry[data-selected="true"] {
@@ -1107,11 +1115,17 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
   cursor: pointer;
 }
 
-.orthoTooth:hover,
-.pediatricToothButton:hover,
 .pediatricToothButton[data-selected="true"] {
   border-color: var(--denty-line-strong);
   background: var(--denty-card);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orthoTooth:hover,
+  .pediatricToothButton:hover {
+    border-color: var(--denty-line-strong);
+    background: var(--denty-card);
+  }
 }
 
 .orthoTooth > span,
@@ -1606,9 +1620,11 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
   background: transparent;
 }
 
-.legendEntry:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--denty-blue) 5%, var(--denty-card));
-  transform: none;
+@media (hover: hover) and (pointer: fine) {
+  .legendEntry:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--denty-blue) 5%, var(--denty-card));
+    transform: none;
+  }
 }
 
 .legendEntry[data-selected="true"] {
@@ -1708,8 +1724,10 @@ html[data-mantine-color-scheme="dark"] .surface:hover {
   border-radius: 12px;
 }
 
-.toothButton:hover {
-  transform: none;
+@media (hover: hover) and (pointer: fine) {
+  .toothButton:hover {
+    transform: none;
+  }
 }
 
 @media (width <= 78em) {

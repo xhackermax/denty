@@ -7,12 +7,7 @@ import { useMemo, useState } from "react";
 import { startOfReportingPeriodMadrid, toMadridISO, type ReportingPeriod } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
 import { getBrowserApi } from "@/shared/api/browser";
-import {
-  AnimatedProgress,
-  MotionParallax,
-  MotionScrollReveal,
-  SpeedingMetric,
-} from "@/shared/motion";
+import { AnimatedProgress, MotionScrollReveal, SpeedingMetric } from "@/shared/motion";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
@@ -68,7 +63,7 @@ export function AnalysisModule() {
         <Alert color="red">No se pudo cargar la analítica real.</Alert>
       )}
       <MotionScrollReveal intensity="normal">
-        <MotionParallax intensity="subtle">
+        <>
           <SimpleGrid cols={{ base: 2, md: 4 }}>
             <div className={styles.metric}>
               <span className={styles.metricLabel}>Producción</span>
@@ -155,7 +150,7 @@ export function AnalysisModule() {
               />
             </div>
           </SimpleGrid>
-        </MotionParallax>
+        </>
       </MotionScrollReveal>
       <SimpleGrid cols={{ base: 2, md: 4 }}>
         <div className={styles.metric}>

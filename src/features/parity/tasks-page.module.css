@@ -41,8 +41,10 @@
   text-decoration: none;
 }
 
-.quickLink:hover {
-  background: var(--denty-glow);
+@media (hover: hover) and (pointer: fine) {
+  .quickLink:hover {
+    background: var(--denty-glow);
+  }
 }
 
 .quickLink:focus-visible {
