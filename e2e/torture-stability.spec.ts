@@ -104,14 +104,26 @@ for (const clicks of [2, 3]) {
       release();
     }
     await expect(page.getByText(saved)).toBeVisible({ timeout: 15_000 });
-    await expect.poll(async () => (await fakeSupabase.state()).dental_entities?.length).toBe(2);
+    await expect
+      .poll(
+        async () =>
+          (await fakeSupabase.state()).dental_entities?.filter((row) => row.active).length,
+      )
+      .toBe(2);
     await expect.poll(async () => (await fakeSupabase.state()).clinical_plan_items?.length).toBe(2);
     await expect
       .poll(async () => (await fakeSupabase.state()).budgets?.[0]?.total_cents)
       .toBe(9000);
     const state = await fakeSupabase.state();
-    expect(state.dental_entities!.map((row) => row.tooth).sort()).toEqual(["36", "46"]);
-    expect(new Set(state.dental_entities!.map((row) => row.id)).size).toBe(2);
+    expect(
+      state
+        .dental_entities!.filter((row) => row.active)
+        .map((row) => row.tooth)
+        .sort(),
+    ).toEqual(["36", "46"]);
+    expect(
+      new Set(state.dental_entities!.filter((row) => row.active).map((row) => row.id)).size,
+    ).toBe(2);
     expect(state.clinical_plan_items).toHaveLength(2);
     expect(state.budgets).toHaveLength(1);
     expect(state.budgets![0]).toMatchObject({ total_cents: 9000 });
@@ -186,8 +198,15 @@ test("ST-004: two tabs editing the same version reject a stale write without ove
     await face(second, "46").click();
     await expect(second.getByText(saved)).toBeVisible({ timeout: 15_000 });
     const state = await fakeSupabase.state();
-    expect(state.dental_entities!.map((row) => row.tooth).sort()).toEqual(["36", "46"]);
-    expect(state.dental_entities!.every((row) => row.version === 3)).toBe(true);
+    expect(
+      state
+        .dental_entities!.filter((row) => row.active)
+        .map((row) => row.tooth)
+        .sort(),
+    ).toEqual(["36", "46"]);
+    expect(
+      state.dental_entities!.filter((row) => row.active).every((row) => row.version === 3),
+    ).toBe(true);
     expect(state.clinical_plan_items).toHaveLength(2);
     expect(state.budgets).toHaveLength(1);
     expect(failures).toEqual([]);

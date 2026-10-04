@@ -189,12 +189,20 @@ export class AuthRepository {
   }
 
   async touchAppSession(userId: string, appSessionId: string): Promise<void> {
+    const now = new Date();
     await this.client.patchMany(
       "app_sessions",
-      { id: `eq.${appSessionId}`, profile_id: `eq.${userId}`, revoked_at: "is.null" },
       {
-        last_seen_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + APP_SESSION_TTL_MS).toISOString(),
+        id: `eq.${appSessionId}`,
+        profile_id: `eq.${userId}`,
+        revoked_at: "is.null",
+        // A request authenticated just before expiry must not extend a session that has since
+        // expired: sliding renewal applies only to sessions that are still valid.
+        expires_at: `gt.${now.toISOString()}`,
+      },
+      {
+        last_seen_at: now.toISOString(),
+        expires_at: new Date(now.getTime() + APP_SESSION_TTL_MS).toISOString(),
       },
     );
   }

@@ -155,7 +155,26 @@ function matches(row, key, condition) {
   if (condition.startsWith("neq.")) return String(value) !== condition.slice(4);
   if (condition.startsWith("in.("))
     return condition.slice(4, -1).split(",").includes(String(value));
+  const range = /^(gt|gte|lt|lte)\.(.*)$/.exec(condition);
+  if (range) {
+    const [, operator, bound] = range;
+    const order = compareValues(value, bound);
+    if (order === null) return false;
+    return { gt: order > 0, gte: order >= 0, lt: order < 0, lte: order <= 0 }[operator];
+  }
   return true;
+}
+
+// PostgREST compares numbers and timestamps by value, not as text.
+function compareValues(value, bound) {
+  if (value === null || value === undefined) return null;
+  const left = Number(value);
+  const right = Number(bound);
+  if (Number.isFinite(left) && Number.isFinite(right)) return left - right;
+  const leftTime = Date.parse(String(value));
+  const rightTime = Date.parse(bound);
+  if (Number.isFinite(leftTime) && Number.isFinite(rightTime)) return leftTime - rightTime;
+  return String(value).localeCompare(bound);
 }
 
 const RESERVED = new Set(["select", "order", "limit", "offset", "or", "and"]);
@@ -191,7 +210,8 @@ function saveOdontogramBatch({ p_patient_id, p_expected_version, p_entities }) {
   for (const row of retiring) Object.assign(row, { active: false, version: next });
   for (const entity of inserting) {
     tables.dental_entities.push({
-      id: uuid(),
+      // The fake plan sync links items by entity id, so ids stay stable across saves.
+      id: entity.id ?? uuid(),
       clinic_id: IDS.clinic,
       patient_id: p_patient_id,
       tooth: entity.tooth ?? null,
