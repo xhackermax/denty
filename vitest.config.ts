@@ -15,9 +15,11 @@ export default defineConfig({
     exclude: [
       ...configDefaults.exclude,
       "e2e/**",
+      ".artifacts/**",
       ".worktrees/**",
       "scripts/tests/**",
       "scripts/**/*.test.mjs",
+      ...(process.env.DENTY_TORTURE === "1" ? [] : ["**/*-torture.test.ts"]),
     ],
     setupFiles: ["./src/test/setup.ts"],
     coverage: {

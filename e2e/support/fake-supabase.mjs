@@ -301,7 +301,50 @@ function agendaNextSlots({ p_not_before, p_from_minute, p_duration_min }) {
   };
 }
 
+// Mirrors the persisted payload of the stage6 SQL RPC; reads committed rows only.
+function createOdontogramSnapshot({ p_patient_id, p_label = null }) {
+  const patient = tables.patients.find((row) => row.id === p_patient_id);
+  if (!patient) throw new Error("PATIENT_NOT_FOUND");
+  const allEntities = tables.dental_entities.filter((row) => row.patient_id === p_patient_id);
+  const version = Math.max(1, ...allEntities.map((row) => row.version ?? 1));
+  const entities = allEntities.filter((row) => row.active).map((row) => ({
+    id: row.id, tooth: row.tooth, arch: row.arch, entityType: row.entity_type,
+    status: row.status, surfacesJson: row.surfaces_json, attributesJson: row.attributes_json,
+    parentId: row.parent_id, active: row.active, version: row.version,
+  }));
+  const latestSites = new Map();
+  const measurements = tables.periodontal_measurements
+    .filter((row) => row.patient_id === p_patient_id)
+    .sort((a, b) => (b.exam_version ?? -1) - (a.exam_version ?? -1)
+      || String(b.measured_at).localeCompare(String(a.measured_at))
+      || String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
+  for (const row of measurements) {
+    const key = `${row.tooth}:${row.site}`;
+    if (!latestSites.has(key)) latestSites.set(key, row);
+  }
+  const periodontal = [...latestSites.values()].map((row) => ({
+    id: row.id, tooth: row.tooth, site: row.site, probingDepth: row.probing_depth,
+    recession: row.recession, bleeding: row.bleeding, plaque: row.plaque,
+    suppuration: row.suppuration, mobility: row.mobility, furcation: row.furcation,
+    measuredAt: row.measured_at,
+  }));
+  const snapshot = {
+    id: uuid(), clinic_id: patient.clinic_id, patient_id: p_patient_id,
+    label: p_label?.trim() || null, version, created_at: now(),
+    payload_json: structuredClone({ schemaVersion: 1, version, entities, periodontal }),
+  };
+  tables.odontogram_snapshots.push(snapshot);
+  (tables.clinical_history_events ??= []).push({
+    id: uuid(), clinic_id: patient.clinic_id, patient_id: p_patient_id,
+    actor_id: IDS.user, event_type: "ODONTOGRAM_SNAPSHOT_CREATED",
+    entity_id: snapshot.id, entity_type: "ODONTOGRAM_SNAPSHOT",
+    payload_json: { version }, created_at: now(),
+  });
+  return snapshot;
+}
+
 const RPCS = {
+  create_odontogram_snapshot: createOdontogramSnapshot,
   save_odontogram_batch: saveOdontogramBatch,
   sync_clinical_plan: syncClinicalPlan,
   sync_budget_from_plan: syncBudgetFromPlan,
