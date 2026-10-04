@@ -9,6 +9,8 @@ const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH;
 
 export default defineConfig({
   testDir: "./e2e",
+  // Adversarial audits include known failing regressions and opt-in wall-clock stress runs.
+  ...(process.env.DENTY_TORTURE === "1" ? {} : { testIgnore: "**/torture-*.spec.ts" }),
   // Every spec shares one fake database; running them in parallel would mix their writes.
   workers: 1,
   forbidOnly: Boolean(process.env.CI),

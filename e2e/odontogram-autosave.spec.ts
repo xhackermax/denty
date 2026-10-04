@@ -59,7 +59,7 @@ test("a crown on an untouched natural tooth is recorded without a clinical-rule 
   });
   await expect(page.getByText("Regla clínica")).toHaveCount(0);
   const crown = (await fakeSupabase.state()).dental_entities!.find(
-    (row) => row.tooth === "46" && row.entity_type === "CROWN",
+    (row) => row.active && row.tooth === "46" && row.entity_type === "CROWN",
   );
   expect(crown).toBeDefined();
   expect(failures).toEqual([]);
