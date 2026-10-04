@@ -109,7 +109,11 @@ assert.match(docs, /uploadFile/);
 
 const settings = read("src/features/parity/modules/settings-module.tsx");
 assert.doesNotMatch(settings, /Crear copia/);
-assert.match(settings, /PITR|Supabase/i);
+// Backups are explained in their own panel: it must stay mounted and point to managed PITR.
+assert.match(settings, /<ManagedBackupsPanel\b/);
+const backups = read("src/features/parity/modules/managed-backups-panel.tsx");
+assert.doesNotMatch(backups, /Crear copia/);
+assert.match(backups, /PITR|Supabase/i);
 
 const securitySchema = read("src/shared/api/schemas/security.ts");
 assert.match(securitySchema, /configured:\s*z\.boolean/);

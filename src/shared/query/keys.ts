@@ -27,6 +27,7 @@ export const dentyQueryKeys = {
   },
   clinical: {
     root: root("clinical"),
+    patient: (patientId: string) => ["denty", "clinical", patientId] as const,
     odontogram: (patientId: string) => ["denty", "clinical", patientId, "odontogram"] as const,
     snapshots: (patientId: string) =>
       ["denty", "clinical", patientId, "odontogram", "snapshots"] as const,
@@ -95,6 +96,7 @@ export const dentyQueryKeys = {
     clinic: (clinicId: string) => ["denty", "settings", "clinic", clinicId] as const,
     site: (siteId: string) => ["denty", "settings", "site", siteId] as const,
     sitesOverview: ["denty", "settings", "sites-overview"] as const,
+    exportOverview: ["denty", "settings", "export-overview"] as const,
   },
   treatmentCatalog: {
     root: root("treatment-catalog"),

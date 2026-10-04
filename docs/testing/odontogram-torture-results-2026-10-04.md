@@ -1,5 +1,37 @@
 # Auditoría adversarial de Denty y del odontograma — 4 de octubre de 2026
 
+## Estado tras las correcciones (main, 4 de octubre, noche)
+
+Las secciones siguientes describen el código auditado (`2b54811`). Después se corrigieron los hallazgos y se volvieron a ejecutar las mismas suites:
+
+| Grupo | Auditoría | Ahora |
+|---|---|---|
+| Dominio adversarial (114) | 46 fallan | 1 falla |
+| SQL adversarial (15) | 11 fallan | 1 falla |
+| Navegador determinista (84) | 42 fallan | 2 fallan |
+| Playwright ordinario | 66/66 | 114/114 |
+| gate:stage13 | se corta en stage3; 4 grupos más fallan | pasa completo |
+
+| ID | Corrección |
+|---|---|
+| F01 | El adaptador lee las 26 familias del registro del dominio (`DENTAL_ENTITY_TYPES`). |
+| F02 | Solo se traducen palabras de ciclo de vida genéricas; los estados con significado propio se conservan. |
+| F03, F15 | Abrir un control o crear un snapshot guarda antes el borrador y se detiene si falla. |
+| F04 | La cola usa la versión confirmada por su propia escritura anterior. |
+| F05, F06 | Se admite el reemplazo vacío; las filas retiradas llevan la versión que las retiró y la lectura cuenta todas. Bloqueo por paciente en la RPC. |
+| F07, F08 | DTO y RPC validan FDI, caras, familia, formato de estado, IDs repetidos y rangos periodontales; restricciones `NOT VALID` en BD. |
+| F09 | La RPC reconstruye `parent_id` con un mapa de identidades. |
+| F10 | `sync_budget_from_plan` rechaza un plan anterior al odontograma (`PLAN_OUTDATED`). Pendiente de aplicar en producción: `docs/ops/2026-10-04-pendiente-supabase.sql`. |
+| F11–F13 | Invariante implante/diente natural en ambos sentidos; datos de implante también en lote; extracción quirúrgica realizada = ausente; implante perdido ausente; extracción quirúrgica de retenido; removibles por arcada. |
+| F14 | Ortodoncia se hidrata desde la entidad guardada. |
+| F16 | Una obturación realizada resuelve la caries de esa cara (queda en el historial); la caries activa tiene precedencia visual. |
+| F17 | Con la capa oculta, ningún clic registra la herramienta activa. |
+| Gates | Contratos de stage3, stage5, stage6, stage7 y `regressions:legacy` actualizados a la estructura actual sin rebajar lo que protegen; stage3 destapó dos claves de caché fuera de `dentyQueryKeys`, ya corregidas. |
+
+Hallazgos nuevos durante la verificación, corregidos: un bucle de render infinito (contexto del asistente) impedía salir del odontograma por enlaces; renovar una sesión podía resucitar una ya caducada (ES002 intermitente); reelegir la opción de un Select la vaciaba y la marca caía en el diente 25.
+
+Sigue en rojo a propósito BD006/BD011 «estado imposible»: los estados son un vocabulario abierto y el lote reemplaza el odontograma completo, así que rechazar una palabra desconocida bloquearía guardar fichas con estados especializados. Requiere un registro de estados por familia antes de endurecerlo.
+
 **La matriz no está aprobada.** Hay fallos reproducidos de borradores, guardado, carga de familias clínicas, validación y persistencia. Esta rama añade pruebas y propuestas de solución; no modifica el código de producción.
 
 Código evaluado: `main` en `2b54811a1f88fd8fe4939051266a88bc07a2dc64`. Node 24.19, Chromium 153 y Next en compilación de producción. Se usa la aplicación real con un sustituto de Supabase. Los tests SQL ejecutan funciones originales y restricciones pertinentes de migraciones en PGlite, con autenticación simulada y tablas de presupuesto simplificadas.

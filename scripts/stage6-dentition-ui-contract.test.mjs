@@ -39,7 +39,16 @@ assert(
   "No debe reaparecer la dentición mixta fija antigua",
 );
 assert(domain.includes('"SUPERNUMERARY_TOOTH"'), "El dominio debe aceptar supernumerarios");
-assert(wire.includes('"SUPERNUMERARY_TOOTH"'), "El wire debe persistir supernumerarios");
+// The wire reads every family from the domain registry, so supernumeraries (and any family the
+// domain adds) load and save without a second hand-kept list that can fall behind.
+assert(
+  /DENTAL_ENTITY_TYPES = \[[\s\S]*?"SUPERNUMERARY_TOOTH"/.test(domain),
+  "El registro de familias del dominio debe incluir supernumerarios",
+);
+assert(
+  /new Set<string>\(DENTAL_ENTITY_TYPES\)/.test(wire),
+  "El wire debe persistir supernumerarios usando el registro de familias del dominio",
+);
 for (const token of [
   "createSupernumeraryToothEntity",
   "Código ISO 10394",

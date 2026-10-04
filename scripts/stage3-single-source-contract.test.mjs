@@ -101,7 +101,27 @@ const webStorageAllow = new Set([
   "src/shared/ui/density-provider.tsx",
   // Site selection is a UI preference; identity and permissions still come from Auth.
   "src/shared/tenancy/active-context.tsx",
+  // Fail-safe wrapper for view preferences; its callers are pinned just below.
+  "src/shared/browser/browser-storage.ts",
 ]);
+// The storage wrapper may only hold view preferences, never clinical or operational data.
+const browserStorageConsumers = new Map([
+  [
+    "src/features/odontogram/odontogram-workspace.tsx",
+    /VIEW_PREFERENCE_KEY = "denty:odontogram:view:/,
+  ],
+]);
+for (const [file, text] of runtime) {
+  if (!/from "@\/shared\/browser\/browser-storage"/.test(text)) continue;
+  const pinned = browserStorageConsumers.get(file);
+  assert.ok(pinned, `${file}: browser storage is reserved for view preferences`);
+  assert.match(text, pinned, `${file}: browser storage must use the view preference key`);
+  assert.doesNotMatch(
+    text,
+    /(?:read|write)BrowserStorageItem\((?!\s*VIEW_PREFERENCE_KEY)/,
+    `${file}: browser storage must use the view preference key`,
+  );
+}
 const tenantContext =
   runtime.find(([file]) => file === "src/shared/tenancy/active-context.tsx")?.[1] ?? "";
 assert.match(tenantContext, /activeClinicId:\s*sessionQuery\.data\?\.actor\.clinicId/);

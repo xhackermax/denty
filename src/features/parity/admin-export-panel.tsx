@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { getBrowserApi } from "@/shared/api/browser";
 import { DentyApiError } from "@/shared/api/errors";
+import { dentyQueryKeys } from "@/shared/query";
 import { todayMadrid } from "@/domain/dates";
 import styles from "@/shared/ui/parity.module.css";
 
@@ -29,7 +30,7 @@ export function AdminExportPanel() {
   const [format, setFormat] = useState<ExportFormat>("csv");
 
   const overview = useQuery({
-    queryKey: ["admin", "export", "overview"],
+    queryKey: dentyQueryKeys.settings.exportOverview,
     queryFn: () => getBrowserApi().admin.export.overview(),
   });
 

@@ -20,6 +20,7 @@ import {
 import { parsePerioDictation } from "@/features/voice/perio-dictation";
 import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
 import { getBrowserApi } from "@/shared/api/browser";
+import { dentyQueryKeys } from "@/shared/query";
 import { perioExamDataSchema } from "@/shared/api/schemas/perio-drafts";
 import { useClinicalWorkflowQuery } from "@/shared/clinical/clinical-data";
 import { createPerioDraftOwner, type PerioDraftOwner } from "./draft-owner";
@@ -341,7 +342,7 @@ export function PerioChart({
     setListening(false);
     try {
       await owner.finish(onBeforeFinalize);
-      await queryClient.invalidateQueries({ queryKey: ["denty", "clinical", patientId] });
+      await queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.patient(patientId) });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo finalizar; el borrador se conserva.");
     }

@@ -35,7 +35,9 @@ for (const pattern of [
 ])
   assert.match(repo, pattern, `AgendaRepository missing ${pattern}`);
 for (const pattern of [
-  /locallyHandled[\s\S]*?"users"[\s\S]*?"patients"[\s\S]*?"appointments"[\s\S]*?"agenda"[\s\S]*?"attendance"[\s\S]*?"analytics"/,
+  // The sections live in one named set that the router consults.
+  /LOCALLY_HANDLED_SECTIONS[^=]*=\s*new Set\(\[[\s\S]*?"users"[\s\S]*?"patients"[\s\S]*?"appointments"[\s\S]*?"agenda"[\s\S]*?"attendance"[\s\S]*?"analytics"[\s\S]*?\]\)/,
+  /const locallyHandled\s*=[^;]*LOCALLY_HANDLED_SECTIONS\.has\(/,
   /parts\[1\]\s*===\s*["']appointments["'][\s\S]*?method\s*===\s*["']GET["']/,
   /parts\[1\]\s*===\s*["']appointments["'][\s\S]*?method\s*===\s*["']POST["']/,
   /arrive:\s*["']ARRIVED["']/,

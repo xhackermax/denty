@@ -148,7 +148,7 @@ assert.doesNotMatch(
 );
 assert.match(
   workspace,
-  /<PeriodontogramPanel[\s\S]*?readings=/,
+  /<PerioChart[\s\S]*?readings=\{initialPeriodontal\}/,
   "Periodontogram must rehydrate persisted readings",
 );
 assert.match(
