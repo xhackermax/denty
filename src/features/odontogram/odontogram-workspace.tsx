@@ -178,9 +178,12 @@ function surfaceEntity(
   tooth: string,
   surface: ToothSurface,
 ): DentalEntity | undefined {
-  return Object.values(state.entitiesById).find(
+  const onFace = Object.values(state.entitiesById).filter(
     (entity) => entity.active && entity.tooth === tooth && entity.surfaces?.includes(surface),
   );
+  // Active caries is what the face needs treated, so it shows over an older restoration
+  // (secondary caries). A completed filling resolves the caries it covers when applied.
+  return onFace.find((entity) => entity.entityType === "CARIES") ?? onFace[0];
 }
 function surfaceState(
   state: OdontogramEntityState,
@@ -653,6 +656,8 @@ function OdontogramEditor({
     });
   };
   const applyWhole = (tooth: string, status = tool) => {
+    // A tool whose layer is hidden would leave a mark nobody can see.
+    if (!isToothStatusVisible(status, viewState)) return;
     commit(createStateEntity(tooth, status));
   };
   const selectTool = (nextTool: ToothState, nextPlacement?: "tooth" | "bridge") => {
@@ -699,7 +704,29 @@ function OdontogramEditor({
       applyWhole(tooth);
       return;
     }
-    commit(createStateEntity(tooth, tool, [surface]));
+    if (!activeToolVisible) return;
+    const applied = createStateEntity(tooth, tool, [surface]);
+    if (tool !== "filling") {
+      commit(applied);
+      return;
+    }
+    // Placing the filling treats the caries on that face; it stays in the saved history.
+    const treated = Object.values(history.present.entitiesById).filter(
+      (entity) =>
+        entity.active &&
+        entity.entityType === "CARIES" &&
+        entity.tooth === tooth &&
+        entity.surfaces?.includes(surface),
+    );
+    if (!treated.length) {
+      commit(applied);
+      return;
+    }
+    const resolved = treated.map((entity) => {
+      const remaining = (entity.surfaces ?? []).filter((face) => face !== surface);
+      return remaining.length ? { ...entity, surfaces: remaining } : { ...entity, active: false };
+    });
+    commitBatch([...resolved, applied]);
   };
   const cycleWholeTreatment = (tooth: string) => {
     if (historical) return;
