@@ -201,8 +201,10 @@ for (const expected of [
 if (/esbuild\s*:\s*\{[\s\S]*?jsx\s*:/.test(vitestConfig)) {
   fail("Vitest no puede reintroducir esbuild.jsx con Vite 8; usa @vitejs/plugin-react");
 }
-if (!playwrightConfig.includes('testDir: "../../tests/e2e"')) {
-  fail("Playwright debe quedar aislado en ../../tests/e2e");
+// Browser specs live in e2e/, which Vitest excludes (checked above); a testDir outside the repo
+// left Playwright with nothing to run.
+if (!playwrightConfig.includes('testDir: "./e2e"')) {
+  fail("Playwright debe quedar aislado en ./e2e");
 }
 if (!vitestConfig.includes('setupFiles: ["./src/test/setup.ts"]')) {
   fail("Vitest debe cargar el setup compartido de entorno de tests");

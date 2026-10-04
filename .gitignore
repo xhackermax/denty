@@ -21,3 +21,7 @@ supabase/.temp/
 
 backups/
 *.tar.gz.age
+
+# Playwright
+/test-results/
+/playwright-report/

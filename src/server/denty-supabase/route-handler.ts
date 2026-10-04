@@ -328,6 +328,39 @@ function documentRepository(identity: RequestIdentity): DocumentRepository {
     identity.actor.clinicId,
   );
 }
+// Every /api/<section> dispatched below must be listed: unlisted sections fall through to
+// 501 SUPABASE_ROUTE_NOT_IMPLEMENTED before reaching their branch.
+export const LOCALLY_HANDLED_SECTIONS: ReadonlySet<string> = new Set([
+  "api",
+  "users",
+  "patients",
+  "patient",
+  "documents",
+  "document-templates",
+  "security",
+  "admin",
+  "budgets",
+  "appointments",
+  "agenda",
+  "attendance",
+  "analytics",
+  "invoices",
+  "invoice-series",
+  "payments",
+  "accounting",
+  "lab-works",
+  "laboratories",
+  "suppliers",
+  "supplier-invoices",
+  "supplier-payments",
+  "tasks",
+  "prescriptions",
+  "prescription-settings",
+  "payment-terminals",
+  "clinical-plan",
+  "navigation",
+]);
+
 export async function handleSupabaseDentyRoute(
   request: Request,
   backendPath: string,
@@ -538,35 +571,7 @@ export async function handleSupabaseDentyRoute(
     if (parts[0] === "api" && parts[1] === "auth") {
       return error(404, "AUTH_ROUTE_NOT_FOUND", "La ruta de autenticación no existe.");
     }
-    const locallyHandled =
-      parts[0] === "api" &&
-      [
-        "users",
-        "patients",
-        "patient",
-        "documents",
-        "document-templates",
-        "security",
-        "admin",
-        "budgets",
-        "appointments",
-        "agenda",
-        "attendance",
-        "analytics",
-        "invoices",
-        "invoice-series",
-        "payments",
-        "accounting",
-        "lab-works",
-        "laboratories",
-        "suppliers",
-        "supplier-invoices",
-        "supplier-payments",
-        "tasks",
-        "prescriptions",
-        "prescription-settings",
-        "payment-terminals",
-      ].includes(parts[1] ?? "");
+    const locallyHandled = parts[0] === "api" && LOCALLY_HANDLED_SECTIONS.has(parts[1] ?? "");
     if (!locallyHandled) return null;
     const identity = await resolveRequestIdentity(request);
     if (!identity) return error(401, "UNAUTHENTICATED", "No hay sesión activa.");

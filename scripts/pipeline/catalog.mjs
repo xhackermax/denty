@@ -171,7 +171,7 @@ export const stages = {
   "playwright-browsers": {
     description: "Install browsers required by Playwright in CI",
     needs: ["install"],
-    command: bin("playwright", ["install", "--with-deps", "chromium", "webkit"]),
+    command: bin("playwright", ["install", "--with-deps", "chromium"]),
     timeoutMs: 6 * MINUTE,
   },
   e2e: {
