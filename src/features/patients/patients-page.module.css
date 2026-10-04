@@ -35,8 +35,8 @@
 }
 
 .patientCardMeta {
+  color: var(--denty-muted); /* a faded opacity fell to 4.4:1 */
   font-size: 12px;
-  opacity: 0.6;
 }
 
 .patientCardActions {

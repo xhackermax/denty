@@ -102,7 +102,7 @@ export function ModuleWorkbench({ module }: ModuleWorkbenchProps) {
   const meta = TITLES[module];
   return (
     <div className={styles.grid}>
-      <PageHeader eyebrow="Denty" title={meta.title} description={meta.description} />
+      <PageHeader title={meta.title} description={meta.description} />
       {renderModule(module)}
     </div>
   );

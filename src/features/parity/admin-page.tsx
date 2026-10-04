@@ -19,7 +19,6 @@ export function AdminPage({
   return (
     <div className={styles.grid}>
       <PageHeader
-        eyebrow="Administración"
         title={
           section === "home"
             ? "Centro operativo"

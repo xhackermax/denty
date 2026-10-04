@@ -13,7 +13,6 @@
   letter-spacing: inherit;
   line-height: inherit;
   white-space: nowrap;
-  will-change: transform, filter, opacity;
 }
 
 .value {

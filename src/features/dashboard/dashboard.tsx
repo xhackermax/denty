@@ -68,7 +68,6 @@ export function Dashboard() {
   return (
     <div className={styles.grid}>
       <PageHeader
-        eyebrow="HOY"
         title="¿Qué toca ahora?"
         description="La jornada clínica desde la fuente canónica de Denty."
         actions={

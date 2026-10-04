@@ -106,7 +106,7 @@ import {
   pediatricReplacementForTooth,
 } from "./odontogram-layer-projection";
 
-import { patientEyebrow } from "./patient-eyebrow";
+import { patientLine } from "./patient-line";
 import { SurgeryPanel } from "./surgery-panel";
 import { surgicalVisualsForTooth } from "./surgery-visuals";
 const TOOL_OPTIONS = TOOTH_STATES.map((state) => ({
@@ -789,9 +789,8 @@ function OdontogramEditor({
   return (
     <div className={styles.board}>
       <PageHeader
-        eyebrow={historical ? "Histórico" : patientEyebrow(patient)}
         title={historicalLabel ?? "Odontograma"}
-        description={historical ? "Solo lectura." : "Marca hallazgos y tratamientos."}
+        description={historical ? "Solo lectura." : patientLine(patient)}
         actions={
           <Group>
             <Badge variant="light">{historical ? "Histórico" : `v${expectedVersion ?? "?"}`}</Badge>

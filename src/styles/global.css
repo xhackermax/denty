@@ -66,6 +66,15 @@ button,
   user-select: none;
 }
 
+/* Fingers need 44 px: icon buttons grow to it on touch screens, mouse layouts stay compact. */
+@media (pointer: coarse) {
+  .mantine-ActionIcon-root,
+  .mantine-CloseButton-root {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 /* iOS zooms into any field under 16px and does not zoom back out. */
 @media (pointer: coarse) {
   input,
@@ -83,6 +92,17 @@ button,
 :focus-visible {
   outline: 3px solid color-mix(in srgb, var(--denty-blue) 48%, transparent);
   outline-offset: 2px;
+}
+
+/* Mantine's dimmed gray (#868e96) is 3.1:1 on Denty's surfaces; secondary text uses the muted
+   token instead, which clears 4.5:1 in both schemes. */
+:root[data-mantine-color-scheme] {
+  --mantine-color-dimmed: var(--denty-muted);
+}
+
+/* Light badges carry 11px text: pull their tone toward the text colour to reach 4.5:1. */
+.mantine-Badge-root[data-variant="light"] {
+  color: color-mix(in oklab, var(--badge-color) 70%, var(--denty-text));
 }
 
 /* App-wide iOS-like component treatment. Keeps functionality, removes visual noise. */
@@ -180,7 +200,7 @@ button,
 
 .mantine-Tabs-tab[data-active] {
   background: color-mix(in srgb, var(--denty-blue) 10%, var(--denty-card-solid));
-  color: var(--denty-blue);
+  color: var(--denty-blue-text);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -54,6 +54,8 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
           data-active={active}
           data-tone={item.tone}
           aria-current={active ? "page" : undefined}
+          // Tablets show the icon rail with labels hidden; the name must not depend on them.
+          aria-label={tNav(item.key)}
         >
           {active ? (
             <motion.span
@@ -102,7 +104,11 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
           pathname={pathname}
           position="right-start"
           trigger={
-            <button className={`${styles.navLink} ${styles.moreNavButton}`} type="button">
+            <button
+              className={`${styles.navLink} ${styles.moreNavButton}`}
+              type="button"
+              aria-label={tCommon("more")}
+            >
               <IconDots size={20} stroke={1.8} aria-hidden={true} />
               <span className={styles.navLabel}>{tCommon("more")}</span>
             </button>

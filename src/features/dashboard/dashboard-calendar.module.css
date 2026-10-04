@@ -95,7 +95,7 @@
 }
 
 .day[data-outside="true"] {
-  opacity: 0.38;
+  color: var(--denty-muted); /* faded, yet still readable: these days are tappable */
 }
 
 .day[data-today="true"] {
@@ -174,7 +174,7 @@
   flex: none;
   align-items: center;
   gap: 2px;
-  color: var(--denty-blue);
+  color: var(--denty-blue-text);
   font-size: 0.74rem;
   font-weight: 700;
   text-decoration: none;
@@ -241,7 +241,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .moreLink:hover {
-    color: var(--denty-blue);
+    color: var(--denty-blue-text);
   }
 }
 

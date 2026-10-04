@@ -127,6 +127,8 @@ export function SpeedingMetric({
     <span
       ref={rootRef}
       className={[styles.root, className].filter(Boolean).join(" ")}
+      // The animated digits are aria-hidden; a labelled img role is what may carry aria-label.
+      role="img"
       aria-label={ariaLabel ? `${ariaLabel}: ${finalText}` : finalText}
       data-speeding={speeding ? "true" : undefined}
     >

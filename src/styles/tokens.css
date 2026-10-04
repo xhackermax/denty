@@ -10,6 +10,7 @@
   --denty-line: rgb(60 60 67 / 12%);
   --denty-line-strong: rgb(60 60 67 / 20%);
   --denty-blue: #007aff;
+  --denty-blue-text: #0062cc; /* brand blue as text: #007aff is 3.7:1 on the page, this is 5.3:1 */
   --denty-teal: #0a84ff;
   --denty-cyan: #32ade6;
   --denty-green: #30a46c;
@@ -52,6 +53,7 @@ html[data-mantine-color-scheme="dark"] {
   --denty-line: rgb(84 84 88 / 34%);
   --denty-line-strong: rgb(99 99 102 / 52%);
   --denty-blue: #0a84ff;
+  --denty-blue-text: #4da3ff;
   --denty-teal: #64d2ff;
   --denty-cyan: #64d2ff;
   --denty-green: #30d158;

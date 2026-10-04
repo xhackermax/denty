@@ -212,7 +212,7 @@
 
 .toothLayerMark {
   max-width: 84px;
-  color: var(--denty-blue);
+  color: var(--denty-blue-text);
   font-size: 0.54rem;
   font-weight: 760;
   line-height: 1.15;
@@ -1658,7 +1658,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   width: fit-content;
   padding: 5px 8px;
   border-radius: 999px;
-  color: var(--denty-blue);
+  color: var(--denty-blue-text);
   cursor: pointer;
   font-size: 0.68rem;
   font-weight: 720;

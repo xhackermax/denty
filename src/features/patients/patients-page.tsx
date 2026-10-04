@@ -216,7 +216,6 @@ export function PatientsPage() {
   return (
     <div className={styles.grid}>
       <PageHeader
-        eyebrow="Pacientes"
         title="Pacientes"
         description="Busca y abre una ficha."
         actions={

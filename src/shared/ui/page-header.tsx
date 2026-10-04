@@ -7,16 +7,14 @@ import styles from "./shared-ui.module.css";
 interface PageHeaderProps {
   title: string;
   description?: string;
-  eyebrow?: string;
   actions?: ReactNode;
 }
 
-export function PageHeader({ title, description, eyebrow, actions }: PageHeaderProps) {
+export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
     <header className={styles.pageHeader}>
       <PageBackButton />
       <div className={styles.pageHeaderText}>
-        {eyebrow ? <p className={styles.eyebrow}>{eyebrow}</p> : null}
         <Title order={1} size="h2">
           {title}
         </Title>

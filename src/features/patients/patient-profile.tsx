@@ -188,9 +188,8 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   return (
     <div className={styles.grid}>
       <PageHeader
-        eyebrow={`Ficha ${recordNumber}`}
         title={fullName || "Paciente"}
-        description={`${phone} · ${email}`}
+        description={`Ficha ${recordNumber} · ${phone} · ${email}`}
         actions={
           <Group gap="xs">
             <Button

@@ -13,10 +13,27 @@ const iosBlue: MantineColorsTuple = [
   "#003f8c",
 ];
 
+// Mantine's teal from shade 7 on, darkened so white labels on filled buttons clear 4.5:1
+// (#0ca678 was 3.1:1; #087f5b is 5.0:1). Lighter shades, used for tints, are unchanged.
+const accessibleTeal: MantineColorsTuple = [
+  "#e6fcf5",
+  "#c3fae8",
+  "#96f2d7",
+  "#63e6be",
+  "#38d9a9",
+  "#20c997",
+  "#12b886",
+  "#087f5b",
+  "#076b4d",
+  "#065a41",
+];
+
 export const dentyTheme = createTheme({
   primaryColor: "dentyBlue",
-  primaryShade: { light: 6, dark: 6 },
-  colors: { dentyBlue: iosBlue },
+  // Shade 7 (#0068db) keeps white button labels at 5.2:1; shade 6 (#007aff) was 4.0:1.
+  primaryShade: { light: 7, dark: 7 },
+  // color="blue" used Mantine's own blue (#228be6, 3.6:1 under white text); one blue for all.
+  colors: { dentyBlue: iosBlue, blue: iosBlue, teal: accessibleTeal },
   autoContrast: true,
   luminanceThreshold: 0.3,
   defaultRadius: "md",

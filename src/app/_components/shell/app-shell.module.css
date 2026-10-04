@@ -138,7 +138,7 @@
 
 .navLink[data-active="true"] {
   background: transparent;
-  color: var(--nav-accent);
+  color: color-mix(in oklab, var(--nav-accent) 66%, var(--denty-text));
   font-weight: 730;
 }
 
@@ -279,7 +279,7 @@
 
 .bottomLink[data-active="true"],
 .bottomButton[aria-expanded="true"] {
-  color: var(--denty-blue);
+  color: var(--denty-blue-text);
   font-weight: 740;
 }
 
@@ -325,7 +325,7 @@
 }
 
 .moreLink svg {
-  color: var(--nav-accent);
+  color: color-mix(in oklab, var(--nav-accent) 66%, var(--denty-text));
 }
 
 .moreLink[data-active="true"] {

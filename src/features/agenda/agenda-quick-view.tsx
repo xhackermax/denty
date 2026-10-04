@@ -133,7 +133,6 @@ export function AgendaQuickView({
       position="right"
       size="sm"
       title={appointment?.patientName ?? ""}
-      aria-label="Detalle de la cita"
       closeButtonProps={{ "aria-label": "Cerrar detalle de la cita" }}
     >
       {appointment && status ? (

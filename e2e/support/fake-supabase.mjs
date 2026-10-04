@@ -308,6 +308,8 @@ const RPCS = {
   set_clinic_navigation_layout: setClinicNavigationLayout,
   set_my_navigation_layout: setMyNavigationLayout,
   agenda_next_slots: agendaNextSlots,
+  // The real function coalesces to an empty list when no campaign has activity yet.
+  stage11_campaign_roi: () => [],
 };
 
 // --- HTTP -----------------------------------------------------------------------------------

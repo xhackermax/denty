@@ -26,7 +26,7 @@
 
 .glyph[data-clinical-state="redo"] .icon,
 .glyph[data-clinical-state="redo"] :global(.clinical-accent) {
-  color: var(--denty-blue);
+  color: var(--denty-blue-text);
   stroke: var(--denty-blue);
 }
 

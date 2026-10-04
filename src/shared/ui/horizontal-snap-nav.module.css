@@ -42,7 +42,7 @@
 .item[data-active="true"] {
   border-color: color-mix(in srgb, var(--denty-blue) 55%, var(--denty-line));
   background: color-mix(in srgb, var(--denty-blue) 14%, var(--denty-card-solid));
-  color: var(--denty-blue);
+  color: var(--denty-blue-text);
 }
 
 .item:focus-visible {

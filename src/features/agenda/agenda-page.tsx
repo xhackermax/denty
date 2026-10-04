@@ -1362,6 +1362,10 @@ export function AgendaPage() {
     <section className={styles.shell}>
       <div
         className={styles.scroller}
+        // Keyboard users can scroll the day grid with the arrow keys once it has focus.
+        tabIndex={0}
+        role="region"
+        aria-label="Rejilla de la agenda"
         onTouchStart={(event) => {
           const touch = event.touches[0];
           touchRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
@@ -1600,11 +1604,7 @@ export function AgendaPage() {
       }}
     >
       <div className={parityStyles.grid}>
-        <PageHeader
-          eyebrow="Agenda"
-          title="Agenda"
-          description="Arrastra para mover. ··· para más."
-        />
+        <PageHeader title="Agenda" description="Arrastra para mover. ··· para más." />
 
         {renderToolbar()}
 

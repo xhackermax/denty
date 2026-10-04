@@ -184,7 +184,7 @@ export function DashboardCalendar({
         </Button>
       </div>
 
-      <div className={styles.grid} role="grid" aria-label="Días del mes">
+      <div className={styles.grid} role="group" aria-label="Días del mes">
         {WEEKDAYS.map((weekday) => (
           <span key={weekday} className={styles.weekday} aria-hidden="true">
             {weekday}

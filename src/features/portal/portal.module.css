@@ -69,7 +69,7 @@
 .tab[data-active="true"] {
   background: var(--denty-card-solid);
   box-shadow: var(--denty-shadow-sm);
-  color: var(--denty-blue);
+  color: var(--denty-blue-text);
   font-weight: 740;
 }
 
