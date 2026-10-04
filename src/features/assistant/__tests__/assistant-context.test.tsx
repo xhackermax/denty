@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render } from "@testing-library/react";
+import { useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 let pathname = "/app/patients/p2";
@@ -11,6 +12,7 @@ import {
   AssistantContextProvider,
   useAssistantContext,
   useAssistantContextPatch,
+  useOptionalAssistantContextPatch,
 } from "../assistant-context";
 
 const probe = {} as {
@@ -73,5 +75,34 @@ describe("assistant context patient", () => {
     mount();
 
     expect(probe.context.patientId).toBeUndefined();
+  });
+
+  it("keeps the patch function stable so screens can depend on it in effects", () => {
+    // The odontogram patches the selected tooth in an effect that lists the patch function as a
+    // dependency; a new function per render re-ran it forever and froze navigation.
+    let renders = 0;
+    function SelectedTooth() {
+      const patch = useOptionalAssistantContextPatch();
+      useEffect(() => {
+        renders += 1;
+      });
+      useEffect(() => {
+        patch({ patientId: "p2", selectedTooth: "36" });
+        return () => patch({ patientId: undefined, selectedTooth: undefined });
+      }, [patch]);
+      return null;
+    }
+    render(
+      <AssistantContextProvider>
+        <SelectedTooth />
+        <Probe />
+      </AssistantContextProvider>,
+    );
+    const first = probe.patch;
+    expect(renders).toBeLessThan(5);
+    expect(probe.context.selectedTooth).toBe("36");
+    act(() => probe.patch({ selectedTooth: "36" }));
+    expect(probe.patch).toBe(first);
+    expect(renders).toBeLessThan(5);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import type { AssistantContext } from "./assistant-types";
@@ -65,8 +65,25 @@ export function AssistantContextProvider({ children }: { children: ReactNode }) 
     );
   }, [pathname, patch]);
 
+  // Stable, and a no-op when nothing changes: screens patch from effects that depend on it, so a
+  // new function or a new object per render would re-run them forever and freeze navigation.
+  const patchContext = useCallback(
+    (next: AssistantContextPatch) =>
+      setPatch((current) => {
+        const merged = { ...current, ...next };
+        const keys = new Set([...Object.keys(current), ...Object.keys(merged)]);
+        const changed = [...keys].some(
+          (key) =>
+            current[key as keyof AssistantContextPatch] !==
+            merged[key as keyof AssistantContextPatch],
+        );
+        return changed ? merged : current;
+      }),
+    [],
+  );
+
   return (
-    <PatchContext.Provider value={(next) => setPatch((current) => ({ ...current, ...next }))}>
+    <PatchContext.Provider value={patchContext}>
       <Context.Provider value={value}>{children}</Context.Provider>
     </PatchContext.Provider>
   );
@@ -90,6 +107,8 @@ export function useAssistantContextPatch(): (patch: AssistantContextPatch) => vo
   return value;
 }
 
+const ignorePatch = (_patch: AssistantContextPatch) => undefined;
+
 export function useOptionalAssistantContextPatch(): (patch: AssistantContextPatch) => void {
-  return useContext(PatchContext) ?? (() => undefined);
+  return useContext(PatchContext) ?? ignorePatch;
 }
