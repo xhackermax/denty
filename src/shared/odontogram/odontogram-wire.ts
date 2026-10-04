@@ -1,4 +1,5 @@
 import {
+  DENTAL_ENTITY_TYPES,
   TOOTH_STATES,
   type DentalEntity,
   type DentalEntityType,
@@ -9,42 +10,76 @@ import type { PersistedDentalEntity } from "@/shared/api/schemas/clinical";
 
 const DOMAIN_STATES = new Set<string>(TOOTH_STATES);
 
-const DOMAIN_ENTITY_TYPES = new Set<DentalEntityType>([
-  "TOOTH_STATE",
-  "HEALTHY",
-  "CARIES",
-  "MISSING",
-  "EXTRACTION",
-  "RESTORATION",
-  "ENDO",
-  "POST",
-  "CROWN",
-  "IMPLANT",
-  "ABUTMENT",
-  "BRIDGE",
-  "PONTIC",
-  "REMOVABLE",
-  "ORTHODONTIC",
-  "PEDIATRIC",
-  "PROSTHESIS",
-  "SUPERNUMERARY_TOOTH",
-]);
+const DOMAIN_ENTITY_TYPES = new Set<string>(DENTAL_ENTITY_TYPES);
 
 const SURFACES = new Set<ToothSurface>(["V", "M", "O", "I", "D", "P", "L"]);
 
 type StateKind = "completed" | "unsatisfactory" | "planned";
 
-function stateKind(status: string): StateKind {
-  const value = status.toLowerCase();
-  if (/unsatisfactory|bad|redo|review|retrat/.test(value)) return "unsatisfactory";
-  if (/pending|planned|indicat|caries/.test(value)) return "planned";
-  return "completed";
+type Family = "filling" | "crown" | "endo" | "post" | "implant" | "removable" | "prosthesis";
+
+// Only these generic lifecycle words are translated. Any other status carries its own clinical
+// meaning (an endodontic diagnosis, a retreatment, a lost implant, a completed extraction) and
+// must reach the screen and the database unchanged instead of collapsing into "completed".
+const LIFECYCLE_ALIASES: Readonly<Record<StateKind, readonly string[]>> = {
+  completed: ["completed", "done"],
+  unsatisfactory: ["unsatisfactory", "bad", "review", "redo"],
+  planned: ["planned", "pending", "indicated"],
+};
+
+const FAMILY_PREFIXES: Partial<Record<DentalEntityType, { family: Family; prefixes: string[] }>> = {
+  RESTORATION: { family: "filling", prefixes: ["restoration", "filling", "obturation"] },
+  CROWN: { family: "crown", prefixes: ["crown"] },
+  ENDO: { family: "endo", prefixes: ["endo"] },
+  POST: { family: "post", prefixes: ["post"] },
+  IMPLANT: { family: "implant", prefixes: ["implant"] },
+  REMOVABLE: { family: "removable", prefixes: ["removable"] },
+  PROSTHESIS: { family: "prosthesis", prefixes: ["prosthesis"] },
+};
+
+const SINGLE_STATE_ALIASES: Partial<
+  Record<DentalEntityType, { state: ToothState; statuses: string[] }>
+> = {
+  HEALTHY: { state: "healthy", statuses: ["healthy", "sound"] },
+  CARIES: {
+    state: "caries",
+    statuses: [
+      "caries",
+      "caries_pending",
+      "caries_planned",
+      "caries_active",
+      "active",
+      "pending",
+      "planned",
+    ],
+  },
+  MISSING: { state: "missing", statuses: ["missing", "absent"] },
+  EXTRACTION: {
+    state: "extraction",
+    statuses: [
+      "extraction",
+      "extraction_indicated",
+      "extraction_planned",
+      "extraction_pending",
+      "indicated",
+      "planned",
+      "pending",
+    ],
+  },
+};
+
+function lifecycleKind(status: string, prefixes: readonly string[]): StateKind | null {
+  for (const kind of Object.keys(LIFECYCLE_ALIASES) as StateKind[]) {
+    for (const alias of LIFECYCLE_ALIASES[kind]) {
+      if (status === alias || prefixes.some((prefix) => status === `${prefix}_${alias}`)) {
+        return kind;
+      }
+    }
+  }
+  return null;
 }
 
-function familyState(
-  family: "filling" | "crown" | "endo" | "post" | "implant" | "removable" | "prosthesis",
-  kind: StateKind,
-): ToothState {
+function familyState(family: Family, kind: StateKind): ToothState {
   if (family === "filling") {
     return kind === "completed"
       ? "filling"
@@ -91,21 +126,21 @@ function familyState(
 }
 
 export function toothStateFromEntity(entity: DentalEntity): ToothState | null {
-  if (DOMAIN_STATES.has(entity.status)) return entity.status as ToothState;
-
-  const kind = stateKind(entity.status);
-  if (entity.entityType === "HEALTHY") return "healthy";
-  if (entity.entityType === "CARIES") return "caries";
-  if (entity.entityType === "MISSING") return "missing";
-  if (entity.entityType === "EXTRACTION") return "extraction";
-  if (entity.entityType === "RESTORATION") return familyState("filling", kind);
-  if (entity.entityType === "CROWN") return familyState("crown", kind);
-  if (entity.entityType === "ENDO") return familyState("endo", kind);
-  if (entity.entityType === "POST") return familyState("post", kind);
-  if (entity.entityType === "IMPLANT") return familyState("implant", kind);
-  if (entity.entityType === "REMOVABLE") return familyState("removable", kind);
-  if (entity.entityType === "PROSTHESIS") return familyState("prosthesis", kind);
-  return null;
+  const status = entity.status.toLowerCase();
+  if (DOMAIN_STATES.has(status)) {
+    const state = status as ToothState;
+    // A state name stored under another family (an ENDO row saying "crown") is not that state.
+    if (entity.entityType === "TOOTH_STATE" || entityTypeForState(state) === entity.entityType) {
+      return state;
+    }
+    return null;
+  }
+  const single = SINGLE_STATE_ALIASES[entity.entityType];
+  if (single) return single.statuses.includes(status) ? single.state : null;
+  const family = FAMILY_PREFIXES[entity.entityType];
+  if (!family) return null;
+  const kind = lifecycleKind(status, family.prefixes);
+  return kind ? familyState(family.family, kind) : null;
 }
 
 export function createStateEntity(

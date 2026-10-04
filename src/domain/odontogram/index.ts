@@ -143,33 +143,36 @@ export interface OrthodonticAttributes {
   notes?: string;
 }
 
-export type DentalEntityType =
-  | "TOOTH_STATE"
-  | "HEALTHY"
-  | "CARIES"
-  | "MISSING"
-  | "EXTRACTION"
-  | "RESTORATION"
-  | "ENDO"
-  | "POST"
-  | "CROWN"
-  | "IMPLANT"
-  | "ABUTMENT"
-  | "BRIDGE"
-  | "PONTIC"
-  | "REMOVABLE"
-  | "ORTHODONTIC"
-  | "PEDIATRIC"
-  | "PROSTHESIS"
-  | "SURGERY"
-  | "BONE_GRAFT"
-  | "MEMBRANE"
-  | "SINUS_LIFT"
-  | "SURGICAL_LESION"
-  | "IMPLANT_COMPONENT"
-  | "PROSTHETIC_STRUCTURE"
-  | "PERIODONTAL_FINDING"
-  | "SUPERNUMERARY_TOOTH";
+export const DENTAL_ENTITY_TYPES = [
+  "TOOTH_STATE",
+  "HEALTHY",
+  "CARIES",
+  "MISSING",
+  "EXTRACTION",
+  "RESTORATION",
+  "ENDO",
+  "POST",
+  "CROWN",
+  "IMPLANT",
+  "ABUTMENT",
+  "BRIDGE",
+  "PONTIC",
+  "REMOVABLE",
+  "ORTHODONTIC",
+  "PEDIATRIC",
+  "PROSTHESIS",
+  "SURGERY",
+  "BONE_GRAFT",
+  "MEMBRANE",
+  "SINUS_LIFT",
+  "SURGICAL_LESION",
+  "IMPLANT_COMPONENT",
+  "PROSTHETIC_STRUCTURE",
+  "PERIODONTAL_FINDING",
+  "SUPERNUMERARY_TOOTH",
+] as const;
+
+export type DentalEntityType = (typeof DENTAL_ENTITY_TYPES)[number];
 
 export interface DentalEntity {
   id: string;
