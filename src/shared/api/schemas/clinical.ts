@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DENTAL_ENTITY_TYPES } from "@/domain/odontogram";
 
 import { idSchema, versionSchema } from "../contracts";
 
@@ -134,13 +135,22 @@ export const budgetFromPlanSchema = z.object({
   clinicalPlanItemIds: z.array(idSchema).optional(),
 });
 
+// FDI notation: permanent 11–48 and primary 51–85, written exactly as two digits.
+const fdiToothSchema = z.string().regex(/^(?:[1-4][1-8]|[5-8][1-5])$/, "Diente FDI no válido");
+// Statuses are an open clinical vocabulary (each panel adds its own), so only their shape is
+// checked here: rejecting an unknown word would make a chart holding it impossible to save.
+const clinicalStatusSchema = z
+  .string()
+  .max(80)
+  .regex(/^[a-z][a-z0-9_]*$/, "Estado clínico no válido");
+
 export const dentalEntitySchema = z.object({
   id: idSchema.optional(),
-  tooth: z.string().optional(),
-  arch: z.string().optional(),
-  entityType: z.string().min(1),
-  status: z.string().min(1),
-  surfaces: z.array(z.string()).optional(),
+  tooth: fdiToothSchema.optional(),
+  arch: z.enum(["upper", "lower"]).optional(),
+  entityType: z.enum(DENTAL_ENTITY_TYPES),
+  status: clinicalStatusSchema,
+  surfaces: z.array(z.enum(["V", "M", "O", "I", "D", "P", "L"])).optional(),
   attributes: z.record(z.string(), z.unknown()).optional(),
   parentId: idSchema.optional(),
   active: z.boolean().default(true),
@@ -199,7 +209,16 @@ export const saveDentalEntityResultSchema = z.object({
 export const odontogramBatchSchema = z.object({
   expectedVersion: versionSchema,
   // The batch replaces the whole chart, so an empty list is how the last finding is removed.
-  entities: z.array(dentalEntitySchema),
+  entities: z.array(dentalEntitySchema).superRefine((entities, context) => {
+    const seen = new Set<string>();
+    for (const [index, entity] of entities.entries()) {
+      if (entity.id === undefined) continue;
+      if (seen.has(entity.id)) {
+        context.addIssue({ code: "custom", path: [index, "id"], message: "Id repetido" });
+      }
+      seen.add(entity.id);
+    }
+  }),
 });
 
 export const odontogramBatchResultSchema = z.object({
@@ -207,17 +226,22 @@ export const odontogramBatchResultSchema = z.object({
   version: versionSchema,
 });
 
+// The same limits validatePeriodontalReading enforces in the chart (program contract, in mm).
+const probingDepthSchema = z.number().int().min(0).max(15);
+const recessionSchema = z.number().int().min(-5).max(15);
+const gradeSchema = z.number().int().min(0).max(3);
+
 export const periodontalMeasurementSchema = z
   .object({
     tooth: z.string().min(1),
     site: z.string().min(1),
-    probingDepth: z.number().int().nonnegative().optional(),
-    recession: z.number().int().optional(),
+    probingDepth: probingDepthSchema.optional(),
+    recession: recessionSchema.optional(),
     bleeding: z.boolean().optional(),
     plaque: z.boolean().optional(),
     suppuration: z.boolean().optional(),
-    mobility: z.number().int().nonnegative().optional(),
-    furcation: z.number().int().nonnegative().optional(),
+    mobility: gradeSchema.optional(),
+    furcation: gradeSchema.optional(),
   })
   .passthrough();
 
@@ -458,10 +482,10 @@ export const endodonticAssessmentInputSchema = z.object({
 export const periodontalExamSiteSchema = z.object({
   tooth: z.string().min(1),
   site: z.string().min(1),
-  probingDepth: z.number().int().nonnegative().optional(),
-  recession: z.number().int().optional(),
-  mobility: z.number().int().nonnegative().optional(),
-  furcation: z.number().int().nonnegative().optional(),
+  probingDepth: probingDepthSchema.optional(),
+  recession: recessionSchema.optional(),
+  mobility: gradeSchema.optional(),
+  furcation: gradeSchema.optional(),
   bleeding: z.boolean().optional(),
   plaque: z.boolean().optional(),
   suppuration: z.boolean().optional(),

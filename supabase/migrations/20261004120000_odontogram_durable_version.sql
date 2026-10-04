@@ -11,6 +11,10 @@
 --
 -- parent_id was always written as null, which detached abutments and crowns from their implant.
 -- Rows get new UUIDs, so client ids are mapped to the new ones and the links rebuilt afterwards.
+--
+-- The API validates entities, but the RPC is callable directly; it now rejects the whole batch,
+-- before writing anything, when a row names a tooth outside FDI notation, an unknown family, a
+-- surface outside V/M/O/I/D/P/L or a malformed status. Statuses stay an open vocabulary.
 
 begin;
 
@@ -55,6 +59,30 @@ begin
 
   if v_current_version <> p_expected_version then
     return jsonb_build_object('conflict', true, 'currentVersion', v_current_version);
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_array_elements(v_entities) e
+    where coalesce((e.value ->> 'active')::boolean, true)
+      and (
+        (e.value ? 'tooth' and nullif(e.value ->> 'tooth', '') is not null
+          and (e.value ->> 'tooth') !~ '^([1-4][1-8]|[5-8][1-5])$')
+        or (e.value ? 'arch' and nullif(e.value ->> 'arch', '') is not null
+          and (e.value ->> 'arch') not in ('upper', 'lower'))
+        or coalesce(e.value ->> 'entityType', '') not in (
+          'TOOTH_STATE', 'HEALTHY', 'CARIES', 'MISSING', 'EXTRACTION', 'RESTORATION', 'ENDO',
+          'POST', 'CROWN', 'IMPLANT', 'ABUTMENT', 'BRIDGE', 'PONTIC', 'REMOVABLE', 'ORTHODONTIC',
+          'PEDIATRIC', 'PROSTHESIS', 'SURGERY', 'BONE_GRAFT', 'MEMBRANE', 'SINUS_LIFT',
+          'SURGICAL_LESION', 'IMPLANT_COMPONENT', 'PROSTHETIC_STRUCTURE', 'PERIODONTAL_FINDING',
+          'SUPERNUMERARY_TOOTH')
+        or coalesce(e.value ->> 'status', '') !~ '^[a-z][a-z0-9_]{0,79}$'
+        or (jsonb_typeof(e.value -> 'surfaces') = 'array' and exists (
+          select 1 from jsonb_array_elements_text(e.value -> 'surfaces') f(face)
+          where f.face not in ('V', 'M', 'O', 'I', 'D', 'P', 'L')))
+      )
+  ) then
+    raise exception 'INVALID_DENTAL_ENTITY' using errcode = '22023';
   end if;
 
   select count(*) into v_retiring

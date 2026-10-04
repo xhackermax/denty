@@ -204,7 +204,7 @@ function wireStatus(entity: DentalEntity): string {
   return "prosthesis_planned";
 }
 
-function wireEntityType(entity: DentalEntity): string {
+function wireEntityType(entity: DentalEntity): DentalEntityType {
   if (entity.entityType !== "TOOTH_STATE") return entity.entityType;
   const state = toothStateFromEntity(entity);
   return state ? entityTypeForState(state) : entity.entityType;

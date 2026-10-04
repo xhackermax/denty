@@ -96,6 +96,7 @@ describe("SQL persistence torture: isolated original migration functions", () =>
     const alterStart = stage6.indexOf("alter table public.periodontal_measurements");
     const alterEnd = stage6.indexOf("\n-- 2)", alterStart);
     await db.exec(stage6.slice(alterStart, alterEnd));
+    await db.exec(migration("20261004121000_periodontal_ranges.sql"));
     // Budget tables include all fields used by the original function. They model
     // version coupling, not unrelated commercial constraints or consent workflows.
     await db.exec(`
@@ -184,11 +185,8 @@ describe("SQL persistence torture: isolated original migration functions", () =>
   ] as const)("BD012 SQL rejects domain-invalid periodontal %s=%i", async (field, value) => {
     const reading = { ...site, [field]: value };
     expect(() => validatePeriodontalReading(reading)).toThrow(RangeError);
-    // Current API schema accepts these cases. Assert SQL rejection directly, so
-    // an API acceptance failure cannot hide whether persistence also accepts it.
-    const apiInput = periodontalExamInputSchema.safeParse({ sites: [reading] });
-    if (!apiInput.success)
-      throw new Error(`Fixture API contract changed: ${apiInput.error.message}`);
+    // The API rejects these too; SQL is asserted on its own so neither layer hides the other.
+    expect(periodontalExamInputSchema.safeParse({ sites: [reading] }).success).toBe(false);
     await expect(saveExam(reading)).rejects.toThrow();
     expect((await db.query("select id from periodontal_exams")).rows).toHaveLength(0);
   });
