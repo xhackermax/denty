@@ -7,6 +7,7 @@ import {
 } from "@/domain";
 import { resolveMadridDateQuery } from "@/domain/dates";
 import { getBrowserApi } from "@/shared/api/browser";
+import { createClinicalAutoSync } from "@/shared/clinical/auto-sync";
 import {
   createStateEntity,
   domainEntityToApiInput,
@@ -49,6 +50,13 @@ async function saveOdontogramEntities(patientId: string, entities: readonly Dent
     expectedVersion: current.version,
     entities: merged.map(domainEntityToApiInput),
   });
+  // Same as editing by hand: plan and budget follow the odontogram. A failure here never
+  // undoes the saved change; the next save or the guided flow syncs again.
+  await createClinicalAutoSync({
+    syncPlan: () => api.clinical.sync.plan(patientId),
+    syncBudget: () => api.clinical.sync.budget(patientId),
+    onDone: () => undefined,
+  }).request();
 }
 
 function hrefForDestination(destination: unknown, patientId?: unknown, dateText?: unknown): string {
@@ -226,10 +234,6 @@ export async function executeAssistantTool(
     });
     if (!entity) throw new Error("Este tratamiento no se puede dibujar en el odontograma.");
     await saveOdontogramEntities(patientId, [entity]);
-    if (call.name === "clinical.add_item") {
-      // The odontogram is already saved; the UI flags an outdated plan and can re-sync it.
-      await api.clinical.sync.plan(patientId).catch(() => undefined);
-    }
     return { type: "NONE" };
   }
   throw new Error(`Herramienta de Denty no implementada: ${call.name}`);

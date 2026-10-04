@@ -32,7 +32,10 @@ export function useOdontogramSnapshotsQuery(patientId: string, enabled = true) {
   });
 }
 
-export function useSaveOdontogramBatchMutation(patientId: string) {
+export function useSaveOdontogramBatchMutation(
+  patientId: string,
+  options: { onCommitted?: (version: number) => void } = {},
+) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { expectedVersion: number; entities: readonly DentalEntity[] }) =>
@@ -41,6 +44,8 @@ export function useSaveOdontogramBatchMutation(patientId: string) {
         entities: input.entities.map(domainEntityToApiInput),
       }),
     onSuccess: (saved) => {
+      // Before the cache update, so the editor can tell its own versions from other devices'.
+      options.onCommitted?.(saved.version);
       // Use the committed version before a slower background read can finish.
       // This also resets the editor's dirty guard through its version key.
       queryClient.setQueryData(dentyQueryKeys.clinical.odontogram(patientId), saved);

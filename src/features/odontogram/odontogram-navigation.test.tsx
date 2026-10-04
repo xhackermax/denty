@@ -42,8 +42,8 @@ vi.mock("@/shared/clinical/clinical-workspace", () => ({ ClinicalWorkspace: () =
 vi.mock("@/shared/clinical/treatment-flow", () => ({ TreatmentFlowModal: () => null }));
 afterEach(cleanup);
 // Specialty tabs are view layers over the same odontogram since the layered redesign:
-// switching them must keep unsaved edits without a dialog and without saving on its own.
-test("switching layers keeps unsaved edits without prompting or saving", async () => {
+// switching them keeps the edit without a dialog, and the autosave then stores it once.
+test("switching layers keeps the edit without prompting, then it saves on its own", async () => {
   state.version = 1;
   state.save.mockClear();
   render(
@@ -64,9 +64,6 @@ test("switching layers keeps unsaved edits without prompting or saving", async (
     expect(screen.getByRole("button", { name: "Cirugía" })).toHaveAttribute("data-active", "true"),
   );
   expect(screen.queryByRole("dialog")).toBeNull();
-  expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled();
-  expect(state.save).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
-  await waitFor(() => expect(state.save).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(state.save).toHaveBeenCalledTimes(1), { timeout: 3000 });
   expect(state.version).toBe(2);
 });

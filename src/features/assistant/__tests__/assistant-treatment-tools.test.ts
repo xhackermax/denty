@@ -65,7 +65,7 @@ describe("treatment tools execution", () => {
     expect(api.clinical.sync.plan).toHaveBeenCalledWith("p1");
   });
 
-  it("records a completed extraction as a missing tooth without touching the plan", async () => {
+  it("records a completed extraction as a missing tooth and lets the plan follow it", async () => {
     await executeAssistantTool(call("clinical.complete_item", args));
 
     expect(api.clinical.odontogram.batch).toHaveBeenCalledWith(
@@ -74,7 +74,8 @@ describe("treatment tools execution", () => {
         entities: [expect.objectContaining({ tooth: "27", entityType: "MISSING" })],
       }),
     );
-    expect(api.clinical.sync.plan).not.toHaveBeenCalled();
+    // The plan sync closes a planned extraction instead of leaving it pending.
+    expect(api.clinical.sync.plan).toHaveBeenCalledOnce();
   });
 
   it("keeps the odontogram write when the plan sync fails", async () => {

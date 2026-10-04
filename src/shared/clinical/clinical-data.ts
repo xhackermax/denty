@@ -14,7 +14,7 @@ import { createPlanItemSchema } from "@/shared/api/schemas/clinical";
 import { z } from "zod";
 import { dentyQueryKeys } from "@/shared/query";
 
-function invalidateClinicalPatient(
+export function invalidateClinicalPatient(
   queryClient: ReturnType<typeof useQueryClient>,
   patientId: string,
 ) {

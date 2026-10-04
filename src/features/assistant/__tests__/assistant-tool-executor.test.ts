@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   laboratory: { list: vi.fn(), transition: vi.fn() },
   clinical: {
     odontogram: { get: vi.fn(), batch: vi.fn() },
+    sync: { plan: vi.fn(), budget: vi.fn() },
     plan: {
       get: vi.fn(),
       addItem: vi.fn(),
@@ -334,5 +335,40 @@ describe("odontogram.bridge", () => {
     expect(payload.entities).toEqual(
       createBridgeEntities("42", "32", prosthesisState).map(domainEntityToApiInput),
     );
+  });
+});
+
+describe("odontogram changes by voice", () => {
+  it("bring the plan and budget up to date right after saving", async () => {
+    api.clinical.odontogram.get.mockResolvedValue({ version: 1, entities: [] });
+    api.clinical.odontogram.batch.mockResolvedValue({});
+    api.clinical.sync.plan.mockResolvedValue({
+      plan: { id: "plan", items: [{ id: "i", status: "PLANNED" }] },
+      summary: {},
+      sync: { budget: null },
+    });
+    api.clinical.sync.budget.mockResolvedValue({});
+
+    await executeAssistantTool(
+      call("odontogram.bridge", { patientId: "p1", teeth: ["14", "15", "16"], status: "PLANNED" }),
+    );
+
+    expect(api.clinical.sync.plan).toHaveBeenCalledWith("p1");
+    expect(api.clinical.sync.budget).toHaveBeenCalledWith("p1");
+    expect(api.clinical.odontogram.batch.mock.invocationCallOrder[0]).toBeLessThan(
+      api.clinical.sync.plan.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("still succeed when the plan cannot be updated", async () => {
+    api.clinical.odontogram.get.mockResolvedValue({ version: 1, entities: [] });
+    api.clinical.odontogram.batch.mockResolvedValue({});
+    api.clinical.sync.plan.mockRejectedValue(new Error("offline"));
+
+    await expect(
+      executeAssistantTool(
+        call("odontogram.bridge", { patientId: "p1", teeth: ["14", "16"], status: "PLANNED" }),
+      ),
+    ).resolves.toEqual({ type: "NONE" });
   });
 });

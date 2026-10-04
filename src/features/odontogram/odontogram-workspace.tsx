@@ -7,8 +7,10 @@ import { toVisualDentition, toVisualTeeth } from "./visual/visual-adapter";
 import { MouthStateProvider } from "./mouth-state-context";
 import { MouthMiniMap } from "./mouth-mini-map";
 import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
+import { useAutosave, type AutosaveStatus } from "./use-autosave";
 import { Alert, Badge, Button, Group, Select, SimpleGrid, Text } from "@mantine/core";
 import { IconArrowBackUp, IconArrowForwardUp, IconArrowRight } from "@tabler/icons-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useOptionalAssistantContextPatch } from "@/features/assistant/assistant-context";
@@ -40,7 +42,9 @@ import {
 } from "@/domain";
 import { ClinicalPipelineCard } from "@/shared/clinical/clinical-pipeline-card";
 import { TreatmentFlowModal } from "@/shared/clinical/treatment-flow";
-import { hasNewTreatmentWork } from "@/shared/clinical/treatment-flow-steps";
+import { getBrowserApi } from "@/shared/api/browser";
+import { createClinicalAutoSync } from "@/shared/clinical/auto-sync";
+import { invalidateClinicalPatient } from "@/shared/clinical/clinical-data";
 import { ClinicalWorkspace } from "@/shared/clinical/clinical-workspace";
 import {
   odontogramEntities,
@@ -395,6 +399,18 @@ function Tooth({
     </button>
   );
 }
+type ClinicalSyncStatus = "idle" | "syncing" | "updated" | "error";
+
+function autosaveLabel(status: AutosaveStatus, dirty: boolean, sync: ClinicalSyncStatus): string {
+  if (status === "saving") return "Guardando…";
+  if (status === "error") return "Sin guardar";
+  if (dirty) return "Cambios pendientes…";
+  if (sync === "syncing") return "Guardado · actualizando plan y presupuesto…";
+  if (sync === "updated") return "Guardado · plan y presupuesto al día";
+  if (sync === "error") return "Guardado · no se pudo actualizar el plan";
+  return status === "saved" ? "Guardado" : "Se guarda automáticamente";
+}
+
 interface OdontogramEditorProps {
   perioOwner: PerioDraftOwner;
   activeTab: ClinicalTab;
@@ -414,6 +430,7 @@ interface OdontogramEditorProps {
   onSelectSnapshot: (snapshotId: string | null) => void;
   onSave: (entities: readonly DentalEntity[]) => Promise<void>;
   onOpenTreatmentFlow: () => void;
+  clinicalSync: ClinicalSyncStatus;
 }
 function OdontogramEditor({
   perioOwner,
@@ -434,6 +451,7 @@ function OdontogramEditor({
   onSelectSnapshot,
   onSave,
   onOpenTreatmentFlow,
+  clinicalSync,
 }: OdontogramEditorProps) {
   const [currentPerioReadings, setCurrentPerioReadings] = useState<PeriodontalReading[]>(
     initialPeriodontal.filter(
@@ -510,14 +528,22 @@ function OdontogramEditor({
   const activeToolLayer = layerForToothState(tool);
   const activeToolFilter = subfilterForToothStatus(tool);
   const activeToolVisible = isToothStatusVisible(tool, viewState);
-  const dirty = history.present.revision !== 0;
-  const discardChanges = () =>
-    setHistory(createBoundedHistory(createOdontogramEntityState(initialEntities), 30));
+  // Every edit is saved on its own a moment later; plan and budget follow (see the workspace).
+  const autosave = useAutosave({
+    value: history.present.entitiesById,
+    enabled: !historical,
+    save: (entitiesById) => onSave(Object.values(entitiesById)),
+  });
+  const dirty = autosave.dirty;
+  const saveNow = () => autosave.flush().catch(() => undefined);
+  const discardChanges = () => {
+    const restored = createBoundedHistory(createOdontogramEntityState(initialEntities), 30);
+    setHistory(restored);
+    autosave.reset(restored.present.entitiesById);
+  };
   useUnsavedChangesGuard({
     dirty: dirty && !historical,
-    onSave: async () => {
-      await onSave(Object.values(history.present.entitiesById));
-    },
+    onSave: autosave.flush,
     onDiscard: discardChanges,
   });
 
@@ -756,7 +782,8 @@ function OdontogramEditor({
       ))}
     </div>
   );
-  const conflict = saveError instanceof DentyApiError && saveError.kind === "conflict";
+  const failure = autosave.error ?? saveError;
+  const conflict = failure instanceof DentyApiError && failure.kind === "conflict";
   return (
     <div className={styles.board}>
       <PageHeader
@@ -767,12 +794,12 @@ function OdontogramEditor({
           <Group>
             <Badge variant="light">{historical ? "Histórico" : `v${expectedVersion ?? "?"}`}</Badge>
             {!historical ? (
-              <Button
-                size="xs"
-                loading={saving}
-                disabled={!dirty}
-                onClick={() => void onSave(Object.values(history.present.entitiesById))}
-              >
+              <Text size="xs" c="dimmed" role="status" aria-live="polite">
+                {autosaveLabel(autosave.status, dirty, clinicalSync)}
+              </Text>
+            ) : null}
+            {!historical ? (
+              <Button size="xs" loading={saving} disabled={!dirty} onClick={() => void saveNow()}>
                 Guardar
               </Button>
             ) : null}
@@ -785,7 +812,7 @@ function OdontogramEditor({
                 onClick={() => {
                   const open = () => onOpenTreatmentFlow();
                   if (!dirty) return open();
-                  void onSave(Object.values(history.present.entitiesById)).then(open, () => {});
+                  void autosave.flush().then(open, () => {});
                 }}
               >
                 Plan y presupuesto
@@ -823,14 +850,23 @@ function OdontogramEditor({
         }
       />
 
-      {saveError ? (
+      {failure ? (
         <Alert
           color={conflict ? "yellow" : "red"}
           title={conflict ? "Conflicto" : "Error al guardar"}
         >
-          {conflict
-            ? "Hay cambios nuevos. Recarga antes de guardar."
-            : "No se guardaron los cambios."}
+          <Group justify="space-between" gap="xs">
+            <span>
+              {conflict
+                ? "Otro dispositivo ha cambiado este odontograma. Recarga la página para continuar."
+                : "No se han guardado los últimos cambios."}
+            </span>
+            {conflict ? null : (
+              <Button size="xs" variant="light" color="red" onClick={() => void saveNow()}>
+                Reintentar
+              </Button>
+            )}
+          </Group>
         </Alert>
       ) : null}
       {clinicalRuleMessage ? (
@@ -1144,8 +1180,7 @@ function OdontogramEditor({
               onPresenceChange={changePresence}
               onPresenceRestore={restorePresence}
               onBeforeFinalize={async () => {
-                if (historyRef.current.present.revision !== 0)
-                  await onSave(Object.values(historyRef.current.present.entitiesById));
+                await autosave.flush();
               }}
             />
           </details>
@@ -1281,9 +1316,33 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   const query = useOdontogramQuery(patientId);
   const patientQuery = usePatientQuery(patientId);
   const snapshotsQuery = useOdontogramSnapshotsQuery(patientId);
-  const saveMutation = useSaveOdontogramBatchMutation(patientId);
-  // Lives here, not in the editor: saving remounts the editor with the new version.
+  // Our own saves bump the version too; only a version written elsewhere reloads the editor.
+  const ownVersionsRef = useRef(new Set<number>());
+  const saveMutation = useSaveOdontogramBatchMutation(patientId, {
+    onCommitted: (version) => ownVersionsRef.current.add(version),
+  });
   const [treatmentFlowOpen, setTreatmentFlowOpen] = useState(false);
+  const [clinicalSync, setClinicalSync] = useState<ClinicalSyncStatus>("idle");
+  const queryClient = useQueryClient();
+  // Plan and budget follow every save on their own; the guided flow stays optional.
+  const autoSync = useMemo(
+    () =>
+      createClinicalAutoSync({
+        syncPlan: () => getBrowserApi().clinical.sync.plan(patientId),
+        syncBudget: () => getBrowserApi().clinical.sync.budget(patientId),
+        onDone: (outcome) => {
+          setClinicalSync(outcome.ok ? "updated" : "error");
+          invalidateClinicalPatient(queryClient, patientId);
+        },
+      }),
+    [patientId, queryClient],
+  );
+  const liveVersion = query.data?.version;
+  const [editorVersion, setEditorVersion] = useState(liveVersion);
+  useEffect(() => {
+    if (liveVersion !== undefined && !ownVersionsRef.current.has(liveVersion))
+      setEditorVersion(liveVersion);
+  }, [liveVersion]);
   if (query.isError) {
     return (
       <Alert color="red" title="No se pudo cargar el odontograma">
@@ -1325,7 +1384,7 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   const mouth = deriveMouthState(initialEntities, birthDate ? { birthDate } : {});
   const editorKey = selectedSnapshot
     ? `snapshot-${selectedSnapshot.id}`
-    : `${query.data.id ?? patientId}-${expectedVersion ?? 0}`;
+    : `${query.data.id ?? patientId}-${editorVersion ?? 0}`;
   return (
     <>
       <TreatmentFlowModal
@@ -1356,10 +1415,11 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
             onSave={async (entities) => {
               if (expectedVersion === undefined) return;
               await saveMutation.mutateAsync({ expectedVersion, entities });
-              // New caries or treatments: carry on straight to plan, budget and appointments.
-              if (hasNewTreatmentWork(currentEntities, entities)) setTreatmentFlowOpen(true);
+              setClinicalSync("syncing");
+              void autoSync.request();
             }}
             onOpenTreatmentFlow={() => setTreatmentFlowOpen(true)}
+            clinicalSync={clinicalSync}
           />
         }
         visual={(openEditor) => (
