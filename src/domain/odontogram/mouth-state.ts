@@ -17,6 +17,8 @@ export interface MouthState {
 const permanent: readonly string[] = [...PERMANENT_UPPER, ...PERMANENT_LOWER];
 const primary: readonly string[] = [...TEMPORARY_UPPER, ...TEMPORARY_LOWER];
 const natural = new Set<ToothPresence>(["present", "deciduous", "extracted_planned"]);
+const IMPLANT_GONE = /lost|failed|removed|explant/;
+
 export function deriveMouthState(
   entities: readonly DentalEntity[],
   options: { birthDate?: string; today?: string | number | Date } = {},
@@ -94,8 +96,11 @@ export function deriveMouthState(
         ? lifecycle !== "PLANIFICADO" && (completed || lifecycle === "HALLAZGO_EXISTENTE")
         : completed;
     if (!done) continue;
+    // A lost or removed implant leaves the position empty: nothing to probe or restore.
     if (e.entityType === "IMPLANT" && e.tooth && teeth[e.tooth])
-      teeth[e.tooth] = { presence: "implant", replacedBy: "implant" };
+      teeth[e.tooth] = IMPLANT_GONE.test(e.status)
+        ? { presence: "missing" }
+        : { presence: "implant", replacedBy: "implant" };
     const pontics =
       e.entityType === "PONTIC" && e.tooth
         ? [e.tooth]
@@ -116,6 +121,8 @@ export const isEndoCandidate = (state: MouthState, tooth: string) =>
 export function isSurgicalSite(state: MouthState, tooth: string, procedure: string): boolean {
   const presence = state.teeth[tooth]?.presence;
   if (!presence) return false;
+  // An impacted or retained tooth is exactly what a surgical extraction removes.
+  if (procedure === "extraction_surgical" && presence === "unerupted") return true;
   if (/implant|bone|graft|mesh|alveoloplasty|sinus|splint/.test(procedure))
     return presence !== "unerupted";
   return natural.has(presence);

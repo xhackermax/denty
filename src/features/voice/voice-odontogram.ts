@@ -103,6 +103,8 @@ export function mergeVoiceEntities(
     const wholeTooth = addition.status === "healthy" || addition.status === "missing";
     result = result.filter((entity) => {
       if (entity.tooth !== addition.tooth) return true;
+      // Without a tooth, an entity belongs to an arch: a lower removable leaves the upper one.
+      if (addition.tooth === undefined && entity.arch !== addition.arch) return true;
       if (wholeTooth) return false;
       if (entity.entityType === "HEALTHY" || entity.status === "healthy") return false;
       return !(

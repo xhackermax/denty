@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { createRemovable } from "@/domain";
 import { createStateEntity } from "@/shared/odontogram/odontogram-wire";
 
 import { entityForVoiceAction, mergeVoiceEntities, treatmentToothState } from "../voice-odontogram";
@@ -59,5 +60,11 @@ describe("voice odontogram", () => {
     expect(done.map((entity) => entity.status).sort()).toEqual(["caries", "filling"]);
     const missing = mergeVoiceEntities(done, [createStateEntity("14", "missing")]);
     expect(missing.map((entity) => entity.status)).toEqual(["missing"]);
+  });
+
+  it("adding a lower removable keeps the upper one", () => {
+    const upper = createRemovable("upper", ["16", "15"]);
+    const lower = createRemovable("lower", ["46", "45"]);
+    expect(mergeVoiceEntities([upper], [lower])).toEqual([upper, lower]);
   });
 });

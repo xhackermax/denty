@@ -59,21 +59,29 @@ export function evaluateClinicalAction(
     ...evaluateRulesR001R018(proposed, entities),
     ...evaluateRulesR019R035(proposed, entities, context),
   ];
-  if (proposed.entityType === "IMPLANT" && proposed.attributes?.lifecycle === "REALIZADO") {
-    const missingContext = actualImplantFields.filter((field) => {
-      const value = proposed.attributes?.[field];
-      return value === undefined || value === null || value === "";
-    });
-    if (missingContext.length) {
-      decisions.push({
-        ruleId: "IMPLANT_ACTUAL_DATA",
-        severity: "REQUIRE_CONTEXT",
-        message: "Completa los datos reales del implante colocado.",
-        missingContext,
-      });
-    }
-  }
+  decisions.push(...actualImplantDataDecisions(proposed));
   return evaluationFromDecisions(decisions, context);
+}
+
+// A placed implant needs its real data whether it arrives alone or inside a batch.
+function actualImplantDataDecisions(proposed: DentalEntity): ClinicalRuleDecision[] {
+  if (proposed.entityType !== "IMPLANT" || proposed.attributes?.lifecycle !== "REALIZADO") {
+    return [];
+  }
+  const missingContext = actualImplantFields.filter((field) => {
+    const value = proposed.attributes?.[field];
+    return value === undefined || value === null || value === "";
+  });
+  return missingContext.length
+    ? [
+        {
+          ruleId: "IMPLANT_ACTUAL_DATA",
+          severity: "REQUIRE_CONTEXT",
+          message: "Completa los datos reales del implante colocado.",
+          missingContext,
+        },
+      ]
+    : [];
 }
 
 export function evaluateClinicalBatch(
@@ -89,6 +97,7 @@ export function evaluateClinicalBatch(
     return [
       ...evaluateRulesR001R018(action.entity, peers),
       ...evaluateRulesR019R035(action.entity, peers, context),
+      ...actualImplantDataDecisions(action.entity),
     ];
   });
   const unique = [

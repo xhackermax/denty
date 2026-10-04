@@ -27,13 +27,29 @@ const has = (entities: readonly DentalEntity[], predicate: (entity: DentalEntity
 
 const TOOTH_GONE_STATUSES = new Set(["missing", "congenitally_missing", "exfoliated"]);
 
+// Work that only a natural tooth can receive. A crown is left out: it is placed on implants too.
+const naturalOnlyTypes = new Set<DentalEntity["entityType"]>([
+  "CARIES",
+  "RESTORATION",
+  "ENDO",
+  "POST",
+  "PEDIATRIC",
+]);
+
+const implantInPlace = (entity: DentalEntity): boolean =>
+  entity.entityType === "IMPLANT" &&
+  !entity.attributes?.orthodonticTad &&
+  !/lost|failed|removed|explant/.test(entity.status);
+
 // The tooth itself is no longer there: absent, already extracted, or replaced by a pontic.
 // Anything else — an untouched tooth, a root canal, a filling, caries — is a natural crown support.
 const toothIsGone = (entity: DentalEntity): boolean =>
   entity.entityType === "MISSING" ||
   entity.entityType === "PONTIC" ||
   TOOTH_GONE_STATUSES.has(entity.status) ||
-  (entity.entityType === "EXTRACTION" &&
+  ((entity.entityType === "EXTRACTION" ||
+    (entity.entityType === "SURGERY" &&
+      String(entity.attributes?.procedure ?? entity.status).startsWith("extraction"))) &&
     (/_completed$/.test(entity.status) ||
       ["REALIZADO", "REALIZADO_OTRA_CLINICA"].includes(String(entity.attributes?.lifecycle))));
 
@@ -54,7 +70,7 @@ export function evaluateRulesR001R018(
 
   push(
     naturalTreatmentTypes.has(proposed.entityType) &&
-      has(sameTooth, (entity) => entity.entityType === "MISSING" || entity.status === "missing") &&
+      has(sameTooth, toothIsGone) &&
       decision("R001", "BLOCK", "Un diente ausente no admite tratamiento natural."),
   );
   push(
@@ -68,6 +84,13 @@ export function evaluateRulesR001R018(
           (naturalTreatmentTypes.has(entity.entityType) &&
             entity.attributes?.implantSupported !== true),
       ) &&
+      decision("R002", "BLOCK", "Implante y diente natural no pueden coexistir."),
+  );
+  // The same invariant from the other side, so the order of the edits cannot get around it.
+  push(
+    naturalOnlyTypes.has(proposed.entityType) &&
+      proposed.attributes?.implantSupported !== true &&
+      has(sameTooth, implantInPlace) &&
       decision("R002", "BLOCK", "Implante y diente natural no pueden coexistir."),
   );
   push(
