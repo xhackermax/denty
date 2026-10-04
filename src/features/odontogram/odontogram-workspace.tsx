@@ -1250,6 +1250,7 @@ function OdontogramEditor({
             patientId={patientId}
             selectedSnapshotId={selectedSnapshotId}
             onSelectSnapshot={onSelectSnapshot}
+            flushPending={autosave.flush}
           />
         ) : null}
         {viewState.visibleLayerIds.includes("proposal") ? (
@@ -1337,6 +1338,10 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   const snapshotsQuery = useOdontogramSnapshotsQuery(patientId);
   // Our own saves bump the version too; only a version written elsewhere reloads the editor.
   const ownVersionsRef = useRef(new Set<number>());
+  // The version our last save produced. The autosave queue fires its next save as soon as the
+  // previous one resolves, before React re-renders with the new version; reading the prop there
+  // sent the stale version and the chart conflicted with itself.
+  const confirmedVersionRef = useRef<number | undefined>(undefined);
   const saveMutation = useSaveOdontogramBatchMutation(patientId, {
     onCommitted: (version) => ownVersionsRef.current.add(version),
   });
@@ -1359,8 +1364,11 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   const liveVersion = query.data?.version;
   const [editorVersion, setEditorVersion] = useState(liveVersion);
   useEffect(() => {
-    if (liveVersion !== undefined && !ownVersionsRef.current.has(liveVersion))
+    if (liveVersion !== undefined && !ownVersionsRef.current.has(liveVersion)) {
+      // Another device wrote: the editor reloads from that version, so ours no longer applies.
+      confirmedVersionRef.current = undefined;
       setEditorVersion(liveVersion);
+    }
   }, [liveVersion]);
   if (query.isError) {
     return (
@@ -1433,7 +1441,11 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
             onSelectSnapshot={(snapshotId) => setSelectedSnapshotId(snapshotId ?? undefined)}
             onSave={async (entities) => {
               if (expectedVersion === undefined) return;
-              await saveMutation.mutateAsync({ expectedVersion, entities });
+              const saved = await saveMutation.mutateAsync({
+                expectedVersion: confirmedVersionRef.current ?? expectedVersion,
+                entities,
+              });
+              confirmedVersionRef.current = saved.version;
               setClinicalSync("syncing");
               void autoSync.request();
             }}

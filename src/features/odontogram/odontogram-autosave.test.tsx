@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   syncPlan: vi.fn(),
   syncBudget: vi.fn(),
   flow: vi.fn(),
+  snapshot: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
@@ -24,7 +25,7 @@ vi.mock("@/shared/api/browser", () => ({
       odontogram: {
         get: () => new Promise(() => {}),
         batch: api.batch,
-        snapshots: { list: async () => ({ items: [] }) },
+        snapshots: { list: async () => ({ items: [] }), create: api.snapshot },
       },
       sync: { plan: api.syncPlan, budget: api.syncBudget },
     },
@@ -99,5 +100,49 @@ test("edits save themselves, keep the editor in place and bring plan and budget 
   fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
   await waitFor(() => expect(api.batch).toHaveBeenCalledTimes(2), { timeout: 3000 });
   expect(version).toBe(3);
+  queryClient.clear();
+}, 15_000);
+
+test("an edit made while a save is in flight is saved against the version that save wrote", async () => {
+  const expected: number[] = [];
+  let release: () => void = () => undefined;
+  api.batch.mockImplementation(async (_id: string, input: { expectedVersion: number }) => {
+    expected.push(input.expectedVersion);
+    if (expected.length === 1) await new Promise<void>((resolve) => (release = resolve));
+    return { version: input.expectedVersion + 1, entities: [] };
+  });
+  api.syncPlan.mockResolvedValue(planResult);
+  api.syncBudget.mockResolvedValue({});
+  api.snapshot.mockResolvedValue({});
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  queryClient.setQueryData(dentyQueryKeys.clinical.odontogram("p"), {
+    id: "p",
+    version: 1,
+    entities: [],
+    periodontal: [],
+  });
+  queryClient.setQueryData(dentyQueryKeys.clinical.snapshots("p"), { items: [] });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MantineProvider>
+        <NavigationProvider>
+          <OdontogramWorkspace patientId="p" />
+        </NavigationProvider>
+      </MantineProvider>
+    </QueryClientProvider>,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Aplicar al diente seleccionado" }));
+  await waitFor(() => expect(api.batch).toHaveBeenCalledTimes(1), { timeout: 3000 });
+  fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+  // Leaving the page or taking a snapshot flushes while the first save is still running.
+  fireEvent.click(screen.getByRole("button", { name: "Historial" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Guardar snapshot" }));
+  release();
+
+  await waitFor(() => expect(api.snapshot).toHaveBeenCalledTimes(1), { timeout: 4000 });
+  expect(expected).toEqual([1, 2]);
   queryClient.clear();
 }, 15_000);

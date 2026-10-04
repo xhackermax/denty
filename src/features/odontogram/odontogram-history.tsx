@@ -13,10 +13,17 @@ interface Props {
   patientId: string;
   selectedSnapshotId?: string | undefined;
   onSelectSnapshot?: (snapshotId: string | null) => void;
+  /** Saves the chart's pending edits; a snapshot or a historical view must not drop them. */
+  flushPending?: () => Promise<void>;
 }
-export function OdontogramHistory({ patientId, selectedSnapshotId, onSelectSnapshot }: Props) {
+export function OdontogramHistory({
+  patientId,
+  selectedSnapshotId,
+  onSelectSnapshot,
+  flushPending = async () => undefined,
+}: Props) {
   const [label, setLabel] = useState("");
-  const [feedback, setFeedback] = useState<"saved" | "error" | null>(null);
+  const [feedback, setFeedback] = useState<"saved" | "error" | "unsaved" | null>(null);
   const snapshots = useOdontogramSnapshotsQuery(patientId);
   const create = useCreateOdontogramSnapshotMutation(patientId);
   const historical = Boolean(selectedSnapshotId);
@@ -45,6 +52,8 @@ export function OdontogramHistory({ patientId, selectedSnapshotId, onSelectSnaps
           onClick={async () => {
             setFeedback(null);
             try {
+              // The snapshot copies what the database holds, so pending edits go first.
+              await flushPending();
               await create.mutateAsync(label.trim() ? { label: label.trim() } : {});
               setLabel("");
               setFeedback("saved");
@@ -69,6 +78,11 @@ export function OdontogramHistory({ patientId, selectedSnapshotId, onSelectSnaps
       {feedback === "error" ? (
         <Alert mt="lg" color="red">
           No se pudo guardar el snapshot.
+        </Alert>
+      ) : null}
+      {feedback === "unsaved" ? (
+        <Alert mt="lg" color="red">
+          Guarda o descarta los cambios antes de abrir un control.
         </Alert>
       ) : null}
       {historical ? (
@@ -96,7 +110,17 @@ export function OdontogramHistory({ patientId, selectedSnapshotId, onSelectSnaps
             <Button
               size="compact-xs"
               variant={selectedSnapshotId === snapshot.id ? "filled" : "light"}
-              onClick={() => onSelectSnapshot?.(snapshot.id)}
+              onClick={async () => {
+                setFeedback(null);
+                try {
+                  // Opening a control remounts the editor; an unsaved edit would be lost.
+                  await flushPending();
+                } catch {
+                  setFeedback("unsaved");
+                  return;
+                }
+                onSelectSnapshot?.(snapshot.id);
+              }}
             >
               {selectedSnapshotId === snapshot.id ? "Viendo" : "Ver"}
             </Button>
