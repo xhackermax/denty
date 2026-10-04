@@ -70,6 +70,34 @@ describe("crowns, bridges and what the patient already wears", () => {
     expect([...(bridge as { teeth: string[] }).teeth].sort()).toEqual(["14", "15", "16"]);
   });
 
+  it.each([
+    [
+      "Hay un puente desde el diente treinta y dos hasta el cuarenta y dos",
+      ["31", "32", "41", "42"],
+    ],
+    ["hay un puente desde el 32 hasta el 42", ["31", "32", "41", "42"]],
+    ["tiene un puente del diente 14 al diente 16", ["14", "15", "16"]],
+    ["hay una prótesis fija entre el 24 y el 26", ["24", "25", "26"]],
+  ])("understands the bridge span in “%s”", (text, teeth) => {
+    const [bridge] = plan(text);
+
+    expect(bridge).toMatchObject({ type: "odontogram.bridge", status: "COMPLETED" });
+    expect([...(bridge as { teeth: string[] }).teeth].sort()).toEqual(teeth);
+  });
+
+  it("reads “desde la pieza … hasta la …” as a span to do", () => {
+    const [bridge] = plan("puente desde la pieza 14 hasta la 16");
+
+    expect(bridge).toMatchObject({ type: "odontogram.bridge", status: "PLANNED" });
+    expect([...(bridge as { teeth: string[] }).teeth].sort()).toEqual(["14", "15", "16"]);
+  });
+
+  it("records a loose bridge as unsatisfactory", () => {
+    expect(plan("hay un puente desajustado del 14 al 16")).toMatchObject([
+      { type: "odontogram.bridge", status: "UNSATISFACTORY" },
+    ]);
+  });
+
   it("keeps a bridge to do as planned", () => {
     expect(plan("hay que hacer un puente del 14 al 16")).toMatchObject([
       { type: "odontogram.bridge", status: "PLANNED" },

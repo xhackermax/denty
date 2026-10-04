@@ -35,6 +35,12 @@ export interface AssistantExecutionBatchResult {
   pendingConfirmation?: AssistantToolCall;
 }
 
+// A bridge the patient already wears must not be charted as one still to make.
+const BRIDGE_STATE: Readonly<Record<string, "prosthesis" | "prosthesis_bad">> = {
+  COMPLETED: "prosthesis",
+  UNSATISFACTORY: "prosthesis_bad",
+};
+
 async function saveOdontogramEntities(patientId: string, entities: readonly DentalEntity[]) {
   const api = getBrowserApi();
   const current = await api.clinical.odontogram.get(patientId);
@@ -188,7 +194,10 @@ export async function executeAssistantTool(
     const first = teeth[0];
     const last = teeth.at(-1);
     if (!first || !last) throw new Error("El puente necesita al menos dos extremos.");
-    await saveOdontogramEntities(String(args.patientId), createBridgeEntities(first, last));
+    await saveOdontogramEntities(
+      String(args.patientId),
+      createBridgeEntities(first, last, BRIDGE_STATE[String(args.status)] ?? "prosthesis_pending"),
+    );
     return { type: "NONE" };
   }
   if (call.name === "odontogram.removable") {

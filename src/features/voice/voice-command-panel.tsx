@@ -220,7 +220,7 @@ export function VoiceCommandPanel({
           }
           onClick={onToggleMicrophone}
         >
-          {listening ? "Detener" : "Micrófono"}
+          {listening ? "Detener" : <span className={styles.collapsibleLabel}>Micrófono</span>}
         </Button>
         <Group gap="xs" wrap="nowrap">
           <Button

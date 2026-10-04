@@ -607,8 +607,19 @@ function expandFdiRange(from: string, to: string): string[] {
   return FDI_ORDER.slice(Math.min(start, end), Math.max(start, end) + 1);
 }
 
+// "del 32 al 42", "desde el diente 32 hasta el 42", "entre la pieza 24 y la 26".
+const TOOTH_FILLER = String.raw`(?:(?:el|la)\s+)?(?:(?:diente|pieza|muela)\s+)?`;
+const RANGE = new RegExp(
+  String.raw`\b${TOOTH_FILLER}([1-4][1-8])\s*(?:a|al|hasta|-)\s*${TOOTH_FILLER}([1-4][1-8])\b`,
+);
+// "y" only joins a span after "entre"; elsewhere "el 11 y el 21" are two separate teeth.
+const BETWEEN = new RegExp(
+  String.raw`\bentre\s+${TOOTH_FILLER}([1-4][1-8])\s+y\s+${TOOTH_FILLER}([1-4][1-8])\b`,
+);
+
 function extractRange(raw: string): string[] {
-  const match = normalize(raw).match(/\b([1-4][1-8])\s*(?:a|al|hasta|-)\s*([1-4][1-8])\b/);
+  const text = normalize(raw);
+  const match = text.match(RANGE) ?? text.match(BETWEEN);
   const from = match?.[1];
   const to = match?.[2];
   return from && to ? expandFdiRange(from, to) : [];
@@ -840,7 +851,7 @@ function treatmentState(text: string, code: string): ClinicalTreatmentState {
     return "UNSATISFACTORY";
   }
   if (
-    /\b(?:realizad|hech|terminad|completad|finalizad|colocad|puest|cementad|instalad|rematad|acabad|extraid)\w*\b|\b(?:lleva|llevan|porta|ya\s+tiene)\b/.test(
+    /\b(?:realizad|hech|terminad|completad|finalizad|colocad|puest|cementad|instalad|rematad|acabad|extraid)\w*\b|\b(?:lleva|llevan|porta|ya\s+tiene)\b|\b(?:hay|tiene)\s+una?\b/.test(
       text,
     )
   ) {
@@ -955,9 +966,7 @@ function odontogramActions(
         patientRef,
         teeth: range,
         missingTeeth: extractTeeth(`${missing} ausente`),
-        status: /realizad|colocad|hech|\b(?:lleva|llevan|porta|ya tiene)\b/.test(text)
-          ? "COMPLETED"
-          : "PLANNED",
+        status: treatmentState(text, "bridge"),
       },
     ];
   }
@@ -1075,7 +1084,7 @@ const TOOTHLESS_TREATMENT =
 // "caries en 14 y 15, endodoncia en 26" -> ["caries en 14 15", "endodoncia en 26"]:
 // pieces without a finding of their own ("15", "mesial") join the clause before them.
 function clinicalClauses(raw: string): string[] {
-  if (hasSelfCorrection(raw) || /puente|protesis/i.test(raw))
+  if (hasSelfCorrection(raw) || /puente|protesis/.test(normalize(raw)))
     return [canonicalizeDentalSpeech(raw)];
   const pieces = raw
     .split(

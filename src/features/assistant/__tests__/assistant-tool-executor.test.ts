@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
   agenda: { context: vi.fn() },
   laboratory: { list: vi.fn(), transition: vi.fn() },
   clinical: {
+    odontogram: { get: vi.fn(), batch: vi.fn() },
     plan: {
       get: vi.fn(),
       addItem: vi.fn(),
@@ -21,6 +22,9 @@ const api = vi.hoisted(() => ({
 }));
 
 vi.mock("@/shared/api/browser", () => ({ getBrowserApi: () => api }));
+
+import { createBridgeEntities } from "@/domain";
+import { domainEntityToApiInput } from "@/shared/odontogram/odontogram-wire";
 
 import type { AssistantToolCall } from "../assistant-types";
 import { executeAssistantCalls, executeAssistantTool } from "../tools/assistant-tool-executor";
@@ -306,5 +310,29 @@ describe("executeAssistantCalls", () => {
     });
     expect(result.pendingConfirmation?.name).toBe("appointment.arrive");
     expect(api.appointments.list).not.toHaveBeenCalled();
+  });
+});
+
+describe("odontogram.bridge", () => {
+  it.each([
+    ["COMPLETED", "prosthesis"],
+    ["UNSATISFACTORY", "prosthesis_bad"],
+    ["PLANNED", "prosthesis_pending"],
+  ] as const)("saves a %s bridge with that state", async (status, prosthesisState) => {
+    api.clinical.odontogram.get.mockResolvedValue({ version: 4, entities: [] });
+    api.clinical.odontogram.batch.mockResolvedValue({});
+
+    await executeAssistantTool(
+      call("odontogram.bridge", { patientId: "p1", teeth: ["42", "41", "31", "32"], status }),
+    );
+
+    const [, payload] = api.clinical.odontogram.batch.mock.calls[0] as [
+      string,
+      { expectedVersion: number; entities: unknown[] },
+    ];
+    expect(payload.expectedVersion).toBe(4);
+    expect(payload.entities).toEqual(
+      createBridgeEntities("42", "32", prosthesisState).map(domainEntityToApiInput),
+    );
   });
 });
