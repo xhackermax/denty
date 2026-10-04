@@ -25,3 +25,6 @@ backups/
 # Playwright
 /test-results/
 /playwright-report/
+
+# skills CLI restore file; the deployable gate rejects non-npm lockfiles
+/skills-lock.json
