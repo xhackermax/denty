@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateClinicalAction, type DentalEntity } from "../index";
+import {
+  createImplantStack,
+  evaluateClinicalAction,
+  evaluateClinicalBatch,
+  type DentalEntity,
+} from "../index";
 
 let sequence = 0;
 const dental = (overrides: Partial<DentalEntity>): DentalEntity => ({
@@ -143,5 +148,20 @@ describe("clinical rules R001-R018", () => {
       [dental({ tooth: "26", entityType: "IMPLANT", status: "implant" })],
     );
     expect(result).toMatchObject({ outcome: "ALLOW", ruleIds: [] });
+  });
+});
+
+describe("templates pass their own clinical rules", () => {
+  it("an implant + abutment + crown stack on an untouched position is allowed", () => {
+    const evaluation = evaluateClinicalBatch(
+      createImplantStack("36").map((entity) => ({ type: "UPSERT_ENTITY" as const, entity })),
+      [],
+    );
+    expect(evaluation).toMatchObject({ outcome: "ALLOW", ruleIds: [] });
+  });
+
+  it("marks the template crown as implant-supported", () => {
+    const crown = createImplantStack("36").find((entity) => entity.entityType === "CROWN");
+    expect(crown?.attributes?.implantSupported).toBe(true);
   });
 });

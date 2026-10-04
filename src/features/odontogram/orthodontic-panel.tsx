@@ -1,4 +1,6 @@
 "use client";
+import { chartArches } from "@/domain/odontogram/mouth-state";
+
 import { useMouthState } from "./mouth-state-context";
 import {
   Badge,
@@ -13,8 +15,6 @@ import {
 } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 import {
-  PERMANENT_LOWER,
-  PERMANENT_UPPER,
   createOrthodonticEntity,
   type DentalEntity,
   type OrthodonticAppliance,
@@ -111,6 +111,7 @@ function OrthoTooth({
 }
 export function OrthodonticPanel({ patientId, readOnly, onCommit }: OrthodonticPanelProps) {
   const mouth = useMouthState();
+  const arches = useMemo(() => chartArches(mouth), [mouth]);
   const [molarClassRight, setMolarClassRight] = useState<OrthodonticClass>("I");
   const [molarClassLeft, setMolarClassLeft] = useState<OrthodonticClass>("I");
   const [canineClassRight, setCanineClassRight] = useState<OrthodonticClass>("I");
@@ -239,9 +240,9 @@ export function OrthodonticPanel({ patientId, readOnly, onCommit }: OrthodonticP
           .map(([tooth]) => tooth)
           .join(", ") || "Ninguna"}
       </Text>
-      {renderArch(PERMANENT_UPPER)}
+      {renderArch(arches.upper)}
       <div className={styles.orthoOcclusalLine}>Plano oclusal</div>
-      {renderArch(PERMANENT_LOWER)}
+      {renderArch(arches.lower)}
       <Text fw={800} size="sm">
         Mandíbula
       </Text>

@@ -11,6 +11,8 @@ export const IDS = {
   member: "00000000-0000-4000-8000-0000000000b1",
   staff: "00000000-0000-4000-8000-0000000000c1",
   patient: "00000000-0000-4000-8000-0000000000d1",
+  child: "00000000-0000-4000-8000-0000000000d2",
+  mixed: "00000000-0000-4000-8000-0000000000d3",
   session: "00000000-0000-4000-8000-0000000000e1",
 };
 
@@ -87,6 +89,36 @@ function seed() {
         created_at: now(),
         updated_at: now(),
       },
+      {
+        id: IDS.child,
+        clinic_id: IDS.clinic,
+        record_number: "DNT-E2E-0002",
+        first_name: "Niña",
+        last_name: "De Prueba",
+        birth_date: "2022-03-01",
+        phone: "600000000",
+        email: "paciente@denty.test",
+        archived_at: null,
+        active: true,
+        version: 1,
+        created_at: now(),
+        updated_at: now(),
+      },
+      {
+        id: IDS.mixed,
+        clinic_id: IDS.clinic,
+        record_number: "DNT-E2E-0003",
+        first_name: "Niño",
+        last_name: "De Prueba",
+        birth_date: "2018-01-15",
+        phone: "600000000",
+        email: "paciente@denty.test",
+        archived_at: null,
+        active: true,
+        version: 1,
+        created_at: now(),
+        updated_at: now(),
+      },
     ],
     dental_entities: [],
     periodontal_measurements: [
@@ -109,6 +141,7 @@ function seed() {
     clinical_plan_items: [],
     budgets: [],
     budget_items: [],
+    clinical_diagnoses: [],
     clinic_settings: [{ clinic_id: IDS.clinic, navigation_layout: null }],
     member_navigation_layouts: [],
   };
@@ -301,6 +334,41 @@ function agendaNextSlots({ p_not_before, p_from_minute, p_duration_min }) {
   };
 }
 
+function createClinicalDiagnosis({ p_patient_id, p_input }) {
+  const row = {
+    id: uuid(),
+    clinic_id: IDS.clinic,
+    patient_id: p_patient_id,
+    encounter_id: null,
+    category: p_input.category,
+    value: p_input.value,
+    detail: p_input.detail ?? {},
+    justification: p_input.justification ?? "",
+    status: "active",
+    created_by: IDS.user,
+    created_at: now(),
+    version: 1,
+  };
+  tables.clinical_diagnoses.push(row);
+  return row;
+}
+
+function createOdontogramSnapshot({ p_patient_id, p_label }) {
+  const row = {
+    id: uuid(),
+    clinic_id: IDS.clinic,
+    patient_id: p_patient_id,
+    label: p_label ?? null,
+    payload_json: {
+      entities: tables.dental_entities.filter((e) => e.patient_id === p_patient_id && e.active),
+    },
+    created_at: now(),
+    version: currentVersion(p_patient_id),
+  };
+  tables.odontogram_snapshots.push(row);
+  return row;
+}
+
 const RPCS = {
   save_odontogram_batch: saveOdontogramBatch,
   sync_clinical_plan: syncClinicalPlan,
@@ -310,6 +378,8 @@ const RPCS = {
   agenda_next_slots: agendaNextSlots,
   // The real function coalesces to an empty list when no campaign has activity yet.
   stage11_campaign_roi: () => [],
+  create_clinical_diagnosis: createClinicalDiagnosis,
+  create_odontogram_snapshot: createOdontogramSnapshot,
 };
 
 // --- HTTP -----------------------------------------------------------------------------------

@@ -77,7 +77,14 @@ function createSupabaseFetch() {
     }
 
     if (url.pathname === "/rest/v1/dental_entities" && method === "GET") {
-      return json(dentalEntities.filter((entity) => entity.active === true));
+      const rows = url.searchParams.has("active")
+        ? dentalEntities.filter((entity) => entity.active === true)
+        : [...dentalEntities];
+      if (url.searchParams.get("order") === "version.desc") {
+        rows.sort((left, right) => Number(right.version) - Number(left.version));
+      }
+      const limit = Number(url.searchParams.get("limit") ?? rows.length);
+      return json(rows.slice(0, limit));
     }
     if (url.pathname === "/rest/v1/dental_entities" && method === "PATCH") {
       for (const entity of dentalEntities) entity.active = false;
@@ -97,7 +104,11 @@ function createSupabaseFetch() {
         p_expected_version: number;
         p_entities: Array<Record<string, unknown>>;
       };
-      for (const entity of dentalEntities) entity.active = false;
+      // Mirrors the RPC: deactivated rows carry the new version so an emptied chart advances.
+      for (const entity of dentalEntities.filter((row) => row.active)) {
+        entity.active = false;
+        entity.version = body.p_expected_version + 1;
+      }
       const rows = body.p_entities.map((entity) => {
         const row = {
           ...entity,
@@ -403,5 +414,51 @@ describe("Supabase-backed patient API", () => {
         },
       ],
     });
+  });
+  test("undoing the last finding saves an empty chart that keeps its version", async () => {
+    await POST(
+      new Request("https://denty.test/api/denty/api/patients", {
+        method: "POST",
+        headers: {
+          ...authenticatedHeaders(),
+          "content-type": "application/json",
+          origin: "https://denty.test",
+        },
+        body: JSON.stringify({ firstName: "Lucia", lastName: "Perez", dni: "12345678A" }),
+      }),
+      { params: Promise.resolve({ path: ["api", "patients"] }) },
+    );
+    const batch = (expectedVersion: number, entities: unknown[]) =>
+      POST(
+        new Request("https://denty.test/api/denty/api/patients/patient-1/odontogram/batch", {
+          method: "POST",
+          headers: {
+            ...authenticatedHeaders(),
+            "content-type": "application/json",
+            origin: "https://denty.test",
+          },
+          body: JSON.stringify({ expectedVersion, entities }),
+        }),
+        {
+          params: Promise.resolve({
+            path: ["api", "patients", "patient-1", "odontogram", "batch"],
+          }),
+        },
+      );
+    const caries = { tooth: "46", entityType: "CARIES", status: "caries_pending", active: true };
+
+    expect((await batch(1, [{ id: "caries-46", ...caries }])).status).toBe(200);
+    const emptied = await batch(2, []);
+    expect(emptied.status).toBe(200);
+    await expect(emptied.json()).resolves.toEqual({ version: 3, entities: [] });
+
+    const reload = await GET(
+      new Request("https://denty.test/api/denty/api/patients/patient-1/odontogram", {
+        headers: authenticatedHeaders(),
+      }),
+      { params: Promise.resolve({ path: ["api", "patients", "patient-1", "odontogram"] }) },
+    );
+    await expect(reload.json()).resolves.toMatchObject({ version: 3, entities: [] });
+    expect((await batch(3, [{ id: "caries-46", ...caries }])).status).toBe(200);
   });
 });

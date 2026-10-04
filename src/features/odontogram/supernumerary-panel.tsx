@@ -3,14 +3,15 @@
 import { Alert, Badge, Button, Group, Select, SimpleGrid, Text, TextInput } from "@mantine/core";
 import { useMemo, useState } from "react";
 import {
-  PERMANENT_LOWER,
-  PERMANENT_UPPER,
   createSupernumeraryToothEntity,
   createSupernumeraryTreatmentEntity,
   type DentalEntity,
   type DentalEntityType,
   type SupernumeraryToothIdentity,
 } from "@/domain";
+import { chartArches } from "@/domain/odontogram/mouth-state";
+
+import { useMouthState } from "./mouth-state-context";
 import styles from "./odontogram.module.css";
 
 interface SupernumeraryPanelProps {
@@ -71,7 +72,12 @@ export function SupernumeraryPanel({ entities, readOnly, onCommit }: Supernumera
     () => entities.filter((entity) => entity.active && entity.entityType === "SUPERNUMERARY_TOOTH"),
     [entities],
   );
-  const [anchorFdi, setAnchorFdi] = useState("11");
+  const mouth = useMouthState();
+  const chartTeeth = useMemo(() => {
+    const { upper, lower } = chartArches(mouth);
+    return [...upper, ...lower];
+  }, [mouth]);
+  const [anchorFdi, setAnchorFdi] = useState(() => (chartTeeth.includes("11") ? "11" : "51"));
   const [isoDesignation, setIsoDesignation] = useState("");
   const [clinicalType, setClinicalType] =
     useState<SupernumeraryToothIdentity["clinicalType"]>("mesiodens");
@@ -136,8 +142,8 @@ export function SupernumeraryPanel({ entities, readOnly, onCommit }: Supernumera
         <Select
           label="Junto a FDI"
           value={anchorFdi}
-          onChange={(value) => setAnchorFdi(value ?? "11")}
-          data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
+          onChange={(value) => setAnchorFdi(value ?? chartTeeth[0] ?? "11")}
+          data={chartTeeth}
           searchable
           disabled={readOnly}
         />

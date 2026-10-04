@@ -14,6 +14,7 @@ import type {
 } from "@/shared/api/schemas/clinical";
 
 import { SupabaseRestError, type SupabaseRestClient } from "../supabase/rest-client";
+import { currentOdontogramVersion } from "./odontogram-version";
 
 interface PatientRow {
   id: string;
@@ -322,7 +323,7 @@ export class PatientRepository {
     const patient = await this.getPatient(patientId);
     if (!patient) return null;
 
-    const [entities, periodontal, snapshots] = await Promise.all([
+    const [entities, periodontal, snapshots, version] = await Promise.all([
       this.client.select<DentalEntityRow>("dental_entities", {
         select: "*",
         patient_id: `eq.${patientId}`,
@@ -339,12 +340,13 @@ export class PatientRepository {
         patient_id: `eq.${patientId}`,
         order: "created_at.desc",
       }),
+      currentOdontogramVersion(this.client, patientId),
     ]);
 
     return {
       id: patientId,
       patientId,
-      version: maxVersion(entities),
+      version,
       entities: entities.map(rowToDentalEntity),
       periodontal: currentPeriodontalMeasurements(periodontal).map(rowToPeriodontalMeasurement),
       snapshots: snapshots.map(rowToSnapshot),
@@ -644,9 +646,6 @@ function currentPeriodontalMeasurements(
   return [...latest.values()];
 }
 
-function maxVersion(rows: readonly DentalEntityRow[]): number {
-  return Math.max(1, ...rows.map((row) => row.version));
-}
 
 function createRecordNumber(): string {
   return `DNT-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto

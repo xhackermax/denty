@@ -345,6 +345,7 @@ export function createImplantStack(tooth: string): DentalEntity[] {
       entityType: "CROWN",
       status: "crown_pending",
       parentId: `${base}-abutment`,
+      attributes: { implantSupported: true },
       active: true,
     },
   ];

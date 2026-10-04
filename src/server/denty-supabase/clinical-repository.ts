@@ -1,4 +1,5 @@
 import { assertProbeable } from "./mouth-guard";
+import { currentOdontogramVersion } from "./odontogram-version";
 import { odontogramSnapshotSchema } from "@/shared/api/schemas/clinical";
 import type {
   ClinicalSyncState,
@@ -204,11 +205,11 @@ export class ClinicalRepository {
   ) {}
 
   async getClinicalSync(patientId: string): Promise<ClinicalSyncState> {
-    const [entities, snapshots, plans, budgets] = await Promise.all([
-      this.client.select<{ version: number; status: string; created_at: string }>(
+    const [entities, snapshots, plans, budgets, odontogramVersion] = await Promise.all([
+      this.client.select<{ status: string; created_at: string }>(
         "dental_entities",
         {
-          select: "version,status,created_at",
+          select: "status,created_at",
           patient_id: `eq.${patientId}`,
           active: "eq.true",
           order: "created_at.desc",
@@ -230,8 +231,8 @@ export class ClinicalRepository {
         order: "revision.desc",
         limit: 1,
       }),
+      currentOdontogramVersion(this.client, patientId),
     ]);
-    const odontogramVersion = Math.max(1, ...entities.map((row) => row.version));
     const plan = plans[0];
     const budget = budgets[0];
     const planItems = plan
@@ -510,21 +511,17 @@ export class ClinicalRepository {
   }
 
   async listSnapshots(patientId: string) {
-    const [rows, entities] = await Promise.all([
+    const [rows, currentVersion] = await Promise.all([
       this.client.select<SnapshotRow>("odontogram_snapshots", {
         select: "*",
         patient_id: `eq.${patientId}`,
         order: "created_at.desc",
       }),
-      this.client.select<{ version: number }>("dental_entities", {
-        select: "version",
-        patient_id: `eq.${patientId}`,
-        active: "eq.true",
-      }),
+      currentOdontogramVersion(this.client, patientId),
     ]);
     return {
       items: rows.map(mapSnapshot),
-      currentVersion: Math.max(1, ...entities.map((row) => row.version)),
+      currentVersion,
     };
   }
 

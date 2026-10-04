@@ -1,4 +1,4 @@
-import { createTheme, type MantineColorsTuple } from "@mantine/core";
+import { Select, createTheme, type MantineColorsTuple } from "@mantine/core";
 
 const iosBlue: MantineColorsTuple = [
   "#edf6ff",
@@ -46,4 +46,9 @@ export const dentyTheme = createTheme({
   },
   cursorType: "pointer",
   respectReducedMotion: true,
+  components: {
+    // Re-choosing the option already selected must not empty the field: in the odontogram it
+    // silently fell back to another tooth. Fields that may be emptied opt in with `clearable`.
+    Select: Select.extend({ defaultProps: { allowDeselect: false } }),
+  },
 });

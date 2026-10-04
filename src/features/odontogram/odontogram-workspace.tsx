@@ -1,6 +1,6 @@
 "use client";
 import { QuickDiagnosisBar } from "@/features/diagnosis/quick-diagnosis-bar";
-import { deriveMouthState } from "@/domain/odontogram/mouth-state";
+import { chartArches, deriveMouthState } from "@/domain/odontogram/mouth-state";
 import OdontogramVisual from "./visual/odontogram-visual";
 import { OdontogramViewSwitch } from "./visual/odontogram-view-switch";
 import { toVisualDentition, toVisualTeeth } from "./visual/visual-adapter";
@@ -16,8 +16,6 @@ import { useSearchParams } from "next/navigation";
 import { useOptionalAssistantContextPatch } from "@/features/assistant/assistant-context";
 import {
   ENDODONTIC_VISUAL_MARKS,
-  PERMANENT_LOWER,
-  PERMANENT_UPPER,
   TOOTH_STATES,
   archForTooth,
   bridgeTeethFromEndpoints,
@@ -400,6 +398,11 @@ function Tooth({
     </button>
   );
 }
+// Upper left second premolar for adults, its primary predecessor for children.
+function defaultSelectedTooth(teeth: readonly string[]): string {
+  return ["25", "65", "26"].find((tooth) => teeth.includes(tooth)) ?? teeth[0] ?? "25";
+}
+
 type ClinicalSyncStatus = "idle" | "syncing" | "updated" | "error";
 
 function autosaveLabel(status: AutosaveStatus, dirty: boolean, sync: ClinicalSyncStatus): string {
@@ -499,6 +502,14 @@ function OdontogramEditor({
     () => deriveMouthState(entities, birthDate ? { birthDate } : {}),
     [entities, birthDate],
   );
+  // A child's chart has no permanent teeth and an adult's no primary ones.
+  const arches = useMemo(() => chartArches(mouthState), [mouthState]);
+  const chartTeeth = useMemo(() => [...arches.upper, ...arches.lower], [arches]);
+  // The birth date can arrive after the first render; never leave a tooth this mouth lacks selected.
+  useEffect(() => {
+    if (chartTeeth.includes(selectedTooth)) return;
+    setSelectedTooth(defaultSelectedTooth(chartTeeth));
+  }, [chartTeeth, selectedTooth]);
   const persistedBridgeTeeth = useMemo(
     () =>
       new Set(
@@ -978,8 +989,8 @@ function OdontogramEditor({
                 <Select
                   label="Diente"
                   value={selectedTooth}
-                  onChange={(value) => setSelectedTooth(value ?? "46")}
-                  data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
+                  onChange={(value) => setSelectedTooth(value ?? defaultSelectedTooth(chartTeeth))}
+                  data={chartTeeth}
                 />
               </SimpleGrid>
               {placementMode === "bridge" ? (
@@ -1010,7 +1021,7 @@ function OdontogramEditor({
                         setBridgePick(value ? "to" : "from");
                         setBridgeError(null);
                       }}
-                      data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
+                      data={chartTeeth}
                       disabled={historical || !activeToolVisible}
                     />
                     <Select
@@ -1041,7 +1052,7 @@ function OdontogramEditor({
                           setBridgeError("Usa la misma arcada.");
                         }
                       }}
-                      data={[...PERMANENT_UPPER, ...PERMANENT_LOWER]}
+                      data={chartTeeth}
                       disabled={historical || !activeToolVisible || !bridgeFrom}
                     />
                   </SimpleGrid>
@@ -1148,13 +1159,13 @@ function OdontogramEditor({
             <Text className={styles.archLabel} fw={800}>
               Maxilar
             </Text>
-            {renderArch(PERMANENT_UPPER)}
+            {renderArch(arches.upper)}
           </div>
           <div className={styles.occlusalPlane}>
             <span>Plano oclusal</span>
           </div>
           <div className={styles.archBlock}>
-            {renderArch(PERMANENT_LOWER)}
+            {renderArch(arches.lower)}
             <Text className={styles.archLabel} fw={800}>
               Mandíbula
             </Text>
@@ -1195,13 +1206,20 @@ function OdontogramEditor({
         <RetainedFlowStep active={viewState.visibleLayerIds.includes("replacement")}>
           <details className={styles.layerEditor}>
             <summary>Editar recambio y dentición</summary>
-            <PediatricPanel
-              patientId={patientId}
-              {...(birthDate === undefined ? {} : { birthDate })}
-              readOnly={historical}
-              initialEntities={entities}
-              onCommit={commit}
-            />
+            {mouthState.dentition === "permanent" ? (
+              // An adult has no primary teeth to track; the panel would only add temporary ones.
+              <Text size="sm" c="dimmed">
+                Paciente con dentición definitiva: no hay dientes temporales que registrar.
+              </Text>
+            ) : (
+              <PediatricPanel
+                patientId={patientId}
+                {...(birthDate === undefined ? {} : { birthDate })}
+                readOnly={historical}
+                initialEntities={entities}
+                onCommit={commit}
+              />
+            )}
           </details>
         </RetainedFlowStep>
         <RetainedFlowStep active={viewState.visibleLayerIds.includes("endo")}>

@@ -2,6 +2,8 @@ import type { BrowserContext, Page } from "@playwright/test";
 
 // Must match IDS in fake-supabase.mjs: the session row the fake seeds for the admin user.
 export const PATIENT_ID = "00000000-0000-4000-8000-0000000000d1";
+export const CHILD_PATIENT_ID = "00000000-0000-4000-8000-0000000000d2"; // born 2022: primary teeth
+export const MIXED_PATIENT_ID = "00000000-0000-4000-8000-0000000000d3"; // born 2018: mixed
 const APP_SESSION_ID = "00000000-0000-4000-8000-0000000000e1";
 const FAKE_SUPABASE = `http://127.0.0.1:${process.env.FAKE_SUPABASE_PORT ?? 54399}`;
 

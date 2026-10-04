@@ -131,3 +131,35 @@ export function teethForChart(
         (t) => state.teeth[t]?.presence !== "unerupted",
       );
 }
+
+// Positions from the patient's right to left; the primary tooth that precedes each permanent one.
+const PRIMARY_PREDECESSOR: Readonly<Record<string, string>> = Object.fromEntries(
+  [1, 2, 3, 4].flatMap((quadrant) =>
+    [1, 2, 3, 4, 5].map((index) => [`${quadrant}${index}`, `${quadrant + 4}${index}`]),
+  ),
+);
+
+const inMouth = (state: MouthState, tooth: string) => {
+  const presence = state.teeth[tooth]?.presence;
+  return presence !== undefined && presence !== "unerupted";
+};
+
+/**
+ * The teeth the chart draws, one per position. A young child sees only primary teeth and an adult
+ * only permanent ones; a mixed dentition shows the primary tooth while it is in place and its
+ * successor once it is lost, and hides permanent molars that have not erupted yet.
+ */
+export function chartArches(state: MouthState): { upper: string[]; lower: string[] } {
+  if (state.dentition === "deciduous")
+    return { upper: [...TEMPORARY_UPPER], lower: [...TEMPORARY_LOWER] };
+  if (state.dentition === "permanent")
+    return { upper: [...PERMANENT_UPPER], lower: [...PERMANENT_LOWER] };
+  const arch = (permanentArch: readonly string[]) =>
+    permanentArch.flatMap((tooth) => {
+      const predecessor = PRIMARY_PREDECESSOR[tooth];
+      if (predecessor && state.teeth[predecessor]?.presence === "deciduous") return [predecessor];
+      if (predecessor || inMouth(state, tooth)) return [tooth];
+      return [];
+    });
+  return { upper: arch(PERMANENT_UPPER), lower: arch(PERMANENT_LOWER) };
+}

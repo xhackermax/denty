@@ -198,7 +198,8 @@ export const saveDentalEntityResultSchema = z.object({
 
 export const odontogramBatchSchema = z.object({
   expectedVersion: versionSchema,
-  entities: z.array(dentalEntitySchema).min(1),
+  // The batch replaces the whole chart, so an empty list is how the last finding is removed.
+  entities: z.array(dentalEntitySchema),
 });
 
 export const odontogramBatchResultSchema = z.object({
