@@ -46,9 +46,14 @@ export function useSaveOdontogramBatchMutation(
     onSuccess: (saved) => {
       // Before the cache update, so the editor can tell its own versions from other devices'.
       options.onCommitted?.(saved.version);
-      // Use the committed version before a slower background read can finish.
-      // This also resets the editor's dirty guard through its version key.
-      queryClient.setQueryData(dentyQueryKeys.clinical.odontogram(patientId), saved);
+      // Use the committed version before a slower background read can finish. The batch
+      // answer carries only entities and version: merge it, never replace the whole record
+      // (periodontal readings and snapshots would vanish and the chart would crash).
+      queryClient.setQueryData<OdontogramRecord>(
+        dentyQueryKeys.clinical.odontogram(patientId),
+        (current) =>
+          current ? { ...current, version: saved.version, entities: saved.entities } : current,
+      );
       invalidateOdontogramQueries(queryClient, patientId);
     },
   });

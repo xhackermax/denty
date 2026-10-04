@@ -53,7 +53,7 @@ function mountEditor() {
   return { queryClient, key };
 }
 test("a successful save clears dirty state and Back works while the subsequent read is slow", async () => {
-  api.batch.mockResolvedValue({ id: "p", version: 2, entities: [], periodontal: [] });
+  api.batch.mockResolvedValue({ version: 2, entities: [] });
   const { queryClient, key } = mountEditor();
   fireEvent.click(screen.getByRole("button", { name: "Aplicar al diente seleccionado" }));
   fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
@@ -67,7 +67,7 @@ test("a successful save clears dirty state and Back works while the subsequent r
 });
 
 test("Back saves pending edits once before leaving even if the background read stalls", async () => {
-  api.batch.mockResolvedValue({ id: "p", version: 2, entities: [], periodontal: [] });
+  api.batch.mockResolvedValue({ version: 2, entities: [] });
   const { queryClient } = mountEditor();
   fireEvent.click(screen.getByRole("button", { name: "Aplicar al diente seleccionado" }));
   fireEvent.click(screen.getByRole("button", { name: "Volver" }));

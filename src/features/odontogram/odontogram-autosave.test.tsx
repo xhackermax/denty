@@ -57,7 +57,8 @@ test("edits save themselves, keep the editor in place and bring plan and budget 
   api.batch.mockImplementation(async (_id: string, input: { expectedVersion: number }) => {
     expect(input.expectedVersion).toBe(version);
     version += 1;
-    return { id: "p", version, entities: [], periodontal: [] };
+    // The real batch endpoint answers only with the saved entities and version.
+    return { version, entities: [] };
   });
   api.syncPlan.mockResolvedValue(planResult);
   api.syncBudget.mockResolvedValue({});
@@ -68,7 +69,7 @@ test("edits save themselves, keep the editor in place and bring plan and budget 
     id: "p",
     version: 1,
     entities: [],
-    periodontal: [],
+    periodontal: [{ id: "m1", tooth: "16", site: "MV", probingDepth: 3 }],
   });
   queryClient.setQueryData(dentyQueryKeys.clinical.snapshots("p"), { items: [] });
   render(
