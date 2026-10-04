@@ -23,6 +23,8 @@ import {
 import styles from "./odontogram.module.css";
 interface OrthodonticPanelProps {
   patientId: string;
+  /** The chart's entities; the saved orthodontic record is read back from them. */
+  entities?: readonly DentalEntity[];
   readOnly: boolean;
   onCommit: (entity: DentalEntity) => void;
 }
@@ -75,7 +77,47 @@ interface OrthodonticDraft {
   notes: string;
   toothMarks: Record<string, OrthoMark>;
 }
-const ORTHODONTIC_DRAFTS = new Map<string, OrthodonticDraft>();
+const CLASSES = new Set<string>(["I", "II", "III"]);
+const MARKS = new Set<string>(ORTHO_MARKS);
+
+const orthoClass = (value: unknown): OrthodonticClass =>
+  typeof value === "string" && CLASSES.has(value) ? (value as OrthodonticClass) : "I";
+const orthoNumber = (value: unknown, fallback: number) =>
+  typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
+/** Reads the saved record back into the form; anything missing keeps the form's default. */
+export function orthodonticDraftFromEntity(
+  entity: DentalEntity | undefined,
+): OrthodonticDraft | null {
+  if (!entity) return null;
+  const a = (entity.attributes ?? {}) as Record<string, unknown>;
+  const marks = (a.toothMarks ?? {}) as Record<string, unknown>;
+  return {
+    molarClassRight: orthoClass(a.molarClassRight),
+    molarClassLeft: orthoClass(a.molarClassLeft),
+    canineClassRight: orthoClass(a.canineClassRight),
+    canineClassLeft: orthoClass(a.canineClassLeft),
+    overjetMm: orthoNumber(a.overjetMm, 4),
+    overbitePct: orthoNumber(a.overbitePct, 40),
+    midlineDeviationMm: orthoNumber(a.midlineDeviationMm, 0),
+    upperCrowdingMm: orthoNumber(a.upperCrowdingMm, 0),
+    lowerCrowdingMm: orthoNumber(a.lowerCrowdingMm, 0),
+    crossbite: a.crossbite === true,
+    openBite: a.openBite === true,
+    deepBite: a.deepBite === true,
+    appliances: Array.isArray(a.appliances)
+      ? a.appliances.filter((value): value is OrthodonticAppliance =>
+          APPLIANCES.some((option) => option.value === value),
+        )
+      : [],
+    notes: typeof a.notes === "string" ? a.notes : "",
+    toothMarks: Object.fromEntries(
+      Object.entries(marks).filter((entry): entry is [string, OrthoMark] =>
+        MARKS.has(String(entry[1])),
+      ),
+    ),
+  };
+}
 function OrthoTooth({
   tooth,
   mark,
@@ -109,7 +151,12 @@ function OrthoTooth({
     </button>
   );
 }
-export function OrthodonticPanel({ patientId, readOnly, onCommit }: OrthodonticPanelProps) {
+export function OrthodonticPanel({
+  patientId,
+  entities = [],
+  readOnly,
+  onCommit,
+}: OrthodonticPanelProps) {
   const mouth = useMouthState();
   const arches = useMemo(() => chartArches(mouth), [mouth]);
   const [molarClassRight, setMolarClassRight] = useState<OrthodonticClass>("I");
@@ -128,8 +175,13 @@ export function OrthodonticPanel({ patientId, readOnly, onCommit }: OrthodonticP
   const [appliances, setAppliances] = useState<OrthodonticAppliance[]>(["aligners"]);
   const [toothMarks, setToothMarks] = useState<Record<string, OrthoMark>>({});
   const [saved, setSaved] = useState(false);
+  const persisted = entities.find((entity) => entity.active && entity.entityType === "ORTHODONTIC");
+  // Compared by content: the chart hands over new entity objects on every edit.
+  const persistedKey = persisted ? JSON.stringify(persisted.attributes ?? {}) : "";
+  // The saved record fills the form when it opens and after each save. Another device's save
+  // remounts the whole editor, so this never lands on top of unsaved typing.
   useEffect(() => {
-    const draft = ORTHODONTIC_DRAFTS.get(patientId);
+    const draft = orthodonticDraftFromEntity(persisted);
     if (!draft) {
       setToothMarks({});
       setNotes("");
@@ -152,7 +204,7 @@ export function OrthodonticPanel({ patientId, readOnly, onCommit }: OrthodonticP
     setNotes(draft.notes);
     setToothMarks({ ...draft.toothMarks });
     setSaved(true);
-  }, [patientId]);
+  }, [patientId, persistedKey]);
   const markedCount = useMemo(
     () => Object.values(toothMarks).filter((mark) => mark && mark !== "none").length,
     [toothMarks],
@@ -186,11 +238,6 @@ export function OrthodonticPanel({ patientId, readOnly, onCommit }: OrthodonticP
       toothMarks,
     } as const;
     onCommit(createOrthodonticEntity(patientId, attributes));
-    ORTHODONTIC_DRAFTS.set(patientId, {
-      ...attributes,
-      appliances: [...attributes.appliances],
-      toothMarks: { ...attributes.toothMarks },
-    });
     setSaved(true);
   };
   const renderArch = (teeth: readonly string[]) => (

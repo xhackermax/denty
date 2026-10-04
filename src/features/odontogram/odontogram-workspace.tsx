@@ -1200,7 +1200,12 @@ function OdontogramEditor({
         <RetainedFlowStep active={viewState.visibleLayerIds.includes("ortho")}>
           <details className={styles.layerEditor}>
             <summary>Editar ortodoncia</summary>
-            <OrthodonticPanel patientId={patientId} readOnly={historical} onCommit={commit} />
+            <OrthodonticPanel
+              patientId={patientId}
+              entities={entities}
+              readOnly={historical}
+              onCommit={commit}
+            />
           </details>
         </RetainedFlowStep>
         <RetainedFlowStep active={viewState.visibleLayerIds.includes("replacement")}>

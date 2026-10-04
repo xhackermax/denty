@@ -84,6 +84,33 @@ describe("clinical odontogram workspace", () => {
     expect(screen.getByText("Alineadores")).toBeInTheDocument();
   });
 
+  it("rehidrata la ortodoncia guardada al volver a abrir la ficha", () => {
+    const saved = {
+      id: "orthodontic-patient-1",
+      entityType: "ORTHODONTIC" as const,
+      status: "active",
+      active: true,
+      attributes: {
+        overjetMm: 7,
+        notes: "Clase II división 1",
+        appliances: ["brackets"],
+        toothMarks: { "11": "bracket" },
+      },
+    };
+    renderWithTheme(
+      <OrthodonticPanel
+        patientId="patient-1"
+        entities={[saved]}
+        readOnly={false}
+        onCommit={() => undefined}
+      />,
+    );
+    expect(screen.getByDisplayValue("Clase II división 1")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Overjet")[0]).toHaveValue("7 mm");
+    expect(screen.getByText("1 dientes marcados")).toBeInTheDocument();
+    expect(screen.getByText("Guardado")).toBeInTheDocument();
+  });
+
   it("muestra denticion pediatrica sugerida por edad", () => {
     renderWithTheme(
       <PediatricPanel
