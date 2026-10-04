@@ -41,3 +41,26 @@ test("marking a caries saves itself and brings plan and budget up to date", asyn
   expect(saves.map((entry) => entry.body?.p_expected_version)).toEqual([1, 2]);
   expect(failures).toEqual([]);
 });
+
+test("a crown on an untouched natural tooth is recorded without a clinical-rule stop", async ({
+  page,
+}) => {
+  const failures = await isolatePage(page);
+  await page.goto(`/app/patients/${PATIENT_ID}/odontogram`);
+
+  await page.getByRole("button", { name: /^Corona\. .*Se aplica a Diente\.$/ }).click();
+  // Crowns live on the prosthetics layer, hidden in the default view: turn it on as a user would.
+  await page.getByRole("button", { name: "Reactivar capa" }).click();
+  // Whole-tooth tools act on the tooth itself; its faces stay disabled.
+  await page.getByRole("button", { name: "Diente 46", exact: true }).click();
+
+  await expect(page.getByText("Guardado · plan y presupuesto al día")).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(page.getByText("Regla clínica")).toHaveCount(0);
+  const crown = (await fakeSupabase.state()).dental_entities!.find(
+    (row) => row.tooth === "46" && row.entity_type === "CROWN",
+  );
+  expect(crown).toBeDefined();
+  expect(failures).toEqual([]);
+});

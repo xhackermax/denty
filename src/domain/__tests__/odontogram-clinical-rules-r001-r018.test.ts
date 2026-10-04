@@ -23,7 +23,11 @@ const cases: readonly [string, DentalEntity, readonly DentalEntity[]][] = [
     dental({ entityType: "IMPLANT", status: "implant_pending" }),
     [dental({ entityType: "HEALTHY", status: "healthy" })],
   ],
-  ["R003", dental({ entityType: "CROWN", status: "crown_pending" }), []],
+  [
+    "R003",
+    dental({ entityType: "CROWN", status: "crown_pending" }),
+    [dental({ entityType: "MISSING", status: "missing" })],
+  ],
   ["R004", dental({ entityType: "POST", status: "post_pending" }), []],
   [
     "R005",
@@ -99,6 +103,39 @@ describe("clinical rules R001-R018", () => {
       expect(result.outcome).not.toBe("ALLOW");
     },
   );
+
+  describe("R003: a crown needs a tooth or an implant underneath", () => {
+    const crown = () => dental({ entityType: "CROWN", status: "crown_pending" });
+    const crownRule = (existing: readonly DentalEntity[]) =>
+      evaluateClinicalAction(crown(), existing).ruleIds.includes("R003");
+
+    it.each([
+      ["an untouched natural tooth", []],
+      ["a root-canal treated tooth", [dental({ entityType: "ENDO", status: "endo" })]],
+      ["a restored tooth", [dental({ entityType: "RESTORATION", status: "filling" })]],
+      ["a decayed tooth", [dental({ entityType: "CARIES", status: "caries" })]],
+      [
+        "an implant where the tooth was lost",
+        [
+          dental({ entityType: "MISSING", status: "missing" }),
+          dental({ entityType: "IMPLANT", status: "implant" }),
+        ],
+      ],
+    ] as const)("accepts %s", (_, existing) => {
+      expect(crownRule(existing)).toBe(false);
+    });
+
+    it.each([
+      ["a missing tooth", [dental({ entityType: "MISSING", status: "missing" })]],
+      ["a tooth marked missing", [dental({ entityType: "TOOTH_STATE", status: "missing" })]],
+      [
+        "a tooth already extracted",
+        [dental({ entityType: "EXTRACTION", status: "extraction_completed" })],
+      ],
+    ] as const)("asks for support on %s", (_, existing) => {
+      expect(crownRule(existing)).toBe(true);
+    });
+  });
 
   it("allows an unrelated observation without false positives", () => {
     const result = evaluateClinicalAction(

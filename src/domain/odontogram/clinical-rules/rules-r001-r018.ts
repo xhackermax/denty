@@ -25,6 +25,18 @@ const decision = (
 const has = (entities: readonly DentalEntity[], predicate: (entity: DentalEntity) => boolean) =>
   entities.some((entity) => entity.active && predicate(entity));
 
+const TOOTH_GONE_STATUSES = new Set(["missing", "congenitally_missing", "exfoliated"]);
+
+// The tooth itself is no longer there: absent, already extracted, or replaced by a pontic.
+// Anything else — an untouched tooth, a root canal, a filling, caries — is a natural crown support.
+const toothIsGone = (entity: DentalEntity): boolean =>
+  entity.entityType === "MISSING" ||
+  entity.entityType === "PONTIC" ||
+  TOOTH_GONE_STATUSES.has(entity.status) ||
+  (entity.entityType === "EXTRACTION" &&
+    (/_completed$/.test(entity.status) ||
+      ["REALIZADO", "REALIZADO_OTRA_CLINICA"].includes(String(entity.attributes?.lifecycle))));
+
 const sameSurface = (left: DentalEntity, right: DentalEntity): boolean => {
   if (!left.surfaces?.length || !right.surfaces?.length) return true;
   return left.surfaces.some((surface) => right.surfaces?.includes(surface));
@@ -60,9 +72,8 @@ export function evaluateRulesR001R018(
   );
   push(
     proposed.entityType === "CROWN" &&
-      !has(sameTooth, (entity) =>
-        ["TOOTH_STATE", "HEALTHY", "IMPLANT", "ABUTMENT", "POST"].includes(entity.entityType),
-      ) &&
+      has(sameTooth, toothIsGone) &&
+      !has(sameTooth, (entity) => ["IMPLANT", "ABUTMENT"].includes(entity.entityType)) &&
       decision("R003", "REQUIRE_CONTEXT", "La corona necesita un soporte válido.", ["support"]),
   );
   push(
