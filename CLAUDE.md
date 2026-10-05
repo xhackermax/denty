@@ -25,4 +25,10 @@
 - Para cambios de código, comprobar `npm run typecheck`, lint y formato.
 - Declarar qué se verificó y cualquier comprobación que haya quedado bloqueada.
 
+## Dónde está cada cosa
+
+- Visión general y comandos: [README.md](README.md).
+- Mapa del código y flujos: [docs/architecture/repository-map.md](docs/architecture/repository-map.md).
+- Índice de documentación: [docs/README.md](docs/README.md).
+
 @AGENTS.md

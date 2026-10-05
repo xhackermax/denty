@@ -2,7 +2,7 @@
 
 **Goal:** Convert the existing Denty voice stack into a reusable assistant core that can be armed, pauses when the page is hidden, detects “Oye Denty” locally, normalizes commands into typed tools, and enforces risk/confirmation before execution.
 
-**Spec:** [Design](../specs/2026-09-25-oye-denty-assistant-design.md). This is the original implementation scope; consult [current checkpoint](../../../CHECKPOINT-STATUS.md) before reopening completed work.
+**Spec:** [Design](../specs/2026-09-25-oye-denty-assistant-design.md). This is the original implementation scope; consult [current checkpoint](../../archive/stages/CHECKPOINT-STATUS.md) before reopening completed work.
 
 ## Global Constraints
 

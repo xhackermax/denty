@@ -1,6 +1,6 @@
 # Denty — Hallazgos y validaciones pendientes tras Stage 12
 
-Procedimientos y evidencias: [inventario JSON](DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json). Este informe conserva el estado de su fecha.
+Procedimientos y evidencias: [inventario JSON](../../../DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json). Este informe conserva el estado de su fecha.
 
 **Fecha:** 2026-09-29
 

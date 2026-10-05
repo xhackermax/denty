@@ -2,7 +2,7 @@
 
 **Goal:** Make Denty silently learn operational language and workflow preferences per dentist after three equivalent successful, uncorrected examples, while keeping every learned rule inspectable, editable, reversible, and isolated by clinic/doctor.
 
-**Spec:** [Design](../specs/2026-09-25-oye-denty-assistant-design.md). This is the original implementation scope; consult [current checkpoint](../../../CHECKPOINT-STATUS.md) before reopening completed work.
+**Spec:** [Design](../specs/2026-09-25-oye-denty-assistant-design.md). This is the original implementation scope; consult [current checkpoint](../../archive/stages/CHECKPOINT-STATUS.md) before reopening completed work.
 
 ## Global Constraints
 

@@ -7,7 +7,7 @@ Este documento resume el checkpoint histórico tras Etapa 6. El estado posterior
 - 91 hallazgos originales: 58 abordados en código y 33 todavía pendientes en ese momento.
 - Etapas 1–6: `DO_NOT_REIMPLEMENT`. Las comprobaciones LIVE no autorizan rediseñar lo cerrado.
 - Siguiente implementación de ese checkpoint: Etapa 7, agenda y recepción.
-- Detalle por ID, migraciones y evidencia: [inventario Stage 6](docs/stage6-inventory/DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json).
+- Detalle por ID, migraciones y evidencia: [inventario Stage 6](stage6/DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json).
 
 | Etapa | Base implementada                                               | Check                               |
 | ----- | --------------------------------------------------------------- | ----------------------------------- |

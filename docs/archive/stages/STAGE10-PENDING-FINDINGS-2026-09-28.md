@@ -1,6 +1,6 @@
 # Stage 10 — Recopilación de hallazgos pendientes
 
-Procedimientos y evidencias: [inventario JSON](DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json). Este informe conserva el estado de su fecha.
+Procedimientos y evidencias: [inventario JSON](../../../DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json). Este informe conserva el estado de su fecha.
 
 **Fecha:** 2026-09-28  
 Este documento separa trabajo de implementación futura de validaciones LIVE. No usar las validaciones LIVE como motivo para reimplementar etapas cerradas.

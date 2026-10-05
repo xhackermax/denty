@@ -2,7 +2,7 @@
 
 **Goal:** Make Denty proactively surface useful, silent, actionable notifications from deterministic local/business rules without keeping an AI session or microphone active.
 
-**Spec:** [Design](../specs/2026-09-25-oye-denty-assistant-design.md). This is the original implementation scope; consult [current checkpoint](../../../CHECKPOINT-STATUS.md) before reopening completed work.
+**Spec:** [Design](../specs/2026-09-25-oye-denty-assistant-design.md). This is the original implementation scope; consult [current checkpoint](../../archive/stages/CHECKPOINT-STATUS.md) before reopening completed work.
 
 ## Global Constraints
 

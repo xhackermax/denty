@@ -1,6 +1,6 @@
 # Denty — Inventario maestro
 
-Checkpoint histórico: tras Etapa 12. Estados y evidencias completas: [inventario JSON](DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json).
+Checkpoint histórico: tras Etapa 12. Estados y evidencias completas: [inventario JSON](../../../DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json).
 
 ## Estado
 

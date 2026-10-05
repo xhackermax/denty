@@ -2,7 +2,7 @@
 
 **Goal:** Add Surgery as a first-class odontogram lens, make R001–R035 executable across all clinical entry points, and connect implant/prosthetic planning to consent, budget and surgery-day completion without creating a second clinical truth.
 
-**Spec:** [Design](../specs/2026-09-26-denty-clinical-surgery-finance-ux-design.md). This is the original implementation scope; consult [current checkpoint](../../../CHECKPOINT-STATUS.md) before reopening completed work.
+**Spec:** [Design](../specs/2026-09-26-denty-clinical-surgery-finance-ux-design.md). This is the original implementation scope; consult [current checkpoint](../../archive/stages/CHECKPOINT-STATUS.md) before reopening completed work.
 
 ## Global Constraints
 

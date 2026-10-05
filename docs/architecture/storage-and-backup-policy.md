@@ -90,4 +90,4 @@ La aplicación no debe reintroducir botones ficticios de “crear copia” ni un
 
 ## 7. Validaciones LIVE pendientes
 
-Las tareas `S5-LIVE-*` del `DENTY-SHOPPING-LIST` son validaciones contra Supabase/Node 24 reales. No autorizan a reimplementar Etapa 5 salvo que una de ellas reproduzca un fallo concreto atribuible a este código.
+Las tareas `S5-LIVE-*` del `DENTY-SHOPPING-LIST` (archivada en `docs/archive/inventories/`) son validaciones contra Supabase/Node 24 reales. No autorizan a reimplementar Etapa 5 salvo que una de ellas reproduzca un fallo concreto atribuible a este código.

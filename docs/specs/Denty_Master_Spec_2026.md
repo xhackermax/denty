@@ -1,6 +1,6 @@
 # Denty — Especificación Maestra 2026
 
-Versión: `2026.09-master`. Documento de producto; los estados reales de implementación se consultan en el [inventario maestro](../../DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.md).
+Versión: `2026.09-master`. Documento de producto; los estados reales de implementación se consultan en el [inventario maestro](../archive/inventories/DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.md).
 
 ## Principios
 

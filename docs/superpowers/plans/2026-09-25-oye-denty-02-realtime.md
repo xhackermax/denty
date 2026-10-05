@@ -2,7 +2,7 @@
 
 **Goal:** Add a secure, contextual 45-second conversational session using OpenAI Realtime while keeping all Denty mutations behind the existing tool registry and risk policy.
 
-**Spec:** [Design](../specs/2026-09-25-oye-denty-assistant-design.md). This is the original implementation scope; consult [current checkpoint](../../../CHECKPOINT-STATUS.md) before reopening completed work.
+**Spec:** [Design](../specs/2026-09-25-oye-denty-assistant-design.md). This is the original implementation scope; consult [current checkpoint](../../archive/stages/CHECKPOINT-STATUS.md) before reopening completed work.
 
 ## Global Constraints
 

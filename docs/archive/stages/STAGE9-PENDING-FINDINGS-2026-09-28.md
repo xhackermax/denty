@@ -1,6 +1,6 @@
 # Stage 9 — Recopilación única de hallazgos pendientes
 
-Procedimientos y evidencias: [inventario JSON](DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json). Este informe conserva el estado de su fecha.
+Procedimientos y evidencias: [inventario JSON](../../../DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json). Este informe conserva el estado de su fecha.
 
 > Fuente de continuidad tras Stage 9. Etapas 1–9 están bloqueadas como `DO_NOT_REIMPLEMENT`; sus tareas LIVE son validación/despliegue, no autorización para rehacerlas.
 

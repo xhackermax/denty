@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16, TypeScript, Supabase/Postgres, PostgREST, Supabase Realtime, TanStack Query.
 
-**Spec:** `docs/stage6-inventory/DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.md` section “Etapa 7”.
+**Spec:** `docs/archive/inventories/stage6/DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.md` section “Etapa 7”.
 
 ## Global Constraints
 
@@ -102,10 +102,10 @@
 ### Task 5: Metrics, inventory and gates
 
 **Files:**
-- Modify: `docs/stage6-inventory/DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.md`
-- Modify: `docs/stage6-inventory/DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json`
-- Create: `STAGE7-HANDOFF-2026-09-28.md`
-- Create: `STAGE7-PENDING-FINDINGS-2026-09-28.md`
+- Modify: `docs/archive/inventories/stage6/DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.md`
+- Modify: `docs/archive/inventories/stage6/DENTY-INVENTARIO-MAESTRO-TOTAL-2026-09-28.json`
+- Create: `docs/archive/stages/STAGE7-HANDOFF-2026-09-28.md`
+- Create: `docs/archive/stages/STAGE7-PENDING-FINDINGS-2026-09-28.md`
 - Modify: `package.json`
 
 **Interfaces:**

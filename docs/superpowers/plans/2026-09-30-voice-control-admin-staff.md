@@ -2,7 +2,7 @@
 
 **Goal:** Make Denty's voice bar a staff/admin-only global control layer that routes voice commands through the assistant tool registry, policy, and executor.
 
-**Spec:** [Design](../specs/2026-09-30-voice-control-admin-staff-design.md). This is the original implementation scope; consult [current checkpoint](../../../CHECKPOINT-STATUS.md) before reopening completed work.
+**Spec:** [Design](../specs/2026-09-30-voice-control-admin-staff-design.md). This is the original implementation scope; consult [current checkpoint](../../archive/stages/CHECKPOINT-STATUS.md) before reopening completed work.
 
 ## Global Constraints
 
