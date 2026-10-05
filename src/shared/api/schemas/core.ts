@@ -283,6 +283,10 @@ export const taskSchema = z
   })
   .passthrough();
 export const tasksSchema = z.object({ items: z.array(taskSchema) });
+export const taskAssigneesSchema = z.object({
+  items: z.array(z.object({ id: idSchema, name: z.string(), role: z.string() })),
+  currentStaffId: idSchema.nullable(),
+});
 export const createTaskSchema = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().max(1000).optional(),

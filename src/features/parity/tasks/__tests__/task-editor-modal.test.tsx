@@ -3,84 +3,65 @@ import { MantineProvider } from "@mantine/core";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TaskEditorModal } from "../task-editor-modal";
+import type { TaskTeam } from "../task-types";
 
-const mocks = vi.hoisted(() => ({ getClient: vi.fn() }));
-vi.mock("@/shared/supabase-browser", () => ({ getSupabaseBrowserClient: mocks.getClient }));
-afterEach(() => {
-  cleanup();
-  vi.restoreAllMocks();
-});
+afterEach(cleanup);
 
-describe("task editor release regressions", () => {
-  it("obtiene el usuario autenticado del contenedor data.user", async () => {
-    const eq = vi.fn();
-    const query = {
-      select: vi.fn(),
-      eq,
-      single: vi.fn(async () => ({ data: { clinic_id: "clinic" } })),
-      order: vi.fn(async () => ({ data: [{ id: "staff", name: "Dra. Vega" }] })),
-    };
-    query.select.mockReturnValue(query);
-    eq.mockReturnValue(query);
-    mocks.getClient.mockReturnValue({
-      auth: { getUser: vi.fn(async () => ({ data: { user: { id: "auth-user" } } })) },
-      from: vi.fn(() => query),
-    });
-    render(
-      <MantineProvider>
-        <TaskEditorModal
-          opened
-          task={null}
-          today="2026-10-01"
-          initialDay={null}
-          onClose={vi.fn()}
-          onSubmit={vi.fn()}
-        />
-      </MantineProvider>,
-    );
-    await screen.findByRole("combobox", { name: "Asignar a (opcional)" });
-    expect(eq).toHaveBeenCalledWith("id", "auth-user");
+const team: TaskTeam = {
+  items: [
+    { id: "aux", name: "Marta (auxiliar)" },
+    { id: "me", name: "Dra. Vega" },
+  ],
+  currentStaffId: "me",
+};
+
+function open(value?: TaskTeam) {
+  const onSubmit = vi.fn();
+  render(
+    <MantineProvider>
+      <TaskEditorModal
+        opened
+        task={null}
+        today="2026-10-01"
+        initialDay={null}
+        team={value}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />
+    </MantineProvider>,
+  );
+  return onSubmit;
+}
+
+function submitWithTitle(title: string) {
+  const box = screen.getByRole("textbox", { name: "Título" });
+  fireEvent.change(box, { target: { value: title } });
+  fireEvent.submit(box.closest("form")!);
+}
+
+describe("task editor assignment", () => {
+  it("ofrece al equipo para asignar la tarea", async () => {
+    open(team);
+    expect(await screen.findByRole("combobox", { name: "Asignar a" })).toBeVisible();
   });
-  it("mantiene utilizable el formulario si no se puede cargar el equipo", async () => {
-    mocks.getClient.mockImplementationOnce(() => {
-      throw new Error("Supabase no configurado");
-    });
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    render(
-      <MantineProvider>
-        <TaskEditorModal
-          opened
-          task={null}
-          today="2026-10-01"
-          initialDay={null}
-          onClose={vi.fn()}
-          onSubmit={vi.fn()}
-        />
-      </MantineProvider>,
-    );
+
+  it("permite autoasignarse con un botón", async () => {
+    const onSubmit = open(team);
+    fireEvent.click(await screen.findByRole("button", { name: "Asignármela a mí" }));
+    submitWithTitle("Comprar papel");
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({ assigneeStaffId: "me" });
+  });
+
+  it("mantiene utilizable el formulario sin equipo cargado", () => {
+    open();
     expect(screen.getByRole("textbox", { name: "Título" })).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Asignar a" })).toBeNull();
   });
+
   it("omite el identificador de responsable cuando no se ha seleccionado", async () => {
-    mocks.getClient.mockReturnValue({
-      auth: { getUser: vi.fn(async () => ({ data: { user: null } })) },
-    });
-    const onSubmit = vi.fn();
-    render(
-      <MantineProvider>
-        <TaskEditorModal
-          opened
-          task={null}
-          today="2026-10-01"
-          initialDay={null}
-          onClose={vi.fn()}
-          onSubmit={onSubmit}
-        />
-      </MantineProvider>,
-    );
-    fireEvent.change(screen.getByRole("textbox", { name: "Título" }), {
-      target: { value: "Llamar" },
-    });
-    fireEvent.submit(screen.getByRole("textbox", { name: "Título" }).closest("form")!);
+    const onSubmit = open(team);
+    submitWithTitle("Llamar");
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
     expect(onSubmit.mock.calls[0]?.[0]).not.toHaveProperty("assigneeStaffId");
   });

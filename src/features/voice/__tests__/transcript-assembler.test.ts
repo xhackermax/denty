@@ -47,6 +47,18 @@ describe("createTranscriptAssembler", () => {
     expect(assembler.text()).toBe("Paciente: marca caries en el 16");
   });
 
+  it("collapses cumulative Android results into the latest one", () => {
+    const assembler = createTranscriptAssembler("");
+    assembler.replaceSession(["da", "da una", "da una caries en", "da una caries en distal"], "");
+    expect(assembler.text()).toBe("da una caries en distal");
+  });
+
+  it("keeps distinct consecutive segments that merely share words", () => {
+    const assembler = createTranscriptAssembler("");
+    assembler.replaceSession(["caries en el 17", "caries en el 46"], "");
+    expect(assembler.text()).toBe("caries en el 17 caries en el 46");
+  });
+
   it("finalText excludes the pending partial", () => {
     const assembler = createTranscriptAssembler("");
     assembler.commitFinal("abre la agenda");

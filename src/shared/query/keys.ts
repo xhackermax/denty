@@ -129,5 +129,9 @@ export const dentyQueryKeys = {
     consents: (patientId: string) => ["denty", "communications", "consents", patientId] as const,
   },
   campaigns: { root: root("campaigns"), all: ["denty", "campaigns", "list"] as const },
-  tasks: { root: root("tasks"), all: ["denty", "tasks", "list"] as const },
+  tasks: {
+    root: root("tasks"),
+    all: ["denty", "tasks", "list"] as const,
+    team: ["denty", "tasks", "team"] as const,
+  },
 } as const;

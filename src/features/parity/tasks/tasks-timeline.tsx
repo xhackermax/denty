@@ -64,6 +64,7 @@ const browserTasksApi: TasksApi = {
   create: (input) => getBrowserApi().tasks.create(input),
   update: (id, input) => getBrowserApi().tasks.update(id, input),
   reorder: (orderedIds) => getBrowserApi().tasks.reorder(orderedIds),
+  assignees: () => getBrowserApi().tasks.assignees(),
 };
 
 export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimelineProps) {
@@ -97,6 +98,16 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
     queryKey: dentyQueryKeys.tasks.all,
     queryFn: () => resolvedApi.list(),
   });
+  const teamQuery = useQuery({
+    queryKey: dentyQueryKeys.tasks.team,
+    queryFn: async () => (await resolvedApi.assignees?.()) ?? null,
+    retry: false,
+  });
+  const team = teamQuery.data ?? undefined;
+  const staffNames = useMemo(
+    () => new Map((team?.items ?? []).map((member) => [member.id, member.name])),
+    [team],
+  );
   const allTasks = useMemo(() => query.data?.items ?? [], [query.data]);
   const archived = useMemo(() => allTasks.filter((t) => t.archivedAt), [allTasks]);
   const schedule = useMemo(
@@ -430,6 +441,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
                       <TaskNode
                         key={row.key}
                         entry={row.entry}
+                        assigneeName={staffNames.get(row.entry.task.assigneeStaffId ?? "")}
                         today={today}
                         isFirst={index === 0}
                         isLast={index === visibleIds.length - 1}
@@ -511,6 +523,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
             today={today}
             initialDay={view === "inbox" ? null : selectedDay}
             pending={actions.create.isPending || actions.patch.isPending}
+            team={team}
             onClose={() => {
               setCreating(false);
               setEditing(null);

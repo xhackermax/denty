@@ -68,6 +68,7 @@ import {
   recordSupplierPaymentSchema,
   allocateSupplierPaymentSchema,
   tasksSchema,
+  taskAssigneesSchema,
   taskSchema,
   createTaskSchema,
   updateTaskSchema,
@@ -344,6 +345,7 @@ export function createCoreResource(client: ApiClient) {
     },
     tasks: {
       list: () => client.request("/api/tasks", tasksSchema),
+      assignees: () => client.request("/api/tasks/assignees", taskAssigneesSchema),
       create: (payload: z.input<typeof createTaskSchema>) =>
         client.mutation("/api/tasks", taskSchema, createTaskSchema.parse(payload)),
       update: (id: string, payload: z.input<typeof updateTaskSchema>) =>

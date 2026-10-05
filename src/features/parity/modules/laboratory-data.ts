@@ -102,6 +102,30 @@ export function useLabTransitionMutation() {
   });
 }
 
+export function useLabCallPatientTaskMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      workId: string;
+      patientId: string;
+      patientName: string;
+      title: string;
+    }) =>
+      getBrowserApi().tasks.create({
+        title: `Llamar a ${input.patientName}: trabajo de laboratorio recibido`,
+        description: `Avisar al paciente de que ha llegado «${input.title}».`,
+        patientId: input.patientId,
+        taskType: "lab_received_call",
+        priority: "HIGH",
+        sourceType: "lab_work_received",
+        sourceId: input.workId,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.tasks.root });
+    },
+  });
+}
+
 export function useLabReworkMutation() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -25,6 +25,7 @@ import {
   useCreateLaboratoryMutation,
   useCreateLabWorkMutation,
   useLabAttachmentMutation,
+  useLabCallPatientTaskMutation,
   useLaboratoriesQuery,
   useLaboratoryBalancesQuery,
   useLaboratoryQuery,
@@ -64,6 +65,8 @@ export function LaboratoryModule() {
   const patients = usePatientsQuery();
   const createWork = useCreateLabWorkMutation();
   const transition = useLabTransitionMutation();
+  const callTask = useLabCallPatientTaskMutation();
+  const [callTaskWorkIds, setCallTaskWorkIds] = useState<ReadonlySet<string>>(new Set());
   const rework = useLabReworkMutation();
   const addAttachment = useLabAttachmentMutation();
   const createLaboratory = useCreateLaboratoryMutation();
@@ -115,6 +118,27 @@ export function LaboratoryModule() {
       value: invoice.id,
       label: `${invoice.invoiceNumber} · ${formatEUR(invoice.totalCents)}`,
     }));
+
+  const createCallTask = (work: NonNullable<typeof works.data>["items"][number]) => {
+    if (!work.patient || callTaskWorkIds.has(work.id)) return;
+    setCallTaskWorkIds((current) => new Set(current).add(work.id));
+    callTask.mutate(
+      {
+        workId: work.id,
+        patientId: work.patient.id,
+        patientName: `${work.patient.firstName} ${work.patient.lastName}`.trim(),
+        title: work.title,
+      },
+      {
+        onError: () =>
+          setCallTaskWorkIds((current) => {
+            const next = new Set(current);
+            next.delete(work.id);
+            return next;
+          }),
+      },
+    );
+  };
 
   const clearLabForm = () => {
     setEditingLabId(null);
@@ -396,10 +420,17 @@ export function LaboratoryModule() {
                       size="xs"
                       variant="light"
                       onClick={() =>
-                        transition.mutate({
-                          id: work.id,
-                          payload: { status: nextStatus, expectedVersion: work.version },
-                        })
+                        transition.mutate(
+                          {
+                            id: work.id,
+                            payload: { status: nextStatus, expectedVersion: work.version },
+                          },
+                          {
+                            onSuccess: () => {
+                              if (nextStatus === "RECEIVED") createCallTask(work);
+                            },
+                          },
+                        )
                       }
                     >
                       {nextStatus === "RECEIVED"
@@ -409,6 +440,18 @@ export function LaboratoryModule() {
                           : nextStatus === "SENT"
                             ? "Marcar enviado"
                             : "En producción"}
+                    </Button>
+                  ) : null}
+                  {work.status === "RECEIVED" && work.patient ? (
+                    <Button
+                      size="xs"
+                      variant="subtle"
+                      disabled={callTaskWorkIds.has(work.id)}
+                      onClick={() => createCallTask(work)}
+                    >
+                      {callTaskWorkIds.has(work.id)
+                        ? "Tarea de llamada creada"
+                        : "Tarea: llamar al paciente"}
                     </Button>
                   ) : null}
                   {!["CANCELLED"].includes(work.status) ? (

@@ -53,6 +53,18 @@ export class TaskRepository {
     });
     return { items: rows.map(task) };
   }
+  async assignees() {
+    const rows = await this.client.select<{ id: string; display_name: string; role: string }>(
+      "staff_members",
+      {
+        select: "id,display_name,role",
+        clinic_id: `eq.${this.clinicId}`,
+        active: "eq.true",
+        order: "display_name.asc",
+      },
+    );
+    return { items: rows.map((s) => ({ id: s.id, name: s.display_name, role: s.role })) };
+  }
   async create(input: {
     title: string;
     description?: string;

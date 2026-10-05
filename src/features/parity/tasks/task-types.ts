@@ -50,4 +50,16 @@ export interface TaskWriter {
 export interface TaskReorderer {
   reorder(orderedIds: string[]): Promise<unknown>;
 }
-export interface TasksApi extends TaskLister, TaskWriter, TaskReorderer {}
+export interface TaskTeamMember {
+  id: string;
+  name: string;
+  role?: string;
+}
+export interface TaskTeam {
+  items: TaskTeamMember[];
+  currentStaffId: string | null;
+}
+export interface TaskTeamLoader {
+  assignees?(): Promise<TaskTeam>;
+}
+export interface TasksApi extends TaskLister, TaskWriter, TaskReorderer, TaskTeamLoader {}

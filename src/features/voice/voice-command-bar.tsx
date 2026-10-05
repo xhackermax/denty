@@ -39,6 +39,7 @@ import {
   type CaptureStatus,
 } from "./command-input";
 import type { LocalVoiceAction } from "./local-nlu";
+import { isLocalWhisperSupported, transcribeLocally } from "./local-whisper";
 import { createTranscriptAssembler, type TranscriptAssembler } from "./transcript-assembler";
 import {
   VoiceCommandPanel,
@@ -172,6 +173,29 @@ function policyMessage(result: AssistantPolicyResult, call?: AssistantToolCall):
     return "Denty ha entendido la orden, pero esta acción todavía no está conectada.";
   }
   return call ? `No puedo ejecutar ${call.name} todavía.` : "No se pudo ejecutar la orden.";
+}
+
+async function transcribeOnServer(blob: Blob): Promise<string> {
+  const form = new FormData();
+  const extension = blob.type.includes("ogg") ? "ogg" : blob.type.includes("mp4") ? "mp4" : "webm";
+  form.set("audio", new File([blob], `denty-voice.${extension}`, { type: blob.type }));
+  const response = await fetch("/api/voice/transcribe", {
+    method: "POST",
+    body: form,
+    credentials: "same-origin",
+  });
+  const payload = (await response.json().catch(() => null)) as {
+    text?: unknown;
+    error?: { message?: unknown };
+  } | null;
+  if (!response.ok) {
+    throw new Error(
+      typeof payload?.error?.message === "string"
+        ? payload.error.message
+        : "No se pudo transcribir la grabación.",
+    );
+  }
+  return typeof payload?.text === "string" ? stripWakePhrase(payload.text) : "";
 }
 
 /** Web Speech resends the whole session on every event, so it is rebuilt each time. */
@@ -561,30 +585,15 @@ function VoiceCommandBarInner({
   const transcribeRecording = useCallback(
     async (blob: Blob) => {
       try {
-        const form = new FormData();
-        const extension = blob.type.includes("ogg")
-          ? "ogg"
-          : blob.type.includes("mp4")
-            ? "mp4"
-            : "webm";
-        form.set("audio", new File([blob], `denty-voice.${extension}`, { type: blob.type }));
-        const response = await fetch("/api/voice/transcribe", {
-          method: "POST",
-          body: form,
-          credentials: "same-origin",
-        });
-        const payload = (await response.json().catch(() => null)) as {
-          text?: unknown;
-          error?: { message?: unknown };
-        } | null;
-        if (!response.ok) {
-          throw new Error(
-            typeof payload?.error?.message === "string"
-              ? payload.error.message
-              : "No se pudo transcribir la grabación.",
-          );
+        let transcript = "";
+        try {
+          transcript = await transcribeOnServer(blob);
+        } catch (serverError) {
+          if (!isLocalWhisperSupported()) throw serverError;
+          // Cloud transcription failed: fall back to on-device Whisper.
+          transcript = stripWakePhrase(await transcribeLocally(blob));
+          if (!transcript) throw serverError;
         }
-        const transcript = typeof payload?.text === "string" ? stripWakePhrase(payload.text) : "";
         if (!transcript) throw new Error("No se ha detectado voz reconocible.");
         updateText(appendDictation(textRef.current, transcript));
       } catch (cause) {

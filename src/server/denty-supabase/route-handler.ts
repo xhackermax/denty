@@ -914,6 +914,18 @@ export async function handleSupabaseDentyRoute(
         );
       }
     }
+    if (
+      parts.length === 3 &&
+      parts[0] === "api" &&
+      parts[1] === "tasks" &&
+      parts[2] === "assignees" &&
+      method === "GET"
+    ) {
+      if (identity.actor.role === "PATIENT")
+        return error(403, "FORBIDDEN", "El portal no gestiona tareas internas.");
+      const team = await tasks.assignees();
+      return json(200, { ...team, currentStaffId: identity.actor.staffId ?? null }, headers);
+    }
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "tasks") {
       if (identity.actor.role === "PATIENT")
         return error(403, "FORBIDDEN", "El portal no gestiona tareas internas.");

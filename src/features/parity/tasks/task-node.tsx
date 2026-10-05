@@ -35,6 +35,7 @@ export interface TaskNodeHandlers {
 
 interface TaskNodeProps extends TaskNodeHandlers {
   entry: ScheduleEntry;
+  assigneeName?: string | undefined;
   today: string;
   isFirst: boolean;
   isLast: boolean;
@@ -44,6 +45,7 @@ interface TaskNodeProps extends TaskNodeHandlers {
 
 export function TaskNode({
   entry,
+  assigneeName,
   today,
   isFirst,
   isLast,
@@ -127,7 +129,7 @@ export function TaskNode({
           <div className={styles.taskTitle} data-testid="task-title">
             {task.title}
           </div>
-          {conflict || entry.overdue || entry.explicit ? (
+          {conflict || entry.overdue || entry.explicit || assigneeName ? (
             <div className={styles.tags}>
               {conflict ? (
                 <span className={`${styles.tag} ${styles.tagDanger}`}>Las tareas coinciden</span>
@@ -136,6 +138,7 @@ export function TaskNode({
                 <span className={`${styles.tag} ${styles.tagWarn}`}>Vencida</span>
               ) : null}
               {entry.explicit ? <span className={styles.tag}>Hora fija</span> : null}
+              {assigneeName ? <span className={styles.tag}>Para: {assigneeName}</span> : null}
             </div>
           ) : null}
         </div>

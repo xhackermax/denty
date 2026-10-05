@@ -11,13 +11,12 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-import { getSupabaseBrowserClient } from "@/shared/supabase-browser";
 import { DayPicker } from "./day-picker";
 import { PRIORITY_OPTIONS } from "./priority";
 import { DEFAULT_DURATION_MIN, dueAtToTimeInput, taskDay } from "./task-timeline";
-import type { TaskPriority, TimelineTask } from "./task-types";
+import type { TaskPriority, TaskTeam, TimelineTask } from "./task-types";
 
 export interface TaskFormValues {
   title: string;
@@ -34,13 +33,9 @@ interface TaskEditorModalProps {
   today: string;
   initialDay: string | null;
   pending?: boolean;
+  team?: TaskTeam | undefined;
   onClose: () => void;
   onSubmit: (values: TaskFormValues) => void;
-}
-
-interface StaffMember {
-  id: string;
-  name: string;
 }
 
 function TaskForm({
@@ -48,6 +43,7 @@ function TaskForm({
   today,
   initialDay,
   pending,
+  team,
   onClose,
   onSubmit,
 }: Omit<TaskEditorModalProps, "opened">) {
@@ -61,42 +57,7 @@ function TaskForm({
   const [assigneeStaffId, setAssigneeStaffId] = useState<string | null>(
     task?.assigneeStaffId ?? null,
   );
-  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
-
-  useEffect(() => {
-    const loadStaff = async () => {
-      try {
-        const supabase = getSupabaseBrowserClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data: staffMember } = await supabase
-          .from("staff_members")
-          .select("clinic_id")
-          .eq("id", user.id)
-          .single();
-
-        if (!staffMember) return;
-
-        const { data: staff } = await supabase
-          .from("staff_members")
-          .select("id, name")
-          .eq("clinic_id", staffMember.clinic_id)
-          .order("name");
-
-        if (staff) {
-          setStaffMembers(staff);
-        }
-      } catch (error) {
-        console.error("Error loading staff members:", error);
-      }
-    };
-
-    loadStaff();
-  }, []);
-
+  const members = team?.items ?? [];
   const durationMin = typeof duration === "number" ? duration : Number(duration);
   const valid = title.trim().length > 0 && Number.isFinite(durationMin) && durationMin >= 1;
 
@@ -158,15 +119,28 @@ function TaskForm({
             onChange={(event) => setTime(event.currentTarget.value)}
           />
         </Group>
-        {staffMembers.length > 0 && (
-          <Select
-            label="Asignar a (opcional)"
-            placeholder="Sin asignar"
-            value={assigneeStaffId}
-            onChange={setAssigneeStaffId}
-            data={staffMembers.map((member) => ({ value: member.id, label: member.name }))}
-            clearable
-          />
+        {members.length > 0 && (
+          <Stack gap={4}>
+            <Select
+              label="Asignar a"
+              placeholder="Sin asignar"
+              value={assigneeStaffId}
+              onChange={setAssigneeStaffId}
+              data={members.map((member) => ({ value: member.id, label: member.name }))}
+              searchable
+              clearable
+              nothingFoundMessage="Sin resultados"
+            />
+            {team?.currentStaffId && assigneeStaffId !== team.currentStaffId ? (
+              <Button
+                variant="subtle"
+                size="compact-sm"
+                onClick={() => setAssigneeStaffId(team.currentStaffId)}
+              >
+                Asignármela a mí
+              </Button>
+            ) : null}
+          </Stack>
         )}
         <Group justify="flex-end" mt="xs">
           <Button variant="default" onClick={onClose}>
