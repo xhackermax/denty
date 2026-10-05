@@ -73,3 +73,15 @@ test("a custom budget can be added alongside the phases", async ({ page }) => {
   await expect(flow.getByRole("radio", { name: "Firmar Alternativa solo implante" })).toBeChecked();
   expect(failures).toEqual([]);
 });
+
+test("the plan step offers the patient-friendly treatment plan document", async ({ page }) => {
+  const failures = await isolatePage(page);
+  await chartWithBothPhases(page);
+  await page.getByRole("button", { name: "Plan y presupuesto" }).click();
+  await page.getByRole("button", { name: "Documento del plan" }).click();
+  const document = page.getByRole("dialog", { name: "Tu plan de tratamiento" });
+  await expect(document.getByRole("region", { name: "Fase 1 · Recuperar la salud" })).toBeVisible();
+  await expect(document.getByRole("region", { name: "Fase 2 · Reponer y mejorar" })).toBeVisible();
+  await expect(document.getByText(/Qué es\./).first()).toBeVisible();
+  expect(failures).toEqual([]);
+});

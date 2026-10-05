@@ -84,7 +84,7 @@ const PRIMARY = [
 // Short words only count whole: "post" must not catch "postoperatorio".
 const WHOLE_WORDS = new Set(["post", "pilar", "seno", "malla", "inlay", "onlay"]);
 
-function normalized(value: string): string {
+export function normalized(value: string): string {
   return value
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
@@ -92,7 +92,7 @@ function normalized(value: string): string {
     .toLowerCase();
 }
 
-function mentions(text: string, word: string): boolean {
+export function mentions(text: string, word: string): boolean {
   const token = word.replace(/_/g, " ");
   return WHOLE_WORDS.has(word)
     ? new RegExp(`(^|[^a-z])${token}([^a-z]|$)`).test(text)

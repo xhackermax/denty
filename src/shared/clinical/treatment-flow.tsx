@@ -57,6 +57,7 @@ import {
 
 import { BudgetOptions, type BudgetView } from "./budget-options";
 import { RetainedFlowStep } from "./retained-flow-step";
+import { TreatmentPlanDocumentButton } from "./treatment-plan-document-view";
 
 const STEP_LABELS: Record<TreatmentFlowStep, { label: string; description: string }> = {
   plan: { label: "Plan", description: "Del odontograma" },
@@ -212,6 +213,7 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
       <RetainedFlowStep active={step === "plan"}>
         <PlanStep
           patientId={patientId}
+          patient={patientQuery.data}
           items={openItems}
           added={summary?.added ?? 0}
           linked={summary?.linked ?? 0}
@@ -294,6 +296,7 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
 
 interface PlanItemView {
   id: string;
+  treatmentCode: string;
   tooth?: string | null | undefined;
   label: string;
   clinicalReason?: string | null | undefined;
@@ -303,11 +306,13 @@ interface PlanItemView {
 
 function PlanStep({
   patientId,
+  patient,
   items,
   added,
   linked,
 }: {
   patientId: string;
+  patient: { firstName: string; lastName: string; recordNumber?: string | null } | undefined;
   items: PlanItemView[];
   added: number;
   linked: number;
@@ -316,9 +321,13 @@ function PlanStep({
   const unpriced = items.filter((item) => !item.priceCents).length;
   return (
     <Stack gap="sm">
-      <Text size="sm" c="dimmed">
-        Lo marcado como pendiente en el odontograma ya está en el plan. Revisa los importes y sigue.
-      </Text>
+      <Group justify="space-between" align="flex-start" wrap="nowrap">
+        <Text size="sm" c="dimmed">
+          Lo marcado como pendiente en el odontograma ya está en el plan. Revisa los importes y
+          sigue.
+        </Text>
+        <TreatmentPlanDocumentButton items={items} patient={patient} />
+      </Group>
       {added || linked ? (
         <Alert color="teal" variant="light">
           {added
