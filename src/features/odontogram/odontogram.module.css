@@ -95,10 +95,9 @@
   z-index: 0;
   right: -7px;
   left: -7px;
-  height: 6px;
+  height: 3px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--denty-violet) 74%, var(--denty-card-solid));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--denty-violet) 28%, transparent);
+  background: color-mix(in srgb, var(--denty-violet) 50%, var(--denty-card-solid));
   content: "";
   pointer-events: none;
 }
@@ -176,23 +175,56 @@
 }
 
 .toothButton[data-selected="true"] {
-  border-color: color-mix(in srgb, var(--denty-teal) 48%, transparent);
-  background: color-mix(in srgb, var(--denty-teal) 9%, transparent);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--denty-teal) 12%, transparent);
+  border-color: color-mix(in srgb, var(--denty-teal) 38%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-teal) 6%, var(--denty-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-teal) 16%, transparent);
 }
 
 .toothButton[data-prosthesis-range="true"] {
-  border-color: color-mix(in srgb, var(--denty-violet) 58%, var(--denty-line));
-  background: color-mix(in srgb, var(--denty-violet) 10%, var(--denty-card));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-violet) 24%, transparent);
+  border-color: color-mix(in srgb, var(--denty-violet) 38%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-violet) 5%, var(--denty-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-violet) 14%, transparent);
 }
 
 .toothButton[data-prosthesis-endpoint="true"] {
-  border-color: var(--denty-violet);
-  background: color-mix(in srgb, var(--denty-violet) 16%, var(--denty-card));
-  box-shadow:
-    inset 0 0 0 2px color-mix(in srgb, var(--denty-violet) 30%, transparent),
-    0 7px 18px color-mix(in srgb, var(--denty-violet) 14%, transparent);
+  border-color: color-mix(in srgb, var(--denty-violet) 62%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-violet) 7%, var(--denty-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-violet) 16%, transparent);
+}
+
+.toothButton[data-selected="true"][data-prosthesis-range="true"] {
+  border-color: color-mix(in srgb, var(--denty-teal) 34%, var(--denty-violet));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-teal) 20%, transparent);
+}
+
+.toothButton[data-selected="true"][data-prosthesis-endpoint="true"] {
+  border-color: color-mix(in srgb, var(--denty-teal) 42%, var(--denty-violet));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-teal) 22%, transparent);
+}
+
+.toothButton[data-prosthesis-endpoint="true"]::after {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--denty-card-solid) 88%, transparent);
+  color: color-mix(in srgb, var(--denty-violet) 68%, var(--denty-muted));
+  content: "Pilar";
+  font-size: 0.42rem;
+  font-weight: 650;
+  line-height: 1;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toothButton[data-arch="upper"][data-prosthesis-endpoint="true"]::after {
+  top: 69px;
+}
+
+.toothButton[data-arch="lower"][data-prosthesis-endpoint="true"]::after {
+  top: 45px;
 }
 
 .toothSvg {
@@ -211,10 +243,10 @@
 }
 
 .toothLayerMark {
-  max-width: 84px;
+  max-width: 76px;
   color: var(--denty-blue-text);
-  font-size: 0.54rem;
-  font-weight: 760;
+  font-size: 0.49rem;
+  font-weight: 700;
   line-height: 1.15;
   overflow-wrap: anywhere;
   text-align: center;
@@ -408,9 +440,9 @@
 }
 
 .implantMark {
-  fill: color-mix(in srgb, var(--denty-violet) 15%, var(--denty-card-solid));
+  fill: color-mix(in srgb, var(--denty-violet) 10%, var(--denty-card-solid));
   stroke: var(--denty-violet);
-  stroke-width: 1.7;
+  stroke-width: 1.3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -1468,11 +1500,11 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 .layerControls {
   display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--denty-line);
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--denty-card-solid) 84%, transparent);
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--denty-line) 78%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--denty-card-solid) 90%, transparent);
 }
 
 .layerToolbar,
@@ -1489,31 +1521,33 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 .layerDisclosure > summary {
-  padding: 8px 12px;
-  border: 1px solid var(--denty-line);
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--denty-line) 78%, transparent);
   border-radius: 999px;
+  background: color-mix(in srgb, var(--denty-card-solid) 78%, transparent);
+  color: var(--denty-muted);
   cursor: pointer;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   list-style-position: inside;
 }
 
 .layerToggle,
 .layerAction {
-  min-height: 36px;
-  padding: 7px 12px;
-  border: 1px solid var(--denty-line);
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--denty-line) 82%, transparent);
   border-radius: 999px;
-  background: var(--denty-card-solid);
+  background: color-mix(in srgb, var(--denty-card-solid) 88%, transparent);
   color: var(--denty-text);
   cursor: pointer;
   font: inherit;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
 }
 
 .layerToggle[data-active="true"] {
-  border-color: color-mix(in srgb, var(--denty-teal) 60%, var(--denty-line));
-  background: color-mix(in srgb, var(--denty-teal) 12%, var(--denty-card-solid));
-  font-weight: 750;
+  border-color: color-mix(in srgb, var(--denty-teal) 46%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-teal) 8%, var(--denty-card-solid));
+  font-weight: 700;
 }
 
 .layerToggle[data-filtered="true"] {
@@ -1586,11 +1620,11 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 .legendCard {
-  gap: 10px;
-  margin-bottom: 14px;
-  padding: 12px;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--denty-card-solid) 84%, transparent);
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--denty-card-solid) 91%, transparent);
 }
 
 .legendHeading {
@@ -1604,19 +1638,19 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 .legendHeading span,
 .legendHint {
-  font-size: 0.66rem;
+  font-size: 0.64rem;
 }
 
 .legendGrid {
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 5px;
 }
 
 .legendEntry {
-  min-height: 54px;
-  gap: 7px;
-  padding: 8px;
-  border-radius: 12px;
+  min-height: 48px;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 10px;
   background: transparent;
 }
 
@@ -1635,10 +1669,10 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 .legendSwatch,
 .legendSymbol {
-  width: 25px;
-  height: 25px;
-  flex-basis: 25px;
-  border-radius: 7px;
+  width: 22px;
+  height: 22px;
+  flex-basis: 22px;
+  border-radius: 6px;
 }
 
 .legendCopy strong {
@@ -1650,18 +1684,18 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 .legendMore {
-  border-top: 1px solid var(--denty-line);
-  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--denty-line) 70%, transparent);
+  padding-top: 6px;
 }
 
 .legendMore > summary {
   width: fit-content;
-  padding: 5px 8px;
+  padding: 4px 7px;
   border-radius: 999px;
   color: var(--denty-blue-text);
   cursor: pointer;
-  font-size: 0.68rem;
-  font-weight: 720;
+  font-size: 0.65rem;
+  font-weight: 680;
   list-style: none;
 }
 
@@ -1670,8 +1704,9 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 .legendMore[open] > summary {
-  margin-bottom: 8px;
-  background: color-mix(in srgb, var(--denty-blue) 8%, transparent);
+  margin-bottom: 6px;
+  color: var(--denty-blue);
+  background: color-mix(in srgb, var(--denty-blue) 6%, transparent);
 }
 
 .advancedTools {

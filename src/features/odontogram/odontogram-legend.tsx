@@ -149,15 +149,7 @@ const LEGEND_ITEMS: readonly LegendItem[] = [
   },
 ] as const;
 
-const PRIMARY_KEYS = new Set([
-  "healthy",
-  "caries",
-  "filling",
-  "crown",
-  "endo",
-  "prosthesis",
-  "extraction",
-]);
+const PRIMARY_KEYS = new Set(["healthy", "caries", "filling", "crown", "endo", "extraction"]);
 
 function selectedItem(item: LegendItem, selection: OdontogramLegendSelection): boolean {
   if (item.placement !== selection.placement) return false;

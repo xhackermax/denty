@@ -112,6 +112,21 @@ describe("odontogram visual view state", () => {
     expect(restored.presetId).toBeNull();
   });
 
+  it("falls back to the clean exploration view when no valid preference is available", () => {
+    for (const preference of [
+      null,
+      undefined,
+      {},
+      { visibleLayerIds: [], subfiltersByLayer: null },
+    ]) {
+      expect(restoreOdontogramViewPreference(preference)).toMatchObject({
+        visibleLayerIds: ["general"],
+        presetId: "exploration",
+        mode: "normal",
+      });
+    }
+  });
+
   it("resets visual settings without changing the selected plan scenario", () => {
     const state = {
       ...createInitialOdontogramViewState(),

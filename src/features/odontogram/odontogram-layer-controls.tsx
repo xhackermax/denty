@@ -69,8 +69,8 @@ const SUBFILTER_LABELS: Record<OdontogramLayerId, Readonly<Record<string, string
   },
 };
 
-const FREQUENT_LAYERS = ODONTOGRAM_LAYER_IDS.slice(0, 4);
-const MORE_LAYERS = ODONTOGRAM_LAYER_IDS.slice(4);
+const FREQUENT_LAYERS: readonly OdontogramLayerId[] = ["general", "perio", "endo", "prosthetics"];
+const MORE_LAYERS = ODONTOGRAM_LAYER_IDS.filter((layerId) => !FREQUENT_LAYERS.includes(layerId));
 const PRESETS: readonly { id: OdontogramPresetId; label: string }[] = [
   { id: "exploration", label: "Exploración" },
   { id: "periodontal_review", label: "Revisión periodontal" },

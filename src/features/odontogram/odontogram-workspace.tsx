@@ -305,7 +305,7 @@ function Tooth({
       aria-disabled={readOnly}
       onClick={onSelect}
       onDoubleClick={onWholeAction}
-      aria-label={`Diente ${tooth}${layerDescription ? `, ${layerDescription}` : ""}`}
+      aria-label={`Diente ${tooth}${prosthesisEndpoint ? ", pilar del puente" : ""}${layerDescription ? `, ${layerDescription}` : ""}`}
       title={`Diente ${tooth} · doble clic para cambiar el estado completo`}
     >
       <span className={styles.toothLabel}>{tooth}</span>
