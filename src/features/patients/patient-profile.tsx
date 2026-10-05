@@ -17,10 +17,11 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
-import { dateDMY, epochMillis, hhmm } from "@/domain/dates";
+import { dateDMY, dateYMDMadrid, epochMillis, hhmm, todayMadrid } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
 import { ClinicalPipelineCard } from "@/shared/clinical/clinical-pipeline-card";
 import { ClinicalSyncCard } from "@/shared/clinical/clinical-sync-card";
+import { useClinicalWorkflowQuery } from "@/shared/clinical/clinical-data";
 import { PatientClinicalSummary } from "./patient-clinical-summary";
 import styles from "@/shared/ui/parity.module.css";
 import {
@@ -95,6 +96,7 @@ function PatientRouteCard({
 export function PatientProfile({ patientId }: { patientId: string }) {
   const patientQuery = usePatientQuery(patientId);
   const projectionQuery = usePatientProjectionQuery(patientId);
+  const workflowQuery = useClinicalWorkflowQuery(patientId);
   const updatePatientMutation = useUpdatePatientMutation(patientId);
   const archivePatientMutation = useArchivePatientMutation();
   const restorePatientMutation = useRestorePatientMutation();
@@ -151,6 +153,13 @@ export function PatientProfile({ patientId }: { patientId: string }) {
     (sum, budget) => sum + budget.totalCents,
     0,
   );
+  const latestNextVisit = workflowQuery.data?.encounters
+    .map((encounter) => encounter.nextVisit?.trim())
+    .find((note): note is string => Boolean(note));
+  const upcomingIsToday =
+    upcoming !== undefined && dateYMDMadrid(upcoming.startsAt) === todayMadrid(now);
+  const showPlannedToday =
+    Boolean(upcomingIsToday && latestNextVisit) && !workflowQuery.isPending && !workflowQuery.isError;
 
   const nextVisitTitle = projectionQuery.isPending
     ? "Cargando citas…"
@@ -159,10 +168,13 @@ export function PatientProfile({ patientId }: { patientId: string }) {
       : upcoming
         ? `${dateDMY(upcoming.startsAt)} · ${hhmm(upcoming.startsAt)}`
         : "Sin próxima cita";
+  const nextVisitLabel = showPlannedToday ? "Previsto para hoy" : "Próximo paso";
   const nextVisitDescription = projectionQuery.isPending
     ? "Consultando las próximas visitas."
     : projectionQuery.isError
       ? "No se pudieron cargar las citas."
+      : showPlannedToday && latestNextVisit
+        ? latestNextVisit
       : (upcoming?.reason ??
         upcoming?.title ??
         "La agenda no tiene una cita futura activa.");
@@ -386,7 +398,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
       <SimpleGrid cols={{ base: 1, md: 2 }}>
         <section className={styles.summaryTile}>
-          <span className={styles.summaryTileLabel}>Próximo paso</span>
+          <span className={styles.summaryTileLabel}>{nextVisitLabel}</span>
           <Title order={3}>{nextVisitTitle}</Title>
           <Text c="dimmed" size="sm">
             {nextVisitDescription}
