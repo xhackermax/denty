@@ -1193,55 +1193,6 @@ function OdontogramEditor({
           ) : null}
         </section>
 
-        <QuickDiagnosisBar
-          patientId={patientId}
-          readings={currentPerioReadings}
-          readOnly={historical}
-        />
-        <MouthMiniMap selectedTooth={selectedTooth} onSelect={setSelectedTooth} />
-        <OdontogramLayerControls
-          state={viewState}
-          onToggleLayer={(layerId) =>
-            setViewState((current) => toggleOdontogramLayer(current, layerId))
-          }
-          onToggleSubfilter={(layerId, subfilterId) =>
-            setViewState((current) => toggleOdontogramSubfilter(current, layerId, subfilterId))
-          }
-          onShowAll={() => setViewState((current) => toggleShowAllLayers(current))}
-          onApplyPreset={(presetId) =>
-            setViewState((current) => applyViewPreset(current, presetId))
-          }
-          onReset={() => setViewState((current) => resetOdontogramView(current))}
-          onOpenHistory={() => setActiveTab("history")}
-        />
-        {viewPreferenceError ? (
-          <Alert color="yellow" title="No se pudo restaurar o guardar la preferencia de vista">
-            Las capas siguen disponibles durante esta sesión. Comprueba el almacenamiento local del
-            navegador para conservar esta configuración.
-          </Alert>
-        ) : null}
-        {!activeToolVisible && activeToolLayer ? (
-          <Alert color="yellow" title="La herramienta activa pertenece a una capa oculta">
-            Reactiva {ODONTOGRAM_LAYER_LABELS[activeToolLayer]} o cambia de herramienta antes de
-            registrar una marca.
-            <Button
-              size="xs"
-              ml="sm"
-              onClick={() =>
-                setViewState((current) => {
-                  if (!current.visibleLayerIds.includes(activeToolLayer))
-                    return toggleOdontogramLayer(current, activeToolLayer);
-                  return activeToolFilter
-                    ? toggleOdontogramSubfilter(current, activeToolLayer, activeToolFilter)
-                    : current;
-                })
-              }
-            >
-              Reactivar capa
-            </Button>
-          </Alert>
-        ) : null}
-
         {viewState.visibleLayerIds.includes("general") ? (
           <details
             className={styles.advancedTools}
@@ -1442,6 +1393,55 @@ function OdontogramEditor({
               ) : null}
             </section>
           </details>
+        ) : null}
+
+        <QuickDiagnosisBar
+          patientId={patientId}
+          readings={currentPerioReadings}
+          readOnly={historical}
+        />
+        <MouthMiniMap selectedTooth={selectedTooth} onSelect={setSelectedTooth} />
+        <OdontogramLayerControls
+          state={viewState}
+          onToggleLayer={(layerId) =>
+            setViewState((current) => toggleOdontogramLayer(current, layerId))
+          }
+          onToggleSubfilter={(layerId, subfilterId) =>
+            setViewState((current) => toggleOdontogramSubfilter(current, layerId, subfilterId))
+          }
+          onShowAll={() => setViewState((current) => toggleShowAllLayers(current))}
+          onApplyPreset={(presetId) =>
+            setViewState((current) => applyViewPreset(current, presetId))
+          }
+          onReset={() => setViewState((current) => resetOdontogramView(current))}
+          onOpenHistory={() => setActiveTab("history")}
+        />
+        {viewPreferenceError ? (
+          <Alert color="yellow" title="No se pudo restaurar o guardar la preferencia de vista">
+            Las capas siguen disponibles durante esta sesión. Comprueba el almacenamiento local del
+            navegador para conservar esta configuración.
+          </Alert>
+        ) : null}
+        {!activeToolVisible && activeToolLayer ? (
+          <Alert color="yellow" title="La herramienta activa pertenece a una capa oculta">
+            Reactiva {ODONTOGRAM_LAYER_LABELS[activeToolLayer]} o cambia de herramienta antes de
+            registrar una marca.
+            <Button
+              size="xs"
+              ml="sm"
+              onClick={() =>
+                setViewState((current) => {
+                  if (!current.visibleLayerIds.includes(activeToolLayer))
+                    return toggleOdontogramLayer(current, activeToolLayer);
+                  return activeToolFilter
+                    ? toggleOdontogramSubfilter(current, activeToolLayer, activeToolFilter)
+                    : current;
+                })
+              }
+            >
+              Reactivar capa
+            </Button>
+          </Alert>
         ) : null}
 
         {viewState.visibleLayerIds.includes("general") ? (
