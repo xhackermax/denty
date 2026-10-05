@@ -164,7 +164,9 @@ export async function openInvoicePdf(invoiceId: string) {
 
 export async function downloadAccountingCsv() {
   const csv = await getBrowserApi().billing.accounting.exportCsv();
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  // response.text() drops the UTF-8 BOM; Excel needs it to read € and accents correctly.
+  const content = csv.startsWith("\uFEFF") ? csv : `\uFEFF${csv}`;
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
