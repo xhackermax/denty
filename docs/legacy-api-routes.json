@@ -1503,6 +1503,12 @@
       "kind": "browser"
     },
     {
+      "method": "GET",
+      "path": "/api/tasks/assignees",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
       "method": "POST",
       "path": "/api/tasks/reorder",
       "source": "src/server/denty-supabase/route-handler.ts",

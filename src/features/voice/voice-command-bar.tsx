@@ -586,14 +586,14 @@ function VoiceCommandBarInner({
     async (blob: Blob) => {
       try {
         let transcript = "";
-        try {
-          transcript = await transcribeOnServer(blob);
-        } catch (serverError) {
-          if (!isLocalWhisperSupported()) throw serverError;
-          // Cloud transcription failed: fall back to on-device Whisper.
-          transcript = stripWakePhrase(await transcribeLocally(blob));
-          if (!transcript) throw serverError;
+        if (isLocalWhisperSupported()) {
+          try {
+            transcript = stripWakePhrase(await transcribeLocally(blob));
+          } catch {
+            // On-device Whisper failed (model download, memory): use the server instead.
+          }
         }
+        if (!transcript) transcript = await transcribeOnServer(blob);
         if (!transcript) throw new Error("No se ha detectado voz reconocible.");
         updateText(appendDictation(textRef.current, transcript));
       } catch (cause) {
@@ -777,6 +777,11 @@ function VoiceCommandBarInner({
     }
 
     setCapture("connecting");
+    // Whisper is the primary engine; streaming engines only run where it can't.
+    if (isLocalWhisperSupported()) {
+      await startRecording();
+      return;
+    }
     if (deepgramUsableRef.current && isDeepgramCaptureSupported() && (await startDeepgram())) {
       return;
     }
