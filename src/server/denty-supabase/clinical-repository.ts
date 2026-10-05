@@ -84,6 +84,17 @@ interface BudgetRow {
   source_plan_version: number | null;
   revision: number;
   version: number;
+  // Absent until migration 20261005100000 runs; such budgets cover the whole plan.
+  scope?: BudgetScope | null;
+  title?: string | null;
+}
+
+export type BudgetScope = "plan" | "primary" | "secondary" | "custom";
+
+export interface CreateScopedBudgetInput {
+  scope: Exclude<BudgetScope, "plan">;
+  title?: string | undefined;
+  clinicalPlanItemIds: string[];
 }
 
 interface BudgetItemRow {
@@ -226,12 +237,13 @@ export class ClinicalRepository {
         select: "*",
         patient_id: `eq.${patientId}`,
         order: "revision.desc",
-        limit: 1,
       }),
       currentOdontogramVersion(this.client, patientId),
     ]);
     const plan = plans[0];
-    const budget = budgets[0];
+    // Plan and budget stay in step through the whole-plan budget; phase and custom budgets are
+    // snapshots of a selection and are regenerated on request.
+    const budget = budgets.find((row) => (row.scope ?? "plan") === "plan");
     const planItems = plan
       ? await this.client.select<{ id: string; status: string }>("clinical_plan_items", {
           select: "id,status",
@@ -312,6 +324,19 @@ export class ClinicalRepository {
     const budget = await this.getBudget(row.id);
     if (!budget)
       throw new SupabaseRestError("No se pudo reconstruir el presupuesto sincronizado.", 502, row);
+    return { budget, sync: await this.getClinicalSync(patientId) };
+  }
+
+  /** A phase or custom budget built from a selection of the current plan's items. */
+  async createBudgetFromPlanItems(patientId: string, input: CreateScopedBudgetInput) {
+    const row = await this.client.rpc<BudgetRow>("create_budget_from_plan_items", {
+      p_patient_id: patientId,
+      p_item_ids: input.clinicalPlanItemIds,
+      p_scope: input.scope,
+      p_title: input.title ?? null,
+    });
+    const budget = await this.getBudget(row.id);
+    if (!budget) throw new SupabaseRestError("No se pudo leer el presupuesto creado.", 502, row);
     return { budget, sync: await this.getClinicalSync(patientId) };
   }
 
@@ -604,6 +629,8 @@ export class ClinicalRepository {
       totalCents: budget.total_cents,
       sourcePlanVersion: budget.source_plan_version,
       version: budget.version,
+      scope: budget.scope ?? "plan",
+      title: budget.title ?? null,
       items: items.map((item) => ({
         id: item.id,
         clinicalPlanItemId: item.clinical_plan_item_id,

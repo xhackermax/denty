@@ -39,6 +39,7 @@ import {
   createPlanItemSchema,
   planItemPriceSchema,
   odontogramBatchSchema,
+  createScopedBudgetSchema,
   periodontalExamInputSchema,
   periodontalMeasurementSchema,
 } from "@/shared/api/schemas/clinical";
@@ -2771,6 +2772,23 @@ export async function handleSupabaseDentyRoute(
       return json(
         200,
         await clinical.syncBudgetFromPlan(decodeURIComponent(parts[2] ?? "")),
+        headers,
+      );
+    }
+    if (
+      parts.length === 5 &&
+      parts[0] === "api" &&
+      parts[1] === "patients" &&
+      parts[3] === "clinical-sync" &&
+      parts[4] === "budgets" &&
+      method === "POST"
+    ) {
+      if (identity.actor.role === "PATIENT")
+        return error(403, "FORBIDDEN", "El portal no puede crear presupuestos.");
+      const payload = await parseJson(request, createScopedBudgetSchema);
+      return json(
+        201,
+        await clinical.createBudgetFromPlanItems(decodeURIComponent(parts[2] ?? ""), payload),
         headers,
       );
     }

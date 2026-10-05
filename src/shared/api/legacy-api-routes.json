@@ -1163,6 +1163,12 @@
     },
     {
       "method": "POST",
+      "path": "/api/patients/:patientId/clinical-sync/budgets",
+      "source": "apps/api/src/modules/odontogram/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
       "path": "/api/patients/:patientId/clinical-sync/plan",
       "source": "apps/api/src/modules/odontogram/routes.ts",
       "kind": "browser"

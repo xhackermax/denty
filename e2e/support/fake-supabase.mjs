@@ -247,7 +247,14 @@ function saveOdontogramBatch({ p_patient_id, p_expected_version, p_entities }) {
   return { version: next, entities };
 }
 
-const TREATMENT_FOR = { CARIES: ["filling", "Obturación", 4500] };
+const TREATMENT_FOR = {
+  CARIES: ["filling", "Obturación", 4500],
+  ENDO: ["ENDODONTICS", "Endodoncia", 20000],
+  IMPLANT: ["IMPLANT", "Implante", 90000],
+};
+// Only planned work reaches the plan (caries always does: it is the finding to treat).
+const isPlannedFinding = (row) =>
+  row.entity_type === "CARIES" || /planned|pending|indicated/.test(String(row.status));
 
 function syncClinicalPlan({ p_patient_id }) {
   let plan = tables.clinical_plans.find((row) => row.patient_id === p_patient_id);
@@ -267,7 +274,11 @@ function syncClinicalPlan({ p_patient_id }) {
   }
   let added = 0;
   const findings = tables.dental_entities.filter(
-    (row) => row.patient_id === p_patient_id && row.active && TREATMENT_FOR[row.entity_type],
+    (row) =>
+      row.patient_id === p_patient_id &&
+      row.active &&
+      TREATMENT_FOR[row.entity_type] &&
+      isPlannedFinding(row),
   );
   for (const finding of findings) {
     const exists = tables.clinical_plan_items.some((item) => item.dental_entity_id === finding.id);
@@ -303,7 +314,8 @@ function syncBudgetFromPlan({ p_patient_id }) {
   const items = tables.clinical_plan_items.filter((item) => item.plan_id === plan?.id);
   const total = items.reduce((sum, item) => sum + (item.price_snapshot_cents ?? 0), 0);
   let budget = tables.budgets.find(
-    (row) => row.patient_id === p_patient_id && row.status === "DRAFT",
+    (row) =>
+      row.patient_id === p_patient_id && row.status === "DRAFT" && (row.scope ?? "plan") === "plan",
   );
   if (!budget) {
     budget = {
@@ -313,6 +325,8 @@ function syncBudgetFromPlan({ p_patient_id }) {
       clinical_plan_id: plan?.id ?? null,
       code: `P-E2E-R${tables.budgets.length + 1}`,
       status: "DRAFT",
+      scope: "plan",
+      title: null,
       revision: tables.budgets.length + 1,
       version: 0,
       created_at: now(),
@@ -467,7 +481,65 @@ function createOdontogramSnapshot({ p_patient_id, p_label = null }) {
   return snapshot;
 }
 
+// Mirrors create_budget_from_plan_items: one regenerated draft per phase, a new custom each time.
+function createBudgetFromPlanItems({ p_patient_id, p_item_ids, p_scope, p_title = null }) {
+  if (!["primary", "secondary", "custom"].includes(p_scope))
+    throw new Error("BUDGET_SCOPE_INVALID");
+  const plan = tables.clinical_plans.find((row) => row.patient_id === p_patient_id);
+  const items = tables.clinical_plan_items.filter(
+    (item) =>
+      item.plan_id === plan?.id &&
+      p_item_ids.includes(item.id) &&
+      !["CANCELLED", "SUPERSEDED", "COMPLETED"].includes(item.status),
+  );
+  if (!items.length || items.length !== new Set(p_item_ids).size)
+    throw new Error("PLAN_ITEMS_INVALID");
+  let budget =
+    p_scope === "custom"
+      ? undefined
+      : tables.budgets.find(
+          (row) =>
+            row.patient_id === p_patient_id && row.scope === p_scope && row.status === "DRAFT",
+        );
+  if (!budget) {
+    budget = {
+      id: uuid(),
+      clinic_id: IDS.clinic,
+      patient_id: p_patient_id,
+      clinical_plan_id: plan.id,
+      code: `P-E2E-R${tables.budgets.length + 1}`,
+      status: "DRAFT",
+      scope: p_scope,
+      title: p_title,
+      revision: tables.budgets.length + 1,
+      version: 0,
+      created_at: now(),
+    };
+    tables.budgets.push(budget);
+  }
+  budget.total_cents = items.reduce((sum, item) => sum + (item.price_snapshot_cents ?? 0), 0);
+  budget.source_plan_version = plan.version;
+  budget.version += 1;
+  tables.budget_items = tables.budget_items.filter((item) => item.budget_id !== budget.id);
+  for (const item of items) {
+    tables.budget_items.push({
+      id: uuid(),
+      clinic_id: IDS.clinic,
+      budget_id: budget.id,
+      clinical_plan_item_id: item.id,
+      description: item.label,
+      tooth: item.tooth,
+      billing_mode: "separate",
+      quantity: 1,
+      unit_price_cents: item.price_snapshot_cents,
+      total_cents: item.price_snapshot_cents,
+    });
+  }
+  return budget;
+}
+
 const RPCS = {
+  create_budget_from_plan_items: createBudgetFromPlanItems,
   create_odontogram_snapshot: createOdontogramSnapshot,
   save_odontogram_batch: saveOdontogramBatch,
   sync_clinical_plan: syncClinicalPlan,

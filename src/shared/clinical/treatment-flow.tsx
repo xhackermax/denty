@@ -55,6 +55,7 @@ import {
   type TreatmentFlowStep,
 } from "./treatment-flow-steps";
 
+import { BudgetOptions, type BudgetView } from "./budget-options";
 import { RetainedFlowStep } from "./retained-flow-step";
 
 const STEP_LABELS: Record<TreatmentFlowStep, { label: string; description: string }> = {
@@ -120,7 +121,11 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
     (item) => item.status !== "SATISFIED",
   );
   const syncBudget = syncQuery.data?.budget ?? null;
-  const budget = budgetSync.data?.budget ?? null;
+  const wholeBudget = (budgetSync.data?.budget ?? null) as BudgetView | null;
+  // The budget the patient signs: the whole plan, a phase or a custom selection.
+  // undefined: nothing chosen yet (the whole plan); null: the choice is being prepared.
+  const [chosenBudget, setChosenBudget] = useState<BudgetView | null | undefined>(undefined);
+  const budget = chosenBudget === undefined ? wholeBudget : chosenBudget;
   const state: TreatmentFlowState = {
     openItemCount: openItems.length,
     pendingConsentCount: pendingConsents.length,
@@ -221,15 +226,25 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
           requirements={consentsQuery.data?.items ?? []}
         />
       </RetainedFlowStep>
-      {step === "budget" ? (
-        <BudgetStep
-          loading={budgetSync.isPending}
-          error={budgetSync.error}
-          budget={budget}
-          signed={budgetState.budget?.status === "SIGNED"}
-          onRetry={() => budgetSync.mutate()}
-        />
+      {step === "budget" && syncBudget?.status === "SIGNED" && !syncBudget.outdated && !budget ? (
+        <Alert color="green" title="Presupuesto firmado">
+          El presupuesto actual ya está firmado. Sigue para dar las citas.
+        </Alert>
       ) : null}
+      <RetainedFlowStep active={step === "budget"}>
+        {step === "budget" || budget ? (
+          <BudgetOptions
+            patientId={patientId}
+            items={openItems}
+            wholeBudget={wholeBudget}
+            wholeLoading={budgetSync.isPending}
+            wholeError={budgetSync.error}
+            onRetryWhole={() => budgetSync.mutate()}
+            selectedId={budget?.id ?? null}
+            onSelect={setChosenBudget}
+          />
+        ) : null}
+      </RetainedFlowStep>
       {budget ? (
         <RetainedFlowStep key={`${budget.id}-${budget.version ?? 0}`} active={step === "signature"}>
           <SignatureStep
@@ -548,95 +563,6 @@ function ConsentsStep({
           );
         })}
       </div>
-    </Stack>
-  );
-}
-
-interface BudgetView {
-  id: string;
-  code: string;
-  status: string;
-  totalCents: number;
-  version?: number | undefined;
-  items: Array<{
-    id: string;
-    description: string;
-    tooth?: string | null | undefined;
-    totalCents: number;
-  }>;
-}
-
-function BudgetStep({
-  loading,
-  error,
-  budget,
-  signed,
-  onRetry,
-}: {
-  loading: boolean;
-  error: unknown;
-  budget: BudgetView | null;
-  signed: boolean;
-  onRetry: () => void;
-}) {
-  if (signed && !budget) {
-    return (
-      <Alert color="green" title="Presupuesto firmado">
-        El presupuesto actual ya está firmado. Sigue para dar las citas.
-      </Alert>
-    );
-  }
-  if (loading) {
-    return (
-      <Group gap="sm" py="md">
-        <Loader size="sm" />
-        <Text c="dimmed">Actualizando el presupuesto con el plan…</Text>
-      </Group>
-    );
-  }
-  if (error || !budget) {
-    return (
-      <Alert color="red" title="No se pudo preparar el presupuesto">
-        <Stack gap="xs">
-          <Text size="sm">{errorText(error, "Inténtalo de nuevo.")}</Text>
-          <Button size="xs" variant="light" onClick={onRetry}>
-            Reintentar
-          </Button>
-        </Stack>
-      </Alert>
-    );
-  }
-  return (
-    <Stack gap="sm">
-      <Group justify="space-between">
-        <Text fw={700}>Presupuesto {budget.code}</Text>
-        <Badge variant="light">{budget.status === "SIGNED" ? "Firmado" : "Borrador"}</Badge>
-      </Group>
-      <div className={styles.rowList}>
-        {budget.items.map((item) => (
-          <div className={styles.row} key={item.id}>
-            <div className={styles.rowMain}>
-              <span className={styles.rowTitle}>
-                {item.tooth ? `Diente ${item.tooth} · ` : ""}
-                {item.description}
-              </span>
-            </div>
-            <Text fw={600} className={styles.rowAmount}>
-              {formatEUR(item.totalCents)}
-            </Text>
-          </div>
-        ))}
-      </div>
-      <Group justify="flex-end">
-        <Text fw={800} size="lg">
-          Total {formatEUR(budget.totalCents)}
-        </Text>
-      </Group>
-      {budget.totalCents === 0 ? (
-        <Text size="xs" c="orange">
-          El total es 0 €. Si no es gratuito, vuelve al plan y pon los precios.
-        </Text>
-      ) : null}
     </Stack>
   );
 }

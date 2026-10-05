@@ -146,6 +146,19 @@ export function useSyncBudgetFromPlanMutation(patientId: string) {
   });
 }
 
+/** Phase or custom budget from a selection of plan items (several budgets per plan). */
+export function useCreateScopedBudgetMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      scope: "primary" | "secondary" | "custom";
+      title?: string | undefined;
+      clinicalPlanItemIds: string[];
+    }) => getBrowserApi().clinical.sync.scopedBudget(patientId, input),
+    onSuccess: () => invalidateClinicalPatient(queryClient, patientId),
+  });
+}
+
 /** Stage 13: canonical budget signature (finalize_budget_signature RPC). */
 export function useSignBudgetMutation(patientId: string) {
   const queryClient = useQueryClient();

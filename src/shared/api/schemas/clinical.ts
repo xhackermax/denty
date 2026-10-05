@@ -67,6 +67,8 @@ export const clinicalBudgetSchema = z
     version: versionSchema.optional(),
     signedFingerprint: z.string().nullable().optional(),
     currentPlanFingerprint: z.string().nullable().optional(),
+    scope: z.enum(["plan", "primary", "secondary", "custom"]).default("plan"),
+    title: z.string().nullable().optional(),
     items: z.array(clinicalBudgetItemSchema).default([]),
   })
   .passthrough();
@@ -129,6 +131,13 @@ export const alternativeContextSchema = z.object({
 
 export const alternativeClassificationSchema = z.object({
   classification: z.string().min(1),
+});
+
+/** A phase (primary/secondary) or custom budget made from a selection of plan items. */
+export const createScopedBudgetSchema = z.object({
+  scope: z.enum(["primary", "secondary", "custom"]),
+  title: z.string().trim().max(120).optional(),
+  clinicalPlanItemIds: z.array(idSchema).min(1).max(200),
 });
 
 export const budgetFromPlanSchema = z.object({

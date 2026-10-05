@@ -6,6 +6,7 @@ import {
   alternativeContextSchema,
   alternativeSetInputSchema,
   budgetFromPlanSchema,
+  createScopedBudgetSchema,
   budgetSyncResultSchema,
   clinicalEncounterInputSchema,
   clinicalEncounterSchema,
@@ -211,6 +212,12 @@ export function createClinicalResource(client: ApiClient) {
           `/api/patients/${encodeId(patientId)}/clinical-sync/budget`,
           budgetSyncResultSchema,
           {},
+        ),
+      scopedBudget: (patientId: string, payload: z.input<typeof createScopedBudgetSchema>) =>
+        client.mutation(
+          `/api/patients/${encodeId(patientId)}/clinical-sync/budgets`,
+          budgetSyncResultSchema,
+          createScopedBudgetSchema.parse(payload),
         ),
     },
     workflow: {
