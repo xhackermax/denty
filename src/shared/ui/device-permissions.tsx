@@ -25,7 +25,11 @@ function stateLabel(state: PermissionStateLike): string {
   if (state === "prompt") return "Sin decidir";
   return "No consultable";
 }
-export async function requestMediaPermission(kind: MediaKind): Promise<void> {
+/** With `keepStream` the caller owns the live stream and must stop its tracks. */
+export async function requestMediaPermission(
+  kind: MediaKind,
+  options: { keepStream?: boolean } = {},
+): Promise<MediaStream | undefined> {
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
     throw new Error("Cámara y micro requieren HTTPS.");
   }
@@ -33,7 +37,9 @@ export async function requestMediaPermission(kind: MediaKind): Promise<void> {
     audio: kind === "microphone",
     video: kind === "camera",
   });
+  if (options.keepStream) return stream;
   stream.getTracks().forEach((track) => track.stop());
+  return undefined;
 }
 export function DevicePermissions() {
   const [opened, setOpened] = useState(false);

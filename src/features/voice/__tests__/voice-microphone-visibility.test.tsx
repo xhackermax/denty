@@ -69,7 +69,7 @@ test("microphone remains visible and starts dictation while agenda configuration
   expect(mocks.agenda).toHaveBeenCalledTimes(1);
   fireEvent.click(microphone);
   await waitFor(() => expect(mocks.start).toHaveBeenCalledTimes(1));
-  expect(mocks.permission).toHaveBeenCalledWith("microphone");
+  expect(mocks.permission).toHaveBeenCalledWith("microphone", { keepStream: true });
   const stop = await screen.findByRole("button", { name: "Detener escucha" });
   fireEvent.click(stop);
   expect(mocks.stop).toHaveBeenCalled();

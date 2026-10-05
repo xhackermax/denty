@@ -605,52 +605,61 @@ function VoiceCommandBarInner({
     [finishCapture, updateText],
   );
 
-  const startRecording = useCallback(async () => {
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setError("Este navegador no permite grabar audio. Usa el teclado o el dictado del teclado.");
-      finishCapture();
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      recorderStreamRef.current = stream;
-      const mimeType = bestRecorderMimeType();
-      const recorder = mimeType
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
-      recorderRef.current = recorder;
-      recorderChunksRef.current = [];
-      setCaptureEngine("recording");
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) recorderChunksRef.current.push(event.data);
-      };
-      recorder.onerror = () => {
-        setError("No se pudo grabar el audio del micrófono.");
+  const startRecording = useCallback(
+    async (existingStream?: MediaStream) => {
+      if (
+        (!existingStream && !navigator.mediaDevices?.getUserMedia) ||
+        typeof MediaRecorder === "undefined"
+      ) {
+        setError(
+          "Este navegador no permite grabar audio. Usa el teclado o el dictado del teclado.",
+        );
         finishCapture();
-      };
-      recorder.onstart = () => setCapture("listening");
-      recorder.onstop = () => {
-        const blob = new Blob(recorderChunksRef.current, {
-          type: recorder.mimeType || mimeType || "audio/webm",
-        });
-        recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
-        if (blob.size === 0) {
-          setError("No se grabó audio. Inténtalo de nuevo.");
+        return;
+      }
+      try {
+        const stream =
+          existingStream ?? (await navigator.mediaDevices.getUserMedia({ audio: true }));
+        recorderStreamRef.current = stream;
+        const mimeType = bestRecorderMimeType();
+        const recorder = mimeType
+          ? new MediaRecorder(stream, { mimeType })
+          : new MediaRecorder(stream);
+        recorderRef.current = recorder;
+        recorderChunksRef.current = [];
+        setCaptureEngine("recording");
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) recorderChunksRef.current.push(event.data);
+        };
+        recorder.onerror = () => {
+          setError("No se pudo grabar el audio del micrófono.");
           finishCapture();
-          return;
-        }
-        setCapture("finalizing");
-        void transcribeRecording(blob);
-      };
-      recorder.start(250);
-      schedule(() => {
-        if (recorder.state === "recording") recorder.stop();
-      }, MAX_RECORDING_MS);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo abrir el micrófono.");
-      finishCapture();
-    }
-  }, [finishCapture, schedule, transcribeRecording]);
+        };
+        recorder.onstart = () => setCapture("listening");
+        recorder.onstop = () => {
+          const blob = new Blob(recorderChunksRef.current, {
+            type: recorder.mimeType || mimeType || "audio/webm",
+          });
+          recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
+          if (blob.size === 0) {
+            setError("No se grabó audio. Inténtalo de nuevo.");
+            finishCapture();
+            return;
+          }
+          setCapture("finalizing");
+          void transcribeRecording(blob);
+        };
+        recorder.start(250);
+        schedule(() => {
+          if (recorder.state === "recording") recorder.stop();
+        }, MAX_RECORDING_MS);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "No se pudo abrir el micrófono.");
+        finishCapture();
+      }
+    },
+    [finishCapture, schedule, transcribeRecording],
+  );
 
   const stopCapture = useCallback(() => {
     keepListeningRef.current = false;
@@ -761,8 +770,10 @@ function VoiceCommandBarInner({
     setLastDone(null);
     setPreview(null);
     setCapture("requesting_permission");
+    let permissionStream: MediaStream | undefined;
     try {
-      await requestMediaPermission("microphone");
+      // Keep the stream from the permission prompt so Whisper reuses it instead of asking twice.
+      permissionStream = await requestMediaPermission("microphone", { keepStream: true });
     } catch (cause) {
       const name = cause instanceof DOMException ? cause.name : "";
       setError(
@@ -779,9 +790,10 @@ function VoiceCommandBarInner({
     setCapture("connecting");
     // Whisper is the primary engine; streaming engines only run where it can't.
     if (isLocalWhisperSupported()) {
-      await startRecording();
+      await startRecording(permissionStream);
       return;
     }
+    permissionStream?.getTracks().forEach((track) => track.stop());
     if (deepgramUsableRef.current && isDeepgramCaptureSupported() && (await startDeepgram())) {
       return;
     }
