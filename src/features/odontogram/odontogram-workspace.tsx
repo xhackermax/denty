@@ -891,6 +891,25 @@ function OdontogramEditor({
   );
   const failure = autosave.error ?? saveError;
   const conflict = failure instanceof DentyApiError && failure.kind === "conflict";
+  // The history view replaces the whole editor so nothing else competes for attention.
+  if (activeTab === "history") {
+    return (
+      <div className={styles.board}>
+        <Group justify="space-between">
+          <Text fw={850}>Historial</Text>
+          <Button size="xs" variant="light" onClick={() => setActiveTab("general")}>
+            Volver al odontograma
+          </Button>
+        </Group>
+        <OdontogramHistory
+          patientId={patientId}
+          selectedSnapshotId={selectedSnapshotId}
+          onSelectSnapshot={onSelectSnapshot}
+          flushPending={autosave.flush}
+        />
+      </div>
+    );
+  }
   return (
     <div className={styles.board}>
       <PageHeader
@@ -1156,7 +1175,7 @@ function OdontogramEditor({
             setViewState((current) => applyViewPreset(current, presetId))
           }
           onReset={() => setViewState((current) => resetOdontogramView(current))}
-          onOpenHistory={() => setActiveTab(activeTab === "history" ? "general" : "history")}
+          onOpenHistory={() => setActiveTab("history")}
         />
         {viewPreferenceError ? (
           <Alert color="yellow" title="No se pudo restaurar o guardar la preferencia de vista">
@@ -1443,17 +1462,6 @@ function OdontogramEditor({
           </details>
         </RetainedFlowStep>
 
-        {activeTab === "history" ? (
-          <details className={styles.layerEditor}>
-            <summary>Historial del odontograma</summary>
-            <OdontogramHistory
-              patientId={patientId}
-              selectedSnapshotId={selectedSnapshotId}
-              onSelectSnapshot={onSelectSnapshot}
-              flushPending={autosave.flush}
-            />
-          </details>
-        ) : null}
         {viewState.visibleLayerIds.includes("proposal") ? (
           <Alert color="blue" title="Propuestas del plan">
             Selecciona un plan para mostrar sus propuestas.
