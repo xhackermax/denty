@@ -379,6 +379,12 @@ export function createBridgeEntities(
       : prosthesisState === "prosthesis_bad"
         ? "bridge_unsatisfactory"
         : "bridge_pending";
+  const ponticStatus =
+    prosthesisState === "prosthesis"
+      ? "pontic_completed"
+      : prosthesisState === "prosthesis_bad"
+        ? "pontic_unsatisfactory"
+        : "pontic_pending";
   const bridge: DentalEntity = {
     id: bridgeId,
     entityType: "BRIDGE",
@@ -388,7 +394,7 @@ export function createBridgeEntities(
   };
   return [
     bridge,
-    ...teeth.map<DentalEntity>((tooth) => ({
+    ...pillars.map<DentalEntity>((tooth) => ({
       id: `prosthesis-${from}-${to}-${tooth}`,
       tooth,
       entityType: "PROSTHESIS",
@@ -405,7 +411,7 @@ export function createBridgeEntities(
       id: `pontic-${from}-${to}-${tooth}`,
       tooth,
       entityType: "PONTIC",
-      status: "pontic_pending",
+      status: ponticStatus,
       parentId: bridgeId,
       active: true,
     })),

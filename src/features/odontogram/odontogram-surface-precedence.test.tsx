@@ -187,12 +187,23 @@ test("a bridge picked on the chart is confirmed right there, both ends marked", 
   await waitFor(() => expect(api.batch).toHaveBeenCalledTimes(1), { timeout: 3000 });
   const [, payload] = api.batch.mock.calls[0] as [
     string,
-    { entities: { entityType: string; tooth?: string }[] },
+    { entities: { entityType: string; tooth?: string; attributes?: Record<string, unknown> }[] },
   ];
+  const bridge = payload.entities.find((entity) => entity.entityType === "BRIDGE");
+  expect(bridge?.attributes).toMatchObject({
+    pillars: ["34", "36"],
+    pontics: ["35"],
+    teeth: ["34", "35", "36"],
+  });
   const abutments = payload.entities
     .filter((entity) => entity.entityType === "PROSTHESIS")
     .map((entity) => entity.tooth);
-  expect(abutments).toEqual(["34", "35", "36"]);
+  expect(abutments).toEqual(["34", "36"]);
+  expect(
+    payload.entities
+      .filter((entity) => entity.entityType === "PONTIC")
+      .map((entity) => entity.tooth),
+  ).toEqual(["35"]);
   expect(screen.getByRole("button", { name: "Diente 34" })).toHaveAttribute(
     "data-prosthesis-endpoint",
     "true",

@@ -107,7 +107,12 @@ describe("odontogram domain", () => {
       pontics: ["12", "11", "21", "22"],
     });
     expect(entities.filter((entity) => entity.entityType === "PONTIC")).toHaveLength(4);
-    expect(entities.filter((entity) => entity.entityType === "PROSTHESIS")).toHaveLength(6);
+    expect(entities.filter((entity) => entity.entityType === "PROSTHESIS")).toHaveLength(2);
+    expect(
+      entities
+        .filter((entity) => entity.entityType === "PROSTHESIS")
+        .map((entity) => entity.tooth),
+    ).toEqual(["13", "23"]);
     expect(
       createBridgeEntities("13", "23", "prosthesis")
         .filter((entity) => entity.entityType === "PROSTHESIS")
