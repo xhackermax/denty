@@ -25,6 +25,9 @@ import {
   cycleClinicalState,
   createEndoPostCrown,
   createImplantStack,
+  createArchAppliance,
+  archApplianceLabel,
+  type ArchAppliance,
   createOdontogramEntityState,
   executeOdontogramCommand,
   executeValidatedOdontogramBatch,
@@ -107,6 +110,8 @@ import {
 } from "./odontogram-view-state";
 import {
   orthodonticMarkForTooth,
+  appliancesForTooth,
+  wholeToothParts,
   periodontalMarksForTooth,
   pediatricReplacementForTooth,
 } from "./odontogram-layer-projection";
@@ -261,10 +266,14 @@ function Tooth({
       if (!readOnly) onSurfaceCycle(surface);
     },
   });
-  const implant = status?.startsWith("implant");
+  const parts = wholeToothParts(state, tooth);
+  const appliances = appliancesForTooth(state, tooth);
+  const implant = status?.startsWith("implant") || parts.has("IMPLANT");
   const prosthesis = status?.startsWith("prosthesis");
-  const endo = status?.startsWith("endo");
-  const post = status?.startsWith("post");
+  const endo = status?.startsWith("endo") || parts.has("ENDO");
+  const post = status?.startsWith("post") || parts.has("POST");
+  const crownCap = parts.has("CROWN");
+  const abutment = parts.has("ABUTMENT");
   const extraction = status === "extraction";
   const missing = status === "missing";
   const endodonticDiagnosis = Object.values(state.entitiesById).find(
@@ -354,8 +363,10 @@ function Tooth({
           d={CROWN_PATHS[type]}
         />
         <path className={styles.crownOutline} d={CROWN_PATHS[type]} />
+        {crownCap ? <path className={styles.crownCapMark} d={TOOTH_MARK_PATHS.crownCap} /> : null}
         {endo ? <path className={styles.endoMark} d={TOOTH_MARK_PATHS.endo} /> : null}
         {post ? <path className={styles.postMark} d={TOOTH_MARK_PATHS.post} /> : null}
+        {abutment ? <path className={styles.abutmentMark} d={TOOTH_MARK_PATHS.abutment} /> : null}
         {implant ? (
           <g className={styles.implantMark}>
             <path d={TOOTH_MARK_PATHS.implantBody} />
@@ -364,6 +375,22 @@ function Tooth({
         ) : null}
         {prosthesis ? (
           <path className={styles.prosthesisMark} d={TOOTH_MARK_PATHS.prosthesis} />
+        ) : null}
+        {appliances.includes("occlusal_splint") ? (
+          <path className={styles.splintMark} d={TOOTH_MARK_PATHS.splint} />
+        ) : null}
+        {appliances.includes("complete_denture") || appliances.includes("implant_overdenture") ? (
+          <path
+            className={styles.dentureMark}
+            data-implants={appliances.includes("implant_overdenture") || undefined}
+            d={TOOTH_MARK_PATHS.denture}
+          />
+        ) : null}
+        {appliances.includes("orthodontic_appliance") ? (
+          <g className={styles.orthoApplianceMark}>
+            <path d={TOOTH_MARK_PATHS.orthoWire} />
+            <path d={TOOTH_MARK_PATHS.bracket} />
+          </g>
         ) : null}
         {extraction ? (
           <path className={styles.extractionMark} d={TOOTH_MARK_PATHS.extraction} />
@@ -831,6 +858,16 @@ function OdontogramEditor({
       setBridgeFrom(null);
       setBridgeTo(null);
       setBridgePick("from");
+    }
+  };
+  const applyAppliance = (appliance: ArchAppliance, arch: "upper" | "lower") => {
+    if (historical) return;
+    const teeth = chartTeeth.filter((tooth) => archForTooth(tooth) === arch);
+    try {
+      commitBatch([createArchAppliance(appliance, arch, teeth)]);
+      setBridgeError(null);
+    } catch (error) {
+      setBridgeError(error instanceof Error ? error.message : "No se pudo aplicar el aparato.");
     }
   };
   const renderArch = (teeth: readonly string[]) => (
@@ -1376,6 +1413,33 @@ function OdontogramEditor({
                   Seleccionar prótesis / puente
                 </Button>
               </Group>
+              <div className={styles.applianceGrid} role="group" aria-label="Aparatos por arcada">
+                {(
+                  [
+                    "complete_denture",
+                    "implant_overdenture",
+                    "occlusal_splint",
+                    "orthodontic_appliance",
+                  ] as const
+                ).flatMap((appliance) =>
+                  (["upper", "lower"] as const).map((arch) => (
+                    <Button
+                      key={`${appliance}-${arch}`}
+                      size="xs"
+                      variant="light"
+                      disabled={historical || !activeToolVisible}
+                      onClick={() => applyAppliance(appliance, arch)}
+                    >
+                      {archApplianceLabel(appliance, arch)}
+                    </Button>
+                  )),
+                )}
+              </div>
+              {bridgeError && placementMode !== "bridge" ? (
+                <Text size="xs" c="red" mt="xs">
+                  {bridgeError}
+                </Text>
+              ) : null}
             </section>
           </details>
         ) : null}

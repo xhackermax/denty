@@ -287,42 +287,44 @@ export function QuickDiagnosisBar({
             readOnly={readOnly}
           />
         ))}
-        <details open={historyOpen}>
-          <summary
-            onClick={(event) => {
-              event.preventDefault();
-              setHistoryOpen((open) => !open);
-            }}
+        <div>
+          <Button
+            size="compact-sm"
+            variant="light"
+            aria-expanded={historyOpen}
+            onClick={() => setHistoryOpen((open) => !open)}
           >
-            Historial de diagnósticos ({query.data?.history.length ?? 0})
-          </summary>
-          <Stack gap="xs">
-            {query.data?.history.map((d) => (
-              <Group key={d.id} justify="space-between">
-                <div>
-                  <Text size="sm">
-                    {d.value} · {new Date(d.createdAt).toLocaleString("es-ES")} ·{" "}
-                    {d.status === "active" ? "Activo" : "Resuelto"}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {d.justification}
-                  </Text>
-                </div>
-                {d.status === "active" ? (
-                  <Button
-                    size="compact-xs"
-                    variant="subtle"
-                    disabled={readOnly}
-                    loading={resolve.isPending}
-                    onClick={() => resolve.mutate({ id: d.id, version: d.version })}
-                  >
-                    Marcar resuelto
-                  </Button>
-                ) : null}
-              </Group>
-            ))}
-          </Stack>
-        </details>
+            Historial ({query.data?.history.length ?? 0})
+          </Button>
+          {historyOpen ? (
+            <Stack gap="xs" mt="xs">
+              {query.data?.history.map((d) => (
+                <Group key={d.id} justify="space-between">
+                  <div>
+                    <Text size="sm">
+                      {d.value} · {new Date(d.createdAt).toLocaleString("es-ES")} ·{" "}
+                      {d.status === "active" ? "Activo" : "Resuelto"}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {d.justification}
+                    </Text>
+                  </div>
+                  {d.status === "active" ? (
+                    <Button
+                      size="compact-xs"
+                      variant="subtle"
+                      disabled={readOnly}
+                      loading={resolve.isPending}
+                      onClick={() => resolve.mutate({ id: d.id, version: d.version })}
+                    >
+                      Marcar resuelto
+                    </Button>
+                  ) : null}
+                </Group>
+              ))}
+            </Stack>
+          ) : null}
+        </div>
       </Stack>
     </section>
   );

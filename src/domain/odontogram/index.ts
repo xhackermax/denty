@@ -445,6 +445,70 @@ export function createRemovable(arch: ToothArch, teeth: readonly string[]): Dent
   };
 }
 
+export const ARCH_APPLIANCES = [
+  "complete_denture",
+  "implant_overdenture",
+  "occlusal_splint",
+  "orthodontic_appliance",
+] as const;
+export type ArchAppliance = (typeof ARCH_APPLIANCES)[number];
+
+const ARCH_APPLIANCE_LABELS: Readonly<Record<ArchAppliance, string>> = {
+  complete_denture: "Prótesis completa",
+  implant_overdenture: "Completa sobre implantes",
+  occlusal_splint: "Férula de descarga",
+  orthodontic_appliance: "Ortodoncia",
+};
+
+export function archApplianceLabel(appliance: ArchAppliance, arch: ToothArch): string {
+  return `${ARCH_APPLIANCE_LABELS[appliance]} ${arch === "upper" ? "superior" : "inferior"}`;
+}
+
+export function archApplianceOf(entity: DentalEntity): ArchAppliance | null {
+  const value = entity.attributes?.appliance;
+  return ARCH_APPLIANCES.find((appliance) => appliance === value) ?? null;
+}
+
+/** One appliance per arch: applying it again replaces the previous one instead of stacking. */
+export function createArchAppliance(
+  appliance: ArchAppliance,
+  arch: ToothArch,
+  teeth: readonly string[],
+  status: "pending" | "completed" = "pending",
+): DentalEntity {
+  const normalized = teeth.map(String);
+  if (!normalized.length) throw new RangeError("La arcada no tiene dientes");
+  if (normalized.some((tooth) => archForTooth(tooth) !== arch)) {
+    throw new RangeError("Todos los dientes deben pertenecer a la misma arcada");
+  }
+  const id = `${appliance}-${arch}`;
+  if (appliance === "orthodontic_appliance") {
+    return {
+      id,
+      arch,
+      entityType: "ORTHODONTIC",
+      status: "active",
+      active: true,
+      attributes: { appliance, arch, teeth: normalized },
+    };
+  }
+  // Only a complete denture stands in for the teeth; on implants or as a splint they stay.
+  const replaces = appliance === "complete_denture";
+  return {
+    id,
+    arch,
+    entityType: "REMOVABLE",
+    status: status === "completed" ? "removable_completed" : "removable_pending",
+    active: true,
+    attributes: {
+      appliance,
+      arch,
+      teeth: normalized,
+      ...(replaces ? {} : { abutments: normalized }),
+    },
+  };
+}
+
 export function createPediatricEntity(tooth: string, status: PediatricToothStatus): DentalEntity {
   parseTooth(tooth);
   return {

@@ -175,7 +175,10 @@ export function OrthodonticPanel({
   const [appliances, setAppliances] = useState<OrthodonticAppliance[]>(["aligners"]);
   const [toothMarks, setToothMarks] = useState<Record<string, OrthoMark>>({});
   const [saved, setSaved] = useState(false);
-  const persisted = entities.find((entity) => entity.active && entity.entityType === "ORTHODONTIC");
+  const persisted = entities.find(
+    (entity) =>
+      entity.active && entity.entityType === "ORTHODONTIC" && !entity.attributes?.appliance,
+  );
   // Compared by content: the chart hands over new entity objects on every edit.
   const persistedKey = persisted ? JSON.stringify(persisted.attributes ?? {}) : "";
   // The saved record fills the form when it opens and after each save. Another device's save

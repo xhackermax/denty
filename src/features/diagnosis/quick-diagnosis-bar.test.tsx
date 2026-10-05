@@ -29,8 +29,9 @@ describe("QuickDiagnosisBar", () => {
       await screen.findByRole("region", { name: "Diagnóstico periodontal rápido" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Diagnóstico periodontal rápido")).toBeInTheDocument();
-    expect(screen.getByText(/Historial de diagnósticos/).closest("details")).not.toHaveAttribute(
-      "open",
+    expect(screen.getByRole("button", { name: /Historial/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
     );
   });
 });

@@ -1,10 +1,35 @@
 import {
   PERIODONTAL_SITES,
+  archApplianceOf,
+  type ArchAppliance,
   type OdontogramEntityState,
   type PeriodontalReading,
   type PediatricToothStatus,
 } from "@/domain";
 import { isToothStatusVisible, type OdontogramViewState } from "./odontogram-view-state";
+
+/** Appliances (dentures, splints, braces) that cover a tooth, whatever their arch-level entity. */
+export function appliancesForTooth(state: OdontogramEntityState, tooth: string): ArchAppliance[] {
+  const found = new Set<ArchAppliance>();
+  for (const entity of Object.values(state.entitiesById)) {
+    if (!entity.active) continue;
+    const appliance = archApplianceOf(entity);
+    const teeth = entity.attributes?.teeth;
+    if (appliance && Array.isArray(teeth) && teeth.includes(tooth)) found.add(appliance);
+  }
+  return [...found];
+}
+
+/** Every whole-tooth entity family present, so a stack (endo+post+crown) draws all its parts. */
+export function wholeToothParts(state: OdontogramEntityState, tooth: string): Set<string> {
+  const parts = new Set<string>();
+  for (const entity of Object.values(state.entitiesById)) {
+    if (!entity.active || entity.tooth !== tooth || entity.surfaces?.length) continue;
+    if (entity.entityType === "ENDO" && entity.status === "diagnosis") continue;
+    parts.add(entity.entityType);
+  }
+  return parts;
+}
 
 const REPLACEMENT_STATUS_LABELS: Partial<Record<PediatricToothStatus, string>> = {
   unerupted: "No erupcionado",
@@ -29,7 +54,10 @@ export function orthodonticMarkForTooth(
 ): OrthodonticToothMark | null {
   if (!viewState.visibleLayerIds.includes("ortho")) return null;
   const entity = Object.values(state.entitiesById).find(
-    (candidate) => candidate.active && candidate.entityType === "ORTHODONTIC",
+    (candidate) =>
+      candidate.active &&
+      candidate.entityType === "ORTHODONTIC" &&
+      !candidate.attributes?.appliance,
   );
   const marks = entity?.attributes?.toothMarks;
   if (!marks || typeof marks !== "object" || Array.isArray(marks)) return null;

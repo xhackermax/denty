@@ -426,6 +426,55 @@
   pointer-events: none;
 }
 
+.crownCapMark {
+  fill: color-mix(in srgb, var(--denty-blue) 14%, transparent);
+  stroke: var(--denty-blue);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.abutmentMark {
+  fill: color-mix(in srgb, var(--denty-violet) 30%, var(--denty-card-solid));
+  stroke: var(--denty-violet);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.dentureMark {
+  fill: color-mix(in srgb, #e58a9b 55%, transparent);
+  stroke: #c25a70;
+  stroke-width: 1.6;
+  pointer-events: none;
+}
+
+.dentureMark[data-implants] {
+  stroke-dasharray: 4 2;
+  stroke: var(--denty-violet);
+}
+
+.splintMark {
+  fill: color-mix(in srgb, var(--denty-blue) 12%, transparent);
+  stroke: var(--denty-blue);
+  stroke-width: 1.4;
+  stroke-dasharray: 3 2;
+  pointer-events: none;
+}
+
+.orthoApplianceMark {
+  fill: color-mix(in srgb, var(--denty-card-solid) 70%, #888);
+  stroke: #555;
+  stroke-width: 1.6;
+  pointer-events: none;
+}
+
+.applianceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
 .endoMark {
   fill: none;
   stroke: var(--denty-danger);

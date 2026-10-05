@@ -112,7 +112,7 @@ type WindowWithSpeech = Window & {
 
 type CaptureEngine = "deepgram" | "web-speech" | "recording" | null;
 
-const CLAUDE_INTERPRET_TIMEOUT_MS = 12_000;
+const CLAUDE_INTERPRET_TIMEOUT_MS = 6_000;
 const PATIENT_SEARCH_PAGE_SIZE = 20;
 const SEARCH_INTENT = /^\s*(?:oye\s+denty[\s,]*)?(?:busca|buscar|buscame|encuentra|localiza)\b/i;
 
@@ -595,14 +595,17 @@ function VoiceCommandBarInner({
         }
         if (!transcript) transcript = await transcribeOnServer(blob);
         if (!transcript) throw new Error("No se ha detectado voz reconocible.");
-        updateText(appendDictation(textRef.current, transcript));
+        const full = appendDictation(textRef.current, transcript);
+        updateText(full);
+        // Interpret right away: the preview still needs confirmation, but the extra click is gone.
+        void runCommand(full);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "No se pudo transcribir la grabación.");
       } finally {
         finishCapture();
       }
     },
-    [finishCapture, updateText],
+    [finishCapture, runCommand, updateText],
   );
 
   const startRecording = useCallback(
