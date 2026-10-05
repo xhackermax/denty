@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas din\u00e1micas verificadas en source",
-  "routeCount": 259,
+  "routeCount": 262,
   "routes": [
     {
       "method": "GET",
@@ -610,6 +610,18 @@
       "kind": "browser"
     },
     {
+      "method": "PATCH",
+      "path": "/api/budgets/:id",
+      "source": "stage13-clinical-budget-history",
+      "kind": "browser"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/budgets/:id",
+      "source": "stage13-clinical-budget-history",
+      "kind": "browser"
+    },
+    {
       "method": "POST",
       "path": "/api/budgets/:id/invoice-draft",
       "source": "apps/api/src/modules/billing/routes.ts",
@@ -1116,6 +1128,12 @@
     {
       "method": "GET",
       "path": "/api/patients/:patientId/clinical-plan",
+      "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:patientId/budgets",
       "source": "apps/api/src/modules/clinical/routes.ts",
       "kind": "browser"
     },

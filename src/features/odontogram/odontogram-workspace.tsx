@@ -996,6 +996,77 @@ function OdontogramEditor({
       />
 
       <MouthStateProvider state={mouthState}>
+        <section className={styles.chartPanel}>
+          <div className={styles.chartHeader}>
+            <div>
+              <Text fw={850}>Odontograma</Text>
+            </div>
+            {!viewState.visibleLayerIds.includes("general") ? (
+              <Text size="xs" c="dimmed">
+                Anatomía, identidad y presencia permanecen visibles.
+              </Text>
+            ) : null}
+          </div>
+          {viewState.visibleLayerIds.includes("general") ? (
+            <>
+              <OdontogramLegend
+                selection={legendSelection}
+                disabled={historical}
+                onSelect={(selection) => selectTool(selection.state, selection.placement)}
+              />
+              {placementMode === "bridge" ? (
+                <div className={styles.bridgeSelectionBanner}>
+                  <strong>
+                    {bridgeReady
+                      ? "✓ Rango listo"
+                      : bridgePick === "from"
+                        ? "1 · Inicio"
+                        : "2 · Final"}
+                  </strong>
+                  <span>
+                    {bridgeReady && bridgeFrom && bridgeTo
+                      ? `${bridgeFrom} → ${bridgeTo}. Confírmalo para colocarlo.`
+                      : bridgePick === "from"
+                        ? "Pulsa el primer diente de la prótesis fija."
+                        : `Inicio ${bridgeFrom}. Pulsa el último diente de la misma arcada.`}
+                  </span>
+                  <Group gap="xs">
+                    {bridgeReady && bridgeFrom && bridgeTo ? (
+                      <Button
+                        size="xs"
+                        disabled={historical || !activeToolVisible}
+                        onClick={() => applyTemplate("bridge")}
+                      >
+                        {`Aplicar puente ${bridgeFrom} → ${bridgeTo}`}
+                      </Button>
+                    ) : null}
+                    {bridgeFrom ? (
+                      <Button size="xs" variant="subtle" color="gray" onClick={cancelBridge}>
+                        Cancelar puente
+                      </Button>
+                    ) : null}
+                  </Group>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+          <div className={styles.archBlock}>
+            <Text className={styles.archLabel} fw={800}>
+              Maxilar
+            </Text>
+            {renderArch(arches.upper)}
+          </div>
+          <div className={styles.occlusalPlane}>
+            <span>Plano oclusal</span>
+          </div>
+          <div className={styles.archBlock}>
+            {renderArch(arches.lower)}
+            <Text className={styles.archLabel} fw={800}>
+              Mandíbula
+            </Text>
+          </div>
+        </section>
+
         <QuickDiagnosisBar
           patientId={patientId}
           readings={currentPerioReadings}
@@ -1207,80 +1278,11 @@ function OdontogramEditor({
           </details>
         ) : null}
 
-        <section className={styles.chartPanel}>
-          <div className={styles.chartHeader}>
-            <div>
-              <Text fw={850}>Odontograma</Text>
-            </div>
-            {!viewState.visibleLayerIds.includes("general") ? (
-              <Text size="xs" c="dimmed">
-                Anatomía, identidad y presencia permanecen visibles.
-              </Text>
-            ) : null}
-          </div>
-          {viewState.visibleLayerIds.includes("general") ? (
-            <>
-              <OdontogramLegend
-                selection={legendSelection}
-                disabled={historical}
-                onSelect={(selection) => selectTool(selection.state, selection.placement)}
-              />
-              {placementMode === "bridge" ? (
-                <div className={styles.bridgeSelectionBanner}>
-                  <strong>
-                    {bridgeReady
-                      ? "✓ Rango listo"
-                      : bridgePick === "from"
-                        ? "1 · Inicio"
-                        : "2 · Final"}
-                  </strong>
-                  <span>
-                    {bridgeReady && bridgeFrom && bridgeTo
-                      ? `${bridgeFrom} → ${bridgeTo}. Confírmalo para colocarlo.`
-                      : bridgePick === "from"
-                        ? "Pulsa el primer diente de la prótesis fija."
-                        : `Inicio ${bridgeFrom}. Pulsa el último diente de la misma arcada.`}
-                  </span>
-                  {/* Confirm next to the chart: the full form lives under "Más herramientas",
-                      out of sight while the dentist is picking teeth. */}
-                  <Group gap="xs">
-                    {bridgeReady && bridgeFrom && bridgeTo ? (
-                      <Button
-                        size="xs"
-                        disabled={historical || !activeToolVisible}
-                        onClick={() => applyTemplate("bridge")}
-                      >
-                        {`Aplicar puente ${bridgeFrom} → ${bridgeTo}`}
-                      </Button>
-                    ) : null}
-                    {bridgeFrom ? (
-                      <Button size="xs" variant="subtle" color="gray" onClick={cancelBridge}>
-                        Cancelar puente
-                      </Button>
-                    ) : null}
-                  </Group>
-                </div>
-              ) : null}
-            </>
-          ) : null}
-          <div className={styles.archBlock}>
-            <Text className={styles.archLabel} fw={800}>
-              Maxilar
-            </Text>
-            {renderArch(arches.upper)}
-          </div>
-          <div className={styles.occlusalPlane}>
-            <span>Plano oclusal</span>
-          </div>
-          <div className={styles.archBlock}>
-            {renderArch(arches.lower)}
-            <Text className={styles.archLabel} fw={800}>
-              Mandíbula
-            </Text>
-          </div>
-        </section>
         {viewState.visibleLayerIds.includes("general") ? (
-          <SupernumeraryPanel entities={entities} readOnly={historical} onCommit={commit} />
+          <details className={styles.layerEditor}>
+            <summary>Piezas adicionales y supernumerarias</summary>
+            <SupernumeraryPanel entities={entities} readOnly={historical} onCommit={commit} />
+          </details>
         ) : null}
 
         <RetainedFlowStep active={viewState.visibleLayerIds.includes("perio")}>
@@ -1359,12 +1361,15 @@ function OdontogramEditor({
         </RetainedFlowStep>
 
         {activeTab === "history" ? (
-          <OdontogramHistory
-            patientId={patientId}
-            selectedSnapshotId={selectedSnapshotId}
-            onSelectSnapshot={onSelectSnapshot}
-            flushPending={autosave.flush}
-          />
+          <details className={styles.layerEditor}>
+            <summary>Historial del odontograma</summary>
+            <OdontogramHistory
+              patientId={patientId}
+              selectedSnapshotId={selectedSnapshotId}
+              onSelectSnapshot={onSelectSnapshot}
+              flushPending={autosave.flush}
+            />
+          </details>
         ) : null}
         {viewState.visibleLayerIds.includes("proposal") ? (
           <Alert color="blue" title="Propuestas del plan">

@@ -29,6 +29,7 @@ import {
   odontogramBatchSchema,
   odontogramSchema,
   odontogramSnapshotSchema,
+  patientBudgetsSchema,
   periodontalExamInputSchema,
   periodontalExamSchema,
   periodontalMeasurementSchema,
@@ -50,6 +51,10 @@ const looseResultSchema = z.object({}).passthrough();
 
 export function createClinicalResource(client: ApiClient) {
   return {
+    budgets: {
+      listForPatient: (patientId: string) =>
+        client.request(`/api/patients/${encodeId(patientId)}/budgets`, patientBudgetsSchema),
+    },
     plan: {
       get: (patientId: string) =>
         client.request(`/api/patients/${encodeId(patientId)}/clinical-plan`, clinicalPlanSchema),

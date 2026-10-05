@@ -90,10 +90,10 @@ export function QuickDiagnosisBar({
   });
   const suggestion = suggestPeriodontalDiagnosis(readings);
   return (
-    <section aria-label="Diagnóstico rápido">
+    <section aria-label="Diagnóstico periodontal rápido">
       <Stack gap="sm">
         <Group justify="space-between">
-          <Text fw={700}>Diagnóstico rápido</Text>
+          <Text fw={700}>Diagnóstico periodontal rápido</Text>
           <Group gap="xs">
             {query.data?.current.map((d) => (
               <Badge key={d.id} variant="light">

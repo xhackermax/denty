@@ -59,6 +59,53 @@ export const finalizeBudgetSignatureInputSchema = z.object({
   signatureData: z.string().min(1),
 });
 
+export const updateDraftBudgetSchema = z.object({
+  patientId: idSchema,
+  expectedVersion: z.number().int().positive(),
+  title: z.string().trim().max(120).nullable(),
+  items: z
+    .array(
+      z.object({
+        id: idSchema,
+        unitPriceCents: z.number().int().nonnegative().max(2_147_483_647),
+      }),
+    )
+    .max(200),
+});
+
+export const deleteDraftBudgetQuerySchema = z.object({
+  patientId: idSchema,
+  expectedVersion: z.coerce.number().int().positive(),
+});
+
+export const draftBudgetMutationResultSchema = z.object({
+  budget: z
+    .object({
+      id: idSchema,
+      code: z.string().min(1),
+      status: z.string().min(1),
+      totalCents: z.number().int().nonnegative(),
+      version: z.number().int().positive(),
+      revision: z.number().int().positive(),
+      createdAt: z.coerce.string(),
+      scope: z.enum(["plan", "primary", "secondary", "custom"]),
+      title: z.string().nullable(),
+      items: z.array(
+        z.object({
+          id: idSchema,
+          description: z.string().min(1),
+          tooth: z.string().nullable(),
+          unitPriceCents: z.number().int().nonnegative(),
+          quantity: z.number().int().positive(),
+          totalCents: z.number().int().nonnegative(),
+        }),
+      ),
+    })
+    .passthrough(),
+});
+
+export const deletedDraftBudgetSchema = z.object({ deleted: z.literal(true) });
+
 export const finalizedBudgetSignatureSchema = z.object({
   budget: z
     .object({

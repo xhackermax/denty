@@ -18,7 +18,11 @@ const budgetRow = (overrides: Record<string, unknown> = {}) => ({
 });
 
 function repositoryWith(tables: Record<string, Record<string, unknown>[]>) {
-  const rpc = vi.fn(async () => budgetRow());
+  const rpc = vi.fn(async (functionName: string) => {
+    if (functionName === "update_draft_budget") return { status: "updated" };
+    if (functionName === "delete_draft_budget") return { status: "deleted" };
+    return budgetRow();
+  });
   const select = vi.fn(async (table: string, query: Record<string, unknown> = {}) => {
     const rows = tables[table] ?? [];
     const id = typeof query.id === "string" ? query.id.replace(/^eq\./, "") : undefined;
@@ -29,6 +33,27 @@ function repositoryWith(tables: Record<string, Record<string, unknown>[]>) {
 }
 
 describe("scoped budgets", () => {
+  it("lists every budget scoped to the patient, across clinical plans", async () => {
+    const { repository, select } = repositoryWith({
+      budgets: [
+        budgetRow({ id: "b-new", clinical_plan_id: "plan-2", revision: 1 }),
+        budgetRow({ id: "b-old", clinical_plan_id: "plan-1", revision: 3 }),
+      ],
+    });
+
+    const result = await repository.listPatientBudgets("patient-1");
+
+    expect(select).toHaveBeenCalledWith(
+      "budgets",
+      expect.objectContaining({
+        clinic_id: "eq.clinic-1",
+        patient_id: "eq.patient-1",
+        order: "created_at.desc,revision.desc",
+      }),
+    );
+    expect(result.items.map((budget) => budget?.id)).toEqual(["b-new", "b-old"]);
+  });
+
   it("creates a phase budget from the chosen plan items", async () => {
     const { repository, rpc } = repositoryWith({
       budgets: [budgetRow()],
@@ -92,5 +117,59 @@ describe("scoped budgets", () => {
     });
     const sync = await repository.getClinicalSync("patient-1");
     expect(sync.budget).toMatchObject({ id: "whole", outdated: false });
+  });
+
+  it("updates only the selected patient's draft with an optimistic version", async () => {
+    const { repository, rpc } = repositoryWith({
+      budgets: [budgetRow({ created_at: "2026-10-05T10:00:00.000Z" })],
+      budget_items: [
+        {
+          id: "bi-1",
+          budget_id: "b-phase-1",
+          clinical_plan_item_id: "item-1",
+          description: "Obturación",
+          tooth: "46",
+          billing_mode: "separate",
+          quantity: 1,
+          unit_price_cents: 9000,
+          total_cents: 9000,
+        },
+      ],
+    });
+
+    const result = await repository.updateDraftBudget("patient-1", "b-phase-1", {
+      expectedVersion: 1,
+      title: "Fase 1 revisada",
+      items: [{ id: "bi-1", unitPriceCents: 9500 }],
+    });
+
+    expect(rpc).toHaveBeenCalledWith("update_draft_budget", {
+      p_budget_id: "b-phase-1",
+      p_patient_id: "patient-1",
+      p_expected_version: 1,
+      p_title: "Fase 1 revisada",
+      p_items: [{ id: "bi-1", unit_price_cents: 9500 }],
+    });
+    expect(result).toMatchObject({
+      status: "updated",
+      budget: {
+        id: "b-phase-1",
+        revision: 2,
+        createdAt: "2026-10-05T10:00:00.000Z",
+        items: [{ id: "bi-1", quantity: 1, unitPriceCents: 9000 }],
+      },
+    });
+  });
+
+  it("deletes a patient's draft only with the confirmed version", async () => {
+    const { repository, rpc } = repositoryWith({});
+    const result = await repository.deleteDraftBudget("patient-1", "b-phase-1", 3);
+
+    expect(rpc).toHaveBeenCalledWith("delete_draft_budget", {
+      p_budget_id: "b-phase-1",
+      p_patient_id: "patient-1",
+      p_expected_version: 3,
+    });
+    expect(result).toEqual({ status: "deleted" });
   });
 });

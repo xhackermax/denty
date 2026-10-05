@@ -6,8 +6,20 @@ function assert(condition: boolean, message: string): void {
 
 assert(isAllowedDentyProxyRoute("GET", "/api/patients"), "GET /api/patients debe estar permitido");
 assert(
+  isAllowedDentyProxyRoute("GET", "/api/patients/patient-1/budgets"),
+  "GET de presupuestos del paciente debe estar permitido",
+);
+assert(
   isAllowedDentyProxyRoute("PATCH", "/api/patients/patient-1"),
   "PATCH dinámico de paciente debe estar permitido",
+);
+assert(
+  isAllowedDentyProxyRoute("PATCH", "/api/budgets/budget-1"),
+  "PATCH de presupuesto debe estar permitido",
+);
+assert(
+  isAllowedDentyProxyRoute("DELETE", "/api/budgets/budget-1"),
+  "DELETE de presupuesto debe estar permitido",
 );
 assert(
   isAllowedDentyProxyRoute("POST", "/api/appointments/a1/arrive"),

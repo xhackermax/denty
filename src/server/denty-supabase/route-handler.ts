@@ -49,8 +49,10 @@ import {
   allocatePaymentSchema,
   createInvoiceDraftSchema,
   createInvoiceSeriesSchema,
+  deleteDraftBudgetQuerySchema,
   finalizeBudgetSignatureInputSchema,
   rectifyInvoiceSchema,
+  updateDraftBudgetSchema,
   updateBillingSettingsSchema,
 } from "@/shared/api/schemas/billing";
 import { analyticsQuerySchema } from "@/shared/api/schemas/analytics";
@@ -152,6 +154,32 @@ function json(status: number, body: unknown, headers?: Headers): Response {
 }
 function error(status: number, code: string, message: string, details?: unknown): Response {
   return json(status, { error: { code, message, details } });
+}
+function budgetMutationError(status: string): Response {
+  switch (status) {
+    case "not_found":
+      return error(404, "BUDGET_NOT_FOUND", "No se encontró el presupuesto de este paciente.");
+    case "version_conflict":
+      return error(409, "BUDGET_VERSION_CONFLICT", "El presupuesto cambió. Actualiza la ficha.");
+    case "not_editable":
+      return error(
+        409,
+        "BUDGET_NOT_EDITABLE",
+        "Solo se pueden editar o eliminar presupuestos en borrador.",
+      );
+    case "linked":
+      return error(
+        409,
+        "BUDGET_ALREADY_LINKED",
+        "Este presupuesto tiene firma o movimientos asociados y no se puede modificar.",
+      );
+    case "invalid_items":
+      return error(400, "BUDGET_ITEMS_INVALID", "Revisa los importes del presupuesto.");
+    case "forbidden":
+      return error(403, "FORBIDDEN", "No tienes permiso para modificar este presupuesto.");
+    default:
+      return error(409, "BUDGET_MUTATION_FAILED", "No se pudo modificar el presupuesto.");
+  }
 }
 function segments(pathname: string): string[] {
   return pathname.split("/").filter(Boolean);
@@ -1441,6 +1469,37 @@ export async function handleSupabaseDentyRoute(
       const denied = requireActorPermission(identity, "finance.read");
       if (denied) return denied;
       return json(200, await finance.listBudgets(), headers);
+    }
+    if (parts.length === 3 && parts[0] === "api" && parts[1] === "budgets") {
+      if (
+        !identity.actor.permissions.includes("clinical.write") &&
+        !identity.actor.permissions.includes("finance.write")
+      ) {
+        return error(403, "FORBIDDEN", "No tienes permiso para modificar presupuestos clínicos.");
+      }
+      const budgetId = decodeURIComponent(parts[2] ?? "");
+      if (method === "PATCH") {
+        const payload = await parseJson(request, updateDraftBudgetSchema);
+        const result = await clinical.updateDraftBudget(payload.patientId, budgetId, payload);
+        if (result.status !== "updated") return budgetMutationError(result.status);
+        return json(200, { budget: result.budget }, headers);
+      }
+      if (method === "DELETE") {
+        const params = new URL(request.url).searchParams;
+        const parsed = deleteDraftBudgetQuerySchema.safeParse({
+          patientId: params.get("patientId"),
+          expectedVersion: params.get("expectedVersion"),
+        });
+        if (!parsed.success)
+          return error(400, "VALIDATION_ERROR", "La versión del presupuesto no es válida.");
+        const result = await clinical.deleteDraftBudget(
+          parsed.data.patientId,
+          budgetId,
+          parsed.data.expectedVersion,
+        );
+        if (result.status !== "deleted") return budgetMutationError(result.status);
+        return json(200, { deleted: true }, headers);
+      }
     }
     if (
       parts.length === 4 &&
@@ -2806,6 +2865,22 @@ export async function handleSupabaseDentyRoute(
         await clinical.createBudgetFromPlanItems(decodeURIComponent(parts[2] ?? ""), payload),
         headers,
       );
+    }
+    if (
+      parts.length === 4 &&
+      parts[0] === "api" &&
+      parts[1] === "patients" &&
+      parts[3] === "budgets" &&
+      method === "GET"
+    ) {
+      if (
+        !identity.actor.permissions.includes("clinical.read") &&
+        !identity.actor.permissions.includes("finance.read")
+      ) {
+        return error(403, "FORBIDDEN", "No tienes permiso para consultar presupuestos.");
+      }
+      const patientId = decodeURIComponent(parts[2] ?? "");
+      return json(200, await clinical.listPatientBudgets(patientId), headers);
     }
     if (
       parts.length === 4 &&

@@ -178,7 +178,7 @@ test("a bridge picked on the chart is confirmed right there, both ends marked", 
   if (reactivate) fireEvent.click(reactivate);
   fireEvent.click(screen.getByRole("button", { name: "Diente 34" }));
   fireEvent.click(screen.getByRole("button", { name: "Diente 36" }));
-  expect(screen.getByRole("button", { name: "Diente 36" })).toHaveAttribute(
+  expect(screen.getByRole("button", { name: "Diente 36, pilar del puente" })).toHaveAttribute(
     "data-prosthesis-endpoint",
     "true",
   );
@@ -204,11 +204,11 @@ test("a bridge picked on the chart is confirmed right there, both ends marked", 
       .filter((entity) => entity.entityType === "PONTIC")
       .map((entity) => entity.tooth),
   ).toEqual(["35"]);
-  expect(screen.getByRole("button", { name: "Diente 34" })).toHaveAttribute(
+  expect(screen.getByRole("button", { name: "Diente 34, pilar del puente" })).toHaveAttribute(
     "data-prosthesis-endpoint",
     "true",
   );
-  expect(screen.getByRole("button", { name: "Diente 36" })).toHaveAttribute(
+  expect(screen.getByRole("button", { name: "Diente 36, pilar del puente" })).toHaveAttribute(
     "data-prosthesis-endpoint",
     "true",
   );

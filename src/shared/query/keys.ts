@@ -32,6 +32,7 @@ export const dentyQueryKeys = {
     snapshots: (patientId: string) =>
       ["denty", "clinical", patientId, "odontogram", "snapshots"] as const,
     plan: (patientId: string) => ["denty", "clinical", patientId, "plan"] as const,
+    budgets: (patientId: string) => ["denty", "clinical", patientId, "budgets"] as const,
     workflow: (patientId: string) => ["denty", "clinical", patientId, "workflow"] as const,
     sync: (patientId: string) => ["denty", "clinical", patientId, "sync"] as const,
     consents: (patientId: string) => ["denty", "clinical", patientId, "consents"] as const,

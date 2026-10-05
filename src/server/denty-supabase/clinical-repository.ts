@@ -82,6 +82,7 @@ interface BudgetRow {
   code: string;
   status: string;
   total_cents: number;
+  created_at: string;
   source_plan_version: number | null;
   revision: number;
   version: number;
@@ -104,9 +105,21 @@ interface BudgetItemRow {
   clinical_plan_item_id: string | null;
   description: string;
   tooth: string | null;
+  billing_mode: "separate" | "included" | "no_charge";
+  quantity: number;
   unit_price_cents: number;
   total_cents: number;
 }
+
+type DraftBudgetMutationStatus =
+  | "updated"
+  | "deleted"
+  | "not_found"
+  | "version_conflict"
+  | "not_editable"
+  | "linked"
+  | "invalid_items"
+  | "forbidden";
 
 interface ConsentRequirementRow {
   id: string;
@@ -353,6 +366,47 @@ export class ClinicalRepository {
     return { budget, sync: await this.getClinicalSync(patientId) };
   }
 
+  async updateDraftBudget(
+    patientId: string,
+    budgetId: string,
+    input: {
+      expectedVersion: number;
+      title: string | null;
+      items: Array<{ id: string; unitPriceCents: number }>;
+    },
+  ) {
+    const result = await this.client.rpc<{ status: DraftBudgetMutationStatus }>(
+      "update_draft_budget",
+      {
+        p_budget_id: budgetId,
+        p_patient_id: patientId,
+        p_expected_version: input.expectedVersion,
+        p_title: input.title,
+        p_items: input.items.map((item) => ({
+          id: item.id,
+          unit_price_cents: item.unitPriceCents,
+        })),
+      },
+    );
+    if (result.status === "updated") {
+      const budget = await this.getBudget(budgetId);
+      return budget ? { status: "updated" as const, budget } : { status: "not_found" as const };
+    }
+    return { status: result.status };
+  }
+
+  async deleteDraftBudget(
+    patientId: string,
+    budgetId: string,
+    expectedVersion: number,
+  ): Promise<{ status: DraftBudgetMutationStatus }> {
+    return this.client.rpc("delete_draft_budget", {
+      p_budget_id: budgetId,
+      p_patient_id: patientId,
+      p_expected_version: expectedVersion,
+    });
+  }
+
   async finalizeBudgetSignature(budgetId: string, input: FinalizeBudgetSignatureInput) {
     const result = await this.client.rpc<FinalizeBudgetSignatureRpcResult>(
       "finalize_budget_signature",
@@ -436,6 +490,20 @@ export class ClinicalRepository {
         })),
       route: mappedItems,
       budgets: mappedBudgets.filter(Boolean),
+    };
+  }
+
+  async listPatientBudgets(patientId: string) {
+    const budgets = await this.client.select<BudgetRow>("budgets", {
+      select: "*",
+      clinic_id: `eq.${this.clinicId}`,
+      patient_id: `eq.${patientId}`,
+      order: "created_at.desc,revision.desc",
+    });
+    return {
+      items: (await Promise.all(budgets.map((budget) => this.getBudget(budget.id)))).filter(
+        (budget) => budget !== null,
+      ),
     };
   }
 
@@ -682,6 +750,8 @@ export class ClinicalRepository {
       totalCents: budget.total_cents,
       sourcePlanVersion: budget.source_plan_version,
       version: budget.version,
+      revision: budget.revision,
+      createdAt: budget.created_at,
       scope: budget.scope ?? "plan",
       title: budget.title ?? null,
       items: items.map((item) => ({
@@ -689,6 +759,8 @@ export class ClinicalRepository {
         clinicalPlanItemId: item.clinical_plan_item_id,
         description: item.description,
         tooth: item.tooth,
+        billingMode: item.billing_mode,
+        quantity: item.quantity,
         unitPriceCents: item.unit_price_cents,
         totalCents: item.total_cents,
       })),

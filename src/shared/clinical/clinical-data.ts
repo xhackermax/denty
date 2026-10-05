@@ -25,6 +25,9 @@ export function invalidateClinicalPatient(
     queryKey: dentyQueryKeys.clinical.plan(patientId),
   });
   void queryClient.invalidateQueries({
+    queryKey: dentyQueryKeys.clinical.budgets(patientId),
+  });
+  void queryClient.invalidateQueries({
     queryKey: dentyQueryKeys.clinical.sync(patientId),
   });
   void queryClient.invalidateQueries({
@@ -36,6 +39,14 @@ export function useClinicalPlanQuery(patientId: string, enabled = true) {
   return useQuery({
     queryKey: dentyQueryKeys.clinical.plan(patientId),
     queryFn: () => getBrowserApi().clinical.plan.get(patientId),
+    enabled: enabled && Boolean(patientId),
+  });
+}
+
+export function usePatientBudgetsQuery(patientId: string, enabled = true) {
+  return useQuery({
+    queryKey: dentyQueryKeys.clinical.budgets(patientId),
+    queryFn: () => getBrowserApi().clinical.budgets.listForPatient(patientId),
     enabled: enabled && Boolean(patientId),
   });
 }
@@ -156,6 +167,40 @@ export function useCreateScopedBudgetMutation(patientId: string) {
       clinicalPlanItemIds: string[];
     }) => getBrowserApi().clinical.sync.scopedBudget(patientId, input),
     onSuccess: () => invalidateClinicalPatient(queryClient, patientId),
+  });
+}
+
+export function useUpdateDraftBudgetMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      budgetId: string;
+      expectedVersion: number;
+      title: string | null;
+      items: Array<{ id: string; unitPriceCents: number }>;
+    }) =>
+      getBrowserApi().billing.budgets.updateDraft(input.budgetId, {
+        patientId,
+        expectedVersion: input.expectedVersion,
+        title: input.title,
+        items: input.items,
+      }),
+    onSuccess: () => {
+      invalidateClinicalPatient(queryClient, patientId);
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.finance.root });
+    },
+  });
+}
+
+export function useDeleteDraftBudgetMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { budgetId: string; expectedVersion: number }) =>
+      getBrowserApi().billing.budgets.deleteDraft(input.budgetId, patientId, input.expectedVersion),
+    onSuccess: () => {
+      invalidateClinicalPatient(queryClient, patientId);
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.finance.root });
+    },
   });
 }
 

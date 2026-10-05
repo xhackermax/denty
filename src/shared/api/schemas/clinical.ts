@@ -54,6 +54,8 @@ export const clinicalBudgetItemSchema = z
     description: z.string().min(1),
     tooth: z.string().nullable().optional(),
     unitPriceCents: z.number().int(),
+    quantity: z.number().int().positive().optional(),
+    billingMode: z.enum(["separate", "included", "no_charge"]).optional(),
     totalCents: z.number().int(),
   })
   .passthrough();
@@ -65,11 +67,19 @@ export const clinicalBudgetSchema = z
     status: z.string().min(1),
     totalCents: z.number().int(),
     version: versionSchema.optional(),
+    revision: versionSchema.optional(),
+    createdAt: z.coerce.string().optional(),
     signedFingerprint: z.string().nullable().optional(),
     currentPlanFingerprint: z.string().nullable().optional(),
     scope: z.enum(["plan", "primary", "secondary", "custom"]).default("plan"),
     title: z.string().nullable().optional(),
     items: z.array(clinicalBudgetItemSchema).default([]),
+  })
+  .passthrough();
+
+export const patientBudgetsSchema = z
+  .object({
+    items: z.array(clinicalBudgetSchema),
   })
   .passthrough();
 

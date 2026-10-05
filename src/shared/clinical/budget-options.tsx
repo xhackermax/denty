@@ -35,12 +35,17 @@ export interface BudgetView {
   status: string;
   totalCents: number;
   version?: number | undefined;
+  revision?: number | undefined;
+  createdAt?: string | undefined;
   scope?: string | undefined;
   title?: string | null | undefined;
   items: Array<{
     id: string;
     description: string;
     tooth?: string | null | undefined;
+    unitPriceCents?: number | undefined;
+    quantity?: number | undefined;
+    billingMode?: "separate" | "included" | "no_charge" | undefined;
     totalCents: number;
   }>;
 }

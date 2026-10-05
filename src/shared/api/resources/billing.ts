@@ -7,6 +7,9 @@ import {
   allocatePaymentSchema,
   billingSettingsSchema,
   budgetsSchema,
+  deleteDraftBudgetQuerySchema,
+  deletedDraftBudgetSchema,
+  draftBudgetMutationResultSchema,
   finalizeBudgetSignatureInputSchema,
   finalizedBudgetSignatureSchema,
   createInvoiceDraftSchema,
@@ -18,6 +21,7 @@ import {
   paymentsSchema,
   paymentAllocationSchema,
   rectifyInvoiceSchema,
+  updateDraftBudgetSchema,
   updateBillingSettingsSchema,
   verifactuStatusSchema,
   verifactuSubmissionResultSchema,
@@ -47,6 +51,22 @@ export function createBillingResource(client: ApiClient) {
     },
     budgets: {
       list: () => client.request("/api/budgets", budgetsSchema),
+      updateDraft: (budgetId: string, payload: z.input<typeof updateDraftBudgetSchema>) =>
+        client.mutation(
+          `/api/budgets/${encodeId(budgetId)}`,
+          draftBudgetMutationResultSchema,
+          updateDraftBudgetSchema.parse(payload),
+          { method: "PATCH" },
+        ),
+      deleteDraft: (budgetId: string, patientId: string, expectedVersion: number) => {
+        const query = deleteDraftBudgetQuerySchema.parse({ patientId, expectedVersion });
+        return client.mutation(
+          withQuery(`/api/budgets/${encodeId(budgetId)}`, query),
+          deletedDraftBudgetSchema,
+          {},
+          { method: "DELETE" },
+        );
+      },
       sign: (budgetId: string, payload: z.input<typeof finalizeBudgetSignatureInputSchema>) =>
         client.mutation(
           `/api/budgets/${encodeId(budgetId)}/sign`,
