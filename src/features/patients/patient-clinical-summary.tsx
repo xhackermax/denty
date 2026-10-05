@@ -56,15 +56,15 @@ export function PatientClinicalSummary({ patientId }: PatientClinicalSummaryProp
 
   const problems = workflowQuery.data?.problems ?? [];
   const encounters = workflowQuery.data?.encounters ?? [];
-  const encounterTimeline = encounters.slice(0, 5).reduce<
-    Array<{ date: string; encounters: typeof encounters }>
-  >((groups, encounter) => {
-    const date = encounter.createdAt ? dateDMY(encounter.createdAt) : "Fecha no disponible";
-    const current = groups.find((group) => group.date === date);
-    if (current) current.encounters.push(encounter);
-    else groups.push({ date, encounters: [encounter] });
-    return groups;
-  }, []);
+  const encounterTimeline = encounters
+    .slice(0, 5)
+    .reduce<Array<{ date: string; encounters: typeof encounters }>>((groups, encounter) => {
+      const date = encounter.createdAt ? dateDMY(encounter.createdAt) : "Fecha no disponible";
+      const current = groups.find((group) => group.date === date);
+      if (current) current.encounters.push(encounter);
+      else groups.push({ date, encounters: [encounter] });
+      return groups;
+    }, []);
 
   return (
     <>

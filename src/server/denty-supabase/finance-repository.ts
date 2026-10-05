@@ -8,6 +8,7 @@ import type {
 } from "@/shared/api/schemas/billing";
 import type { PaymentAttempt, PaymentAttemptStore } from "@/server/payments/payment-attempts";
 import type { PaymentProvider } from "@/domain/payment-providers";
+import { buildAccountingCsv } from "./accounting-csv";
 import { SupabaseRestError, type SupabaseRestClient } from "../supabase/rest-client";
 type CreateInvoiceDraft = z.input<typeof createInvoiceDraftSchema>;
 type CreateInvoiceSeries = z.input<typeof createInvoiceSeriesSchema>;
@@ -469,47 +470,18 @@ export class FinanceRepository {
       iq.and = `(${range("issued_at")})`;
       pq.and = `(${range("paid_at")})`;
     }
-    const [ii, pp] = await Promise.all([
+    const [ii, pp, patients] = await Promise.all([
       this.client.select<InvoiceRow>("invoices", iq),
       this.client.select<PaymentRow>("payments", pq),
+      this.client.selectAll<{ id: string; first_name: string; last_name: string }>("patients", {
+        select: "id,first_name,last_name",
+        clinic_id: `eq.${this.clinicId}`,
+      }),
     ]);
-    const q = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
-    const rows = [
-      "tipo,fecha,documento,paciente,base_cents,impuesto_cents,total_cents,metodo,referencia",
-    ];
-    for (const i of ii)
-      rows.push(
-        [
-          "FACTURA",
-          i.issued_at,
-          i.full_number,
-          i.patient_id,
-          i.subtotal_cents,
-          i.tax_cents,
-          i.total_cents,
-          "",
-          "",
-        ]
-          .map(q)
-          .join(","),
-      );
-    for (const p of pp)
-      rows.push(
-        [
-          "COBRO",
-          p.paid_at,
-          p.id,
-          p.patient_id,
-          "",
-          "",
-          p.amount_cents,
-          p.method,
-          p.provider_transaction_id ?? "",
-        ]
-          .map(q)
-          .join(","),
-      );
-    return rows.join("\n") + "\n";
+    const names = new Map(
+      patients.map((p) => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ")]),
+    );
+    return buildAccountingCsv(ii, pp, names);
   }
   async findPaymentAttempt(provider: PaymentProvider, key: string) {
     const rows = await this.client.select<AttemptRow>("payment_attempts", {

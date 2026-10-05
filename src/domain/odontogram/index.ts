@@ -318,11 +318,22 @@ export function bridgeTeethFromEndpoints(from: string, to: string): string[] {
   if (archForTooth(to) !== arch) {
     throw new RangeError("Los extremos del puente deben estar en la misma arcada");
   }
-  const order: string[] = arch === "upper" ? [...PERMANENT_UPPER] : [...PERMANENT_LOWER];
+  const temporaryDentition = /^[5-8]/.test(from);
+  const toIsTemporary = /^[5-8]/.test(to);
+  if (temporaryDentition !== toIsTemporary) {
+    throw new RangeError("Los extremos del puente deben pertenecer a la misma dentición");
+  }
+  const order: string[] = temporaryDentition
+    ? arch === "upper"
+      ? [...TEMPORARY_UPPER]
+      : [...TEMPORARY_LOWER]
+    : arch === "upper"
+      ? [...PERMANENT_UPPER]
+      : [...PERMANENT_LOWER];
   const start = order.indexOf(from);
   const end = order.indexOf(to);
   if (start < 0 || end < 0) {
-    throw new RangeError("Los puentes permanentes requieren dientes FDI permanentes");
+    throw new RangeError("Los extremos del puente deben ser dientes FDI válidos");
   }
   const [low, high] = start <= end ? [start, end] : [end, start];
   const segment = order.slice(low, high + 1);

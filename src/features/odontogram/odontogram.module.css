@@ -1915,3 +1915,29 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 .surface:active {
   filter: brightness(0.92);
 }
+
+.chartToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.nextVisitBar {
+  margin-block: 0.5rem;
+}
+
+.toothButton[data-next-pending] {
+  outline: 2px dashed var(--mantine-color-orange-6);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.toothButton[data-next-picked] {
+  outline-style: solid;
+  background: var(--mantine-color-orange-1);
+}

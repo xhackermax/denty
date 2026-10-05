@@ -87,7 +87,8 @@ describe("domain edge cases", () => {
     expect(() => normalizeSurfaceForTooth("11", "X")).toThrow(/Superficie/);
     expect(() => cycleClinicalState("crown", "caries")).toThrow(/triestado/);
     expect(() => bridgeTeethFromEndpoints("13", "33")).toThrow(/misma arcada/);
-    expect(() => bridgeTeethFromEndpoints("53", "63")).toThrow(/permanentes/);
+    expect(bridgeTeethFromEndpoints("53", "63")).toEqual(["53", "52", "51", "61", "62", "63"]);
+    expect(() => bridgeTeethFromEndpoints("13", "53")).toThrow(/dentición/);
   });
 
   it("validates removable arches and snapshot add/remove/change branches", () => {

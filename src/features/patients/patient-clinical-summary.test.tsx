@@ -89,6 +89,8 @@ describe("PatientClinicalSummary query states", () => {
 
     expect(screen.getByText("05/10/2026")).toBeInTheDocument();
     expect(screen.getByText("Diente 36: Caries.")).toBeInTheDocument();
-    expect(screen.getByText("Próxima: Reconstrucción 36 y valorar endodoncia.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Próxima: Reconstrucción 36 y valorar endodoncia."),
+    ).toBeInTheDocument();
   });
 });

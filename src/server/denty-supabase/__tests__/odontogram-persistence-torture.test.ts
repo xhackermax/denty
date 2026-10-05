@@ -2,8 +2,14 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { createBridgeEntities, DENTAL_ENTITY_TYPES } from "@/domain/odontogram";
 import { validatePeriodontalReading } from "@/domain/periodontal";
-import { periodontalExamInputSchema } from "@/shared/api/schemas/clinical";
+import {
+  dentalEntitySchema,
+  odontogramBatchSchema,
+  periodontalExamInputSchema,
+} from "@/shared/api/schemas/clinical";
+import { domainEntityToApiInput } from "@/shared/odontogram/odontogram-wire";
 
 // Isolated SQL behavior fixture: real checked-in function bodies and pertinent original
 // dental/perio constraints. Auth and unrelated helper functions are explicit stubs.
@@ -142,6 +148,37 @@ describe("SQL persistence torture: isolated original migration functions", () =>
     expect(persistedImplant).toBeDefined();
     expect(component?.parent_id).toBe(persistedImplant!.id);
   });
+  it("persists a primary bridge batch with its pontic and pillar relationships", async () => {
+    const entities = createBridgeEntities("54", "52");
+    const wireEntities = entities.map(domainEntityToApiInput);
+    expect(
+      odontogramBatchSchema.safeParse({ expectedVersion: 1, entities: wireEntities }).success,
+    ).toBe(true);
+
+    const saved = await save(1, wireEntities);
+    const bridge = saved.entities.find((entity) => entity.entity_type === "BRIDGE");
+    const pontic = saved.entities.find((entity) => entity.entity_type === "PONTIC");
+
+    expect(saved.entities).toHaveLength(4);
+    expect(bridge).toBeDefined();
+    expect(pontic?.parent_id).toBe(bridge?.id);
+    expect(saved.entities.filter((entity) => entity.entity_type === "PROSTHESIS")).toHaveLength(2);
+  });
+  it("keeps the API and SQL persistence contracts aligned for every dental entity type", async () => {
+    const entities = DENTAL_ENTITY_TYPES.map((entityType, index) => ({
+      id: `catalog-${index}`,
+      tooth: "11",
+      entityType,
+      status: "planned",
+      active: true,
+    }));
+
+    expect(entities.every((entity) => dentalEntitySchema.safeParse(entity).success)).toBe(true);
+    const saved = await save(1, entities);
+    expect(saved.entities.map((entity) => entity.entity_type).sort()).toEqual(
+      [...DENTAL_ENTITY_TYPES].sort(),
+    );
+  });
   it("SQ007 all-inactive save stores its returned optimistic version durably", async () => {
     const first = await save(1, [implant]);
     const inactive = await save(first.version, [{ ...implant, active: false }]);
@@ -162,9 +199,11 @@ describe("SQL persistence torture: isolated original migration functions", () =>
   it.each([
     ["anatomy", { tooth: "99" }],
     ["entity type", { entityType: "ARBITRARY_TYPE" }],
-    ["status", { status: "arbitrary_invalid" }],
+    ["status", { status: "Invalid status" }],
   ])("BD011 SQL rejects invalid %s", async (_kind, override) => {
-    await expect(save(1, [{ ...implant, ...override }])).rejects.toThrow();
+    const entity = { ...implant, ...override };
+    expect(dentalEntitySchema.safeParse(entity).success).toBe(false);
+    await expect(save(1, [entity])).rejects.toThrow();
     expect((await db.query("select id from dental_entities")).rows).toHaveLength(0);
   });
   it("RG015 stale odontogram source prevents budget sync", async () => {

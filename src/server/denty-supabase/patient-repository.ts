@@ -13,6 +13,7 @@ import type {
   PersistedPeriodontalMeasurement,
 } from "@/shared/api/schemas/clinical";
 
+import { nextRecordNumber } from "./record-number";
 import { SupabaseRestError, type SupabaseRestClient } from "../supabase/rest-client";
 import { currentOdontogramVersion } from "./odontogram-version";
 
@@ -234,20 +235,41 @@ export class PatientRepository {
 
   async createPatient(payload: CreatePatient): Promise<Patient> {
     const clinicId = await this.resolveClinicId();
-    const row = await this.client.insert<PatientRow>("patients", {
-      clinic_id: clinicId,
-      record_number: payload.recordNumber ?? createRecordNumber(),
-      first_name: payload.firstName,
-      last_name: payload.lastName,
-      dni: payload.dni?.trim() || null,
-      phone: payload.phone ?? null,
-      email: payload.email ?? null,
-      birth_date: payload.birthDate ?? null,
-      declared_source: payload.declaredSource ?? null,
-      declared_source_detail: payload.declaredSourceDetail ?? null,
-      declared_campaign_id: payload.declaredCampaignId ?? null,
-      medical_profile: payload.medicalProfile ?? {},
-    });
+    const insertPatient = (recordNumber: string) =>
+      this.client.insert<PatientRow>("patients", {
+        clinic_id: clinicId,
+        record_number: recordNumber,
+        first_name: payload.firstName,
+        last_name: payload.lastName,
+        dni: payload.dni?.trim() || null,
+        phone: payload.phone ?? null,
+        email: payload.email ?? null,
+        birth_date: payload.birthDate ?? null,
+        declared_source: payload.declaredSource ?? null,
+        declared_source_detail: payload.declaredSourceDetail ?? null,
+        declared_campaign_id: payload.declaredCampaignId ?? null,
+        medical_profile: payload.medicalProfile ?? {},
+      });
+    let row: PatientRow;
+    if (payload.recordNumber) {
+      row = await insertPatient(payload.recordNumber);
+    } else {
+      // Two concurrent creations can pick the same number; the unique index rejects one, so retry.
+      for (let attempt = 0; ; attempt++) {
+        const existing = await this.client.selectAll<{ record_number: string }>("patients", {
+          select: "record_number",
+          clinic_id: `eq.${clinicId}`,
+          record_number: "match.^(DNT-)?[0-9]{1,9}$",
+        });
+        try {
+          row = await insertPatient(nextRecordNumber(existing.map((p) => p.record_number)));
+          break;
+        } catch (error) {
+          if (!(error instanceof SupabaseRestError) || error.status !== 409 || attempt >= 4)
+            throw error;
+        }
+      }
+    }
     const confirmed = await this.getPatient(row.id);
     if (!confirmed) {
       throw new SupabaseRestError(
@@ -644,11 +666,4 @@ function currentPeriodontalMeasurements(
     if (!latest.has(key)) latest.set(key, row);
   }
   return [...latest.values()];
-}
-
-function createRecordNumber(): string {
-  return `DNT-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto
-    .randomUUID()
-    .slice(0, 8)
-    .toUpperCase()}`;
 }

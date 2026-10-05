@@ -10,13 +10,16 @@ import parityStyles from "@/shared/ui/parity.module.css";
 interface OdontogramVisitSummaryPanelProps {
   entities: readonly DentalEntity[];
   readOnly: boolean;
+  suggestedNextVisit?: string | undefined;
   saving?: boolean | undefined;
   saveError?: boolean | undefined;
-  onSaveEncounter?: ((input: {
-    narrativeNote: string;
-    nextVisit?: string | undefined;
-    sign: boolean;
-  }) => Promise<unknown>) | undefined;
+  onSaveEncounter?:
+    | ((input: {
+        narrativeNote: string;
+        nextVisit?: string | undefined;
+        sign: boolean;
+      }) => Promise<unknown>)
+    | undefined;
 }
 
 interface VisitSummaryDraft {
@@ -54,7 +57,8 @@ function summarizeEntity(entity: DentalEntity): string {
     const pillars = textList(entity.attributes?.pillars);
     const pontics = textList(entity.attributes?.pontics);
     const teeth = textList(entity.attributes?.teeth);
-    const range = pillars.length >= 2 ? `${pillars[0]}-${pillars[pillars.length - 1]}` : teeth.join("-");
+    const range =
+      pillars.length >= 2 ? `${pillars[0]}-${pillars[pillars.length - 1]}` : teeth.join("-");
     const parts = [
       range ? `Puente ${range}` : "Puente",
       pillars.length ? `pilares ${pillars.join(", ")}` : "",
@@ -65,9 +69,7 @@ function summarizeEntity(entity: DentalEntity): string {
   return `${locationForEntity(entity)}: ${labelForEntity(entity)}${surfacesForEntity(entity)}.`;
 }
 
-export function buildOdontogramVisitSummary(
-  entities: readonly DentalEntity[],
-): VisitSummaryDraft {
+export function buildOdontogramVisitSummary(entities: readonly DentalEntity[]): VisitSummaryDraft {
   const active = entities.filter((entity) => entity.active);
   const parentIds = new Set(active.map((entity) => entity.id));
   const lines = active
@@ -88,6 +90,7 @@ export function buildOdontogramVisitSummary(
 export function OdontogramVisitSummaryPanel({
   entities,
   readOnly,
+  suggestedNextVisit,
   saving = false,
   saveError = false,
   onSaveEncounter,
@@ -97,6 +100,12 @@ export function OdontogramVisitSummaryPanel({
   const [nextVisit, setNextVisit] = useState("");
   const [edited, setEdited] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (suggestedNextVisit === undefined) return;
+    setNextVisit(suggestedNextVisit);
+    setSaved(false);
+  }, [suggestedNextVisit]);
 
   useEffect(() => {
     if (!edited) setSummary(draft.text);
@@ -126,13 +135,13 @@ export function OdontogramVisitSummaryPanel({
               size="xs"
               variant="light"
               disabled={readOnly}
-            onClick={() => {
-              setSummary(draft.text);
-              setEdited(false);
-              setSaved(false);
-            }}
-          >
-            Regenerar desde odontograma
+              onClick={() => {
+                setSummary(draft.text);
+                setEdited(false);
+                setSaved(false);
+              }}
+            >
+              Regenerar desde odontograma
             </Button>
           </Group>
           <Textarea

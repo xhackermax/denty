@@ -75,3 +75,28 @@ it.each(["Gingivectomía", "Regularización ósea", "Férula quirúrgica guiada"
     view.unmount();
   },
 );
+
+it("registers an extra treatment on the same tooth in one batch", () => {
+  const onCommitBatch = vi.fn();
+  const view = render(
+    <MantineProvider>
+      <SurgeryPanel
+        selectedTooth="16"
+        entities={[]}
+        readOnly={false}
+        onCommitBatch={onCommitBatch}
+        onWarning={() => {}}
+      />
+    </MantineProvider>,
+  );
+  fireEvent.click(
+    view.getAllByLabelText("Tratamientos adicionales").find((el) => el.tagName === "INPUT")!,
+  );
+  fireEvent.click(view.getByRole("option", { name: /Injerto/ }));
+  fireEvent.click(view.getByRole("button", { name: "Registrar" }));
+  expect(onCommitBatch.mock.calls[0]?.[0].map((e: { status: string }) => e.status)).toEqual([
+    "extraction_simple",
+    "bone_graft",
+  ]);
+  view.unmount();
+}, 15_000);

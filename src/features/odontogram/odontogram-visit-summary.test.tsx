@@ -7,7 +7,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DentalEntity } from "@/domain";
 import { OdontogramVisitSummaryPanel } from "./odontogram-visit-summary";
 
-function entity(partial: Partial<DentalEntity> & Pick<DentalEntity, "id" | "entityType" | "status">) {
+function entity(
+  partial: Partial<DentalEntity> & Pick<DentalEntity, "id" | "entityType" | "status">,
+) {
   return {
     active: true,
     ...partial,
@@ -76,7 +78,9 @@ describe("OdontogramVisitSummaryPanel", () => {
     render(
       <MantineProvider>
         <OdontogramVisitSummaryPanel
-          entities={[entity({ id: "caries-36", entityType: "CARIES", status: "caries", tooth: "36" })]}
+          entities={[
+            entity({ id: "caries-36", entityType: "CARIES", status: "caries", tooth: "36" }),
+          ]}
           readOnly={false}
           onSaveEncounter={onSave}
         />

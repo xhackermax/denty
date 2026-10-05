@@ -56,6 +56,7 @@ export function QuickDiagnosisBar({
   const [bruxism, setBruxism] = useState(false);
   const [type, setType] = useState("sleep");
   const [certainty, setCertainty] = useState("probable");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedSigns, setSelectedSigns] = useState<string[]>([]);
   const draft =
     category === "periodontal"
@@ -286,8 +287,15 @@ export function QuickDiagnosisBar({
             readOnly={readOnly}
           />
         ))}
-        <details>
-          <summary>Historial de diagnósticos ({query.data?.history.length ?? 0})</summary>
+        <details open={historyOpen}>
+          <summary
+            onClick={(event) => {
+              event.preventDefault();
+              setHistoryOpen((open) => !open);
+            }}
+          >
+            Historial de diagnósticos ({query.data?.history.length ?? 0})
+          </summary>
           <Stack gap="xs">
             {query.data?.history.map((d) => (
               <Group key={d.id} justify="space-between">

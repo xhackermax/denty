@@ -159,7 +159,9 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const upcomingIsToday =
     upcoming !== undefined && dateYMDMadrid(upcoming.startsAt) === todayMadrid(now);
   const showPlannedToday =
-    Boolean(upcomingIsToday && latestNextVisit) && !workflowQuery.isPending && !workflowQuery.isError;
+    Boolean(upcomingIsToday && latestNextVisit) &&
+    !workflowQuery.isPending &&
+    !workflowQuery.isError;
 
   const nextVisitTitle = projectionQuery.isPending
     ? "Cargando citas…"
@@ -175,9 +177,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
       ? "No se pudieron cargar las citas."
       : showPlannedToday && latestNextVisit
         ? latestNextVisit
-      : (upcoming?.reason ??
-        upcoming?.title ??
-        "La agenda no tiene una cita futura activa.");
+        : (upcoming?.reason ?? upcoming?.title ?? "La agenda no tiene una cita futura activa.");
   const economyValue = projectionQuery.isPending
     ? "Cargando…"
     : projectionQuery.isError

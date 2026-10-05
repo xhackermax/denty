@@ -86,6 +86,8 @@ import { PediatricPanel } from "./pediatric-panel";
 import { SupernumeraryPanel } from "./supernumerary-panel";
 import { OdontogramLayerControls } from "./odontogram-layer-controls";
 import { OdontogramVisitSummaryPanel } from "./odontogram-visit-summary";
+import { nextVisitText, pendingTeeth, pendingTreatments } from "./next-visit";
+import { useClinicalPlanQuery } from "@/shared/clinical/clinical-data";
 import { readBrowserStorageItem, writeBrowserStorageItem } from "@/shared/browser/browser-storage";
 import {
   applyViewPreset,
@@ -207,6 +209,8 @@ interface ToothProps {
   prosthesisRange: boolean;
   prosthesisEndpoint: boolean;
   readOnly: boolean;
+  pendingNext: boolean;
+  pickedNext: boolean;
   onSelect: () => void;
   onWholeAction: () => void;
   onSurfaceAction: (surface: ToothSurface) => void;
@@ -230,6 +234,8 @@ function Tooth({
   prosthesisRange,
   prosthesisEndpoint,
   readOnly,
+  pendingNext,
+  pickedNext,
   onSelect,
   onWholeAction,
   onSurfaceAction,
@@ -298,6 +304,9 @@ function Tooth({
       className={styles.toothButton}
       type="button"
       data-selected={selected}
+      data-next-pending={pendingNext || undefined}
+      data-next-picked={pickedNext || undefined}
+      aria-pressed={pendingNext ? pickedNext : undefined}
       data-prosthesis-range={prosthesisRange}
       data-prosthesis-endpoint={prosthesisEndpoint}
       data-arch={arch}
@@ -481,6 +490,20 @@ function OdontogramEditor({
   historyRef.current = history;
   const [tool, setTool] = useState<ToothState>("caries");
   const [placementMode, setPlacementMode] = useState<"tooth" | "bridge">("tooth");
+  const [chartOpen, setChartOpen] = useState(true);
+  const [nextVisitMode, setNextVisitMode] = useState(false);
+  const [pickedNext, setPickedNext] = useState<ReadonlySet<string>>(new Set());
+  const planQuery = useClinicalPlanQuery(patientId);
+  const pending = useMemo(() => pendingTreatments(planQuery.data?.items ?? []), [planQuery.data]);
+  const pendingToothSet = useMemo(() => pendingTeeth(pending), [pending]);
+  const nextVisitSuggestion = useMemo(
+    () => nextVisitText(pending, pickedNext),
+    [pending, pickedNext],
+  );
+  const [lastMacro, setLastMacro] = useState<{
+    template: "implant" | "endo";
+    tooth: string;
+  } | null>(null);
   const [selectedTooth, setSelectedTooth] = useState(() => {
     if (initialAction === "implant-surgery") {
       const plannedImplant = initialEntities.find(
@@ -655,12 +678,14 @@ function OdontogramEditor({
     );
   };
   const commitBatch = (batch: readonly DentalEntity[]) => {
-    if (historical) return;
-    setHistory((current) => {
-      const result = executeValidatedOdontogramBatch(current, batch);
-      setClinicalRuleMessage(result.evaluation.messages[0] ?? null);
-      return result.history;
-    });
+    if (historical) return false;
+    const current = historyRef.current;
+    const result = executeValidatedOdontogramBatch(current, batch);
+    setClinicalRuleMessage(result.evaluation.messages[0] ?? null);
+    if (result.history === current) return false;
+    historyRef.current = result.history;
+    setHistory(result.history);
+    return true;
   };
   const applyWhole = (tooth: string, status = tool) => {
     // A tool whose layer is hidden would leave a mark nobody can see.
@@ -716,9 +741,11 @@ function OdontogramEditor({
       setBridgeTo(tooth);
       setBridgePick("from");
       setBridgeError(null);
-    } catch {
+    } catch (error) {
       setBridgeTo(null);
-      setBridgeError("Usa dientes de la misma arcada.");
+      setBridgeError(
+        error instanceof Error ? error.message : "No se pudieron validar los extremos del puente.",
+      );
     }
   };
   const applySurface = (tooth: string, surface: ToothSurface) => {
@@ -797,8 +824,9 @@ function OdontogramEditor({
       setBridgeError(error instanceof Error ? error.message : "No se pudo crear la prótesis.");
       return;
     }
-    commitBatch(entitiesToAdd);
-    if (template === "bridge") {
+    const applied = commitBatch(entitiesToAdd);
+    if (template !== "bridge" && applied) setLastMacro({ template, tooth: selectedTooth });
+    if (template === "bridge" && applied) {
       setBridgeError(null);
       setBridgeFrom(null);
       setBridgeTo(null);
@@ -826,7 +854,20 @@ function OdontogramEditor({
             (tooth === bridgeFrom || tooth === bridgeTo || persistedBridgeEndpoints.has(tooth))
           }
           readOnly={historical || !activeToolVisible}
+          pendingNext={nextVisitMode && pendingToothSet.has(tooth)}
+          pickedNext={nextVisitMode && pickedNext.has(tooth)}
           onSelect={() => {
+            if (nextVisitMode) {
+              setSelectedTooth(tooth);
+              if (pendingToothSet.has(tooth)) {
+                setPickedNext((current) => {
+                  const next = new Set(current);
+                  if (!next.delete(tooth)) next.add(tooth);
+                  return next;
+                });
+              }
+              return;
+            }
             if (placementMode === "bridge") {
               pickBridgeTooth(tooth);
               return;
@@ -989,6 +1030,7 @@ function OdontogramEditor({
 
       <OdontogramVisitSummaryPanel
         entities={entities}
+        suggestedNextVisit={nextVisitSuggestion}
         readOnly={historical}
         saving={encounterMutation.isPending}
         saveError={encounterMutation.isError}
@@ -998,16 +1040,22 @@ function OdontogramEditor({
       <MouthStateProvider state={mouthState}>
         <section className={styles.chartPanel}>
           <div className={styles.chartHeader}>
-            <div>
+            <button
+              type="button"
+              className={styles.chartToggle}
+              aria-expanded={chartOpen}
+              onClick={() => setChartOpen((open) => !open)}
+            >
               <Text fw={850}>Odontograma</Text>
-            </div>
+              <span aria-hidden="true">{chartOpen ? "?" : "?"}</span>
+            </button>
             {!viewState.visibleLayerIds.includes("general") ? (
               <Text size="xs" c="dimmed">
                 Anatomía, identidad y presencia permanecen visibles.
               </Text>
             ) : null}
           </div>
-          {viewState.visibleLayerIds.includes("general") ? (
+          {chartOpen && viewState.visibleLayerIds.includes("general") ? (
             <>
               <OdontogramLegend
                 selection={legendSelection}
@@ -1050,21 +1098,43 @@ function OdontogramEditor({
               ) : null}
             </>
           ) : null}
-          <div className={styles.archBlock}>
-            <Text className={styles.archLabel} fw={800}>
-              Maxilar
-            </Text>
-            {renderArch(arches.upper)}
-          </div>
-          <div className={styles.occlusalPlane}>
-            <span>Plano oclusal</span>
-          </div>
-          <div className={styles.archBlock}>
-            {renderArch(arches.lower)}
-            <Text className={styles.archLabel} fw={800}>
-              Mandíbula
-            </Text>
-          </div>
+          {chartOpen ? (
+            <>
+              <Group gap="xs" className={styles.nextVisitBar}>
+                <Button
+                  size="xs"
+                  variant={nextVisitMode ? "filled" : pending.length ? "light" : "default"}
+                  aria-pressed={nextVisitMode}
+                  disabled={historical}
+                  onClick={() => setNextVisitMode((on) => !on)}
+                >
+                  Marcar próxima cita
+                </Button>
+                {pending.length ? (
+                  <Text size="xs" c="dimmed">
+                    {nextVisitMode
+                      ? `${pickedNext.size} de ${pendingToothSet.size} piezas marcadas. Toca los dientes resaltados.`
+                      : `${pendingToothSet.size} piezas con tratamiento pendiente en el presupuesto.`}
+                  </Text>
+                ) : null}
+              </Group>
+              <div className={styles.archBlock}>
+                <Text className={styles.archLabel} fw={800}>
+                  Maxilar
+                </Text>
+                {renderArch(arches.upper)}
+              </div>
+              <div className={styles.occlusalPlane}>
+                <span>Plano oclusal</span>
+              </div>
+              <div className={styles.archBlock}>
+                {renderArch(arches.lower)}
+                <Text className={styles.archLabel} fw={800}>
+                  Mandíbula
+                </Text>
+              </div>
+            </>
+          ) : null}
         </section>
 
         <QuickDiagnosisBar
@@ -1251,7 +1321,14 @@ function OdontogramEditor({
                 </Button>
                 <Button
                   size="xs"
-                  variant="light"
+                  variant={
+                    lastMacro?.template === "implant" && lastMacro.tooth === selectedTooth
+                      ? "filled"
+                      : "light"
+                  }
+                  aria-pressed={
+                    lastMacro?.template === "implant" && lastMacro.tooth === selectedTooth
+                  }
                   disabled={historical || !activeToolVisible}
                   onClick={() => applyTemplate("implant")}
                 >
@@ -1259,7 +1336,12 @@ function OdontogramEditor({
                 </Button>
                 <Button
                   size="xs"
-                  variant="light"
+                  variant={
+                    lastMacro?.template === "endo" && lastMacro.tooth === selectedTooth
+                      ? "filled"
+                      : "light"
+                  }
+                  aria-pressed={lastMacro?.template === "endo" && lastMacro.tooth === selectedTooth}
                   disabled={historical || !activeToolVisible}
                   onClick={() => applyTemplate("endo")}
                 >
@@ -1267,7 +1349,8 @@ function OdontogramEditor({
                 </Button>
                 <Button
                   size="xs"
-                  variant="light"
+                  variant={placementMode === "bridge" ? "filled" : "light"}
+                  aria-pressed={placementMode === "bridge"}
                   disabled={historical || !activeToolVisible}
                   onClick={() => selectTool("prosthesis_pending", "bridge")}
                 >

@@ -18,6 +18,14 @@ const ENDODONTIC_TOOTH_PATH =
   "C25 87 29 88 32 75 C35 88 39 87 40 81 C44 62 " +
   "44 48 48 41 C54 31 55 18 51 9 C45 3 39 4 32 8 " +
   "C25 4 19 3 13 9 Z";
+export const ENDODONTIC_TREATMENTS = [
+  { value: "endo", label: "Endodoncia" },
+  { value: "retreatment", label: "Reendodoncia" },
+  { value: "apicoectomy", label: "Apicectom�a" },
+  { value: "pulp_capping", label: "Recubrimiento pulpar" },
+  { value: "pulpotomy", label: "Pulpotom�a" },
+  { value: "pulpectomy", label: "Pulpectom�a" },
+] as const;
 interface EndodonticPanelProps {
   selectedTooth: string;
   readOnly: boolean;
@@ -28,6 +36,7 @@ export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: Endodonti
   const blocked = readOnly || !isEndoCandidate(mouth, selectedTooth);
   const [pulpalDiagnosis, setPulpalDiagnosis] = useState<PulpalDiagnosis>("Necrosis pulpar");
   const [apicalDiagnosis, setApicalDiagnosis] = useState<ApicalDiagnosis>("Absceso apical cronico");
+  const [treatment, setTreatment] = useState<string>("endo");
   const visualCode = useMemo(
     () => endodonticVisualCodeForApicalDiagnosis(apicalDiagnosis),
     [apicalDiagnosis],
@@ -98,6 +107,36 @@ export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: Endodonti
           }
         >
           Guardar y dibujar en {selectedTooth}
+        </Button>
+      </Group>
+
+      <Group mt="md" align="end" justify="flex-end">
+        <Select
+          label="Tipo de tratamiento"
+          value={treatment}
+          data={ENDODONTIC_TREATMENTS.map(({ value, label }) => ({ value, label }))}
+          onChange={(value) => setTreatment(value ?? "endo")}
+          disabled={blocked}
+        />
+        <Button
+          size="xs"
+          disabled={blocked}
+          onClick={() =>
+            onCommit({
+              id: `endo-treatment-${selectedTooth}`,
+              tooth: selectedTooth,
+              entityType: "ENDO",
+              status: treatment,
+              attributes: {
+                treatment: ENDODONTIC_TREATMENTS.find((item) => item.value === treatment)?.label,
+                pulpalDiagnosis,
+                apicalDiagnosis,
+              },
+              active: true,
+            })
+          }
+        >
+          Registrar tratamiento en {selectedTooth}
         </Button>
       </Group>
 

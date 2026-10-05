@@ -34,13 +34,7 @@ export function FinanceModule() {
   const summaryMetric = (value: number | undefined, label: string) => {
     if (finance.summary.isError) return "No disponible";
     if (finance.summary.isPending) return "Cargando…";
-    return (
-      <MotionNumber
-        value={(value ?? 0) / 100}
-        format="currency"
-        ariaLabel={label}
-      />
-    );
+    return <MotionNumber value={(value ?? 0) / 100} format="currency" ariaLabel={label} />;
   };
   const summaryEuro = (value: number | undefined) =>
     finance.summary.isError
@@ -115,9 +109,7 @@ export function FinanceModule() {
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Pendiente Verifactu</span>
-          <strong className={styles.metricValue}>
-            {verifactuCount}
-          </strong>
+          <strong className={styles.metricValue}>{verifactuCount}</strong>
         </div>
       </SimpleGrid>
 

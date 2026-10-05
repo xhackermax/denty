@@ -96,11 +96,7 @@ export function Dashboard() {
       ? "Alertas no disponibles"
       : `${alerts.data?.openCount ?? 0} alertas`;
   const financeValue = (cents: number | undefined) =>
-    finance.isError
-      ? "No disponible"
-      : finance.isPending
-        ? "Cargando…"
-        : formatEUR(cents ?? 0);
+    finance.isError ? "No disponible" : finance.isPending ? "Cargando…" : formatEUR(cents ?? 0);
 
   return (
     <div className={styles.grid}>

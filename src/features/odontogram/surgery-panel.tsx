@@ -2,7 +2,7 @@
 
 import { isSurgicalSite } from "@/domain/odontogram/mouth-state";
 import { useMouthState } from "./mouth-state-context";
-import { Badge, Button, Group, Select, Text } from "@mantine/core";
+import { Badge, Button, Group, MultiSelect, Select, Text } from "@mantine/core";
 import {
   SURGERY_PROCEDURES,
   archForTooth,
@@ -37,6 +37,7 @@ export function SurgeryPanel({
 }: SurgeryPanelProps) {
   const mouth = useMouthState();
   const [procedure, setProcedure] = useState<string>("extraction_simple");
+  const [extraProcedures, setExtraProcedures] = useState<string[]>([]);
   const [state, setState] = useState<"PLANIFICADO" | "REALIZADO">("PLANIFICADO");
   const [implantDesign, setImplantDesign] = useState<ImplantProstheticDesign>("UNIT_TIBASE");
   const [arch, setArch] = useState(archForTooth(selectedTooth));
@@ -54,7 +55,16 @@ export function SurgeryPanel({
       return;
     }
     try {
-      onCommitBatch([createSurgeryEntity(procedure, selectedTooth, state, entities, arch)]);
+      const procedures = [procedure, ...extraProcedures.filter((item) => item !== procedure)];
+      if (procedures.some((item) => !isSurgicalSite(mouth, selectedTooth, item))) {
+        onWarning("Alg�n tratamiento adicional no es aplicable a esta pieza.");
+        return;
+      }
+      onCommitBatch(
+        procedures
+          .filter((item) => item !== "implant_planned")
+          .map((item) => createSurgeryEntity(item, selectedTooth, state, entities, arch)),
+      );
     } catch (error) {
       onWarning(error instanceof Error ? error.message : "No se pudo registrar el procedimiento");
     }
@@ -78,6 +88,17 @@ export function SurgeryPanel({
           onChange={(value) => setProcedure(value ?? procedure)}
           data={SURGERY_PROCEDURES.map(({ value, label }) => ({ value, label }))}
           disabled={readOnly}
+        />
+        <MultiSelect
+          label="Tratamientos adicionales"
+          placeholder="Ej. regeneración ósea guiada"
+          value={extraProcedures}
+          onChange={setExtraProcedures}
+          data={SURGERY_PROCEDURES.filter(
+            ({ value }) => value !== procedure && value !== "implant_planned",
+          ).map(({ value, label }) => ({ value, label }))}
+          disabled={readOnly || procedure === "implant_planned"}
+          clearable
         />
         <Select
           label="Estado"
