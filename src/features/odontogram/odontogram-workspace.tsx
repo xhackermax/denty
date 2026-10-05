@@ -82,6 +82,7 @@ import { OrthodonticPanel } from "./orthodontic-panel";
 import { PediatricPanel } from "./pediatric-panel";
 import { SupernumeraryPanel } from "./supernumerary-panel";
 import { OdontogramLayerControls } from "./odontogram-layer-controls";
+import { OdontogramVisitSummaryPanel } from "./odontogram-visit-summary";
 import { readBrowserStorageItem, writeBrowserStorageItem } from "@/shared/browser/browser-storage";
 import {
   applyViewPreset,
@@ -981,6 +982,8 @@ function OdontogramEditor({
           />
         </div>
       ) : null}
+
+      <OdontogramVisitSummaryPanel entities={entities} readOnly={historical} />
 
       <MouthStateProvider state={mouthState}>
         <QuickDiagnosisBar

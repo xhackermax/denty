@@ -87,7 +87,12 @@ test("edits save themselves, keep the editor in place and bring plan and budget 
 
   expect(screen.getByText("Lucía Martín · DNT-0042")).toBeInTheDocument();
   expect(screen.getByText("Se guarda automáticamente")).toBeInTheDocument();
+  expect(screen.getByText("Visita de hoy")).toBeInTheDocument();
+  expect(screen.getByLabelText("Resumen editable de hoy")).toHaveValue(
+    "Sin hallazgos registrados hoy en el odontograma.",
+  );
   fireEvent.click(screen.getByRole("button", { name: "Aplicar al diente seleccionado" }));
+  expect(screen.getByLabelText("Resumen editable de hoy")).toHaveValue("Diente 25: Caries.");
   expect(screen.getByText("Cambios pendientes…")).toBeInTheDocument();
 
   await waitFor(() => expect(api.batch).toHaveBeenCalledTimes(1), { timeout: 3000 });
