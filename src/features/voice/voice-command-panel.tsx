@@ -370,17 +370,7 @@ function VoicePreviewCard({
           </Text>
         ))}
 
-        <Group
-          justify="flex-end"
-          gap="xs"
-          style={{
-            position: "sticky",
-            bottom: 0,
-            zIndex: 1,
-            padding: "8px 0",
-            background: "var(--mantine-color-body)",
-          }}
-        >
+        <Group justify="flex-end" gap="xs" className={styles.stickyActions}>
           <Button variant="default" size="sm" radius="xl" onClick={onCancel}>
             Cancelar
           </Button>

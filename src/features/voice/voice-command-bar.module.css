@@ -119,3 +119,12 @@
     display: none;
   }
 }
+
+/* Keeps Cancel/Confirm reachable when a long transcript scrolls the preview. */
+.stickyActions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 8px 0;
+  background: var(--mantine-color-body);
+}
