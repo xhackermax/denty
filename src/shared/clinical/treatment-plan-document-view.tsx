@@ -16,6 +16,8 @@ import { PrintNotice, usePrintNotice } from "@/shared/print/print-notice";
 import { printHtml } from "@/shared/print/print-html";
 import styles from "@/shared/ui/parity.module.css";
 
+import documentStyles from "./treatment-plan-document.module.css";
+
 /**
  * "Documento del plan": the plan explained to the patient in plain language, phase by phase,
  * with why each treatment is needed, its pros and cons, the alternatives and why it comes in that
@@ -75,7 +77,7 @@ export function TreatmentPlanDocumentButton({
                 {phase.purpose}
               </Text>
               {phase.steps.map((step) => (
-                <article key={step.family} className={styles.row} style={{ display: "block" }}>
+                <article key={step.family} className={documentStyles.step}>
                   <Text fw={700}>
                     {step.order}. {step.guide.name}
                     {step.teeth.length ? ` · dientes ${step.teeth.join(", ")}` : ""}
