@@ -8,6 +8,7 @@ import {
   executeValidatedOdontogramCommand,
   type DentalEntity,
 } from "@/domain";
+import { createRemovable } from "@/domain";
 import { deriveMouthState, isProbeable, isSurgicalSite } from "@/domain/odontogram/mouth-state";
 
 const entity = (
@@ -99,5 +100,54 @@ describe("tooth presence", () => {
     const mouth = deriveMouthState([entity("PEDIATRIC", "impacted")]);
     expect(isSurgicalSite(mouth, "36", "extraction_surgical")).toBe(true);
     expect(isSurgicalSite(mouth, "36", "extraction_simple")).toBe(false);
+  });
+});
+
+describe("tooth replaced by a removable prosthesis", () => {
+  const removable = entity("REMOVABLE", "removable_completed");
+
+  it.each([
+    ["root canal", entity("ENDO", "endo_completed")],
+    ["filling", entity("RESTORATION", "filling", { surfaces: ["O"] })],
+    ["post", entity("POST", "post")],
+    ["caries", entity("CARIES", "caries")],
+  ])("does not admit a %s", (_name, natural) => {
+    const evaluation = evaluateClinicalAction(natural, [removable]);
+    expect(evaluation.outcome).toBe("BLOCK");
+    expect(evaluation.messages.join(" ")).toMatch(/removible/);
+  });
+
+  it("is blocked whichever is recorded first", () => {
+    expect(evaluateClinicalAction(removable, [entity("ENDO", "endo_completed")]).outcome).toBe(
+      "BLOCK",
+    );
+  });
+
+  it("is blocked inside one batch, saving neither", () => {
+    const history = createBoundedHistory(createOdontogramEntityState());
+    const result = executeValidatedOdontogramBatch(history, [
+      removable,
+      entity("ENDO", "endo_indicated"),
+    ]);
+    expect(result.evaluation.outcome).toBe("BLOCK");
+    expect(result.history).toBe(history);
+  });
+
+  it("applies to every tooth an arch removable replaces, and only those", () => {
+    const partial = createRemovable("lower", ["36", "35"]);
+    expect(evaluateClinicalAction(entity("ENDO", "endo_indicated"), [partial]).outcome).toBe(
+      "BLOCK",
+    );
+    expect(
+      evaluateClinicalAction({ ...entity("ENDO", "endo_indicated"), tooth: "34" }, [partial])
+        .outcome,
+    ).not.toBe("BLOCK");
+  });
+
+  it("still lets an abutment tooth of the removable be treated", () => {
+    const overdenture = { ...removable, attributes: { abutments: ["36"] } };
+    expect(
+      evaluateClinicalAction(entity("ENDO", "endo_indicated"), [overdenture]).outcome,
+    ).not.toBe("BLOCK");
   });
 });

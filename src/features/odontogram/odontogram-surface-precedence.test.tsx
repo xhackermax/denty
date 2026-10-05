@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { NavigationProvider } from "@/shared/navigation/navigation-provider";
 import { dentyQueryKeys } from "@/shared/query";
@@ -168,5 +168,100 @@ test("a filling on one face of a multi-face caries leaves the other faces cariou
     "caries",
   );
   await waitFor(() => expect(api.batch).toHaveBeenCalledTimes(1), { timeout: 3000 });
+  client.clear();
+}, 15_000);
+
+test("a bridge picked on the chart is confirmed right there, both ends marked", async () => {
+  const client = renderChart([]);
+  fireEvent.click(screen.getByRole("button", { name: /^Prótesis fija \/ puente\. / }));
+  const reactivate = screen.queryByRole("button", { name: "Reactivar capa" });
+  if (reactivate) fireEvent.click(reactivate);
+  fireEvent.click(screen.getByRole("button", { name: "Diente 34" }));
+  fireEvent.click(screen.getByRole("button", { name: "Diente 36" }));
+  expect(screen.getByRole("button", { name: "Diente 36" })).toHaveAttribute(
+    "data-prosthesis-endpoint",
+    "true",
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Aplicar puente 34 → 36" }));
+  await waitFor(() => expect(api.batch).toHaveBeenCalledTimes(1), { timeout: 3000 });
+  const [, payload] = api.batch.mock.calls[0] as [
+    string,
+    { entities: { entityType: string; tooth?: string }[] },
+  ];
+  const abutments = payload.entities
+    .filter((entity) => entity.entityType === "PROSTHESIS")
+    .map((entity) => entity.tooth);
+  expect(abutments).toEqual(["34", "35", "36"]);
+  expect(screen.getByRole("button", { name: "Diente 34" })).toHaveAttribute(
+    "data-prosthesis-endpoint",
+    "true",
+  );
+  expect(screen.getByRole("button", { name: "Diente 36" })).toHaveAttribute(
+    "data-prosthesis-endpoint",
+    "true",
+  );
+  client.clear();
+}, 15_000);
+
+test("a bridge in progress can be cancelled from the chart", () => {
+  const client = renderChart([]);
+  fireEvent.click(screen.getByRole("button", { name: /^Prótesis fija \/ puente\. / }));
+  const reactivate = screen.queryByRole("button", { name: "Reactivar capa" });
+  if (reactivate) fireEvent.click(reactivate);
+  fireEvent.click(screen.getByRole("button", { name: "Diente 34" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancelar puente" }));
+  expect(screen.getByRole("button", { name: "Diente 34" })).toHaveAttribute(
+    "data-prosthesis-endpoint",
+    "false",
+  );
+  client.clear();
+});
+
+test("resetting the chart asks first, clears every mark, saves it and can be undone", async () => {
+  const client = renderChart([
+    {
+      id: "c1",
+      tooth: "36",
+      entityType: "CARIES",
+      status: "caries_pending",
+      surfacesJson: ["O"],
+      active: true,
+      version: 2,
+    },
+  ]);
+  fireEvent.click(screen.getByRole("button", { name: "Reiniciar odontograma" }));
+  const dialog = await screen.findByRole("dialog", { name: "¿Reiniciar el odontograma?" });
+  expect(occlusal36()).toHaveAttribute("data-state", "caries");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Reiniciar" }));
+
+  expect(occlusal36()).not.toHaveAttribute("data-state", "caries");
+  await waitFor(() => expect(api.batch).toHaveBeenCalledTimes(1), { timeout: 3000 });
+  const [, payload] = api.batch.mock.calls[0] as [string, { entities: { active: boolean }[] }];
+  expect(payload.entities.filter((entity) => entity.active)).toEqual([]);
+
+  fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+  expect(occlusal36()).toHaveAttribute("data-state", "caries");
+  client.clear();
+}, 15_000);
+
+test("cancelling the reset keeps the chart as it was", async () => {
+  const client = renderChart([
+    {
+      id: "c1",
+      tooth: "36",
+      entityType: "CARIES",
+      status: "caries_pending",
+      surfacesJson: ["O"],
+      active: true,
+      version: 2,
+    },
+  ]);
+  fireEvent.click(screen.getByRole("button", { name: "Reiniciar odontograma" }));
+  const dialog = await screen.findByRole("dialog", { name: "¿Reiniciar el odontograma?" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+  expect(occlusal36()).toHaveAttribute("data-state", "caries");
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  expect(api.batch).not.toHaveBeenCalled();
   client.clear();
 }, 15_000);

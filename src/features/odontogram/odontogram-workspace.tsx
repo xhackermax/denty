@@ -8,7 +8,7 @@ import { MouthStateProvider } from "./mouth-state-context";
 import { MouthMiniMap } from "./mouth-mini-map";
 import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
 import { useAutosave, type AutosaveStatus } from "./use-autosave";
-import { Alert, Badge, Button, Group, Select, SimpleGrid, Text } from "@mantine/core";
+import { Alert, Badge, Button, Group, Modal, Select, SimpleGrid, Text } from "@mantine/core";
 import { IconArrowBackUp, IconArrowForwardUp, IconArrowRight } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +26,7 @@ import {
   createEndoPostCrown,
   createImplantStack,
   createOdontogramEntityState,
+  executeOdontogramCommand,
   executeValidatedOdontogramBatch,
   executeValidatedOdontogramCommand,
   redoHistory,
@@ -490,6 +491,7 @@ function OdontogramEditor({
   const [bridgePick, setBridgePick] = useState<"from" | "to">("from");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
   const [advancedToolsOpen, setAdvancedToolsOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [perioEditorOpen, setPerioEditorOpen] = useState(false);
   const [viewState, setViewState] = useState(createInitialOdontogramViewState);
   const [viewPreferenceLoaded, setViewPreferenceLoaded] = useState(false);
@@ -670,6 +672,25 @@ function OdontogramEditor({
       setBridgeError(null);
     }
     setPlacementMode(placement);
+  };
+  // Retiring every mark in one batch keeps it a single undo step and saves an empty chart.
+  const resetChart = () => {
+    setResetOpen(false);
+    if (historical || !entities.length) return;
+    setHistory((current) =>
+      executeOdontogramCommand(current, {
+        type: "UPSERT_ENTITIES",
+        entities: entities.map((entity) => ({ ...entity, active: false })),
+      }),
+    );
+    setClinicalRuleMessage(null);
+    cancelBridge();
+  };
+  const cancelBridge = () => {
+    setBridgeFrom(null);
+    setBridgeTo(null);
+    setBridgePick("from");
+    setBridgeError(null);
   };
   const pickBridgeTooth = (tooth: string) => {
     if (historical) return;
@@ -885,9 +906,39 @@ function OdontogramEditor({
             >
               Rehacer
             </Button>
+            {!historical ? (
+              <Button
+                size="xs"
+                variant="subtle"
+                color="red"
+                disabled={!entities.length}
+                onClick={() => setResetOpen(true)}
+              >
+                Reiniciar odontograma
+              </Button>
+            ) : null}
           </Group>
         }
       />
+      <Modal
+        opened={resetOpen}
+        onClose={() => setResetOpen(false)}
+        title="¿Reiniciar el odontograma?"
+        centered
+      >
+        <Text size="sm">
+          Se quitarán las {entities.length} marcas del odontograma. Quedan en el historial y puedes
+          recuperarlas con Deshacer mientras sigas en esta pantalla.
+        </Text>
+        <Group justify="flex-end" mt="md">
+          <Button variant="default" onClick={() => setResetOpen(false)}>
+            Cancelar
+          </Button>
+          <Button color="red" onClick={resetChart}>
+            Reiniciar
+          </Button>
+        </Group>
+      </Modal>
 
       {failure ? (
         <Alert
@@ -1172,12 +1223,29 @@ function OdontogramEditor({
                   </strong>
                   <span>
                     {bridgeReady && bridgeFrom && bridgeTo
-                      ? `${bridgeFrom} → ${bridgeTo}. ` +
-                        "Pulsa Aplicar prótesis / puente para confirmarlo."
+                      ? `${bridgeFrom} → ${bridgeTo}. Confírmalo para colocarlo.`
                       : bridgePick === "from"
                         ? "Pulsa el primer diente de la prótesis fija."
                         : `Inicio ${bridgeFrom}. Pulsa el último diente de la misma arcada.`}
                   </span>
+                  {/* Confirm next to the chart: the full form lives under "Más herramientas",
+                      out of sight while the dentist is picking teeth. */}
+                  <Group gap="xs">
+                    {bridgeReady && bridgeFrom && bridgeTo ? (
+                      <Button
+                        size="xs"
+                        disabled={historical || !activeToolVisible}
+                        onClick={() => applyTemplate("bridge")}
+                      >
+                        {`Aplicar puente ${bridgeFrom} → ${bridgeTo}`}
+                      </Button>
+                    ) : null}
+                    {bridgeFrom ? (
+                      <Button size="xs" variant="subtle" color="gray" onClick={cancelBridge}>
+                        Cancelar puente
+                      </Button>
+                    ) : null}
+                  </Group>
                 </div>
               ) : null}
             </>

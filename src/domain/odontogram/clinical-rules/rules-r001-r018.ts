@@ -36,6 +36,18 @@ const naturalOnlyTypes = new Set<DentalEntity["entityType"]>([
   "PEDIATRIC",
 ]);
 
+const listedTeeth = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((tooth): tooth is string => typeof tooth === "string") : [];
+
+// Teeth a removable prosthesis stands in for. Abutment teeth (clasps, overdenture roots) stay
+// natural and can still be treated.
+const teethReplacedByRemovable = (entity: DentalEntity): string[] => {
+  if (!entity.active || entity.entityType !== "REMOVABLE") return [];
+  const abutments = listedTeeth(entity.attributes?.abutments);
+  const teeth = entity.tooth ? [entity.tooth] : listedTeeth(entity.attributes?.teeth);
+  return teeth.filter((tooth) => !abutments.includes(tooth));
+};
+
 const implantInPlace = (entity: DentalEntity): boolean =>
   entity.entityType === "IMPLANT" &&
   !entity.attributes?.orthodonticTad &&
@@ -85,6 +97,36 @@ export function evaluateRulesR001R018(
             entity.attributes?.implantSupported !== true),
       ) &&
       decision("R002", "BLOCK", "Implante y diente natural no pueden coexistir."),
+  );
+  // A tooth the removable replaces is not in the mouth: no root canal, filling, post or caries.
+  push(
+    naturalOnlyTypes.has(proposed.entityType) &&
+      proposed.tooth !== undefined &&
+      existing.some(
+        (entity) =>
+          entity.id !== proposed.id && teethReplacedByRemovable(entity).includes(proposed.tooth!),
+      ) &&
+      decision(
+        "R036",
+        "BLOCK",
+        "Un diente sustituido por prótesis removible no admite tratamiento natural.",
+      ),
+  );
+  push(
+    teethReplacedByRemovable(proposed).length > 0 &&
+      existing.some(
+        (entity) =>
+          entity.active &&
+          entity.id !== proposed.id &&
+          naturalOnlyTypes.has(entity.entityType) &&
+          entity.tooth !== undefined &&
+          teethReplacedByRemovable(proposed).includes(entity.tooth),
+      ) &&
+      decision(
+        "R036",
+        "BLOCK",
+        "Un diente sustituido por prótesis removible no admite tratamiento natural.",
+      ),
   );
   // The same invariant from the other side, so the order of the edits cannot get around it.
   push(

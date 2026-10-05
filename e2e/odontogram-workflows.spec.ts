@@ -144,3 +144,66 @@ test("a supernumerary tooth and a control snapshot can be recorded", async ({ pa
   expect(failures).toEqual([]);
   void PATIENT_ID;
 });
+
+test("endodontics is refused on a tooth replaced by a removable prosthesis", async ({ page }) => {
+  const failures = await isolatePage(page);
+  await openOdontogram(page);
+  const removable = page.getByRole("button", { name: /^Prótesis removible\. Realizada\./ });
+  if (!(await removable.isVisible())) await page.getByText("Más tratamientos").click();
+  await removable.click();
+  await reactivateLayerIfHidden(page);
+  await page.getByRole("button", { name: "Diente 46", exact: true }).click();
+  await expectSaved(page, "46", "REMOVABLE", "Removible en 46");
+
+  await page
+    .getByRole("button", { name: /^Endodoncia\. / })
+    .first()
+    .click();
+  await reactivateLayerIfHidden(page);
+  await page.getByRole("button", { name: "Diente 46", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: /prótesis removible/ })).toBeVisible();
+  await page.waitForTimeout(2_000);
+  expect(await savedEntities("46", "ENDO")).toEqual([]);
+  // The page stays responsive: another tooth still takes the root canal.
+  await page.getByRole("button", { name: "Diente 45", exact: true }).click();
+  await expectSaved(page, "45", "ENDO", "Endodoncia en 45");
+  expect(failures).toEqual([]);
+});
+
+test("a bridge picked on the chart is confirmed beside it and marks both ends", async ({
+  page,
+}) => {
+  const failures = await isolatePage(page);
+  await openOdontogram(page);
+  await page.getByRole("button", { name: /^Prótesis fija \/ puente\. / }).click();
+  await reactivateLayerIfHidden(page);
+  await page.getByRole("button", { name: "Diente 34", exact: true }).click();
+  await page.getByRole("button", { name: "Diente 36", exact: true }).click();
+  await page.getByRole("button", { name: "Aplicar puente 34 → 36" }).click();
+  await expectSaved(page, "36", "PROSTHESIS", "Puente 34–36");
+  await page.reload();
+  for (const tooth of ["34", "36"]) {
+    await expect(
+      page.getByRole("button", { name: `Diente ${tooth}`, exact: true }),
+    ).toHaveAttribute("data-prosthesis-endpoint", "true");
+  }
+  expect(failures).toEqual([]);
+});
+
+test("resetting the odontogram clears and saves an empty chart", async ({ page }) => {
+  const failures = await isolatePage(page);
+  await openOdontogram(page);
+  await page.getByRole("button", { name: "Diente 26 superficie oclusal" }).click();
+  await expectSaved(page, "26", "CARIES", "Caries en 26");
+  await page.getByRole("button", { name: "Reiniciar odontograma" }).click();
+  await page
+    .getByRole("dialog", { name: "¿Reiniciar el odontograma?" })
+    .getByRole("button", { name: "Reiniciar" })
+    .click();
+  await expect.poll(async () => (await savedEntities()).length, { timeout: 15_000 }).toBe(0);
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Diente 26 superficie oclusal" }),
+  ).not.toHaveAttribute("data-state", "caries");
+  expect(failures).toEqual([]);
+});
