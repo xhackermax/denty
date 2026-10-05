@@ -34,14 +34,16 @@ async function audit(page: Page, path: string, scheme: "light" | "dark") {
   const { violations } = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
-  const report = violations.map(
-    (violation) =>
-      `${violation.id}: ${violation.nodes
-        .slice(0, 3)
-        .map((node) => node.target.join(" "))
-        .join(" | ")}`,
-  );
-  expect(report).toEqual([]);
+  const report = violations.map((violation) => ({
+    id: violation.id,
+    nodes: violation.nodes.map((node) => ({
+      target: node.target,
+      impact: node.impact,
+      summary: node.failureSummary,
+      checks: [...node.any, ...node.all, ...node.none].map((check) => check.data),
+    })),
+  }));
+  expect(report, JSON.stringify(report, null, 2)).toEqual([]);
   expect(failures).toEqual([]);
 }
 

@@ -6,9 +6,8 @@ import type { ReactNode } from "react";
 import { motionTokens } from "./motion-tokens";
 import styles from "./motion-page.module.css";
 
-// Staff switch sections hundreds of times a day: a slide or an exit animation makes every switch
-// feel slower. A short fade-in only softens the content swap; the old page leaves at once.
-export const PAGE_ENTER = { initial: { opacity: 0 }, duration: 0.12 } as const;
+// Keep foreground contrast stable during frequent page changes; a short positional settle is enough.
+export const PAGE_ENTER = { initial: { y: 4 }, animate: { y: 0 }, duration: 0.12 } as const;
 
 export function MotionPage({
   children,
@@ -24,7 +23,7 @@ export function MotionPage({
     <motion.div
       className={pageClassName}
       initial={reducedMotion ? false : PAGE_ENTER.initial}
-      animate={{ opacity: 1 }}
+      animate={PAGE_ENTER.animate}
       transition={{ duration: PAGE_ENTER.duration, ease: motionTokens.easing.standard }}
     >
       {children}

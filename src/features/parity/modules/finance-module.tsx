@@ -31,6 +31,28 @@ export function FinanceModule() {
     action().catch((error: unknown) => setExportError(error ?? new Error("")));
   };
   const hasError = Object.values(finance).some((query) => query.isError);
+  const summaryMetric = (value: number | undefined, label: string) => {
+    if (finance.summary.isError) return "No disponible";
+    if (finance.summary.isPending) return "Cargando…";
+    return (
+      <MotionNumber
+        value={(value ?? 0) / 100}
+        format="currency"
+        ariaLabel={label}
+      />
+    );
+  };
+  const summaryEuro = (value: number | undefined) =>
+    finance.summary.isError
+      ? "No disponible"
+      : finance.summary.isPending
+        ? "Cargando…"
+        : formatEUR(value ?? 0);
+  const verifactuCount = finance.verifactu.isError
+    ? "No disponible"
+    : finance.verifactu.isPending
+      ? "Cargando…"
+      : (finance.verifactu.data?.counts.pending ?? 0);
   // Stage 13: the clinical pipeline links here (?patientId=…&view=budgets[&action=sign]);
   // the sync card shows the patient's budget and the canonical signature action.
   const budgetPatientId = useSearchParams().get("patientId");
@@ -58,63 +80,43 @@ export function FinanceModule() {
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Producido</span>
           <strong className={styles.metricValue}>
-            <MotionNumber
-              value={(finance.summary.data?.producedCents ?? 0) / 100}
-              format="currency"
-              ariaLabel="Producido"
-            />
+            {summaryMetric(finance.summary.data?.producedCents, "Producido")}
           </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Margen</span>
           <strong className={styles.metricValue}>
-            <MotionNumber
-              value={(finance.summary.data?.marginCents ?? 0) / 100}
-              format="currency"
-              ariaLabel="Margen"
-            />
+            {summaryMetric(finance.summary.data?.marginCents, "Margen")}
           </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Facturado emitido</span>
           <strong className={styles.metricValue}>
-            <MotionNumber
-              value={(finance.summary.data?.invoicedCents ?? 0) / 100}
-              format="currency"
-              ariaLabel="Facturado"
-            />
+            {summaryMetric(finance.summary.data?.invoicedCents, "Facturado")}
           </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Cobrado</span>
           <strong className={styles.metricValue}>
-            <MotionNumber
-              value={(finance.summary.data?.collectedCents ?? 0) / 100}
-              format="currency"
-              ariaLabel="Cobrado"
-            />
+            {summaryMetric(finance.summary.data?.collectedCents, "Cobrado")}
           </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Pendiente de cobro</span>
           <strong className={styles.metricValue}>
-            <MotionNumber
-              value={(finance.summary.data?.pendingCents ?? 0) / 100}
-              format="currency"
-              ariaLabel="Pendiente"
-            />
+            {summaryMetric(finance.summary.data?.pendingCents, "Pendiente")}
           </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Ticket medio</span>
           <strong className={styles.metricValue}>
-            {formatEUR(finance.summary.data?.averageTicketCents ?? 0)}
+            {summaryEuro(finance.summary.data?.averageTicketCents)}
           </strong>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Pendiente Verifactu</span>
           <strong className={styles.metricValue}>
-            {finance.verifactu.data?.counts.pending ?? 0}
+            {verifactuCount}
           </strong>
         </div>
       </SimpleGrid>
@@ -152,7 +154,11 @@ export function FinanceModule() {
               </div>
             </div>
           ))}
-          {!finance.invoices.isLoading && (finance.invoices.data?.items.length ?? 0) === 0 ? (
+          {finance.invoices.isPending ? (
+            <Text c="dimmed">Cargando facturas…</Text>
+          ) : finance.invoices.isError ? (
+            <Text c="dimmed">Facturas no disponibles.</Text>
+          ) : finance.invoices.data?.items.length === 0 ? (
             <Text c="dimmed">Sin facturas.</Text>
           ) : null}
         </div>
@@ -171,7 +177,11 @@ export function FinanceModule() {
               </div>
             </div>
           ))}
-          {!finance.payments.isLoading && (finance.payments.data?.items.length ?? 0) === 0 ? (
+          {finance.payments.isPending ? (
+            <Text c="dimmed">Cargando pagos…</Text>
+          ) : finance.payments.isError ? (
+            <Text c="dimmed">Pagos no disponibles.</Text>
+          ) : finance.payments.data?.items.length === 0 ? (
             <Text c="dimmed">Sin pagos.</Text>
           ) : null}
         </div>

@@ -152,13 +152,30 @@ export function PatientProfile({ patientId }: { patientId: string }) {
     0,
   );
 
-  const nextVisitTitle = upcoming
-    ? `${dateDMY(upcoming.startsAt)} · ${hhmm(upcoming.startsAt)}`
-    : "Sin próxima cita";
-  const nextVisitDescription =
-    upcoming?.reason ?? upcoming?.title ?? "La agenda no tiene una cita futura activa.";
-  const economyValue = formatEUR(openBudgetTotal);
-  const economyDescription = `${projection?.budgets.length ?? 0} presupuestos abiertos`;
+  const nextVisitTitle = projectionQuery.isPending
+    ? "Cargando citas…"
+    : projectionQuery.isError
+      ? "No disponible"
+      : upcoming
+        ? `${dateDMY(upcoming.startsAt)} · ${hhmm(upcoming.startsAt)}`
+        : "Sin próxima cita";
+  const nextVisitDescription = projectionQuery.isPending
+    ? "Consultando las próximas visitas."
+    : projectionQuery.isError
+      ? "No se pudieron cargar las citas."
+      : (upcoming?.reason ??
+        upcoming?.title ??
+        "La agenda no tiene una cita futura activa.");
+  const economyValue = projectionQuery.isPending
+    ? "Cargando…"
+    : projectionQuery.isError
+      ? "No disponible"
+      : formatEUR(openBudgetTotal);
+  const economyDescription = projectionQuery.isPending
+    ? "Consultando presupuestos."
+    : projectionQuery.isError
+      ? "No se pudieron cargar los presupuestos."
+      : `${projection?.budgets.length ?? 0} presupuestos abiertos`;
 
   const baseMedicalProfile = patient.medicalProfile ?? emptyMedicalProfile(patient.birthDate);
   const medicalProfile = medicalProfileOverride ?? baseMedicalProfile;

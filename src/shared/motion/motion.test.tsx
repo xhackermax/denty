@@ -45,8 +45,9 @@ describe("Denty motion foundation", () => {
     expect(screen.getByRole("button", { name: "Abrir paciente" })).toBeInTheDocument();
   });
 
-  it("enters a page with a short fade only: navigation happens hundreds of times a day", () => {
-    expect(PAGE_ENTER.initial).toEqual({ opacity: 0 });
+  it("settles a page without fading content below readable contrast", () => {
+    expect(PAGE_ENTER.initial).toEqual({ y: 4 });
+    expect(PAGE_ENTER.animate).toEqual({ y: 0 });
     expect(PAGE_ENTER.duration).toBeLessThanOrEqual(0.15);
   });
 

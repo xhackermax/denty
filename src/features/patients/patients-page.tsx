@@ -317,9 +317,9 @@ export function PatientsPage() {
             <motion.div
               key={`page-${page}`}
               className={pageStyles.patientCardContainer}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              initial={{ y: 10 }}
+              animate={{ y: 0 }}
+              exit={{ y: -10 }}
               transition={{ duration: 0.2 }}
             >
               {patients.map((patient, index) => {
@@ -327,8 +327,8 @@ export function PatientsPage() {
                 return (
                   <motion.div
                     key={patient.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
+                    initial={{ x: 20 }}
+                    animate={{ x: 0 }}
                     transition={{ duration: 0.3, delay: index * 0.02 }}
                   >
                     <Link

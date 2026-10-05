@@ -62,8 +62,45 @@ export function Dashboard() {
   );
   const current = appointments.data?.find((appointment) => appointment.status === "IN_CHAIR");
   const next = appointments.data?.find((appointment) => appointment.status === "ARRIVED");
-  const patientName = (patientId?: string) =>
-    patientId ? (names.get(patientId) ?? "Paciente") : "Sin paciente";
+  const patientName = (patientId?: string) => {
+    if (!patientId) return "Sin paciente";
+    if (patients.isPending) return "Cargando paciente…";
+    if (patients.isError) return "Paciente no disponible";
+    return names.get(patientId) ?? "Paciente";
+  };
+  const currentTitle = appointments.isPending
+    ? "Cargando agenda…"
+    : appointments.isError
+      ? "Agenda no disponible"
+      : patientName(current?.patientId);
+  const currentDescription = appointments.isPending
+    ? "Consultando las citas de hoy."
+    : appointments.isError
+      ? "No se pudo consultar la agenda."
+      : (current?.reason ?? current?.title ?? "No hay una cita activa en este momento.");
+  const nextTitle = appointments.isPending
+    ? "Cargando agenda…"
+    : appointments.isError
+      ? "Agenda no disponible"
+      : next
+        ? patientName(next.patientId)
+        : "Jornada despejada";
+  const nextDescription = appointments.isPending
+    ? "Consultando las citas de hoy."
+    : appointments.isError
+      ? "No se pudo consultar la agenda."
+      : (next?.reason ?? next?.title ?? "No hay otra cita pendiente en sala.");
+  const alertsTitle = alerts.isPending
+    ? "Cargando alertas…"
+    : alerts.isError
+      ? "Alertas no disponibles"
+      : `${alerts.data?.openCount ?? 0} alertas`;
+  const financeValue = (cents: number | undefined) =>
+    finance.isError
+      ? "No disponible"
+      : finance.isPending
+        ? "Cargando…"
+        : formatEUR(cents ?? 0);
 
   return (
     <div className={styles.grid}>
@@ -103,10 +140,8 @@ export function Dashboard() {
                       <IconMicroscope size={18} />
                     </div>
                   </div>
-                  <h3>{patientName(current?.patientId)}</h3>
-                  <p>
-                    {current?.reason ?? current?.title ?? "No hay una cita activa en este momento."}
-                  </p>
+                  <h3>{currentTitle}</h3>
+                  <p>{currentDescription}</p>
                   <Button component="a" href="/app/agenda" size="xs">
                     Agenda
                   </Button>
@@ -122,8 +157,8 @@ export function Dashboard() {
                       <IconCalendar size={18} />
                     </div>
                   </div>
-                  <h3>{next ? patientName(next.patientId) : "Jornada despejada"}</h3>
-                  <p>{next?.reason ?? next?.title ?? "No hay otra cita pendiente en sala."}</p>
+                  <h3>{nextTitle}</h3>
+                  <p>{nextDescription}</p>
                   <Button component="a" href="/app/agenda" size="xs" variant="light">
                     Ver
                   </Button>
@@ -140,7 +175,7 @@ export function Dashboard() {
                         <IconClipboardCheck size={18} />
                       </div>
                     </div>
-                    <h3>{alerts.data?.openCount ?? 0} alertas</h3>
+                    <h3>{alertsTitle}</h3>
                     <p>Solo alertas persistidas que requieren seguimiento.</p>
                     <Button component="a" href="/app/alerts" size="xs" variant="light">
                       Revisar
@@ -216,19 +251,19 @@ export function Dashboard() {
                 <div className={styles.metric}>
                   <span className={styles.metricLabel}>Producido</span>
                   <strong className={styles.metricValue}>
-                    {formatEUR(finance.data?.producedCents ?? 0)}
+                    {financeValue(finance.data?.producedCents)}
                   </strong>
                 </div>
                 <div className={styles.metric}>
                   <span className={styles.metricLabel}>Cobrado</span>
                   <strong className={styles.metricValue}>
-                    {formatEUR(finance.data?.collectedCents ?? 0)}
+                    {financeValue(finance.data?.collectedCents)}
                   </strong>
                 </div>
                 <div className={styles.metric}>
                   <span className={styles.metricLabel}>Margen</span>
                   <strong className={styles.metricValue}>
-                    {formatEUR(finance.data?.marginCents ?? 0)}
+                    {financeValue(finance.data?.marginCents)}
                   </strong>
                 </div>
               </div>

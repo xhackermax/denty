@@ -19,9 +19,6 @@ export function MotionScrollReveal({
 }) {
   const reducedMotion = useReducedMotion();
   const distance = intensity === "subtle" ? 18 : intensity === "expressive" ? 58 : 34;
-  const initialScale = intensity === "expressive" ? 0.94 : intensity === "normal" ? 0.975 : 0.992;
-  const initialBlur =
-    intensity === "expressive" ? "blur(14px)" : intensity === "normal" ? "blur(8px)" : "blur(4px)";
 
   return (
     <motion.div
@@ -30,14 +27,10 @@ export function MotionScrollReveal({
         reducedMotion
           ? false
           : {
-              opacity: 0,
               y: distance,
-              scale: initialScale,
-              filter: initialBlur,
-              rotateX: intensity === "expressive" ? 5 : 0,
             }
       }
-      whileInView={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)", rotateX: 0 }}
+      whileInView={{ y: 0 }}
       viewport={{ once: true, amount: intensity === "expressive" ? 0.12 : 0.18 }}
       transition={{
         duration: reducedMotion
