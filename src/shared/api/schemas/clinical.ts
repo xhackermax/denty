@@ -438,6 +438,7 @@ export const clinicalEncounterSchema = z
   .object({
     id: idSchema,
     narrativeNote: z.string().min(1),
+    nextVisit: z.string().nullable().optional(),
     signedAt: z.coerce.string().nullable().optional(),
     createdAt: z.coerce.string().optional(),
   })

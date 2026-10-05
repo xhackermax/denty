@@ -2,6 +2,7 @@ import { assertProbeable } from "./mouth-guard";
 import { currentOdontogramVersion } from "./odontogram-version";
 import { odontogramSnapshotSchema } from "@/shared/api/schemas/clinical";
 import type {
+  ClinicalEncounterInput,
   ClinicalSyncState,
   CreateOdontogramSnapshot,
   PeriodontalExamInput,
@@ -181,6 +182,18 @@ interface FinalizeBudgetSignatureRpcResult {
     revision: number;
     signed_at: string;
   };
+}
+
+interface PatientClinicRow {
+  id: string;
+  clinic_id: string;
+}
+
+interface ClinicalHistoryEventRow {
+  id: string;
+  event_type: string;
+  payload_json: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface TreatmentCatalogInput {
@@ -464,7 +477,7 @@ export class ClinicalRepository {
   }
 
   async getClinicalWorkflow(patientId: string) {
-    const [exams, measurements] = await Promise.all([
+    const [exams, measurements, encounters] = await Promise.all([
       this.client.select<PeriodontalExamRow>("periodontal_exams", {
         select: "*",
         patient_id: `eq.${patientId}`,
@@ -474,6 +487,12 @@ export class ClinicalRepository {
         select: "*",
         patient_id: `eq.${patientId}`,
         order: "measured_at.desc",
+      }),
+      this.client.select<ClinicalHistoryEventRow>("clinical_history_events", {
+        select: "id,event_type,payload_json,created_at",
+        patient_id: `eq.${patientId}`,
+        event_type: "eq.CLINICAL_ENCOUNTER_CREATED",
+        order: "created_at.desc,id.desc",
       }),
     ]);
     return {
@@ -485,8 +504,42 @@ export class ClinicalRepository {
           measurements.filter((row) => row.exam_id === exam.id),
         ),
       ),
-      encounters: [],
+      encounters: encounters.map(mapClinicalEncounter),
     };
+  }
+
+  async createEncounter(patientId: string, input: ClinicalEncounterInput) {
+    const patient = await this.requirePatientInClinic(patientId);
+    const narrativeNote = input.narrativeNote?.trim();
+    if (!narrativeNote) {
+      throw new SupabaseRestError("La evolución clínica necesita una nota narrativa.", 400, {
+        code: "EMPTY_CLINICAL_NOTE",
+      });
+    }
+    const payload = stripUndefined({
+      appointmentId: input.appointmentId,
+      reason: input.reason?.trim(),
+      subjective: input.subjective,
+      objective: input.objective,
+      diagnoses: input.diagnoses,
+      procedures: input.procedures,
+      technical: input.technical,
+      incidents: input.incidents,
+      incidentText: input.incidentText?.trim(),
+      instructions: input.instructions?.trim(),
+      nextVisit: input.nextVisit?.trim(),
+      narrativeNote,
+      problemIds: input.problemIds,
+      sign: input.sign ?? false,
+    });
+    const row = await this.client.insert<ClinicalHistoryEventRow>("clinical_history_events", {
+      clinic_id: patient.clinic_id,
+      patient_id: patient.id,
+      event_type: "CLINICAL_ENCOUNTER_CREATED",
+      entity_type: "CLINICAL_ENCOUNTER",
+      payload_json: payload,
+    });
+    return mapClinicalEncounter(row);
   }
 
   async createPeriodontalExam(patientId: string, input: PeriodontalExamInput) {
@@ -641,6 +694,42 @@ export class ClinicalRepository {
       })),
     };
   }
+
+  private async requirePatientInClinic(patientId: string) {
+    const rows = await this.client.select<PatientClinicRow>("patients", {
+      select: "id,clinic_id",
+      id: `eq.${patientId}`,
+      clinic_id: `eq.${this.clinicId}`,
+      limit: 1,
+    });
+    const patient = rows[0];
+    if (!patient) {
+      throw new SupabaseRestError("Paciente no encontrado en la clínica activa.", 404, {
+        code: "PATIENT_NOT_FOUND",
+      });
+    }
+    return patient;
+  }
+}
+
+function stripUndefined(input: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined && value !== ""),
+  );
+}
+
+function mapClinicalEncounter(row: ClinicalHistoryEventRow) {
+  const payload = row.payload_json ?? {};
+  const narrativeNote = typeof payload.narrativeNote === "string" ? payload.narrativeNote : "";
+  const nextVisit = typeof payload.nextVisit === "string" ? payload.nextVisit : null;
+  const signedAt = payload.sign === true ? row.created_at : null;
+  return {
+    id: row.id,
+    narrativeNote,
+    nextVisit,
+    signedAt,
+    createdAt: row.created_at,
+  };
 }
 
 function mapPeriodontalExam(

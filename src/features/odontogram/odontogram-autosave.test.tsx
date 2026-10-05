@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
   syncBudget: vi.fn(),
   flow: vi.fn(),
   snapshot: vi.fn(),
+  encounter: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
@@ -28,6 +29,7 @@ vi.mock("@/shared/api/browser", () => ({
         snapshots: { list: async () => ({ items: [] }), create: api.snapshot },
       },
       sync: { plan: api.syncPlan, budget: api.syncBudget },
+      workflow: { createEncounter: api.encounter },
     },
   }),
 }));
@@ -65,6 +67,7 @@ test("edits save themselves, keep the editor in place and bring plan and budget 
   });
   api.syncPlan.mockResolvedValue(planResult);
   api.syncBudget.mockResolvedValue({});
+  api.encounter.mockResolvedValue({ id: "history-1" });
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -93,6 +96,13 @@ test("edits save themselves, keep the editor in place and bring plan and budget 
   );
   fireEvent.click(screen.getByRole("button", { name: "Aplicar al diente seleccionado" }));
   expect(screen.getByLabelText("Resumen editable de hoy")).toHaveValue("Diente 25: Caries.");
+  fireEvent.click(screen.getByRole("button", { name: "Guardar en historia clínica" }));
+  await waitFor(() =>
+    expect(api.encounter).toHaveBeenCalledWith("p", {
+      narrativeNote: "Diente 25: Caries.",
+      sign: true,
+    }),
+  );
   expect(screen.getByText("Cambios pendientes…")).toBeInTheDocument();
 
   await waitFor(() => expect(api.batch).toHaveBeenCalledTimes(1), { timeout: 3000 });

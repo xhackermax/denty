@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { MantineProvider } from "@mantine/core";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DentalEntity } from "@/domain";
 import { OdontogramVisitSummaryPanel } from "./odontogram-visit-summary";
@@ -69,5 +69,32 @@ describe("OdontogramVisitSummaryPanel", () => {
     expect(screen.getByLabelText("Resumen editable de hoy")).toHaveValue(
       "Diente 35: Obturación pendiente.\nDiente 36: Caries.",
     );
+  });
+
+  it("guarda el resumen editable y lo previsto para la siguiente visita", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <MantineProvider>
+        <OdontogramVisitSummaryPanel
+          entities={[entity({ id: "caries-36", entityType: "CARIES", status: "caries", tooth: "36" })]}
+          readOnly={false}
+          onSaveEncounter={onSave}
+        />
+      </MantineProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Previsto para la próxima visita"), {
+      target: { value: "Reconstrucción 36 y valorar endodoncia." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar en historia clínica" }));
+
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith({
+        narrativeNote: "Diente 36: Caries.",
+        nextVisit: "Reconstrucción 36 y valorar endodoncia.",
+        sign: true,
+      }),
+    );
+    expect(await screen.findByText("Nota guardada en historia clínica.")).toBeInTheDocument();
   });
 });

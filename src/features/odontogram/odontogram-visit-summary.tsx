@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Button, Group, Text, Textarea } from "@mantine/core";
+import { Alert, Badge, Button, Group, Text, Textarea } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 
 import type { DentalEntity } from "@/domain";
@@ -10,6 +10,13 @@ import parityStyles from "@/shared/ui/parity.module.css";
 interface OdontogramVisitSummaryPanelProps {
   entities: readonly DentalEntity[];
   readOnly: boolean;
+  saving?: boolean | undefined;
+  saveError?: boolean | undefined;
+  onSaveEncounter?: ((input: {
+    narrativeNote: string;
+    nextVisit?: string | undefined;
+    sign: boolean;
+  }) => Promise<unknown>) | undefined;
 }
 
 interface VisitSummaryDraft {
@@ -81,11 +88,15 @@ export function buildOdontogramVisitSummary(
 export function OdontogramVisitSummaryPanel({
   entities,
   readOnly,
+  saving = false,
+  saveError = false,
+  onSaveEncounter,
 }: OdontogramVisitSummaryPanelProps) {
   const draft = useMemo(() => buildOdontogramVisitSummary(entities), [entities]);
   const [summary, setSummary] = useState(draft.text);
   const [nextVisit, setNextVisit] = useState("");
   const [edited, setEdited] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!edited) setSummary(draft.text);
@@ -115,12 +126,13 @@ export function OdontogramVisitSummaryPanel({
               size="xs"
               variant="light"
               disabled={readOnly}
-              onClick={() => {
-                setSummary(draft.text);
-                setEdited(false);
-              }}
-            >
-              Regenerar desde odontograma
+            onClick={() => {
+              setSummary(draft.text);
+              setEdited(false);
+              setSaved(false);
+            }}
+          >
+            Regenerar desde odontograma
             </Button>
           </Group>
           <Textarea
@@ -132,6 +144,7 @@ export function OdontogramVisitSummaryPanel({
             onChange={(event) => {
               setSummary(event.currentTarget.value);
               setEdited(true);
+              setSaved(false);
             }}
           />
           <Textarea
@@ -142,8 +155,39 @@ export function OdontogramVisitSummaryPanel({
             placeholder="Ej. anestesia 36, retirar caries distal y reconstrucción"
             value={nextVisit}
             readOnly={readOnly}
-            onChange={(event) => setNextVisit(event.currentTarget.value)}
+            onChange={(event) => {
+              setNextVisit(event.currentTarget.value);
+              setSaved(false);
+            }}
           />
+          {saveError ? (
+            <Alert mt="md" color="red">
+              No se pudo guardar la nota en historia clínica.
+            </Alert>
+          ) : null}
+          {saved ? (
+            <Alert mt="md" color="green">
+              Nota guardada en historia clínica.
+            </Alert>
+          ) : null}
+          <Group justify="flex-end" mt="md">
+            <Button
+              size="xs"
+              loading={saving}
+              disabled={readOnly || !onSaveEncounter || !summary.trim()}
+              onClick={async () => {
+                if (!onSaveEncounter || !summary.trim()) return;
+                await onSaveEncounter({
+                  narrativeNote: summary.trim(),
+                  ...(nextVisit.trim() ? { nextVisit: nextVisit.trim() } : {}),
+                  sign: true,
+                });
+                setSaved(true);
+              }}
+            >
+              Guardar en historia clínica
+            </Button>
+          </Group>
         </section>
       </div>
     </details>

@@ -36,6 +36,7 @@ import {
 } from "@/shared/api/schemas/admin";
 import {
   createOdontogramSnapshotSchema,
+  clinicalEncounterInputSchema,
   createPlanItemSchema,
   planItemPriceSchema,
   odontogramBatchSchema,
@@ -2702,6 +2703,20 @@ export async function handleSupabaseDentyRoute(
         await clinical.getClinicalWorkflow(decodeURIComponent(parts[2] ?? "")),
         headers,
       );
+    }
+    if (
+      parts.length === 5 &&
+      parts[0] === "api" &&
+      parts[1] === "patients" &&
+      parts[3] === "clinical-workflow" &&
+      parts[4] === "encounters" &&
+      method === "POST"
+    ) {
+      if (identity.actor.role === "PATIENT")
+        return error(403, "FORBIDDEN", "El portal no puede modificar la historia clínica.");
+      const patientId = decodeURIComponent(parts[2] ?? "");
+      const payload = await parseJson(request, clinicalEncounterInputSchema);
+      return json(201, await clinical.createEncounter(patientId, payload), headers);
     }
     if (
       parts.length === 5 &&

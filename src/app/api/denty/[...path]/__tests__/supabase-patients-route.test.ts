@@ -32,7 +32,9 @@ function createSupabaseFetch() {
   const clinicId = "clinic-1";
   const patients: StoredPatient[] = [];
   const dentalEntities: Array<Record<string, unknown>> = [];
+  const clinicalHistoryEvents: Array<Record<string, unknown>> = [];
   let dentalEntityCounter = 0;
+  let historyCounter = 0;
 
   return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
@@ -124,10 +126,33 @@ function createSupabaseFetch() {
       });
       return json({ version: body.p_expected_version + 1, entities: rows });
     }
+    if (url.pathname === "/rest/v1/clinical_history_events" && method === "GET") {
+      const patientFilter = url.searchParams.get("patient_id");
+      const eventTypeFilter = url.searchParams.get("event_type");
+      const rows = clinicalHistoryEvents
+        .filter((event) =>
+          patientFilter?.startsWith("eq.") ? event.patient_id === patientFilter.slice(3) : true,
+        )
+        .filter((event) =>
+          eventTypeFilter?.startsWith("eq.")
+            ? event.event_type === eventTypeFilter.slice(3)
+            : true,
+        )
+        .sort((left, right) => String(right.created_at).localeCompare(String(left.created_at)));
+      return json(rows);
+    }
     if (url.pathname === "/rest/v1/clinical_history_events" && method === "POST") {
-      return json([{ id: "history-1" }], 201);
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      const row = {
+        id: `history-${++historyCounter}`,
+        created_at: `2026-10-05T09:0${historyCounter}:00.000Z`,
+        ...body,
+      };
+      clinicalHistoryEvents.unshift(row);
+      return json([row], 201);
     }
     if (url.pathname === "/rest/v1/periodontal_measurements" && method === "GET") return json([]);
+    if (url.pathname === "/rest/v1/periodontal_exams" && method === "GET") return json([]);
     if (url.pathname === "/rest/v1/odontogram_snapshots" && method === "GET") return json([]);
 
     return json({ message: `Unhandled ${method} ${url.pathname}` }, 500);
@@ -411,6 +436,75 @@ describe("Supabase-backed patient API", () => {
           status: "caries_pending",
           active: true,
           version: 2,
+        },
+      ],
+    });
+  });
+
+  test("saves visit notes as clinical history encounters and lists them by date", async () => {
+    await POST(
+      new Request("https://denty.test/api/denty/api/patients", {
+        method: "POST",
+        headers: {
+          ...authenticatedHeaders(),
+          "content-type": "application/json",
+          origin: "https://denty.test",
+        },
+        body: JSON.stringify({ firstName: "Lucia", lastName: "Perez", dni: "12345678A" }),
+      }),
+      { params: Promise.resolve({ path: ["api", "patients"] }) },
+    );
+
+    const saveResponse = await POST(
+      new Request("https://denty.test/api/denty/api/patients/patient-1/clinical-workflow/encounters", {
+        method: "POST",
+        headers: {
+          ...authenticatedHeaders(),
+          "content-type": "application/json",
+          origin: "https://denty.test",
+        },
+        body: JSON.stringify({
+          narrativeNote: "Diente 36: Caries.",
+          nextVisit: "Reconstrucción 36 y valorar endodoncia.",
+          sign: true,
+        }),
+      }),
+      {
+        params: Promise.resolve({
+          path: ["api", "patients", "patient-1", "clinical-workflow", "encounters"],
+        }),
+      },
+    );
+
+    expect(saveResponse.status).toBe(201);
+    await expect(saveResponse.json()).resolves.toMatchObject({
+      id: "history-1",
+      narrativeNote: "Diente 36: Caries.",
+      nextVisit: "Reconstrucción 36 y valorar endodoncia.",
+      signedAt: "2026-10-05T09:01:00.000Z",
+      createdAt: "2026-10-05T09:01:00.000Z",
+    });
+
+    const workflowResponse = await GET(
+      new Request("https://denty.test/api/denty/api/patients/patient-1/clinical-workflow", {
+        headers: authenticatedHeaders(),
+      }),
+      {
+        params: Promise.resolve({
+          path: ["api", "patients", "patient-1", "clinical-workflow"],
+        }),
+      },
+    );
+
+    expect(workflowResponse.status).toBe(200);
+    await expect(workflowResponse.json()).resolves.toMatchObject({
+      encounters: [
+        {
+          id: "history-1",
+          narrativeNote: "Diente 36: Caries.",
+          nextVisit: "Reconstrucción 36 y valorar endodoncia.",
+          signedAt: "2026-10-05T09:01:00.000Z",
+          createdAt: "2026-10-05T09:01:00.000Z",
         },
       ],
     });

@@ -43,7 +43,10 @@ import { ClinicalPipelineCard } from "@/shared/clinical/clinical-pipeline-card";
 import { TreatmentFlowModal } from "@/shared/clinical/treatment-flow";
 import { getBrowserApi } from "@/shared/api/browser";
 import { createClinicalAutoSync } from "@/shared/clinical/auto-sync";
-import { invalidateClinicalPatient } from "@/shared/clinical/clinical-data";
+import {
+  invalidateClinicalPatient,
+  useCreateClinicalEncounterMutation,
+} from "@/shared/clinical/clinical-data";
 import { ClinicalWorkspace } from "@/shared/clinical/clinical-workspace";
 import {
   odontogramEntities,
@@ -497,6 +500,7 @@ function OdontogramEditor({
   const [viewState, setViewState] = useState(createInitialOdontogramViewState);
   const [viewPreferenceLoaded, setViewPreferenceLoaded] = useState(false);
   const [viewPreferenceError, setViewPreferenceError] = useState(false);
+  const encounterMutation = useCreateClinicalEncounterMutation(patientId);
   const patchAssistantContext = useOptionalAssistantContextPatch();
   const [clinicalRuleMessage, setClinicalRuleMessage] = useState<string | null>(null);
   const entities = useMemo(
@@ -983,7 +987,13 @@ function OdontogramEditor({
         </div>
       ) : null}
 
-      <OdontogramVisitSummaryPanel entities={entities} readOnly={historical} />
+      <OdontogramVisitSummaryPanel
+        entities={entities}
+        readOnly={historical}
+        saving={encounterMutation.isPending}
+        saveError={encounterMutation.isError}
+        onSaveEncounter={(input) => encounterMutation.mutateAsync(input)}
+      />
 
       <MouthStateProvider state={mouthState}>
         <QuickDiagnosisBar

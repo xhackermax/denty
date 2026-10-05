@@ -56,6 +56,15 @@ export function PatientClinicalSummary({ patientId }: PatientClinicalSummaryProp
 
   const problems = workflowQuery.data?.problems ?? [];
   const encounters = workflowQuery.data?.encounters ?? [];
+  const encounterTimeline = encounters.slice(0, 5).reduce<
+    Array<{ date: string; encounters: typeof encounters }>
+  >((groups, encounter) => {
+    const date = encounter.createdAt ? dateDMY(encounter.createdAt) : "Fecha no disponible";
+    const current = groups.find((group) => group.date === date);
+    if (current) current.encounters.push(encounter);
+    else groups.push({ date, encounters: [encounter] });
+    return groups;
+  }, []);
 
   return (
     <>
@@ -191,19 +200,25 @@ export function PatientClinicalSummary({ patientId }: PatientClinicalSummaryProp
             ) : encounters.length === 0 ? (
               <Text c="dimmed">Sin evoluciones registradas.</Text>
             ) : (
-              encounters.slice(0, 5).map((encounter) => (
-                <div className={styles.row} key={encounter.id}>
-                  <div className={styles.rowMain}>
-                    <span className={styles.rowTitle}>{encounter.narrativeNote}</span>
-                    <span className={styles.rowMeta}>
-                      {encounter.createdAt
-                        ? `${dateDMY(encounter.createdAt)} · ${hhmm(encounter.createdAt)}`
-                        : "Fecha no disponible"}
-                    </span>
-                  </div>
-                  <Badge color={encounter.signedAt ? "green" : "yellow"}>
-                    {encounter.signedAt ? "Firmada" : "Borrador"}
-                  </Badge>
+              encounterTimeline.map((group) => (
+                <div className={styles.rowMain} key={group.date}>
+                  <span className={styles.rowMeta}>{group.date}</span>
+                  {group.encounters.map((encounter) => (
+                    <div className={styles.row} key={encounter.id}>
+                      <div className={styles.rowMain}>
+                        <span className={styles.rowTitle}>{encounter.narrativeNote}</span>
+                        {encounter.nextVisit ? (
+                          <span className={styles.rowMeta}>Próxima: {encounter.nextVisit}</span>
+                        ) : null}
+                        <span className={styles.rowMeta}>
+                          {encounter.createdAt ? hhmm(encounter.createdAt) : "Hora no disponible"}
+                        </span>
+                      </div>
+                      <Badge color={encounter.signedAt ? "green" : "yellow"}>
+                        {encounter.signedAt ? "Firmada" : "Borrador"}
+                      </Badge>
+                    </div>
+                  ))}
                 </div>
               ))
             )}

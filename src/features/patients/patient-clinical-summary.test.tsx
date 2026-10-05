@@ -66,4 +66,29 @@ describe("PatientClinicalSummary query states", () => {
     expect(screen.queryByText("Sin problemas registrados.")).not.toBeInTheDocument();
     expect(screen.queryByText("Sin evoluciones registradas.")).not.toBeInTheDocument();
   });
+
+  it("shows encounters as a dated clinical timeline with next visit notes", () => {
+    Object.assign(workflowQuery, {
+      data: {
+        problems: [],
+        encounters: [
+          {
+            id: "history-1",
+            narrativeNote: "Diente 36: Caries.",
+            nextVisit: "Reconstrucción 36 y valorar endodoncia.",
+            signedAt: "2026-10-05T09:01:00.000Z",
+            createdAt: "2026-10-05T09:01:00.000Z",
+          },
+        ],
+      },
+      isError: false,
+      isPending: false,
+    });
+
+    renderSummary();
+
+    expect(screen.getByText("05/10/2026")).toBeInTheDocument();
+    expect(screen.getByText("Diente 36: Caries.")).toBeInTheDocument();
+    expect(screen.getByText("Próxima: Reconstrucción 36 y valorar endodoncia.")).toBeInTheDocument();
+  });
 });
