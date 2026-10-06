@@ -37,7 +37,7 @@ const resource = fs.readFileSync("src/shared/api/resources/analytics.ts", "utf8"
 assert.ok(resource.includes("kpiDefinitions"), "API resource must expose KPI dictionary");
 assert.ok(resource.includes("periods"), "API resource must expose grouped period history");
 const periodsMigration = fs.readFileSync(
-  "supabase/migrations/20261006235900_analytics_period_history.sql",
+  "supabase/migrations/20261006220100_analytics_period_history.sql",
   "utf8",
 );
 for (const token of [
