@@ -311,7 +311,9 @@ export function TreatmentOptionComparison({
             {selected ? (
               <section className={styles.choiceSummary} aria-live="polite">
                 <div>
-                  <Text fw={800}>Te interesa: {optionTitle(selected, candidates.indexOf(selected))}</Text>
+                  <Text fw={800}>
+                    Te interesa: {optionTitle(selected, selected.id === left.id ? 0 : 1)}
+                  </Text>
                   <Text size="sm" c="dimmed">
                     Esta elección sirve para continuar la conversación. No equivale a una firma ni
                     a una aceptación definitiva.
