@@ -169,7 +169,7 @@ describe("shouldAutoExecuteSpokenPreview", () => {
     expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
   });
 
-  it("auto-executes clinical.complete_item on a patient page", () => {
+  it("does NOT auto-execute clinical.complete_item because completed work is consequential", () => {
     const preview = makePreview(
       [
         {
@@ -183,7 +183,7 @@ describe("shouldAutoExecuteSpokenPreview", () => {
       ],
       { contextPatientId: "p1" },
     );
-    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(true);
+    expect(shouldAutoExecuteSpokenPreview(preview)).toBe(false);
   });
 
   it("auto-executes clinical.note on a patient page", () => {

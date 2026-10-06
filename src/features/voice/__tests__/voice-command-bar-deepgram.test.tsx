@@ -9,6 +9,8 @@ import { ActiveTenantProvider } from "@/shared/tenancy/active-context";
 import type { DictationEvents } from "../dictation/deepgram-dictation";
 import { VoiceCommandBar } from "../voice-command-bar";
 
+const PATIENT_ID = "11111111-1111-4111-8111-111111111111";
+
 const mocks = vi.hoisted(() => ({
   session: vi.fn(),
   agenda: vi.fn(),
@@ -78,6 +80,12 @@ beforeEach(() => {
   mocks.agenda.mockImplementation(() => new Promise(() => {}));
   mocks.permissionState.mockResolvedValue("prompt");
   mocks.permission.mockResolvedValue(undefined);
+  mocks.execute.mockResolvedValue({
+    executed: ["odontogram.set_state"],
+    skipped: [],
+    failures: [],
+    effects: [],
+  });
   mocks.start.mockImplementation(async (_deps: unknown, events: DictationEvents) => {
     mocks.events.current = events;
     events.onStatus("connecting");
@@ -134,6 +142,31 @@ describe("VoiceCommandBar with Deepgram", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Disponible");
     expect(mocks.execute).not.toHaveBeenCalled();
     expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("applies a clear odontogram finding and keeps listening for the next one", async () => {
+    mocks.pathname.value = `/app/patients/${PATIENT_ID}/odontogram`;
+    mount();
+    await startListening();
+    act(() => mocks.events.current?.onStatus("listening"));
+
+    act(() => mocks.events.current?.onFinal("Oye Denty, marca caries en el 16"));
+    act(() => mocks.events.current?.onSpeechFinal?.());
+
+    await waitFor(() => expect(mocks.execute).toHaveBeenCalledTimes(1));
+
+    act(() => mocks.events.current?.onFinal("marca caries en el 17"));
+    act(() => mocks.events.current?.onSpeechFinal?.());
+
+    await waitFor(() => expect(mocks.execute).toHaveBeenCalledTimes(2));
+    for (const [, options] of mocks.execute.mock.calls as Array<
+      [unknown, { confirmedCallIds: ReadonlySet<string> }]
+    >) {
+      expect(options.confirmedCallIds.size).toBe(0);
+    }
+    expect(mocks.stop).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("Escuchando");
+    expect(screen.queryByRole("button", { name: "Confirmar" })).toBeNull();
   });
 
   it("keeps what was typed before dictating", async () => {

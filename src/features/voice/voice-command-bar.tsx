@@ -61,6 +61,7 @@ import {
   previewVoiceCommand,
   primaryHrefForVoicePlan,
   isLiteralNoteFallback,
+  shouldAutoExecuteSpokenPreview,
   type VoicePreview,
 } from "./voice-router";
 import { VoiceTimeoutError, withTimeout } from "./with-timeout";
@@ -303,8 +304,10 @@ function VoiceCommandBarInner({
   const executingRef = useRef(false);
   // Turned off for the session once the server says Claude isn't configured.
   const claudeAvailableRef = useRef(true);
-  // Interpretations run one at a time so a second tap can't interleave with the first.
+  // Interpretations run one at a time so spoken findings can't interleave odontogram versions.
   const commandQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const webSpeechUtteranceRef = useRef("");
+  const webSpeechFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateText = useCallback((next: string) => {
     textRef.current = next;
@@ -382,9 +385,12 @@ function VoiceCommandBarInner({
 
   const [patientChoice, setPatientChoice] = useState<PendingPatientChoice | null>(null);
 
-  const executeConfirmedPreview = useCallback(
-    async (next: VoicePreview) => {
-      if (executingRef.current || !canExecuteVoicePreview(next)) return;
+  const executePreview = useCallback(
+    async (
+      next: VoicePreview,
+      options: { confirmSensitive: boolean; clearText: boolean; clearPreview: boolean },
+    ) => {
+      if (executingRef.current || !canExecuteVoicePreview(next)) return false;
       const adaptation = localVoicePlanToToolCalls(next.plan);
       if (adaptation.unsupported.length) {
         setError(
@@ -392,7 +398,7 @@ function VoiceCommandBarInner({
             ", ",
           )}.`,
         );
-        return;
+        return false;
       }
       const policyContext = {
         ...(next.plan.contextPatientId ? { patientId: next.plan.contextPatientId } : {}),
@@ -406,7 +412,16 @@ function VoiceCommandBarInner({
       const blocked = policyResults.find(({ result }) => result.decision === "BLOCK");
       if (blocked) {
         setError(policyMessage(blocked.result, blocked.call));
-        return;
+        return false;
+      }
+
+      const confirmations = policyResults
+        .filter(({ result: policy }) => policy.decision === "CONFIRM")
+        .map(({ call }) => call.id);
+      if (!options.confirmSensitive && confirmations.length) {
+        await ensurePatientLabel(next.plan.contextPatientId);
+        setPreview(next);
+        return false;
       }
 
       executingRef.current = true;
@@ -414,34 +429,43 @@ function VoiceCommandBarInner({
       setError(null);
       try {
         const result = await executeAssistantCalls(adaptation.calls, {
-          // The person has just read the preview and pressed Confirmar.
-          confirmedCallIds: new Set(
-            policyResults
-              .filter(({ result: policy }) => policy.decision === "CONFIRM")
-              .map(({ call }) => call.id),
-          ),
+          confirmedCallIds: options.confirmSensitive ? new Set(confirmations) : new Set(),
         });
         if (result.pendingConfirmation) {
+          await ensurePatientLabel(next.plan.contextPatientId);
+          setPreview(next);
           setError("Esta acción necesita confirmación explícita.");
-          return;
+          return false;
         }
         for (const effect of result.effects) applyAssistantEffect(effect);
         invalidateAfterVoiceExecution(queryClient, adaptation.calls);
-        setPreview(null);
-        updateText("");
+        if (options.clearPreview) setPreview(null);
+        if (options.clearText) updateText("");
         setLastDone(next.plan.readback);
+        return true;
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "No se pudo ejecutar la orden.");
+        return false;
       } finally {
         executingRef.current = false;
         setExecuting(false);
       }
     },
-    [applyAssistantEffect, permissions, queryClient, role, updateText],
+    [applyAssistantEffect, ensurePatientLabel, permissions, queryClient, role, updateText],
+  );
+
+  const executeConfirmedPreview = useCallback(
+    (next: VoicePreview) =>
+      executePreview(next, {
+        confirmSensitive: true,
+        clearText: true,
+        clearPreview: true,
+      }),
+    [executePreview],
   );
 
   const showInterpretation = useCallback(
-    async (next: VoicePreview) => {
+    async (next: VoicePreview, spoken = false) => {
       if (canExecuteVoicePreview(next) && isNavigationOnly(next)) {
         const href = primaryHrefForVoicePlan(next.plan);
         if (href) {
@@ -456,9 +480,30 @@ function VoiceCommandBarInner({
         return;
       }
       await ensurePatientLabel(next.plan.contextPatientId);
+      if (spoken && shouldAutoExecuteSpokenPreview(next)) {
+        const adaptation = localVoicePlanToToolCalls(next.plan);
+        const policyContext = {
+          ...(next.plan.contextPatientId ? { patientId: next.plan.contextPatientId } : {}),
+          role,
+          permissions,
+        };
+        const safeToAutoRun =
+          adaptation.unsupported.length === 0 &&
+          adaptation.calls.every(
+            (call) => evaluateAssistantCall(call, policyContext).decision === "ALLOW",
+          );
+        if (safeToAutoRun) {
+          await executePreview(next, {
+            confirmSensitive: false,
+            clearText: false,
+            clearPreview: false,
+          });
+          return;
+        }
+      }
       setPreview(next);
     },
-    [ensurePatientLabel, router, updateText],
+    [ensurePatientLabel, executePreview, permissions, role, router, updateText],
   );
 
   /** Settles who the order is for; false when it already ended in a choice or an error. */
@@ -493,12 +538,12 @@ function VoiceCommandBarInner({
   );
 
   const runCommand = useCallback(
-    async (command: string) => {
+    async (command: string, source: "manual" | "spoken" = "manual") => {
       const clean = command.trim();
       if (!clean) return;
       setError(null);
       setLastDone(null);
-      setPreview(null);
+      if (source === "manual") setPreview(null);
       setPatientChoice(null);
 
       const rules = previewVoiceCommand(clean, { pathname, ...assistantContext });
@@ -532,7 +577,7 @@ function VoiceCommandBarInner({
               ),
               clean,
             );
-            if (fromClaude) await showInterpretation(fromClaude);
+            if (fromClaude) await showInterpretation(fromClaude, source === "spoken");
             return;
           } catch (cause) {
             if (cause instanceof DentyApiError && cause.code === "VOICE_AI_NOT_CONFIGURED") {
@@ -544,7 +589,7 @@ function VoiceCommandBarInner({
             }
           }
         }
-        await showInterpretation(local);
+        await showInterpretation(local, source === "spoken");
       } finally {
         setInterpreting(false);
       }
@@ -574,11 +619,45 @@ function VoiceCommandBarInner({
     if (!value.trim()) return;
     if (value !== textRef.current) updateText(value);
     const run = commandQueueRef.current.then(
-      () => runCommand(value),
-      () => runCommand(value),
+      () => runCommand(value, "manual"),
+      () => runCommand(value, "manual"),
     );
     commandQueueRef.current = run.catch(() => undefined);
   }, [runCommand, updateText]);
+
+  const enqueueSpokenCommand = useCallback(
+    (command: string) => {
+      const clean = stripWakePhrase(command).trim();
+      if (!clean) return;
+      const run = commandQueueRef.current.then(
+        () => runCommand(clean, "spoken"),
+        () => runCommand(clean, "spoken"),
+      );
+      commandQueueRef.current = run.catch(() => undefined);
+    },
+    [runCommand],
+  );
+
+  const flushWebSpeechUtterance = useCallback(() => {
+    if (webSpeechFlushTimerRef.current) {
+      clearTimeout(webSpeechFlushTimerRef.current);
+      webSpeechFlushTimerRef.current = null;
+    }
+    const command = webSpeechUtteranceRef.current.trim();
+    webSpeechUtteranceRef.current = "";
+    if (command) enqueueSpokenCommand(command);
+  }, [enqueueSpokenCommand]);
+
+  const scheduleWebSpeechUtterance = useCallback(
+    (segment: string) => {
+      const clean = segment.trim();
+      if (!clean) return;
+      webSpeechUtteranceRef.current = appendDictation(webSpeechUtteranceRef.current, clean);
+      if (webSpeechFlushTimerRef.current) clearTimeout(webSpeechFlushTimerRef.current);
+      webSpeechFlushTimerRef.current = setTimeout(flushWebSpeechUtterance, 800);
+    },
+    [flushWebSpeechUtterance],
+  );
 
   const clear = useCallback(() => {
     updateText("");
@@ -645,7 +724,7 @@ function VoiceCommandBarInner({
         const full = appendDictation(textRef.current, transcript);
         updateText(full);
         // Interpret right away: the preview still needs confirmation, but the extra click is gone.
-        void runCommand(full);
+        void runCommand(full, "spoken");
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "No se pudo transcribir la grabación.");
       } finally {
@@ -755,8 +834,15 @@ function VoiceCommandBarInner({
     const assembler = createTranscriptAssembler(textRef.current);
     assemblerRef.current = assembler;
     let firstSegment = true;
+    let utterance = "";
     let failed = false;
     const spoken = (text: string) => (firstSegment ? stripWakePhrase(text) : text);
+    const flushUtterance = () => {
+      const command = utterance.trim();
+      utterance = "";
+      firstSegment = true;
+      if (command) enqueueSpokenCommand(command);
+    };
     setCaptureEngine("deepgram");
     const opening = { stop: false, cancel: false };
     deepgramOpeningRef.current = opening;
@@ -768,10 +854,13 @@ function VoiceCommandBarInner({
           updateText(assembler.text());
         },
         onFinal: (text) => {
-          assembler.commitFinal(spoken(text));
+          const segment = spoken(text).trim();
+          assembler.commitFinal(segment);
+          if (segment) utterance = appendDictation(utterance, segment);
           firstSegment = false;
           updateText(assembler.text());
         },
+        onSpeechFinal: flushUtterance,
         onError: (dictationError) => {
           failed = true;
           setError(dictationError.message);
@@ -779,6 +868,7 @@ function VoiceCommandBarInner({
         onEnd: ({ graceful, heardSpeech }) => {
           // A clean finish already turned every partial into a final segment.
           updateText(graceful ? assembler.finalText() : assembler.text());
+          flushUtterance();
           if (!heardSpeech && !failed) setError("No se ha detectado voz reconocible.");
           deepgramSessionRef.current = null;
           finishCapture();
@@ -812,7 +902,7 @@ function VoiceCommandBarInner({
       finishCapture();
       return true;
     }
-  }, [finishCapture, updateText]);
+  }, [enqueueSpokenCommand, finishCapture, updateText]);
 
   const startCapture = useCallback(async () => {
     setPanelOpened(true);
@@ -830,7 +920,7 @@ function VoiceCommandBarInner({
         finishCapture();
         return;
       }
-      // Keep the stream from the permission prompt so Whisper reuses it instead of asking twice.
+      // A direct user gesture opens the native permission prompt before any streaming engine starts.
       permissionStream = await requestMediaPermission("microphone", { keepStream: true });
     } catch (cause) {
       setError(mediaPermissionErrorMessage("microphone", cause));
@@ -839,11 +929,8 @@ function VoiceCommandBarInner({
     }
 
     setCapture("connecting");
-    // Whisper is the primary engine; streaming engines only run where it can't.
-    if (isLocalWhisperSupported()) {
-      await startRecording(permissionStream);
-      return;
-    }
+    // Prefer streaming on desktop so a finished phrase can be applied while the mic stays open.
+    // The permission probe stream has done its job; streaming engines acquire their own track.
     permissionStream?.getTracks().forEach((track) => track.stop());
     if (deepgramUsableRef.current && isDeepgramCaptureSupported() && (await startDeepgram())) {
       return;
@@ -871,12 +958,20 @@ function VoiceCommandBarInner({
       started = true;
       setCapture("listening");
     };
+    let processedFinals = 0;
     recognition.onresult = (event) => {
       const assembler = assemblerRef.current;
       if (!assembler) return;
       const { finals, interim } = sessionFromResults(event.results);
       assembler.replaceSession(finals, interim);
       updateText(assembler.text());
+      const newFinals = finals.slice(processedFinals);
+      processedFinals = finals.length;
+      for (const final of newFinals) scheduleWebSpeechUtterance(final);
+      if (interim && webSpeechFlushTimerRef.current) {
+        clearTimeout(webSpeechFlushTimerRef.current);
+        webSpeechFlushTimerRef.current = null;
+      }
     };
     recognition.onerror = (event) => {
       if (event.error === "no-speech") return;
@@ -900,10 +995,13 @@ function VoiceCommandBarInner({
       if (recognitionRef.current !== recognition) return;
       if (!keepListeningRef.current) {
         if (assembler) updateText(assembler.text());
+        flushWebSpeechUtterance();
         finishCapture();
         return;
       }
       // Engines end sessions on silence; a new session starts with what was already dictated.
+      flushWebSpeechUtterance();
+      processedFinals = 0;
       assemblerRef.current = createTranscriptAssembler(assembler?.text() ?? textRef.current);
       schedule(() => {
         if (!keepListeningRef.current) return;
@@ -933,7 +1031,15 @@ function VoiceCommandBarInner({
       recognitionRef.current = null;
       await startRecording();
     }
-  }, [finishCapture, schedule, startDeepgram, startRecording, updateText]);
+  }, [
+    finishCapture,
+    flushWebSpeechUtterance,
+    schedule,
+    scheduleWebSpeechUtterance,
+    startDeepgram,
+    startRecording,
+    updateText,
+  ]);
 
   const toggleCapture = useCallback(() => {
     if (capture === "finalizing" || capture === "requesting_permission") return;
@@ -978,6 +1084,7 @@ function VoiceCommandBarInner({
         recorder.stop();
       }
       recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
+      if (webSpeechFlushTimerRef.current) clearTimeout(webSpeechFlushTimerRef.current);
       for (const timer of timersRef.current) clearTimeout(timer);
     };
   }, []);

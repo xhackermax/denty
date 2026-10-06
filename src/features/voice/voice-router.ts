@@ -157,7 +157,6 @@ const SPOKEN_AUTORUN_ACTIONS = new Set<LocalVoiceAction["type"]>([
   "odontogram.removable",
   "periodontal.update",
   "clinical.add_item",
-  "clinical.complete_item",
   "clinical.mark_unsatisfactory",
   "clinical.plan_item",
   "clinical.note",
