@@ -2061,3 +2061,114 @@ html[data-mantine-color-scheme="dark"] .disclosure {
   border-radius: 10px;
   background: color-mix(in srgb, var(--denty-card-solid) 94%, var(--denty-blue) 6%);
 }
+
+
+/* Analysis: compact time navigation and reusable calendar-like range picker. */
+.analysisPeriodBar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.analysisPeriodControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.analysisPeriodNavigation {
+  max-width: 100%;
+}
+
+.analysisPeriodLabel {
+  min-width: 126px;
+  color: var(--denty-text);
+  font-weight: 760;
+  pointer-events: none;
+}
+
+.analysisCalendar {
+  width: 100%;
+}
+
+.analysisCalendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.analysisCalendarWeekday {
+  display: grid;
+  height: 28px;
+  place-items: center;
+  color: var(--denty-muted);
+  font-size: 0.66rem;
+  font-weight: 760;
+}
+
+.analysisCalendarDay {
+  position: relative;
+  display: grid;
+  aspect-ratio: 1;
+  min-width: 32px;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--denty-text);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.analysisCalendarDay[data-outside="true"] {
+  color: color-mix(in srgb, var(--denty-muted) 55%, transparent);
+}
+
+.analysisCalendarDay[data-range="true"] {
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--denty-blue) 10%, transparent);
+}
+
+.analysisCalendarDay[data-edge="true"] {
+  background: var(--denty-blue);
+  color: white;
+  font-weight: 800;
+}
+
+.analysisCalendarDay[data-today="true"]:not([data-edge="true"]) {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-blue) 60%, transparent);
+}
+
+.analysisCalendarDay:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .analysisCalendarDay:not(:disabled):hover {
+    background: color-mix(in srgb, var(--denty-blue) 16%, transparent);
+  }
+
+  .analysisCalendarDay[data-edge="true"]:not(:disabled):hover {
+    background: var(--denty-blue);
+  }
+}
+
+@media (width <= 48em) {
+  .analysisPeriodControls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .analysisPeriodControls :global(.mantine-SegmentedControl-root) {
+    width: 100%;
+  }
+
+  .analysisPeriodNavigation {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
