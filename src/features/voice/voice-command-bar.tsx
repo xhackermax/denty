@@ -920,7 +920,7 @@ function VoiceCommandBarInner({
         finishCapture();
         return;
       }
-      // Keep the stream from the permission prompt so Whisper reuses it instead of asking twice.
+      // A direct user gesture opens the native permission prompt before any streaming engine starts.
       permissionStream = await requestMediaPermission("microphone", { keepStream: true });
     } catch (cause) {
       setError(mediaPermissionErrorMessage("microphone", cause));
