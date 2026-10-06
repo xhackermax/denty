@@ -71,4 +71,20 @@ assert.match(
   "Los nombres de odontograma deben mostrarse completos en una línea.",
 );
 
+assert.match(
+  css,
+  /\.chartPanel::after\s*\{/,
+  "El panel principal debe conservar el recorrido visual animado por el borde.",
+);
+assert.match(
+  css,
+  /animation:\s*odontogramBorderRunner\s+5\.2s\s+linear\s+infinite/,
+  "La línea azul debe recorrer el perímetro de forma cíclica y estable.",
+);
+assert.match(
+  css,
+  /prefers-reduced-motion:\s*reduce/,
+  "La animación del borde debe respetar reducción de movimiento.",
+);
+
 console.log("odontogram-ui-regression: ok");
