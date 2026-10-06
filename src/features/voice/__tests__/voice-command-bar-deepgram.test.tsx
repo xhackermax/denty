@@ -154,11 +154,16 @@ describe("VoiceCommandBar with Deepgram", () => {
     act(() => mocks.events.current?.onSpeechFinal?.());
 
     await waitFor(() => expect(mocks.execute).toHaveBeenCalledTimes(1));
-    const [, options] = mocks.execute.mock.calls[0] as [
-      unknown,
-      { confirmedCallIds: ReadonlySet<string> },
-    ];
-    expect(options.confirmedCallIds.size).toBe(0);
+
+    act(() => mocks.events.current?.onFinal("marca caries en el 17"));
+    act(() => mocks.events.current?.onSpeechFinal?.());
+
+    await waitFor(() => expect(mocks.execute).toHaveBeenCalledTimes(2));
+    for (const [, options] of mocks.execute.mock.calls as Array<
+      [unknown, { confirmedCallIds: ReadonlySet<string> }]
+    >) {
+      expect(options.confirmedCallIds.size).toBe(0);
+    }
     expect(mocks.stop).not.toHaveBeenCalled();
     expect(screen.getByRole("status")).toHaveTextContent("Escuchando");
     expect(screen.queryByRole("button", { name: "Confirmar" })).toBeNull();
