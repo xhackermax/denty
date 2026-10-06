@@ -41,7 +41,6 @@ import {
   type ToothSurface,
   type TriStateFamily,
 } from "@/domain";
-import { ClinicalPipelineCard } from "@/shared/clinical/clinical-pipeline-card";
 import { TreatmentFlowModal } from "@/shared/clinical/treatment-flow";
 import { getBrowserApi } from "@/shared/api/browser";
 import { createClinicalAutoSync } from "@/shared/clinical/auto-sync";
@@ -995,6 +994,19 @@ function OdontogramEditor({
       ))}
     </div>
   );
+  const openClinicalSection = (sectionId: "treatment-plan" | "patient-budgets") => {
+    const open = () => {
+      const section = document.getElementById(sectionId);
+      if (section instanceof HTMLDetailsElement) section.open = true;
+      section?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    if (!dirty) {
+      open();
+      return;
+    }
+    void autosave.flush().then(open, () => undefined);
+  };
+
   const failure = autosave.error ?? saveError;
   const conflict = failure instanceof DentyApiError && failure.kind === "conflict";
   // The history view replaces the whole editor so nothing else competes for attention.
@@ -1035,19 +1047,26 @@ function OdontogramEditor({
               </Button>
             ) : null}
             {!historical ? (
-              <Button
-                size="xs"
-                color="teal"
-                rightSection={<IconArrowRight size={15} />}
-                loading={saving}
-                onClick={() => {
-                  const open = () => onOpenTreatmentFlow();
-                  if (!dirty) return open();
-                  void autosave.flush().then(open, () => {});
-                }}
-              >
-                Presupuestos y plan de tratamiento
-              </Button>
+              <>
+                <Button
+                  size="xs"
+                  color="teal"
+                  variant="light"
+                  loading={saving}
+                  onClick={() => openClinicalSection("treatment-plan")}
+                >
+                  Plan de tratamiento
+                </Button>
+                <Button
+                  size="xs"
+                  color="teal"
+                  rightSection={<IconArrowRight size={15} />}
+                  loading={saving}
+                  onClick={() => openClinicalSection("patient-budgets")}
+                >
+                  Presupuestos
+                </Button>
+              </>
             ) : null}
             {!historical ? (
               <Button
@@ -1603,23 +1622,45 @@ function OdontogramEditor({
       </MouthStateProvider>
       <details
         className={parityStyles.disclosure}
-        id="clinical-flow"
+        id="treatment-plan"
         {...(initialSection === "plan" ? { open: true } : {})}
       >
         <summary>
           <span>
-            <strong>Presupuestos y plan de tratamiento</strong>
-            <small>Presupuestos y plan de tratamiento</small>
+            <strong>Plan de tratamiento</strong>
+            <small>Secuencia clínica y orden de los tratamientos</small>
           </span>
         </summary>
         <div className={parityStyles.disclosureBody}>
-          <ClinicalPipelineCard patientId={patientId} />
           {!historical ? (
-            <ClinicalWorkspace patientId={patientId} />
+            <ClinicalWorkspace patientId={patientId} mode="plan" />
           ) : (
             <Alert color="yellow" title="Plan clínico actual no modificado">
-              El snapshot histórico no sincroniza plan ni presupuesto. Vuelve al odontograma actual
-              para realizar cambios clínicos.
+              El snapshot histórico no modifica el plan actual. Vuelve al odontograma actual para
+              realizar cambios clínicos.
+            </Alert>
+          )}
+        </div>
+      </details>
+
+      <details className={parityStyles.disclosure} id="patient-budgets">
+        <summary>
+          <span>
+            <strong>Presupuestos</strong>
+            <small>Precios, versiones, firma y citas</small>
+          </span>
+        </summary>
+        <div className={parityStyles.disclosureBody}>
+          {!historical ? (
+            <ClinicalWorkspace
+              patientId={patientId}
+              mode="budget"
+              onOpenGuidedFlow={onOpenTreatmentFlow}
+            />
+          ) : (
+            <Alert color="yellow" title="Presupuestos actuales no modificados">
+              El snapshot histórico no modifica presupuestos. Vuelve al odontograma actual para
+              realizar cambios económicos.
             </Alert>
           )}
         </div>

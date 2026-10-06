@@ -136,6 +136,28 @@
   justify-content: flex-end;
 }
 
+.draggablePlanRow {
+  position: relative;
+  touch-action: manipulation;
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease;
+}
+
+.draggablePlanRow[data-dragging="true"] {
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--denty-blue) 6%, var(--denty-card));
+  box-shadow: 0 10px 28px rgb(15 35 55 / 10%);
+}
+
+.planSequenceNumber {
+  min-width: 1.35rem;
+  color: var(--denty-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
 .patientCarouselHeader {
   display: flex;
   gap: 16px;

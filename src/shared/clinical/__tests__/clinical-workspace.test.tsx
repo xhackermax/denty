@@ -150,23 +150,40 @@ describe("patient budget history", () => {
     renderWorkspace();
 
     expect(screen.getAllByText("Presupuestos y plan de tratamiento").length).toBeGreaterThan(0);
-    expect(
-      screen.getByRole("region", { name: "Secuencia del plan de tratamiento" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Tratamientos a realizar" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Presupuestos" })).toBeInTheDocument();
   });
 
-  it("reorders the treatment plan sequence with task-like controls", () => {
+  it("uses direct drag handles instead of subir y bajar controls", () => {
     renderWorkspace();
-    const sequence = screen.getByRole("region", { name: "Secuencia del plan de tratamiento" });
+    const sequence = screen.getByRole("list", { name: "Tratamientos a realizar" });
     const rows = within(sequence).getAllByRole("listitem");
     expect(within(rows[0]!).getByText("1")).toBeInTheDocument();
     expect(within(rows[0]!).getByText("Obturación")).toBeInTheDocument();
     expect(within(rows[1]!).getByText("2")).toBeInTheDocument();
     expect(within(rows[1]!).getByText("Corona")).toBeInTheDocument();
+    expect(within(rows[0]!).getByRole("button", { name: "Mover Obturación" })).toBeInTheDocument();
+    expect(within(rows[1]!).getByRole("button", { name: "Mover Corona" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Subir/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Bajar/ })).not.toBeInTheDocument();
+  });
 
-    fireEvent.click(within(rows[1]!).getByRole("button", { name: "Subir Corona" }));
+  it("can render plan and budgets as independent minimal surfaces", () => {
+    const { rerender } = render(
+      <MantineProvider>
+        <ClinicalWorkspace patientId="patient-1" mode="plan" />
+      </MantineProvider>,
+    );
+    expect(screen.getByRole("list", { name: "Tratamientos a realizar" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Presupuestos" })).not.toBeInTheDocument();
 
-    expect(mocks.reorderPlan).toHaveBeenCalledWith(["plan-b", "plan-a"]);
+    rerender(
+      <MantineProvider>
+        <ClinicalWorkspace patientId="patient-1" mode="budget" />
+      </MantineProvider>,
+    );
+    expect(screen.queryByRole("list", { name: "Tratamientos a realizar" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Presupuestos" })).toBeInTheDocument();
   });
 
   it("no muestra la tarjeta de estado de sincronización", () => {
@@ -178,7 +195,7 @@ describe("patient budget history", () => {
 
   it("opens previous budget details and keeps signed budgets read-only", async () => {
     renderWorkspace();
-    const history = screen.getByRole("region", { name: "Presupuestos anteriores" });
+    const history = screen.getByRole("region", { name: "Presupuestos" });
     expect(within(history).getAllByRole("button", { name: "Abrir" })).toHaveLength(2);
     expect(within(history).getAllByRole("button", { name: "Editar" })).toHaveLength(1);
     expect(within(history).getAllByRole("button", { name: "Eliminar" })).toHaveLength(1);
