@@ -1,5 +1,4 @@
 import type { ToothState } from "@/domain";
-import { useState } from "react";
 
 import styles from "./odontogram.module.css";
 
@@ -149,8 +148,6 @@ const LEGEND_ITEMS: readonly LegendItem[] = [
   },
 ] as const;
 
-const PRIMARY_KEYS = new Set(["healthy", "caries", "filling", "crown", "endo", "extraction"]);
-
 function selectedItem(item: LegendItem, selection: OdontogramLegendSelection): boolean {
   if (item.placement !== selection.placement) return false;
   return item.variants.some((variant) => variant.state === selection.state);
@@ -171,11 +168,8 @@ export function OdontogramLegend({
   onSelect: (selection: OdontogramLegendSelection) => void;
   disabled?: boolean;
 }) {
-  const [moreOpen, setMoreOpen] = useState(false);
   const activeItem = LEGEND_ITEMS.find((item) => selectedItem(item, selection));
   const activeVariant = activeItem?.variants.find((variant) => variant.state === selection.state);
-  const primaryItems = LEGEND_ITEMS.filter((item) => PRIMARY_KEYS.has(item.key));
-  const advancedItems = LEGEND_ITEMS.filter((item) => !PRIMARY_KEYS.has(item.key));
 
   const renderItem = (item: LegendItem) => {
     const isSelected = selectedItem(item, selection);
@@ -201,7 +195,6 @@ export function OdontogramLegend({
         onClick={() => {
           const next = isSelected ? nextVariant(item, selection) : item.variants[0]!;
           onSelect({ state: next.state, placement: item.placement });
-          setMoreOpen(false);
         }}
       >
         {item.symbol ? (
@@ -237,16 +230,7 @@ export function OdontogramLegend({
         </span>
       </div>
 
-      <div className={styles.legendGrid}>{primaryItems.map(renderItem)}</div>
-
-      <details
-        className={styles.legendMore}
-        open={moreOpen}
-        onToggle={(event) => setMoreOpen(event.currentTarget.open)}
-      >
-        <summary>Más tratamientos</summary>
-        <div className={styles.legendGrid}>{advancedItems.map(renderItem)}</div>
-      </details>
+      <div className={styles.legendGrid}>{LEGEND_ITEMS.map(renderItem)}</div>
     </aside>
   );
 }

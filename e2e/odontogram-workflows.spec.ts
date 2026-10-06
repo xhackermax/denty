@@ -149,7 +149,6 @@ test("endodontics is refused on a tooth replaced by a removable prosthesis", asy
   const failures = await isolatePage(page);
   await openOdontogram(page);
   const removable = page.getByRole("button", { name: /^Prótesis removible\. Realizada\./ });
-  if (!(await removable.isVisible())) await page.getByText("Más tratamientos").click();
   await removable.click();
   await reactivateLayerIfHidden(page);
   await page.getByRole("button", { name: "Diente 46", exact: true }).click();

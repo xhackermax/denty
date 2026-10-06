@@ -2,7 +2,7 @@
 
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { dentyTheme } from "@/styles/theme";
@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe("clinical odontogram workspace", () => {
-  it("keeps only the six primary treatments in the compact legend", () => {
+  it("muestra todos los tratamientos de la leyenda sin desplegable", () => {
     renderWithTheme(
       <OdontogramLegend selection={{ state: "caries", placement: "tooth" }} onSelect={() => {}} />,
     );
@@ -48,24 +48,23 @@ describe("clinical odontogram workspace", () => {
       legend.querySelectorAll("button"),
       (button) => button.querySelector("strong")?.textContent,
     );
-    expect(itemLabels.slice(0, 6)).toEqual([
+    expect(itemLabels).toEqual([
       "Sano",
       "Caries",
       "Obturación",
       "Corona",
       "Endodoncia",
+      "Perno",
+      "Implante",
+      "Prótesis fija / puente",
+      "Prótesis removible",
       "Exodoncia",
+      "Ausente",
     ]);
-
-    const moreTreatments = screen.getByText("Más tratamientos").closest("details");
-    expect(moreTreatments).not.toHaveAttribute("open");
-    expect(within(moreTreatments!).getByRole("button", { name: /Perno/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Más tratamientos"));
-    expect(moreTreatments).toHaveAttribute("open");
-    expect(within(moreTreatments!).getByRole("button", { name: /Implante/ })).toBeInTheDocument();
-    expect(
-      within(moreTreatments!).getByRole("button", { name: /Prótesis fija \/ puente/ }),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("Más tratamientos")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Perno/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Implante/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Prótesis fija \/ puente/ })).toBeInTheDocument();
   });
 
   it("usa la leyenda como selector de herramienta y activa el modo de puente", () => {

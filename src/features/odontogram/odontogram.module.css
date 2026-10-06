@@ -1732,32 +1732,6 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   font-size: 0.58rem;
 }
 
-.legendMore {
-  border-top: 1px solid color-mix(in srgb, var(--denty-line) 70%, transparent);
-  padding-top: 6px;
-}
-
-.legendMore > summary {
-  width: fit-content;
-  padding: 4px 7px;
-  border-radius: 999px;
-  color: var(--denty-blue-text);
-  cursor: pointer;
-  font-size: 0.65rem;
-  font-weight: 680;
-  list-style: none;
-}
-
-.legendMore > summary::-webkit-details-marker {
-  display: none;
-}
-
-.legendMore[open] > summary {
-  margin-bottom: 6px;
-  color: var(--denty-blue);
-  background: color-mix(in srgb, var(--denty-blue) 6%, transparent);
-}
-
 .advancedTools {
   overflow: hidden;
   border: 1px solid var(--denty-line);

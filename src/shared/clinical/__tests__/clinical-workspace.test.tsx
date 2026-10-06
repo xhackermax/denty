@@ -101,6 +101,13 @@ function renderWorkspace() {
 }
 
 describe("patient budget history", () => {
+  it("no muestra la tarjeta de estado de sincronización", () => {
+    renderWorkspace();
+    expect(screen.queryByText("Estado de sincronización")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sin estado de sincronización disponible.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sincronización cargada desde el backend.")).not.toBeInTheDocument();
+  });
+
   it("opens previous budget details and keeps signed budgets read-only", async () => {
     renderWorkspace();
     const history = screen.getByRole("region", { name: "Presupuestos anteriores" });

@@ -472,14 +472,6 @@ export function ClinicalWorkspace({ patientId }: { patientId: string }) {
           </Stack>
         ) : null}
       </Modal>
-      <section className={styles.section}>
-        <Text fw={800}>Estado de sincronización</Text>
-        <Text size="sm" c="dimmed" mt="xs">
-          {sync.data
-            ? "Sincronización cargada desde el backend."
-            : "Sin estado de sincronización disponible."}
-        </Text>
-      </section>
     </Stack>
   );
 }
