@@ -145,7 +145,7 @@ export async function startDeepgramDictation(
   deps: DeepgramDictationDeps,
   events: DictationEvents,
 ): Promise<DictationSession> {
-  const maxDurationMs = deps.maxDurationMs ?? 60_000;
+  const maxDurationMs = deps.maxDurationMs ?? 5 * 60_000;
   const connectTimeoutMs = deps.connectTimeoutMs ?? 8_000;
   const finalizeTimeoutMs = deps.finalizeTimeoutMs ?? 3_000;
 
