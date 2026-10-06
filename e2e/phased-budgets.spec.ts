@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { SAVED, openMoreTools, openOdontogram, pick } from "./support/odontogram";
-import { fakeSupabase, isolatePage, signIn } from "./support/session";
+import { PATIENT_ID, fakeSupabase, isolatePage, signIn } from "./support/session";
 
 test.beforeEach(async ({ context, baseURL }) => {
   await fakeSupabase.reset();
