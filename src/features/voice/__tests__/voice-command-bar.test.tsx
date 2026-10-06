@@ -133,6 +133,19 @@ describe("VoiceCommandBar", () => {
     expect(screen.queryByRole("button", { name: "Confirmar" })).toBeNull();
   });
 
+  it("shows how to recover when the browser has already blocked the microphone", async () => {
+    mocks.permissionState.mockResolvedValue("denied");
+    mount();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Escuchar comando" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "El micrófono está bloqueado para Denty",
+    );
+    expect(mocks.permission).not.toHaveBeenCalled();
+    expect(await screen.findByRole("button", { name: "Escuchar comando" })).toBeInTheDocument();
+  });
+
   it("navigates after Interpretar without a confirmation step", async () => {
     mount();
     const field = await openPanel();
