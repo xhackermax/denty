@@ -15,12 +15,15 @@ import {
   IconRestore,
 } from "@tabler/icons-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { dateDMY, dateYMDMadrid, epochMillis, hhmm, todayMadrid } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
 import { ClinicalPipelineCard } from "@/shared/clinical/clinical-pipeline-card";
 import { ClinicalSyncCard } from "@/shared/clinical/clinical-sync-card";
+import { ClinicalWorkspace } from "@/shared/clinical/clinical-workspace";
+import { TreatmentFlowModal } from "@/shared/clinical/treatment-flow";
 import { useClinicalWorkflowQuery } from "@/shared/clinical/clinical-data";
 import { PatientClinicalSummary } from "./patient-clinical-summary";
 import styles from "@/shared/ui/parity.module.css";
@@ -94,6 +97,16 @@ function PatientRouteCard({
 }
 
 export function PatientProfile({ patientId }: { patientId: string }) {
+  const searchParams = useSearchParams();
+  const requestedView = searchParams.get("view");
+  const initialTab =
+    requestedView === "plan"
+      ? "plan"
+      : requestedView === "budgets"
+        ? "budgets"
+        : requestedView === "clinical"
+          ? "clinical"
+          : "summary";
   const patientQuery = usePatientQuery(patientId);
   const projectionQuery = usePatientProjectionQuery(patientId);
   const workflowQuery = useClinicalWorkflowQuery(patientId);
@@ -102,12 +115,18 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const restorePatientMutation = useRestorePatientMutation();
   const uploadPhotoMutation = useUploadPatientPhotoMutation();
   const [now] = useState(() => Date.now());
-  const [activeTab, setActiveTab] = useState<string | null>("summary");
+  const [activeTab, setActiveTab] = useState<string | null>(initialTab);
+  const [treatmentFlowOpen, setTreatmentFlowOpen] = useState(false);
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [medicalProfileOverride, setMedicalProfileOverride] =
     useState<PatientMedicalProfile | null>(null);
+
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   if (patientQuery.isError) {
     return (
@@ -425,6 +444,8 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         items={[
           { value: "summary", label: "Resumen" },
           { value: "clinical", label: "Clínica" },
+          { value: "plan", label: "Plan" },
+          { value: "budgets", label: "Presupuestos" },
           { value: "documents", label: "Documentos" },
           { value: "finance", label: "Cobros" },
           { value: "more", label: "Más" },
@@ -473,6 +494,19 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           </div>
         </Tabs.Panel>
 
+
+        <Tabs.Panel value="plan" pt="lg">
+          <ClinicalWorkspace patientId={patientId} mode="plan" />
+        </Tabs.Panel>
+
+        <Tabs.Panel value="budgets" pt="lg">
+          <ClinicalWorkspace
+            patientId={patientId}
+            mode="budget"
+            onOpenGuidedFlow={() => setTreatmentFlowOpen(true)}
+          />
+        </Tabs.Panel>
+
         <Tabs.Panel value="documents" pt="lg">
           <div className={styles.patientRouteGrid}>
             <PatientRouteCard
@@ -518,6 +552,12 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           </div>
         </Tabs.Panel>
       </Tabs>
+
+      <TreatmentFlowModal
+        patientId={patientId}
+        opened={treatmentFlowOpen}
+        onClose={() => setTreatmentFlowOpen(false)}
+      />
     </div>
   );
 }
