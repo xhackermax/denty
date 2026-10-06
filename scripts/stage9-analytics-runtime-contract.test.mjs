@@ -36,4 +36,17 @@ for (const token of ["kpiVersion", "averageTicketCents", "periodStart", "granula
 const resource = fs.readFileSync("src/shared/api/resources/analytics.ts", "utf8");
 assert.ok(resource.includes("kpiDefinitions"), "API resource must expose KPI dictionary");
 assert.ok(resource.includes("periods"), "API resource must expose grouped period history");
+const periodsMigration = fs.readFileSync(
+  "supabase/migrations/20261006235900_analytics_period_history.sql",
+  "utf8",
+);
+for (const token of [
+  "create or replace function public.analytics_periods",
+  "private.has_finance_permission",
+  "Europe/Madrid",
+  "revoke all on function public.analytics_periods",
+  "grant execute on function public.analytics_periods",
+]) {
+  assert.ok(periodsMigration.includes(token), `period history migration missing ${token}`);
+}
 console.log("stage9-analytics-runtime-contract: PASS");
