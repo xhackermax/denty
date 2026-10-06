@@ -317,7 +317,7 @@ export function LaboratoryConfigurationModule() {
                   <Button
                     size="xs"
                     variant="light"
-                    disabled={!item.active}
+                    disabled={!lab?.active}
                     onClick={() => {
                       setEditingPriceId(item.id);
                       setPriceLabId(item.laboratoryId);
@@ -331,7 +331,7 @@ export function LaboratoryConfigurationModule() {
                   <Button
                     size="xs"
                     variant="subtle"
-                    disabled={!item.active}
+                    disabled={!lab?.active}
                     onClick={() =>
                       upsertPrice.mutate({
                         laboratoryId: item.laboratoryId,
@@ -339,12 +339,12 @@ export function LaboratoryConfigurationModule() {
                         workTypeCode: item.workTypeCode ?? undefined,
                         priceCents: item.priceCents,
                         turnaroundDays: item.turnaroundDays,
-                        active: false,
+                        active: !item.active,
                         expectedVersion: item.version,
                       })
                     }
                   >
-                    Desactivar
+                    {item.active ? "Desactivar" : "Activar"}
                   </Button>
                 </div>
               </div>
@@ -352,6 +352,44 @@ export function LaboratoryConfigurationModule() {
           })}
           {!priceList.isLoading && (priceList.data?.items.length ?? 0) === 0 ? (
             <Text c="dimmed">Aún no hay procedimientos ni tarifas.</Text>
+          ) : null}
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <div>
+          <h3 className={styles.sectionTitle}>Histórico de tarifas</h3>
+          <p className={styles.sectionDescription}>
+            Últimos cambios de precio y plazo registrados automáticamente.
+          </p>
+        </div>
+        <div className={styles.rowList}>
+          {(priceList.data?.history ?? []).map((item) => {
+            const lab = laboratories.data?.items.find(
+              (candidate) => candidate.id === item.laboratoryId,
+            );
+            return (
+              <div className={styles.row} key={item.id}>
+                <div className={styles.rowMain}>
+                  <span className={styles.rowTitle}>{item.workTypeName}</span>
+                  <span className={styles.rowMeta}>
+                    {lab?.name ?? "Laboratorio"} · {formatEUR(item.priceCents)} ·{" "}
+                    {item.turnaroundDays} días · versión {item.version}
+                  </span>
+                  <span className={styles.rowMeta}>
+                    {new Intl.DateTimeFormat("es-ES", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }).format(new Date(item.changedAt))}
+                    {" · "}
+                    {item.active ? "Tarifa activa" : "Tarifa desactivada"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+          {!priceList.isLoading && (priceList.data?.history.length ?? 0) === 0 ? (
+            <Text c="dimmed">Todavía no hay cambios de tarifa registrados.</Text>
           ) : null}
         </div>
       </section>
