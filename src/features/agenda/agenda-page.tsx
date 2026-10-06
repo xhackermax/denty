@@ -1359,7 +1359,7 @@ export function AgendaPage() {
   );
 
   const renderGrid = () => (
-    <section className={styles.shell}>
+    <section className={`${styles.shell} ${parityStyles.bluePerimeterRunner}`}>
       <div
         className={styles.scroller}
         // Keyboard users can scroll the day grid with the arrow keys once it has focus.

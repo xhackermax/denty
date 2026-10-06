@@ -9,6 +9,8 @@ import {
 } from "@tabler/icons-react";
 import Link from "next/link";
 
+import parityStyles from "@/shared/ui/parity.module.css";
+
 import type { TasksApi } from "./tasks/task-types";
 import { TasksTimeline } from "./tasks/tasks-timeline";
 import styles from "./tasks-page.module.css";
@@ -37,7 +39,10 @@ export function TasksPage({ tasksApi }: { tasksApi?: TasksApi } = {}) {
           ))}
         </div>
       </nav>
-      <section className={styles.tasksPanel} aria-label="Tareas">
+      <section
+        className={`${styles.tasksPanel} ${parityStyles.bluePerimeterRunner}`}
+        aria-label="Tareas"
+      >
         <TasksTimeline {...(tasksApi ? { api: tasksApi } : {})} />
       </section>
     </div>

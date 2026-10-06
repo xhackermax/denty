@@ -147,7 +147,7 @@ export function LaboratoryModule() {
         <Alert color="red">No se pudieron cargar todos los datos de laboratorio.</Alert>
       ) : null}
 
-      <section className={styles.section}>
+      <section className={`${styles.section} ${styles.bluePerimeterRunner}`}>
         <Group justify="space-between">
           <div>
             <h3 className={styles.sectionTitle}>Uso diario del laboratorio</h3>

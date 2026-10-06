@@ -4,6 +4,10 @@ import { readFileSync } from "node:fs";
 const workspace = readFileSync("src/features/odontogram/odontogram-workspace.tsx", "utf8");
 const tabs = readFileSync("src/features/odontogram/clinical-tabs.tsx", "utf8");
 const css = readFileSync("src/features/odontogram/odontogram.module.css", "utf8");
+const sharedCss = readFileSync("src/shared/ui/parity.module.css", "utf8");
+const agenda = readFileSync("src/features/agenda/agenda-page.tsx", "utf8");
+const tasks = readFileSync("src/features/parity/tasks-page.tsx", "utf8");
+const laboratory = readFileSync("src/features/parity/modules/laboratory-module.tsx", "utf8");
 const geometry = readFileSync("src/shared/odontogram/tooth-geometry.ts", "utf8");
 
 // Surfaces are edited on the classic five-area map (outer square, inner square
@@ -72,19 +76,31 @@ assert.match(
 );
 
 assert.match(
-  css,
-  /\.chartPanel::after\s*\{/,
-  "El panel principal debe conservar el recorrido visual animado por el borde.",
+  sharedCss,
+  /\.bluePerimeterRunner::after\s*\{/,
+  "El recorrido azul debe existir como patrón visual compartido.",
 );
 assert.match(
-  css,
-  /animation:\s*odontogramBorderRunner\s+5\.2s\s+linear\s+infinite/,
-  "La línea azul debe recorrer el perímetro de forma cíclica y estable.",
+  sharedCss,
+  /animation:\s*dentyPerimeterRunner\s+5\.2s\s+linear\s+infinite/,
+  "La línea azul compartida debe recorrer el perímetro de forma cíclica y estable.",
 );
 assert.match(
-  css,
+  sharedCss,
   /prefers-reduced-motion:\s*reduce/,
-  "La animación del borde debe respetar reducción de movimiento.",
+  "La animación compartida debe respetar reducción de movimiento.",
 );
+for (const [source, label] of [
+  [workspace, "odontograma"],
+  [agenda, "agenda"],
+  [tasks, "tareas"],
+  [laboratory, "laboratorio"],
+]) {
+  assert.match(
+    source,
+    /bluePerimeterRunner/,
+    `El módulo de ${label} debe usar el recorrido azul compartido.`,
+  );
+}
 
 console.log("odontogram-ui-regression: ok");

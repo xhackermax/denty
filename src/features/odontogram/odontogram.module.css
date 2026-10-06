@@ -44,53 +44,6 @@
 }
 
 
-@property --odontogram-border-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-
-.chartPanel::after {
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  padding: 1.5px;
-  border-radius: inherit;
-  background: conic-gradient(
-    from var(--odontogram-border-angle),
-    transparent 0deg 300deg,
-    color-mix(in srgb, var(--denty-blue) 12%, transparent) 309deg,
-    color-mix(in srgb, var(--denty-blue) 72%, transparent) 322deg,
-    var(--denty-blue) 331deg,
-    color-mix(in srgb, var(--denty-blue) 42%, transparent) 342deg,
-    transparent 354deg 360deg
-  );
-  content: "";
-  pointer-events: none;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  animation: odontogramBorderRunner 5.2s linear infinite;
-}
-
-@keyframes odontogramBorderRunner {
-  to {
-    --odontogram-border-angle: 360deg;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chartPanel::after {
-    animation: none;
-    opacity: 0.24;
-  }
-}
-
 .archBlock {
   position: relative;
   display: grid;
