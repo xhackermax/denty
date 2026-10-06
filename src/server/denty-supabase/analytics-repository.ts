@@ -60,6 +60,14 @@ export class AnalyticsRepository {
     });
   }
 
+  periods(query: AnalyticsQuery) {
+    return this.client.rpc<{ items: Record<string, unknown>[] }>("analytics_periods", {
+      ...rpcScope(this.clinicId, query),
+      p_granularity: query.granularity ?? "month",
+      p_limit: query.limit ?? 120,
+    });
+  }
+
   specialties(query: AnalyticsQuery) {
     return this.client.rpc<{ items: Record<string, unknown>[] }>("analytics_specialties", {
       ...rpcScope(this.clinicId, query),

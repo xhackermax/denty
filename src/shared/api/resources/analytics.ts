@@ -42,6 +42,8 @@ export function createAnalyticsResource(client: ApiClient) {
       client.request(analyticsPath("/api/analytics/losses", query), analyticsResultSchema),
     monthly: (query: z.input<typeof analyticsQuerySchema> = {}) =>
       client.request(analyticsPath("/api/analytics/monthly", query), analyticsMetricItemsSchema),
+    periods: (query: z.input<typeof analyticsQuerySchema> = {}) =>
+      client.request(analyticsPath("/api/analytics/periods", query), analyticsMetricItemsSchema),
     events: (query: z.input<typeof analyticsQuerySchema> = {}) =>
       client.request(analyticsPath("/api/analytics/events", query), analyticsItemsSchema),
     drilldown: (category: string, query: z.input<typeof analyticsQuerySchema> = {}) =>

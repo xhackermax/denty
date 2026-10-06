@@ -11,6 +11,7 @@ export const analyticsQuerySchema = z
     specialty: z.string().min(1).optional(),
     type: z.string().min(1).optional(),
     category: z.string().min(1).optional(),
+    granularity: z.enum(["month", "quarter", "year"]).optional(),
     limit: z.coerce.number().int().positive().max(200).optional(),
   })
   .strict()
@@ -31,6 +32,7 @@ export const analyticsItemSchema = z
     doctorName: z.string().optional(),
     staffId: idSchema.optional(),
     month: z.string().optional(),
+    periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     category: z.string().optional(),
     count: z.number().int().nonnegative().optional(),
     producedCents: z.number().int().optional(),

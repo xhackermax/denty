@@ -2110,7 +2110,7 @@ export async function handleSupabaseDentyRoute(
       parts[0] === "api" &&
       parts[1] === "analytics" &&
       method === "GET" &&
-      ["summary", "treatments", "doctors", "monthly", "profitability", "specialties"].includes(
+      ["summary", "treatments", "doctors", "monthly", "periods", "profitability", "specialties"].includes(
         parts[2] ?? "",
       )
     ) {
@@ -2122,6 +2122,7 @@ export async function handleSupabaseDentyRoute(
       if (parts[2] === "treatments") return json(200, await analytics.treatments(query), headers);
       if (parts[2] === "doctors") return json(200, await analytics.doctors(query), headers);
       if (parts[2] === "monthly") return json(200, await analytics.monthly(query), headers);
+      if (parts[2] === "periods") return json(200, await analytics.periods(query), headers);
       if (parts[2] === "profitability")
         return json(200, await analytics.profitability(query), headers);
       return json(200, await analytics.specialties(query), headers);
