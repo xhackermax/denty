@@ -26,6 +26,7 @@ import {
   useAddClinicalPlanItemMutation,
   useDeleteDraftBudgetMutation,
   useClinicalPlanQuery,
+  useCreateClinicalEncounterMutation,
   useClinicalSyncQuery,
   useReorderClinicalPlanMutation,
   useClinicalWorkflowQuery,
@@ -39,6 +40,7 @@ import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
 import { DragHandle } from "@/shared/drag/drag-handle";
 import styles from "@/shared/ui/parity.module.css";
 import type { BudgetView } from "./budget-options";
+import { TreatmentOptionComparison } from "./treatment-option-comparison";
 
 type ClinicalWorkspaceMode = "plan" | "budget" | "combined";
 
@@ -160,6 +162,7 @@ export function ClinicalWorkspace({
   const reorderPlan = useReorderClinicalPlanMutation(patientId);
   const treatmentCatalog = useTreatmentCatalogQuery(showPlan);
   const addItem = useAddClinicalPlanItemMutation(patientId);
+  const recordPreference = useCreateClinicalEncounterMutation(patientId);
   const [treatmentCatalogId, setTreatmentCatalogId] = useState<string | null>(null);
   const [tooth, setTooth] = useState("");
   const [optimisticOrder, setOptimisticOrder] = useState<string[] | null>(null);
@@ -170,6 +173,7 @@ export function ClinicalWorkspace({
   const [budgetTitle, setBudgetTitle] = useState("");
   const [budgetPrices, setBudgetPrices] = useState<Record<string, number | string>>({});
   const [budgetFormError, setBudgetFormError] = useState<string | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const activeCatalog = (treatmentCatalog.data?.items ?? []).filter((item) => item.active);
   const selectedTreatment = activeCatalog.find((item) => item.id === treatmentCatalogId);
@@ -178,6 +182,7 @@ export function ClinicalWorkspace({
     (showPlan && (workflow.isError || sync.isError)) ||
     (showBudget && budgetHistory.isError);
   const budgets = budgetHistory.data?.items ?? [];
+  const comparableBudgets = budgets.filter((budget) => budget.status === "DRAFT");
   const serverSequencedItems = (plan.data?.route?.length
     ? plan.data.route
     : (plan.data?.items ?? [])) as PlanItemView[];
@@ -458,6 +463,11 @@ export function ClinicalWorkspace({
               >
                 Crear desde el plan
               </Button>
+              {comparableBudgets.length >= 2 ? (
+                <Button size="xs" variant="light" color="teal" onClick={() => setCompareOpen(true)}>
+                  Comparar opciones
+                </Button>
+              ) : null}
               {onOpenGuidedFlow ? (
                 <Button size="xs" variant="subtle" onClick={onOpenGuidedFlow}>
                   Firma y citas
@@ -533,6 +543,31 @@ export function ClinicalWorkspace({
 
       {showBudget ? (
         <>
+          <TreatmentOptionComparison
+            budgets={budgets}
+            opened={compareOpen}
+            onClose={() => setCompareOpen(false)}
+            onOpenBudget={(budget) => {
+              setCompareOpen(false);
+              showBudgetDetails(budget);
+            }}
+            registeringInterest={recordPreference.isPending}
+            registerError={
+              recordPreference.error
+                ? readableError(
+                    recordPreference.error,
+                    "No se pudo guardar la preferencia del paciente.",
+                  )
+                : null
+            }
+            onRegisterInterest={async (budget) => {
+              const title = budget.title?.trim() || budget.code;
+              await recordPreference.mutateAsync({
+                narrativeNote: `Durante la explicación de las opciones de tratamiento, el paciente muestra interés por «${title}» (${formatEUR(budget.totalCents)}). Esta preferencia no equivale a aceptación ni firma del presupuesto.`,
+                sign: false,
+              });
+            }}
+          />
           <Modal
             opened={openBudget !== null}
             onClose={() => {
