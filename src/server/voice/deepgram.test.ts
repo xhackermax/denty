@@ -20,6 +20,7 @@ describe("buildDeepgramListenUrl", () => {
     expect(url.searchParams.get("channels")).toBe("1");
     expect(url.searchParams.get("interim_results")).toBe("true");
     expect(url.searchParams.get("smart_format")).toBe("true");
+    expect(url.searchParams.get("endpointing")).toBe("700");
   });
 
   it("only adds key terms when they are explicitly enabled", () => {
