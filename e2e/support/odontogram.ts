@@ -2,7 +2,7 @@ import { expect, type Page } from "@playwright/test";
 
 import { PATIENT_ID, fakeSupabase } from "./session";
 
-export const SAVED = "Guardado · plan y presupuesto al día";
+export const SAVED = "Guardado · información clínica al día";
 
 export async function openOdontogram(page: Page, patientId = PATIENT_ID) {
   await page.goto(`/app/patients/${patientId}/odontogram`);
