@@ -1,0 +1,204 @@
+.modalBody {
+  padding-top: 6px;
+}
+
+.intro {
+  max-width: 760px;
+}
+
+.selectors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.comparisonGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.optionCard {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid var(--denty-line);
+  border-radius: 22px;
+  background: var(--denty-card);
+  box-shadow: var(--denty-card-shadow);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.optionCard[data-selected="true"] {
+  border-color: color-mix(in srgb, var(--denty-teal) 58%, var(--denty-line));
+  box-shadow: 0 14px 38px rgb(15 35 55 / 10%);
+  transform: translateY(-2px);
+}
+
+.optionTop {
+  display: flex;
+  min-width: 0;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.optionTitle {
+  margin-top: 2px;
+  font-size: 1.22rem;
+  font-weight: 820;
+  letter-spacing: -0.03em;
+}
+
+.patientPath {
+  display: grid;
+  gap: 0;
+}
+
+.patientPathStep {
+  position: relative;
+  display: grid;
+  min-height: 48px;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
+.patientPathStep:not(:last-child)::after {
+  position: absolute;
+  top: 34px;
+  bottom: -8px;
+  left: 14px;
+  width: 1px;
+  background: color-mix(in srgb, var(--denty-teal) 35%, var(--denty-line));
+  content: "";
+}
+
+.patientPathNumber {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--denty-teal) 40%, var(--denty-line));
+  border-radius: 50%;
+  background: var(--denty-card);
+  color: var(--denty-teal);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.optionFacts {
+  display: grid;
+  gap: 0;
+  margin-top: auto;
+  border-top: 1px solid var(--denty-line);
+  border-bottom: 1px solid var(--denty-line);
+}
+
+.optionFacts > div {
+  display: flex;
+  min-height: 42px;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--denty-line);
+}
+
+.optionFacts > div:last-child {
+  border-bottom: 0;
+}
+
+.optionFacts span {
+  color: var(--denty-muted);
+  font-size: 0.78rem;
+}
+
+.optionFacts strong {
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+.differenceToggle {
+  align-self: center;
+}
+
+.differences {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--denty-line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--denty-bg) 62%, var(--denty-card) 38%);
+}
+
+.differenceColumn {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+}
+
+.differenceColumn span {
+  color: var(--denty-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.priceDifference {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--denty-line);
+}
+
+.priceDifference span {
+  color: var(--denty-muted);
+  font-size: 0.82rem;
+}
+
+.choiceSummary {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--denty-teal) 30%, var(--denty-line));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--denty-teal) 5%, var(--denty-card));
+}
+
+@media (width <= 48em) {
+  .comparisonGrid,
+  .selectors,
+  .differences {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .priceDifference {
+    grid-column: 1;
+  }
+
+  .choiceSummary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .optionCard {
+    padding: 16px;
+  }
+}

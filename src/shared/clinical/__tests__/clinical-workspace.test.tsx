@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   updateBudget: vi.fn(),
   deleteBudget: vi.fn(),
   reorderPlan: vi.fn(),
+  recordPreference: vi.fn(),
 }));
 
 vi.mock("../clinical-data", () => ({
@@ -75,8 +76,8 @@ vi.mock("../clinical-data", () => ({
           version: 2,
           revision: 2,
           createdAt: "2026-10-05T10:00:00.000Z",
-          scope: "primary",
-          title: "Fase 1",
+          scope: "custom",
+          title: "Conservar el diente",
           items: [
             {
               id: "item-1",
@@ -86,6 +87,37 @@ vi.mock("../clinical-data", () => ({
               quantity: 1,
               billingMode: "separate",
               totalCents: 9000,
+            },
+          ],
+        },
+        {
+          id: "draft-2",
+          code: "P-2-R1",
+          status: "DRAFT",
+          totalCents: 195000,
+          version: 1,
+          revision: 1,
+          createdAt: "2026-10-05T11:00:00.000Z",
+          scope: "custom",
+          title: "Implante",
+          items: [
+            {
+              id: "item-2",
+              description: "Extracción",
+              tooth: "46",
+              unitPriceCents: 15000,
+              quantity: 1,
+              billingMode: "separate",
+              totalCents: 15000,
+            },
+            {
+              id: "item-3",
+              description: "Implante",
+              tooth: "46",
+              unitPriceCents: 180000,
+              quantity: 1,
+              billingMode: "separate",
+              totalCents: 180000,
             },
           ],
         },
@@ -112,6 +144,11 @@ vi.mock("../clinical-data", () => ({
   useTreatmentCatalogQuery: () => ({ data: { items: [] } }),
   useAddClinicalPlanItemMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useReorderClinicalPlanMutation: () => ({ mutate: mocks.reorderPlan, isPending: false }),
+  useCreateClinicalEncounterMutation: () => ({
+    mutateAsync: mocks.recordPreference,
+    isPending: false,
+    error: null,
+  }),
   useUpdateDraftBudgetMutation: () => ({
     mutateAsync: mocks.updateBudget,
     isPending: false,
@@ -135,6 +172,7 @@ beforeEach(() => {
   mocks.updateBudget.mockResolvedValue({});
   mocks.deleteBudget.mockResolvedValue({});
   mocks.reorderPlan.mockReset();
+  mocks.recordPreference.mockResolvedValue({});
 });
 
 function renderWorkspace() {
@@ -196,13 +234,44 @@ describe("patient budget history", () => {
   it("opens previous budget details and keeps signed budgets read-only", async () => {
     renderWorkspace();
     const history = screen.getByRole("region", { name: "Presupuestos" });
-    expect(within(history).getAllByRole("button", { name: "Abrir" })).toHaveLength(2);
-    expect(within(history).getAllByRole("button", { name: "Editar" })).toHaveLength(1);
-    expect(within(history).getAllByRole("button", { name: "Eliminar" })).toHaveLength(1);
+    expect(within(history).getAllByRole("button", { name: "Abrir" })).toHaveLength(3);
+    expect(within(history).getAllByRole("button", { name: "Editar" })).toHaveLength(2);
+    expect(within(history).getAllByRole("button", { name: "Eliminar" })).toHaveLength(2);
 
     fireEvent.click(within(history).getAllByRole("button", { name: "Abrir" })[0]!);
     expect(await screen.findByRole("dialog", { name: "Presupuesto P-1-R2" })).toBeInTheDocument();
     expect(screen.getByText("Diente 46 · Obturación")).toBeInTheDocument();
+  });
+
+  it("compares two draft options in patient-friendly language and records interest", async () => {
+    renderWorkspace();
+
+    fireEvent.click(screen.getByRole("button", { name: "Comparar opciones" }));
+    const dialog = await screen.findByRole("dialog", { name: "Comparar opciones de tratamiento" });
+
+    expect(within(dialog).getByText("¿Qué opción encaja mejor contigo?")).toBeInTheDocument();
+    expect(within(dialog).getByText("Conservar el diente")).toBeInTheDocument();
+    expect(within(dialog).getByText("Implante")).toBeInTheDocument();
+    expect(within(dialog).getByText("Reconstrucción del diente")).toBeInTheDocument();
+    expect(within(dialog).getByText("Extracción del diente")).toBeInTheDocument();
+    expect(within(dialog).getByText("Colocación del implante")).toBeInTheDocument();
+
+    const interestButtons = within(dialog).getAllByRole("button", {
+      name: "Me interesa esta opción",
+    });
+    fireEvent.click(interestButtons[1]!);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar preferencia" }));
+
+    await waitFor(() =>
+      expect(mocks.recordPreference).toHaveBeenCalledWith(
+        expect.objectContaining({
+          narrativeNote: expect.stringContaining(
+            "el paciente muestra interés por «Implante»",
+          ),
+          sign: false,
+        }),
+      ),
+    );
   });
 
   it("saves draft edits with the expected version and updated line items", async () => {
