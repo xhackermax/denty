@@ -18,6 +18,7 @@ as $$
 $$;
 
 revoke all on function private.is_clinic_admin(uuid) from public, anon;
+grant execute on function private.is_clinic_admin(uuid) to authenticated;
 
 create or replace function public.create_laboratory(
   p_clinic_id uuid,
