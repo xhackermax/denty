@@ -30,6 +30,14 @@ assert.ok(
   "analysis periods must use Madrid business timezone",
 );
 assert.match(analysis, /analytics\.summary\(query\)/, "analysis must consume canonical summary");
+assert.match(
+  analysis,
+  /analytics\.periods\(historyScope\)/,
+  "analysis must consume canonical period history",
+);
+for (const token of ["Personalizado", "Desde / hasta", "Histórico", "Trimestres", "Años"]) {
+  assert.ok(analysis.includes(token), `analysis temporal UI missing ${token}`);
+}
 for (const label of ["Producción", "Cobrado", "Margen", "Conversión"])
   assert.ok(analysis.includes(label));
 const financeData = fs.readFileSync("src/features/parity/modules/finance-data.ts", "utf8");
