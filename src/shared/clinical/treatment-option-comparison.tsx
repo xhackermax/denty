@@ -169,10 +169,18 @@ export function TreatmentOptionComparison({
   registeringInterest = false,
   registerError,
 }: TreatmentOptionComparisonProps) {
-  const candidates = useMemo(
-    () => budgets.filter((budget) => budget.status === "DRAFT"),
-    [budgets],
-  );
+  const candidates = useMemo(() => {
+    const seen = new Set<string>();
+    return budgets.filter((budget) => {
+      if (budget.status !== "DRAFT") return false;
+      // Phase 1 and Phase 2 are complementary stages, not competing treatment choices.
+      if (budget.scope === "primary" || budget.scope === "secondary") return false;
+      const key = `${budget.scope ?? "plan"}|${budget.title?.trim().toLowerCase() ?? ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [budgets]);
   const [leftId, setLeftId] = useState<string | null>(null);
   const [rightId, setRightId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -200,8 +208,12 @@ export function TreatmentOptionComparison({
 
   const register = async () => {
     if (!selected || !onRegisterInterest) return;
-    await onRegisterInterest(selected);
-    setSavedId(selected.id);
+    try {
+      await onRegisterInterest(selected);
+      setSavedId(selected.id);
+    } catch {
+      // The parent exposes the mutation error. Keep the choice visible so it can be retried.
+    }
   };
 
   return (
