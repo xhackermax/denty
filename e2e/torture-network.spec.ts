@@ -3,7 +3,7 @@ import { PATIENT_ID, fakeSupabase, signIn } from "./support/session";
 
 const editor = `/app/patients/${PATIENT_ID}/odontogram`;
 const batch = `**/api/patients/${PATIENT_ID}/odontogram/batch`;
-const saved = "Guardado · plan y presupuesto al día";
+const saved = "Guardado · información clínica al día";
 
 // Intentional error responses are part of these tests; uncaught browser exceptions are not.
 async function monitor(page: Page) {
