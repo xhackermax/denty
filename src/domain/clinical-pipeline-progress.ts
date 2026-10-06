@@ -79,13 +79,13 @@ export function clinicalPipelineHref(step: ClinicalPipelineStepKey, patientId?: 
     case "diagnosis":
       return `/app/patients/${encoded}/odontogram?section=diagnosis`;
     case "plan":
-      return `/app/patients/${encoded}/odontogram?section=plan`;
+      return `/app/patients/${encoded}?view=plan`;
     case "consents":
       return `/app/documents?patientId=${encoded}&workflow=consents`;
     case "budget":
-      return `/app/finance?patientId=${encoded}&view=budgets`;
+      return `/app/patients/${encoded}?view=budgets`;
     case "signature":
-      return `/app/finance?patientId=${encoded}&view=budgets&action=sign`;
+      return `/app/patients/${encoded}?view=budgets&action=sign`;
     case "appointments":
       return `/app/agenda?patientId=${encoded}`;
   }
