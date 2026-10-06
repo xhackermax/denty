@@ -1217,7 +1217,7 @@ export async function handleSupabaseDentyRoute(
         return json(200, await laboratory.listLaboratories(), headers);
       }
       if (method === "POST") {
-        const d = requireActorPermission(identity, "lab.write");
+        const d = requireActorPermission(identity, "catalog.manage");
         if (d) return d;
         return json(
           201,
@@ -1245,7 +1245,7 @@ export async function handleSupabaseDentyRoute(
       parts[1] === "laboratories" &&
       method === "PATCH"
     ) {
-      const d = requireActorPermission(identity, "lab.write");
+      const d = requireActorPermission(identity, "catalog.manage");
       if (d) return d;
       return json(
         200,
@@ -1257,20 +1257,13 @@ export async function handleSupabaseDentyRoute(
       );
     }
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "laboratory-price-list") {
-      if (identity.actor.role !== "ADMIN") {
-        return error(
-          403,
-          "FORBIDDEN",
-          "Solo administracion puede configurar precios de laboratorio.",
-        );
-      }
       if (method === "GET") {
         const d = requireActorPermission(identity, "lab.read");
         if (d) return d;
         return json(200, await laboratory.listPriceList(), headers);
       }
       if (method === "POST") {
-        const d = requireActorPermission(identity, "lab.write");
+        const d = requireActorPermission(identity, "catalog.manage");
         if (d) return d;
         return json(
           201,
