@@ -149,7 +149,8 @@ for (const [index, step] of FLOW_STEPS.entries()) {
       await fakeSupabase.patch("budgets", `id=eq.${String(budget!.id)}`, { status: "SIGNED" });
       moves = index - 1;
     }
-    await page.getByRole("button", { name: "Plan y presupuesto" }).click();
+    await page.getByRole("button", { name: "Presupuestos" }).click();
+  await page.getByRole("button", { name: "Firma y citas" }).click();
     const flow = page.getByRole("dialog");
     await expect(flow).toBeVisible();
     for (let move = 0; move < moves; move += 1) {
@@ -164,7 +165,8 @@ for (const [index, step] of FLOW_STEPS.entries()) {
     await expectChartBack(page, "36");
 
     // And out through the menu after closing the flow.
-    await page.getByRole("button", { name: "Plan y presupuesto" }).click();
+    await page.getByRole("button", { name: "Presupuestos" }).click();
+  await page.getByRole("button", { name: "Firma y citas" }).click();
     await page.keyboard.press("Escape");
     await (await sidebarLink(page, /^Agenda/)).click();
     await expect(page).toHaveURL(/\/app\/agenda/);
