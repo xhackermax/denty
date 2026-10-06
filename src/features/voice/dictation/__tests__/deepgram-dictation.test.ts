@@ -34,11 +34,12 @@ class FakeSocket {
     this.readyState = 1;
     this.onopen?.();
   }
-  result(transcript: string, isFinal: boolean) {
+  result(transcript: string, isFinal: boolean, speechFinal = false) {
     this.onmessage?.({
       data: JSON.stringify({
         type: "Results",
         is_final: isFinal,
+        speech_final: speechFinal,
         channel: { alternatives: [{ transcript }] },
       }),
     });
@@ -84,6 +85,7 @@ function setup(overrides: Partial<DeepgramDictationDeps> = {}) {
     onStatus: vi.fn(),
     onInterim: vi.fn(),
     onFinal: vi.fn(),
+    onSpeechFinal: vi.fn(),
     onError: vi.fn(),
     onEnd: vi.fn(),
   } satisfies DictationEvents;
@@ -129,12 +131,13 @@ describe("startDeepgramDictation", () => {
     sockets[0]?.open();
     sockets[0]?.result("marca", false);
     sockets[0]?.result("", false);
-    sockets[0]?.result("marca caries en el 16", true);
+    sockets[0]?.result("marca caries en el 16", true, true);
     sockets[0]?.result("", true);
     expect(events.onInterim).toHaveBeenCalledTimes(1);
     expect(events.onInterim).toHaveBeenCalledWith("marca");
     expect(events.onFinal).toHaveBeenCalledTimes(1);
     expect(events.onFinal).toHaveBeenCalledWith("marca caries en el 16");
+    expect(events.onSpeechFinal).toHaveBeenCalledTimes(1);
   });
 
   it("finishes the stream, keeps late final results and releases the microphone on stop", async () => {
