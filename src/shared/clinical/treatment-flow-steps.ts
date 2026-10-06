@@ -34,6 +34,15 @@ export function initialTreatmentFlowStep(state: TreatmentFlowState): TreatmentFl
   return budgetIsSignedAndCurrent(state) && state.openItemCount > 0 ? "appointments" : "plan";
 }
 
+/**
+ * Opening the guided flow prepares the plan from the odontogram, except when the
+ * current budget is already signed. In that case re-syncing can make a freshly
+ * signed budget look obsolete before the user can schedule appointments.
+ */
+export function shouldPrepareTreatmentFlowPlan(state: TreatmentFlowState): boolean {
+  return !budgetIsSignedAndCurrent(state);
+}
+
 /** Why "Siguiente" is disabled on a step, or null when the user can move on. */
 export function treatmentFlowBlocker(
   step: TreatmentFlowStep,

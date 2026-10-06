@@ -50,6 +50,7 @@ import {
   eurosToCents,
   initialTreatmentFlowStep,
   isOpenPlanItem,
+  shouldPrepareTreatmentFlowPlan,
   treatmentFlowBlocker,
   type TreatmentFlowState,
   type TreatmentFlowStep,
@@ -107,13 +108,6 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
   const [step, setStep] = useState<TreatmentFlowStep | null>(null);
   const started = useRef(false);
 
-  // Opening the flow always derives the plan from the saved odontogram first.
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    planSync.mutate();
-  }, [planSync]);
-
   const openItems = useMemo(
     () => (planQuery.data?.items ?? []).filter(isOpenPlanItem),
     [planQuery.data?.items],
@@ -133,8 +127,18 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
     budget: syncBudget ? { status: syncBudget.status, outdated: syncBudget.outdated } : null,
   };
 
+  // Opening the flow derives the plan from the saved odontogram first, unless the
+  // current budget is already signed. Re-syncing then can obsolete the signature
+  // before the appointment step opens.
+  const planPreparationNeeded = shouldPrepareTreatmentFlowPlan(state);
+  useEffect(() => {
+    if (started.current || !syncQuery.data) return;
+    started.current = true;
+    if (planPreparationNeeded) planSync.mutate();
+  }, [planPreparationNeeded, planSync, syncQuery.data]);
+
   const ready =
-    planSync.isSuccess &&
+    (!planPreparationNeeded || planSync.isSuccess) &&
     syncQuery.data &&
     consentsQuery.data &&
     planQuery.isFetched &&

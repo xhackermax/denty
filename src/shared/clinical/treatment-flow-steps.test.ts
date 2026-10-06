@@ -4,6 +4,7 @@ import {
   eurosToCents,
   initialTreatmentFlowStep,
   isOpenPlanItem,
+  shouldPrepareTreatmentFlowPlan,
   treatmentFlowBlocker,
   type TreatmentFlowState,
 } from "./treatment-flow-steps";
@@ -19,6 +20,16 @@ describe("treatment flow steps", () => {
     expect(
       initialTreatmentFlowStep({ ...base, budget: { status: "SIGNED", outdated: true } }),
     ).toBe("plan");
+  });
+
+  it("does not resync the plan when opening with a current signed budget", () => {
+    expect(shouldPrepareTreatmentFlowPlan(base)).toBe(true);
+    expect(
+      shouldPrepareTreatmentFlowPlan({ ...base, budget: { status: "SIGNED", outdated: false } }),
+    ).toBe(false);
+    expect(
+      shouldPrepareTreatmentFlowPlan({ ...base, budget: { status: "SIGNED", outdated: true } }),
+    ).toBe(true);
   });
 
   it("blocks each step until its requirement is met", () => {
