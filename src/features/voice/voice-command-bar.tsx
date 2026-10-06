@@ -388,7 +388,7 @@ function VoiceCommandBarInner({
   const executePreview = useCallback(
     async (
       next: VoicePreview,
-      options: { confirmSensitive: boolean; clearText: boolean },
+      options: { confirmSensitive: boolean; clearText: boolean; clearPreview: boolean },
     ) => {
       if (executingRef.current || !canExecuteVoicePreview(next)) return false;
       const adaptation = localVoicePlanToToolCalls(next.plan);
@@ -439,7 +439,7 @@ function VoiceCommandBarInner({
         }
         for (const effect of result.effects) applyAssistantEffect(effect);
         invalidateAfterVoiceExecution(queryClient, adaptation.calls);
-        setPreview(null);
+        if (options.clearPreview) setPreview(null);
         if (options.clearText) updateText("");
         setLastDone(next.plan.readback);
         return true;
@@ -456,7 +456,11 @@ function VoiceCommandBarInner({
 
   const executeConfirmedPreview = useCallback(
     (next: VoicePreview) =>
-      executePreview(next, { confirmSensitive: true, clearText: true }),
+      executePreview(next, {
+        confirmSensitive: true,
+        clearText: true,
+        clearPreview: true,
+      }),
     [executePreview],
   );
 
@@ -489,7 +493,11 @@ function VoiceCommandBarInner({
             (call) => evaluateAssistantCall(call, policyContext).decision === "ALLOW",
           );
         if (safeToAutoRun) {
-          await executePreview(next, { confirmSensitive: false, clearText: false });
+          await executePreview(next, {
+            confirmSensitive: false,
+            clearText: false,
+            clearPreview: false,
+          });
           return;
         }
       }
@@ -535,7 +543,7 @@ function VoiceCommandBarInner({
       if (!clean) return;
       setError(null);
       setLastDone(null);
-      setPreview(null);
+      if (source === "manual") setPreview(null);
       setPatientChoice(null);
 
       const rules = previewVoiceCommand(clean, { pathname, ...assistantContext });
