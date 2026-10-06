@@ -47,7 +47,7 @@ test("a four-year-old's chart has only primary teeth", async ({ page }) => {
 
   // Marking a caries on a primary molar saves like any other tooth.
   await page.getByRole("button", { name: "Diente 85 superficie oclusal" }).click();
-  await expect(page.getByText("Guardado · plan y presupuesto al día")).toBeVisible({
+  await expect(page.getByText("Guardado · información clínica al día")).toBeVisible({
     timeout: 15_000,
   });
   const saved = (await fakeSupabase.state()).dental_entities!;
