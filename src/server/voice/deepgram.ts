@@ -35,6 +35,9 @@ export function buildDeepgramListenUrl(options: DeepgramListenOptions): string {
   url.searchParams.set("interim_results", "true");
   url.searchParams.set("smart_format", "true");
   url.searchParams.set("punctuate", "true");
+  // Chairside dictation needs enough silence for natural pauses between tooth,
+  // finding and surfaces, while still feeling immediate.
+  url.searchParams.set("endpointing", "700");
   for (const term of options.keyterms ?? []) url.searchParams.append("keyterm", term);
   return url.toString();
 }
