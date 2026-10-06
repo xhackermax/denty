@@ -109,6 +109,19 @@ interface LaboratoryPriceListRow {
   created_at: string;
   updated_at: string;
 }
+interface LaboratoryPriceHistoryRow {
+  id: number;
+  clinic_id: string;
+  laboratory_id: string;
+  work_type_id: string;
+  work_type_name: string;
+  price_cents: number;
+  turnaround_days: number;
+  active: boolean;
+  version: number;
+  changed_at: string;
+  changed_by: string | null;
+}
 interface AppointmentRow {
   id: string;
   patient_id: string;
@@ -230,6 +243,19 @@ const laboratoryPriceListItem = (r: LaboratoryPriceListRow) => ({
   updatedAt: r.updated_at,
 });
 
+const laboratoryPriceHistoryItem = (r: LaboratoryPriceHistoryRow) => ({
+  id: String(r.id),
+  laboratoryId: r.laboratory_id,
+  workTypeId: r.work_type_id,
+  workTypeName: r.work_type_name,
+  priceCents: Number(r.price_cents),
+  turnaroundDays: r.turnaround_days,
+  active: r.active,
+  version: r.version,
+  changedAt: r.changed_at,
+  changedBy: r.changed_by ?? null,
+});
+
 export class LaboratoryRepository {
   constructor(
     private readonly client: SupabaseRestClient,
@@ -276,12 +302,23 @@ export class LaboratoryRepository {
   }
 
   async listPriceList() {
-    const rows = await this.client.select<LaboratoryPriceListRow>("laboratory_price_list_view", {
-      select: "*",
-      clinic_id: `eq.${this.clinicId}`,
-      order: "work_type_name.asc",
-    });
-    return { items: rows.map(laboratoryPriceListItem) };
+    const [rows, history] = await Promise.all([
+      this.client.select<LaboratoryPriceListRow>("laboratory_price_list_view", {
+        select: "*",
+        clinic_id: `eq.${this.clinicId}`,
+        order: "work_type_name.asc",
+      }),
+      this.client.select<LaboratoryPriceHistoryRow>("laboratory_price_history", {
+        select: "*",
+        clinic_id: `eq.${this.clinicId}`,
+        order: "changed_at.desc",
+        limit: 100,
+      }),
+    ]);
+    return {
+      items: rows.map(laboratoryPriceListItem),
+      history: history.map(laboratoryPriceHistoryItem),
+    };
   }
 
   async upsertPriceListItem(input: UpsertLaboratoryPriceInput) {
