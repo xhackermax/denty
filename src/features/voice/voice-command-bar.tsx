@@ -28,7 +28,11 @@ import { DentyApiError } from "@/shared/api/errors";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { dentyQueryKeys } from "@/shared/query";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
-import { requestMediaPermission } from "@/shared/ui/device-permissions";
+import {
+  mediaPermissionErrorMessage,
+  queryMediaPermission,
+  requestMediaPermission,
+} from "@/shared/ui/device-permissions";
 
 import motionStyles from "./voice-command-bar.module.css";
 
@@ -818,17 +822,18 @@ function VoiceCommandBarInner({
     setCapture("requesting_permission");
     let permissionStream: MediaStream | undefined;
     try {
+      const permissionState = await queryMediaPermission("microphone");
+      if (permissionState === "denied") {
+        setError(
+          "El micrófono está bloqueado para Denty. En Chrome, Edge u Opera, pulsa el icono a la izquierda de la dirección, cambia Micrófono a Permitir y recarga la página.",
+        );
+        finishCapture();
+        return;
+      }
       // Keep the stream from the permission prompt so Whisper reuses it instead of asking twice.
       permissionStream = await requestMediaPermission("microphone", { keepStream: true });
     } catch (cause) {
-      const name = cause instanceof DOMException ? cause.name : "";
-      setError(
-        name === "NotAllowedError"
-          ? speechErrorMessage("not-allowed")
-          : cause instanceof Error
-            ? cause.message
-            : "No se pudo acceder al micrófono.",
-      );
+      setError(mediaPermissionErrorMessage("microphone", cause));
       finishCapture();
       return;
     }

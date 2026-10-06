@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   session: vi.fn(),
   agenda: vi.fn(),
   permission: vi.fn(),
+  permissionState: vi.fn(),
   start: vi.fn(),
   stop: vi.fn(),
   abort: vi.fn(),
@@ -17,7 +18,12 @@ vi.mock("@/shared/api/browser", () => ({
   getBrowserApi: () => ({ auth: { session: mocks.session }, agenda: { context: mocks.agenda } }),
 }));
 vi.mock("@/shared/patients/patient-data", () => ({ usePatientsQuery: () => ({ data: [] }) }));
-vi.mock("@/shared/ui/device-permissions", () => ({ requestMediaPermission: mocks.permission }));
+vi.mock("@/shared/ui/device-permissions", () => ({
+  queryMediaPermission: mocks.permissionState,
+  requestMediaPermission: mocks.permission,
+  mediaPermissionErrorMessage: (_kind: string, cause: unknown) =>
+    cause instanceof Error ? cause.message : "No se pudo acceder al micrófono.",
+}));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/app/agenda",
   useRouter: () => ({ push: vi.fn() }),
@@ -42,6 +48,7 @@ beforeEach(() => {
     actor: { role: "DENTIST", clinicId: "clinic", permissions: [] },
   });
   mocks.agenda.mockImplementation(() => new Promise(() => {}));
+  mocks.permissionState.mockResolvedValue("prompt");
   mocks.permission.mockResolvedValue(undefined);
   vi.stubGlobal("SpeechRecognition", Recognition);
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

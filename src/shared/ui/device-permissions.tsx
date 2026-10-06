@@ -2,9 +2,10 @@
 import { ActionIcon, Alert, Badge, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { IconCamera, IconMicrophone, IconSettings } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-type PermissionStateLike = "granted" | "denied" | "prompt" | "unsupported";
-type MediaKind = "microphone" | "camera";
-async function queryPermission(kind: MediaKind): Promise<PermissionStateLike> {
+export type PermissionStateLike = "granted" | "denied" | "prompt" | "unsupported";
+export type MediaKind = "microphone" | "camera";
+
+export async function queryMediaPermission(kind: MediaKind): Promise<PermissionStateLike> {
   if (!("permissions" in navigator)) return "unsupported";
   try {
     const status = await navigator.permissions.query({ name: kind as PermissionName });
@@ -13,6 +14,43 @@ async function queryPermission(kind: MediaKind): Promise<PermissionStateLike> {
     return "unsupported";
   }
 }
+function mediaFeatureAllowed(kind: MediaKind): boolean {
+  if (typeof document === "undefined") return true;
+  const policyDocument = document as Document & {
+    permissionsPolicy?: { allowsFeature: (feature: string) => boolean };
+    featurePolicy?: { allowsFeature: (feature: string) => boolean };
+  };
+  const policy = policyDocument.permissionsPolicy ?? policyDocument.featurePolicy;
+  if (!policy) return true;
+  try {
+    return policy.allowsFeature(kind);
+  } catch {
+    return true;
+  }
+}
+
+export function mediaPermissionErrorMessage(kind: MediaKind, cause: unknown): string {
+  const label = kind === "microphone" ? "micrófono" : "cámara";
+  const name = cause instanceof DOMException ? cause.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return kind === "microphone"
+      ? "El micrófono está bloqueado para Denty. En Chrome, Edge u Opera, pulsa el icono a la izquierda de la dirección, cambia Micrófono a Permitir y recarga la página."
+      : "La cámara está bloqueada para Denty. Permítela desde los ajustes del sitio del navegador y recarga la página.";
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    return `No se detecta ningún ${label} disponible en este equipo.`;
+  }
+  if (name === "NotReadableError" || name === "TrackStartError") {
+    return kind === "microphone"
+      ? "El micrófono existe, pero Windows u otra aplicación está impidiendo usarlo. Cierra otras apps que estén usando el micro y revisa Privacidad > Micrófono en Windows."
+      : "La cámara existe, pero otra aplicación o el sistema está impidiendo usarla.";
+  }
+  if (name === "AbortError") {
+    return `El navegador interrumpió el acceso al ${label}. Vuelve a intentarlo.`;
+  }
+  return cause instanceof Error ? cause.message : `No se pudo acceder al ${label}.`;
+}
+
 function badgeColor(state: PermissionStateLike): string {
   if (state === "granted") return "green";
   if (state === "denied") return "red";
@@ -30,8 +68,18 @@ export async function requestMediaPermission(
   kind: MediaKind,
   options: { keepStream?: boolean } = {},
 ): Promise<MediaStream | undefined> {
-  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Cámara y micro requieren HTTPS.");
+  if (!window.isSecureContext) {
+    throw new Error("El micrófono y la cámara solo funcionan por HTTPS o localhost.");
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("Este navegador no ofrece acceso a dispositivos multimedia.");
+  }
+  if (!mediaFeatureAllowed(kind)) {
+    throw new Error(
+      kind === "microphone"
+        ? "Esta ventana no permite usar el micrófono. Abre Denty directamente en una pestaña del navegador, no dentro de una vista incrustada."
+        : "Esta ventana no permite usar la cámara. Abre Denty directamente en una pestaña del navegador.",
+    );
   }
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: kind === "microphone",
@@ -50,8 +98,8 @@ export function DevicePermissions() {
   const [secureContext, setSecureContext] = useState(true);
   const refresh = async () => {
     const [mic, cam] = await Promise.all([
-      queryPermission("microphone"),
-      queryPermission("camera"),
+      queryMediaPermission("microphone"),
+      queryMediaPermission("camera"),
     ]);
     setMicrophone(mic);
     setCamera(cam);
@@ -67,14 +115,7 @@ export function DevicePermissions() {
       await requestMediaPermission(kind);
       await refresh();
     } catch (cause) {
-      const name = cause instanceof DOMException ? cause.name : "";
-      setError(
-        name === "NotAllowedError"
-          ? "El navegador ha bloqueado el permiso. " + "Permítelos desde el candado del navegador."
-          : cause instanceof Error
-            ? cause.message
-            : "No se pudo solicitar el permiso.",
-      );
+      setError(mediaPermissionErrorMessage(kind, cause));
       await refresh();
     } finally {
       setBusy(null);
