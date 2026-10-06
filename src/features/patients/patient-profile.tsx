@@ -549,7 +549,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
               href={`/app/finance?patientId=${patientId}`}
               icon={IconReceipt}
               title="Pagos"
-              description="Presupuesto, factura y datáfono"
+              description="Facturas, cobros y datáfono"
             />
           </div>
         </Tabs.Panel>
