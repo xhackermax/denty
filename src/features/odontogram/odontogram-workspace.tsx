@@ -1073,7 +1073,7 @@ function OdontogramEditor({
       />
 
       <MouthStateProvider state={mouthState}>
-        <section className={styles.chartPanel}>
+        <section className={`${styles.chartPanel} ${parityStyles.bluePerimeterRunner}`}>
           <div className={styles.chartHeader}>
             <button
               type="button"
