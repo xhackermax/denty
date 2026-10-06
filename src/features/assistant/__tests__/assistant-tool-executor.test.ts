@@ -339,6 +339,33 @@ describe("odontogram.bridge", () => {
 });
 
 describe("odontogram changes by voice", () => {
+  it("returns after saving without waiting for plan and budget sync", async () => {
+    api.clinical.odontogram.get.mockResolvedValue({ version: 1, entities: [] });
+    api.clinical.odontogram.batch.mockResolvedValue({});
+    let releasePlan: (() => void) | undefined;
+    api.clinical.sync.plan.mockReturnValue(
+      new Promise((resolve) => {
+        releasePlan = () =>
+          resolve({
+            plan: { id: "plan", items: [{ id: "i", status: "PLANNED" }] },
+            summary: {},
+            sync: { budget: null },
+          });
+      }),
+    );
+    api.clinical.sync.budget.mockResolvedValue({});
+
+    const execution = executeAssistantTool(
+      call("odontogram.bridge", { patientId: "p1", teeth: ["14", "15", "16"], status: "PLANNED" }),
+    );
+
+    await expect(
+      Promise.race([execution, new Promise((resolve) => setTimeout(() => resolve("timeout"), 0))]),
+    ).resolves.toEqual({ type: "NONE" });
+    expect(api.clinical.sync.plan).toHaveBeenCalledWith("p1");
+    releasePlan?.();
+  });
+
   it("bring the plan and budget up to date right after saving", async () => {
     api.clinical.odontogram.get.mockResolvedValue({ version: 1, entities: [] });
     api.clinical.odontogram.batch.mockResolvedValue({});

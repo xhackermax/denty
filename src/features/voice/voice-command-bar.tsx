@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import {
   useOptionalAssistantContext,
@@ -26,6 +26,7 @@ import { localVoicePlanToToolCalls } from "@/features/assistant/tools/local-voic
 import { getBrowserApi } from "@/shared/api/browser";
 import { DentyApiError } from "@/shared/api/errors";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
+import { dentyQueryKeys } from "@/shared/query";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import { requestMediaPermission } from "@/shared/ui/device-permissions";
 
@@ -173,6 +174,49 @@ function policyMessage(result: AssistantPolicyResult, call?: AssistantToolCall):
     return "Denty ha entendido la orden, pero esta acción todavía no está conectada.";
   }
   return call ? `No puedo ejecutar ${call.name} todavía.` : "No se pudo ejecutar la orden.";
+}
+
+function invalidateAfterVoiceExecution(
+  queryClient: QueryClient,
+  calls: readonly AssistantToolCall[],
+) {
+  const patientIdFromCall = (call: AssistantToolCall): string | null => {
+    if (!call.args || typeof call.args !== "object") return null;
+    const patientId = (call.args as { patientId?: unknown }).patientId;
+    return typeof patientId === "string" && patientId.length > 0 ? patientId : null;
+  };
+  const patientIds = new Set(
+    calls
+      .map(patientIdFromCall)
+      .filter((patientId): patientId is string => patientId !== null),
+  );
+  const hasOdontogramChange = calls.some((call) =>
+    [
+      "odontogram.set_state",
+      "odontogram.bridge",
+      "odontogram.removable",
+      "clinical.add_item",
+      "clinical.complete_item",
+      "clinical.mark_unsatisfactory",
+    ].includes(call.name),
+  );
+  const hasPatientChange = calls.some((call) => call.name === "patient.create");
+  const hasAppointmentChange = calls.some((call) => call.name.startsWith("appointment."));
+  const hasPaymentChange = calls.some((call) => call.name === "payment.record");
+
+  if (hasPatientChange) void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.root });
+  if (hasAppointmentChange)
+    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.appointments.root });
+  if (hasPaymentChange) void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.finance.root });
+  if (hasOdontogramChange) {
+    for (const patientId of patientIds) {
+      void queryClient.invalidateQueries({
+        queryKey: dentyQueryKeys.clinical.odontogram(patientId),
+      });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.plan(patientId) });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.budgets(patientId) });
+    }
+  }
 }
 
 async function transcribeOnServer(blob: Blob): Promise<string> {
@@ -378,8 +422,7 @@ function VoiceCommandBarInner({
           return;
         }
         for (const effect of result.effects) applyAssistantEffect(effect);
-        // Refreshing every screen can be slow; the change is already saved.
-        void queryClient.invalidateQueries();
+        invalidateAfterVoiceExecution(queryClient, adaptation.calls);
         setPreview(null);
         updateText("");
         setLastDone(next.plan.readback);

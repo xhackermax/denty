@@ -444,6 +444,7 @@ export class AuthRepository {
     userId: string,
     input: {
       displayName?: string | undefined;
+      email?: string | undefined;
       role?: Role | undefined;
       active?: boolean | undefined;
     },
@@ -456,24 +457,34 @@ export class AuthRepository {
       limit: 1,
     });
     const membership = memberships[0];
-    if (!membership)
+    const patientAccounts = membership
+      ? []
+      : await admin.adminClient.select<PatientAccountRow>("patient_accounts", {
+          select: "id,clinic_id,patient_id,profile_id,active,is_default",
+          clinic_id: `eq.${clinicId}`,
+          profile_id: `eq.${userId}`,
+          limit: 1,
+        });
+    const patientAccount = patientAccounts[0];
+    if (!membership && !patientAccount)
       throw new IdentityConfigurationError("El usuario no pertenece a esta clínica.");
 
-    if (input.displayName) {
-      const { firstName, lastName } = splitDisplayName(input.displayName);
+    if (input.displayName || input.email) {
+      const { firstName, lastName } = splitDisplayName(input.displayName ?? "");
       await admin.adminClient.patchMany(
         "profiles",
         { id: `eq.${userId}` },
         {
-          first_name: firstName,
-          last_name: lastName,
+          ...(input.displayName ? { first_name: firstName, last_name: lastName } : {}),
+          ...(input.email ? { email: input.email.trim().toLowerCase() } : {}),
         },
       );
       await admin.authClient.adminUpdateUser(userId, {
-        user_metadata: { display_name: input.displayName },
+        ...(input.email ? { email: input.email.trim().toLowerCase() } : {}),
+        ...(input.displayName ? { user_metadata: { display_name: input.displayName } } : {}),
       });
     }
-    if (input.role || input.active !== undefined) {
+    if (membership && (input.role || input.active !== undefined)) {
       await admin.adminClient.patchMany(
         "clinic_members",
         { id: `eq.${membership.id}` },
@@ -491,13 +502,71 @@ export class AuthRepository {
         },
       );
     }
+    if (patientAccount && input.active !== undefined) {
+      await admin.adminClient.patchMany(
+        "patient_accounts",
+        { id: `eq.${patientAccount.id}` },
+        { active: input.active },
+      );
+    }
     const profile = await this.getProfileWith(admin.adminClient, userId);
     return {
       id: userId,
       displayName: profile ? displayName(profile) : (input.displayName ?? "Usuario"),
       email: profile?.email ?? undefined,
-      role: input.role ?? normalizeRole(membership.role),
-      active: input.active ?? membership.active,
+      role: patientAccount ? ("PATIENT" as Role) : (input.role ?? normalizeRole(membership!.role)),
+      active: input.active ?? membership?.active ?? patientAccount?.active ?? true,
+    };
+  }
+
+  async deleteUser(
+    clinicId: string,
+    userId: string,
+  ): Promise<{ ok: true; deletedAuthUser: boolean; role: Role }> {
+    const { adminClient, authClient } = this.requireAdminDependencies();
+    const [membership] = await adminClient.select<ClinicMemberRow>("clinic_members", {
+      select: "id,clinic_id,profile_id,role,active,is_default",
+      clinic_id: `eq.${clinicId}`,
+      profile_id: `eq.${userId}`,
+      limit: 1,
+    });
+    const [patientAccount] = membership
+      ? []
+      : await adminClient.select<PatientAccountRow>("patient_accounts", {
+          select: "id,clinic_id,patient_id,profile_id,active,is_default",
+          clinic_id: `eq.${clinicId}`,
+          profile_id: `eq.${userId}`,
+          limit: 1,
+        });
+    if (!membership && !patientAccount) {
+      throw new IdentityConfigurationError("El usuario no pertenece a esta clínica.");
+    }
+
+    if (membership) {
+      await adminClient.patchMany(
+        "clinic_members",
+        { id: `eq.${membership.id}` },
+        { active: false },
+      );
+      await adminClient.patchMany(
+        "staff_members",
+        { clinic_id: `eq.${clinicId}`, profile_id: `eq.${userId}` },
+        { active: false, profile_id: null },
+      );
+    }
+    if (patientAccount) {
+      await adminClient.patchMany(
+        "patient_accounts",
+        { id: `eq.${patientAccount.id}` },
+        { active: false },
+      );
+    }
+    await adminClient.patchMany("profiles", { id: `eq.${userId}` }, { active: false });
+    await authClient.adminDeleteUser(userId);
+    return {
+      ok: true,
+      deletedAuthUser: true,
+      role: patientAccount ? ("PATIENT" as Role) : normalizeRole(membership!.role),
     };
   }
 

@@ -52,11 +52,13 @@ async function saveOdontogramEntities(patientId: string, entities: readonly Dent
   });
   // Same as editing by hand: plan and budget follow the odontogram. A failure here never
   // undoes the saved change; the next save or the guided flow syncs again.
-  await createClinicalAutoSync({
+  void createClinicalAutoSync({
     syncPlan: () => api.clinical.sync.plan(patientId),
     syncBudget: () => api.clinical.sync.budget(patientId),
     onDone: () => undefined,
-  }).request();
+  })
+    .request()
+    .catch(() => undefined);
 }
 
 function hrefForDestination(destination: unknown, patientId?: unknown, dateText?: unknown): string {

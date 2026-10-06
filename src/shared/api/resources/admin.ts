@@ -18,6 +18,7 @@ import {
   attributionTouchRecordSchema,
   attributionTouchSchema,
   createUserSchema,
+  deleteUserResultSchema,
   financialDashboardQuerySchema,
   financialDashboardSchema,
   patientAttributionSchema,
@@ -133,6 +134,13 @@ export function createAdminResource(client: ApiClient) {
           `/api/users/${encodeId(id)}/reset-password`,
           resetUserPasswordResultSchema,
           resetUserPasswordSchema.parse(payload),
+        ),
+      delete: (id: string) =>
+        client.mutation(
+          `/api/users/${encodeId(id)}`,
+          deleteUserResultSchema,
+          {},
+          { method: "DELETE" },
         ),
     },
     attribution: {

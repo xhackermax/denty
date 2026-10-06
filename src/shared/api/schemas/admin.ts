@@ -51,6 +51,7 @@ export const createUserSchema = z
 
 export const updateUserSchema = z.object({
   displayName: z.string().min(1).optional(),
+  email: z.string().email().optional(),
   active: z.boolean().optional(),
   role: userRoleSchema.optional(),
 });
@@ -68,6 +69,12 @@ export const resetUserPasswordSchema = z
 export const resetUserPasswordResultSchema = z.object({
   ok: z.literal(true),
   usedDni: z.boolean().optional(),
+});
+
+export const deleteUserResultSchema = z.object({
+  ok: z.literal(true),
+  deletedAuthUser: z.boolean(),
+  role: userRoleSchema,
 });
 
 export const acquisitionSourceInputSchema = z.object({

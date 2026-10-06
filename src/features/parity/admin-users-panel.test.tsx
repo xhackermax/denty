@@ -1,22 +1,37 @@
 // @vitest-environment jsdom
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { AdminUsersPanel } from "./admin-users-panel";
-const state = vi.hoisted(() => ({ configured: true, create: vi.fn() }));
+const state = vi.hoisted(() => ({
+  configured: true,
+  create: vi.fn(),
+  update: vi.fn(),
+  deleteUser: vi.fn(),
+  items: [] as Array<{
+    id: string;
+    displayName: string;
+    email?: string;
+    role: "ADMIN" | "RECEPTION" | "DENTIST" | "ASSISTANT" | "PATIENT";
+    active?: boolean;
+    patientId?: string;
+  }>,
+}));
 vi.mock("@/shared/api/browser", () => ({
   getBrowserApi: () => ({
     admin: {
       users: {
         list: async () => ({
-          items: [],
+          items: state.items,
           administration: {
             configured: state.configured,
             message: state.configured ? null : "Configura SUPABASE_SECRET_KEY solo en Vercel.",
           },
         }),
         create: state.create,
+        update: state.update,
+        delete: state.deleteUser,
       },
       sites: { overview: async () => ({ staff: [] }) },
     },
@@ -39,9 +54,12 @@ vi.mock("@/shared/api/browser", () => ({
 afterEach(cleanup);
 beforeEach(() => {
   state.configured = true;
+  state.items = [];
   state.create.mockReset();
+  state.update.mockReset();
+  state.deleteUser.mockReset();
 });
-async function selectPatient() {
+function renderPanel() {
   render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
@@ -51,6 +69,9 @@ async function selectPatient() {
       </MantineProvider>
     </QueryClientProvider>,
   );
+}
+async function selectPatient() {
+  renderPanel();
   fireEvent.click(screen.getByRole("radio", { name: "Paciente (portal)" }));
   const select = await screen.findByRole("combobox", { name: /^Paciente/ });
   await waitFor(() => expect(select).toHaveAttribute("placeholder", "Busca por nombre o DNI"));
@@ -80,4 +101,66 @@ test("creates selected patient access without requiring email and explains first
     }),
   );
   expect(await screen.findByText(/Cuenta creada para Ana García/)).toHaveTextContent("DNT-1");
+});
+
+test("edits user login name and email", async () => {
+  state.items = [
+    {
+      id: "u1",
+      displayName: "Ana Admin",
+      email: "ana@old.test",
+      role: "ADMIN",
+      active: true,
+    },
+  ];
+  state.update.mockResolvedValue({
+    id: "u1",
+    displayName: "Ana Nueva",
+    email: "ana@nueva.test",
+    role: "ADMIN",
+    active: true,
+  });
+  renderPanel();
+
+  const row = (await screen.findByText("Ana Admin")).closest("div");
+  expect(row).not.toBeNull();
+  fireEvent.click(within(row!.parentElement!).getByRole("button", { name: "Editar acceso" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Nombre de acceso" }), {
+    target: { value: "Ana Nueva" },
+  });
+  fireEvent.change(screen.getByRole("textbox", { name: "Email de acceso" }), {
+    target: { value: "ana@nueva.test" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar acceso" }));
+
+  await waitFor(() =>
+    expect(state.update).toHaveBeenCalledWith("u1", {
+      displayName: "Ana Nueva",
+      email: "ana@nueva.test",
+      role: "ADMIN",
+      active: true,
+    }),
+  );
+});
+
+test("deletes a managed user account", async () => {
+  state.items = [
+    {
+      id: "u1",
+      displayName: "Paciente Portal",
+      email: "paciente@denty.local",
+      role: "PATIENT",
+      active: true,
+      patientId: "p1",
+    },
+  ];
+  state.deleteUser.mockResolvedValue({ ok: true, deletedAuthUser: true, role: "PATIENT" });
+  renderPanel();
+
+  const row = (await screen.findByText("Paciente Portal")).closest("div");
+  expect(row).not.toBeNull();
+  fireEvent.click(within(row!.parentElement!).getByRole("button", { name: "Eliminar acceso" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Eliminar cuenta" }));
+
+  await waitFor(() => expect(state.deleteUser).toHaveBeenCalledWith("u1"));
 });

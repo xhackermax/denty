@@ -52,6 +52,7 @@ function fakeAuth() {
   } as unknown as SupabaseAuthClient & {
     adminCreateUser: ReturnType<typeof vi.fn>;
     adminUpdateUser: ReturnType<typeof vi.fn>;
+    adminDeleteUser: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -133,5 +134,79 @@ describe("patient portal accounts", () => {
       usedDni: true,
     });
     expect(auth.adminUpdateUser).toHaveBeenCalledWith(PROFILE, { password: "12345678Z" });
+  });
+
+  it("updates the login email and visible name for a patient account", async () => {
+    const { client } = fakeDb({
+      clinic_members: [],
+      patient_accounts: [
+        { id: "pa", clinic_id: CLINIC, patient_id: PATIENT, profile_id: PROFILE, active: true },
+      ],
+      profiles: [
+        { id: PROFILE, first_name: "Lucía", last_name: "Pérez", email: "old@denty.test", active: true },
+      ],
+    });
+    const auth = fakeAuth();
+    const repo = new AuthRepository(client, { adminClient: client, authClient: auth });
+
+    await expect(
+      repo.updateUser(CLINIC, PROFILE, {
+        displayName: "Lucía Portal",
+        email: "nuevo@denty.test",
+        active: false,
+      }),
+    ).resolves.toMatchObject({
+      id: PROFILE,
+      email: "old@denty.test",
+      role: "PATIENT",
+      active: false,
+    });
+
+    expect(auth.adminUpdateUser).toHaveBeenCalledWith(PROFILE, {
+      email: "nuevo@denty.test",
+      user_metadata: { display_name: "Lucía Portal" },
+    });
+    expect(client.patchMany).toHaveBeenCalledWith(
+      "patient_accounts",
+      { id: "eq.pa" },
+      { active: false },
+    );
+  });
+
+  it("deletes only the portal account for a patient", async () => {
+    const { client } = fakeDb({
+      clinic_members: [],
+      patient_accounts: [
+        { id: "pa", clinic_id: CLINIC, patient_id: PATIENT, profile_id: PROFILE, active: true },
+      ],
+      profiles: [
+        { id: PROFILE, first_name: "Lucía", last_name: "Pérez", email: "l@denty.test", active: true },
+      ],
+    });
+    const auth = fakeAuth();
+    const repo = new AuthRepository(client, { adminClient: client, authClient: auth });
+
+    await expect(repo.deleteUser(CLINIC, PROFILE)).resolves.toEqual({
+      ok: true,
+      deletedAuthUser: true,
+      role: "PATIENT",
+    });
+
+    expect(client.patchMany).toHaveBeenCalledWith(
+      "patient_accounts",
+      { id: "eq.pa" },
+      { active: false },
+    );
+    expect(client.patchMany).toHaveBeenCalledWith(
+      "profiles",
+      { id: `eq.${PROFILE}` },
+      { active: false },
+    );
+    expect(auth.adminDeleteUser).toHaveBeenCalledWith(PROFILE);
+    expect(client.patchMany).not.toHaveBeenCalledWith(
+      "patients",
+      expect.anything(),
+      expect.anything(),
+    );
   });
 });

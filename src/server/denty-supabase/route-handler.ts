@@ -2591,6 +2591,23 @@ export async function handleSupabaseDentyRoute(
         headers,
       );
     }
+    if (parts.length === 3 && parts[0] === "api" && parts[1] === "users" && method === "DELETE") {
+      const adminError = requireAdmin(identity.actor);
+      if (adminError) return adminError;
+      const adminClient = makeAdminRestClient();
+      if (!adminClient)
+        return error(
+          503,
+          "ADMIN_CREDENTIALS_REQUIRED",
+          "Falta la credencial administrativa de Supabase.",
+        );
+      const auth = new AuthRepository(identity.restClient, { adminClient, authClient });
+      return json(
+        200,
+        await auth.deleteUser(identity.actor.clinicId, decodeURIComponent(parts[2] ?? "")),
+        headers,
+      );
+    }
     if (
       parts.length === 4 &&
       parts[0] === "api" &&

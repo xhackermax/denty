@@ -81,6 +81,32 @@ describe("createDentyApi", () => {
     expect(init?.method).toBe("DELETE");
   });
 
+  it("supports editing and deleting managed users", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: "u1",
+          displayName: "Ana",
+          email: "ana@clinic.test",
+          role: "ADMIN",
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ ok: true, deletedAuthUser: true, role: "ADMIN" }));
+    const api = createDentyApi(new ApiClient({ baseUrl: "https://api.example.test", fetchImpl }));
+
+    await api.admin.users.update("u/1", {
+      displayName: "Ana Admin",
+      email: "admin@clinic.test",
+    });
+    await api.admin.users.delete("u/1");
+
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe("https://api.example.test/api/users/u%2F1");
+    expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe("PATCH");
+    expect(fetchImpl.mock.calls[1]?.[0]).toBe("https://api.example.test/api/users/u%2F1");
+    expect(fetchImpl.mock.calls[1]?.[1]?.method).toBe("DELETE");
+  });
+
   it("downloads documents through the shared binary client", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(new Uint8Array([37, 80, 68, 70]), {

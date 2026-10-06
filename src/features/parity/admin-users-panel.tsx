@@ -14,7 +14,7 @@ import {
   TextInput,
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { initialPatientPassword } from "@/domain";
 import type { Role } from "@/domain/permissions";
@@ -65,6 +65,8 @@ export function AdminUsersPanel() {
   });
   const [kind, setKind] = useState<"staff" | "patient">("staff");
   const [resetTarget, setResetTarget] = useState<UserRow | null>(null);
+  const [editTarget, setEditTarget] = useState<UserRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const linkedPatientIds = useMemo(
@@ -145,15 +147,41 @@ export function AdminUsersPanel() {
                 size="xs"
                 variant="light"
                 disabled={!canManage}
+                onClick={() => setEditTarget(user)}
+              >
+                Editar acceso
+              </Button>
+              <Button
+                size="xs"
+                variant="light"
+                disabled={!canManage}
                 onClick={() => setResetTarget(user)}
               >
                 Restablecer contraseña
+              </Button>
+              <Button
+                size="xs"
+                variant="subtle"
+                color="red"
+                disabled={!canManage}
+                onClick={() => setDeleteTarget(user)}
+              >
+                Eliminar acceso
               </Button>
             </Group>
           </div>
         ))}
       </div>
 
+      <EditUserModal
+        user={editTarget}
+        onClose={() => setEditTarget(null)}
+        onDone={(message) => {
+          setEditTarget(null);
+          setNotice(message);
+          void refresh();
+        }}
+      />
       <ResetPasswordModal
         user={resetTarget}
         onClose={() => setResetTarget(null)}
@@ -162,7 +190,107 @@ export function AdminUsersPanel() {
           setNotice(message);
         }}
       />
+      <DeleteUserModal
+        user={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDone={(message) => {
+          setDeleteTarget(null);
+          setNotice(message);
+          void refresh();
+        }}
+      />
     </section>
+  );
+}
+
+function EditUserModal({
+  user,
+  onClose,
+  onDone,
+}: {
+  user: UserRow | null;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<Role>("RECEPTION");
+  const [active, setActive] = useState("true");
+  const update = useMutation({
+    mutationFn: () =>
+      getBrowserApi().admin.users.update(user?.id ?? "", {
+        displayName: displayName.trim(),
+        ...(email.trim() ? { email: email.trim() } : {}),
+        role,
+        active: active === "true",
+      }),
+    onSuccess: () => onDone(`Acceso de ${displayName} actualizado.`),
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    setDisplayName(user.displayName);
+    setEmail(user.email ?? "");
+    setRole(user.role);
+    setActive(user.active === false ? "false" : "true");
+    update.reset();
+  }, [user]);
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    update.mutate();
+  }
+
+  function close() {
+    update.reset();
+    onClose();
+  }
+
+  const isPatient = user?.role === "PATIENT";
+
+  return (
+    <Modal opened={user !== null} onClose={close} title={`Editar acceso · ${user?.displayName ?? ""}`}>
+      <form onSubmit={submit}>
+        <Stack>
+          <TextInput
+            label="Nombre de acceso"
+            value={displayName}
+            onChange={(event) => setDisplayName(event.currentTarget.value)}
+            required
+          />
+          <TextInput
+            label="Email de acceso"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.currentTarget.value)}
+          />
+          <Group grow>
+            <Select
+              label="Rol"
+              data={isPatient ? [{ value: "PATIENT", label: "Paciente" }] : STAFF_ROLE_OPTIONS}
+              value={role}
+              onChange={(value) => setRole((value as Role | null) ?? user?.role ?? "RECEPTION")}
+              allowDeselect={false}
+              disabled={isPatient}
+            />
+            <Select
+              label="Existencia"
+              data={[
+                { value: "true", label: "Activo" },
+                { value: "false", label: "Inactivo" },
+              ]}
+              value={active}
+              onChange={(value) => setActive(value ?? "true")}
+              allowDeselect={false}
+            />
+          </Group>
+          <Button type="submit" loading={update.isPending} disabled={!displayName.trim()}>
+            Guardar acceso
+          </Button>
+          {update.isError ? <Alert color="red">{messageFromError(update.error)}</Alert> : null}
+        </Stack>
+      </form>
+    </Modal>
   );
 }
 
@@ -479,6 +607,41 @@ function ResetPasswordModal({
           {reset.isError ? <Alert color="red">{messageFromError(reset.error)}</Alert> : null}
         </Stack>
       </form>
+    </Modal>
+  );
+}
+
+function DeleteUserModal({
+  user,
+  onClose,
+  onDone,
+}: {
+  user: UserRow | null;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const remove = useMutation({
+    mutationFn: () => getBrowserApi().admin.users.delete(user?.id ?? ""),
+    onSuccess: () => onDone(`Cuenta de ${user?.displayName} eliminada.`),
+  });
+
+  function close() {
+    remove.reset();
+    onClose();
+  }
+
+  return (
+    <Modal opened={user !== null} onClose={close} title="Eliminar acceso">
+      <Stack>
+        <Text size="sm">
+          Se eliminará la cuenta de acceso de {user?.displayName}. Si es paciente, su ficha clínica
+          seguirá existiendo.
+        </Text>
+        <Button color="red" loading={remove.isPending} onClick={() => remove.mutate()}>
+          Eliminar cuenta
+        </Button>
+        {remove.isError ? <Alert color="red">{messageFromError(remove.error)}</Alert> : null}
+      </Stack>
     </Modal>
   );
 }

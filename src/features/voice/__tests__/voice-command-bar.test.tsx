@@ -153,6 +153,19 @@ describe("VoiceCommandBar", () => {
     await waitFor(() => expect(field).toHaveValue(""));
   });
 
+  it("does not invalidate every query after an odontogram voice change", async () => {
+    mocks.pathname.value = `/app/patients/${PATIENT_ID}`;
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    mount();
+    const field = await openPanel();
+    fireEvent.change(field, { target: { value: "Marca caries en el dieciséis" } });
+    fireEvent.click(screen.getByRole("button", { name: "Interpretar" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => expect(mocks.execute).toHaveBeenCalledTimes(1));
+    expect(invalidate).not.toHaveBeenCalledWith();
+  });
+
   it("keeps the text and shows the error when execution fails", async () => {
     mocks.pathname.value = `/app/patients/${PATIENT_ID}`;
     mocks.execute.mockRejectedValue(new Error("Conflicto de versión del odontograma."));
