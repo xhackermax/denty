@@ -60,17 +60,24 @@ function presetRange(period: ReportingPeriod, anchor: string) {
   const start = startOfReportingPeriodMadrid(period, madridLocalDateTime(anchor, "12:00"));
   const startDate = dateYMDMadrid(start);
   const startMonth = monthOf(startDate);
-  const endDate =
+  const periodEndExclusive =
     period === "month"
       ? `${shiftMonth(startMonth, 1)}-01`
       : period === "quarter"
         ? `${shiftMonth(startMonth, 3)}-01`
         : `${Number(startDate.slice(0, 4)) + 1}-01-01`;
+  const fullEndDate = dateYMDMadrid(
+    addDaysMadrid(madridLocalDateTime(periodEndExclusive, "12:00"), -1),
+  );
+  const endDate = fullEndDate > todayMadrid() ? todayMadrid() : fullEndDate;
+  const endExclusive = dateYMDMadrid(
+    addDaysMadrid(madridLocalDateTime(endDate, "12:00"), 1),
+  );
   return {
     start: toMadridISO(madridLocalDateTime(startDate, "00:00")),
-    end: toMadridISO(madridLocalDateTime(endDate, "00:00")),
+    end: toMadridISO(madridLocalDateTime(endExclusive, "00:00")),
     startDate,
-    endDate: dateYMDMadrid(addDaysMadrid(madridLocalDateTime(endDate, "12:00"), -1)),
+    endDate,
   };
 }
 
@@ -92,7 +99,7 @@ function periodLabel(period: ReportingPeriod, startDate: string): string {
   const month = Number(startDate.slice(5, 7));
   if (period === "year") return String(year);
   if (period === "quarter") return `T${Math.floor((month - 1) / 3) + 1} ${year}`;
-  return `${MONTHS[month - 1]} ${year}`;
+  return `${MONTHS[month - 1] ?? "Mes"} ${year}`;
 }
 
 function historyLabel(granularity: ReportingPeriod, startDate: string): string {
@@ -155,7 +162,7 @@ function AnalysisRangeCalendar({
           <IconChevronLeft size={14} />
         </ActionIcon>
         <Text size="sm" fw={750}>
-          {MONTHS[monthIndex - 1]} {year}
+          {MONTHS[monthIndex - 1] ?? "Mes"} {year}
         </Text>
         <ActionIcon
           variant="subtle"
@@ -286,7 +293,7 @@ export function AnalysisModule() {
 
   const preset = period === "custom" ? null : period;
   const nextAnchor = preset ? shiftAnchor(preset, anchor, 1) : null;
-  const canGoNext = Boolean(nextAnchor && presetRange(preset!, nextAnchor!).startDate <= today);
+  const canGoNext = Boolean(nextAnchor && nextAnchor <= today);
 
   const setCustomRange = (start: string, end: string) => {
     setCustomStart(start);
@@ -525,7 +532,10 @@ export function AnalysisModule() {
 
         <div className={styles.rowList}>
           {(history.data?.items ?? []).map((item) => (
-            <div className={styles.row} key={item.periodStart}>
+            <div
+              className={styles.row}
+              key={`${historyGranularity}-${item.periodStart ?? "unknown"}`}
+            >
               <div className={styles.rowMain}>
                 <span className={styles.rowTitle}>
                   {item.periodStart
