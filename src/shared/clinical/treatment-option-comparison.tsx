@@ -176,6 +176,7 @@ export function TreatmentOptionComparison({
   const [leftId, setLeftId] = useState<string | null>(null);
   const [rightId, setRightId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [showDifferences, setShowDifferences] = useState(false);
 
   const left = candidates.find((budget) => budget.id === leftId) ?? candidates[0] ?? null;
@@ -194,11 +195,13 @@ export function TreatmentOptionComparison({
 
   const choose = (budget: BudgetView) => {
     setSelectedId(budget.id);
+    setSavedId(null);
   };
 
   const register = async () => {
     if (!selected || !onRegisterInterest) return;
     await onRegisterInterest(selected);
+    setSavedId(selected.id);
   };
 
   return (
@@ -303,8 +306,13 @@ export function TreatmentOptionComparison({
                   </Text>
                 </div>
                 {onRegisterInterest ? (
-                  <Button color="teal" loading={registeringInterest} onClick={() => void register()}>
-                    Guardar preferencia
+                  <Button
+                    color="teal"
+                    loading={registeringInterest}
+                    disabled={savedId === selected.id}
+                    onClick={() => void register()}
+                  >
+                    {savedId === selected.id ? "Preferencia guardada" : "Guardar preferencia"}
                   </Button>
                 ) : null}
               </section>
