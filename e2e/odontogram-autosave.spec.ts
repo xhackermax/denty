@@ -15,7 +15,7 @@ test("marking a caries saves itself and brings plan and budget up to date", asyn
   // Default tool is caries: clicking a face marks it, with no "Guardar" or plan step.
   await page.getByRole("button", { name: "Diente 36 superficie oclusal" }).click();
   await expect(page.getByText("Cambios pendientes…")).toBeVisible();
-  await expect(page.getByText("Guardado · plan y presupuesto al día")).toBeVisible({
+  await expect(page.getByText("Guardado · información clínica al día")).toBeVisible({
     timeout: 15_000,
   });
   await expect(page.getByText("No se pudo cargar")).toHaveCount(0);
@@ -32,7 +32,7 @@ test("marking a caries saves itself and brings plan and budget up to date", asyn
 
   // The editor stays usable: a second mark saves on top of the version just written.
   await page.getByRole("button", { name: "Diente 46 superficie oclusal" }).click();
-  await expect(page.getByText("Guardado · plan y presupuesto al día")).toBeVisible({
+  await expect(page.getByText("Guardado · información clínica al día")).toBeVisible({
     timeout: 15_000,
   });
   const saves = (await fakeSupabase.log()).filter(
@@ -54,7 +54,7 @@ test("a crown on an untouched natural tooth is recorded without a clinical-rule 
   // Whole-tooth tools act on the tooth itself; its faces stay disabled.
   await page.getByRole("button", { name: "Diente 46", exact: true }).click();
 
-  await expect(page.getByText("Guardado · plan y presupuesto al día")).toBeVisible({
+  await expect(page.getByText("Guardado · información clínica al día")).toBeVisible({
     timeout: 15_000,
   });
   await expect(page.getByText("Regla clínica")).toHaveCount(0);
