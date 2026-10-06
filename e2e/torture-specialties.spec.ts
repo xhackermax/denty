@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { PATIENT_ID, fakeSupabase, isolatePage, signIn } from "./support/session";
 
 const url = `/app/patients/${PATIENT_ID}/odontogram`;
-const saved = "Guardado · plan y presupuesto al día";
+const saved = "Guardado · información clínica al día";
 const face = (page: Page) => page.getByRole("button", { name: "Diente 36 superficie oclusal" });
 
 async function openOrthodontics(page: Page) {
