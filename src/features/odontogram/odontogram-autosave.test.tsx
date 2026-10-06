@@ -29,6 +29,7 @@ vi.mock("@/shared/api/browser", () => ({
         snapshots: { list: async () => ({ items: [] }), create: api.snapshot },
       },
       sync: { plan: api.syncPlan, budget: api.syncBudget },
+      budgets: { listForPatient: async () => ({ items: [] }) },
       workflow: { createEncounter: api.encounter },
     },
   }),

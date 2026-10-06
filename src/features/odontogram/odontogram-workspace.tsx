@@ -5,7 +5,6 @@ import OdontogramVisual from "./visual/odontogram-visual";
 import { OdontogramViewSwitch } from "./visual/odontogram-view-switch";
 import { toVisualDentition, toVisualTeeth } from "./visual/visual-adapter";
 import { MouthStateProvider } from "./mouth-state-context";
-import { MouthMiniMap } from "./mouth-mini-map";
 import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
 import { useAutosave, type AutosaveStatus } from "./use-autosave";
 import { Alert, Badge, Button, Group, Modal, Select, SimpleGrid, Text } from "@mantine/core";
@@ -49,7 +48,10 @@ import { createClinicalAutoSync } from "@/shared/clinical/auto-sync";
 import {
   invalidateClinicalPatient,
   useCreateClinicalEncounterMutation,
+  usePatientBudgetsQuery,
 } from "@/shared/clinical/clinical-data";
+import type { BudgetView } from "@/shared/clinical/budget-options";
+import { formatEUR } from "@/domain/money";
 import { ClinicalWorkspace } from "@/shared/clinical/clinical-workspace";
 import {
   odontogramEntities,
@@ -457,6 +459,73 @@ function autosaveLabel(status: AutosaveStatus, dirty: boolean, sync: ClinicalSyn
   if (sync === "updated") return "Guardado · plan y presupuesto al día";
   if (sync === "error") return "Guardado · no se pudo actualizar el plan";
   return status === "saved" ? "Guardado" : "Se guarda automáticamente";
+}
+
+function budgetDate(value: string | undefined): string {
+  if (!value) return "Fecha no disponible";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Fecha no disponible"
+    : date.toLocaleDateString("es-ES", { dateStyle: "medium" });
+}
+
+function BudgetHistoryStrip({ patientId }: { patientId: string }) {
+  const budgetHistory = usePatientBudgetsQuery(patientId);
+  const completedBudgets = (budgetHistory.data?.items ?? []).filter(
+    (budget: BudgetView) => budget.status === "SIGNED",
+  );
+  const latestBudgets = completedBudgets.slice(0, 4);
+
+  return (
+    <section className={styles.budgetHistoryStrip} aria-labelledby="odontogram-budget-history">
+      <Group justify="space-between" gap="sm" wrap="nowrap">
+        <div>
+          <Text id="odontogram-budget-history" fw={800} size="sm">
+            Historial de presupuestos realizados
+          </Text>
+          <Text size="xs" c="dimmed">
+            Presupuestos firmados y conservados para este paciente
+          </Text>
+        </div>
+        <Badge variant="light" color="teal">
+          {completedBudgets.length}
+        </Badge>
+      </Group>
+      {budgetHistory.isError ? (
+        <Text size="xs" c="red">
+          No se pudo cargar el historial de presupuestos.
+        </Text>
+      ) : budgetHistory.isLoading ? (
+        <Text size="xs" c="dimmed">
+          Cargando presupuestos...
+        </Text>
+      ) : latestBudgets.length ? (
+        <div className={styles.budgetHistoryList}>
+          {latestBudgets.map((budget) => (
+            <article className={styles.budgetHistoryItem} key={budget.id}>
+              <div>
+                <Text fw={750} size="sm" lineClamp={1}>
+                  {budget.title || budget.code}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {budget.code}
+                  {budget.revision === undefined ? "" : ` · Rev. ${budget.revision}`}
+                  {` · ${budgetDate(budget.createdAt)}`}
+                </Text>
+              </div>
+              <Text fw={850} size="sm">
+                {formatEUR(budget.totalCents)}
+              </Text>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <Text size="xs" c="dimmed">
+          Todavía no hay presupuestos realizados para este paciente.
+        </Text>
+      )}
+    </section>
+  );
 }
 
 interface OdontogramEditorProps {
@@ -1400,7 +1469,7 @@ function OdontogramEditor({
           readings={currentPerioReadings}
           readOnly={historical}
         />
-        <MouthMiniMap selectedTooth={selectedTooth} onSelect={setSelectedTooth} />
+        <BudgetHistoryStrip patientId={patientId} />
         <OdontogramLayerControls
           state={viewState}
           onToggleLayer={(layerId) =>

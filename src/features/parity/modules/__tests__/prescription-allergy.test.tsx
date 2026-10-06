@@ -58,3 +58,32 @@ test("explains why a manually typed NSAID is blocked", () => {
   });
   expect(screen.getByRole("alert")).toHaveTextContent(/alergia.*AINEs/i);
 });
+
+test("adds a pediatric paracetamol line from weight and birth date", () => {
+  const onChange = vi.fn();
+  render(
+    <MantineProvider>
+      <PrescriptionLinesEditor
+        lines={[emptyPrescriptionLine()]}
+        onChange={onChange}
+        patientBirthDate="2020-10-06"
+      />
+    </MantineProvider>,
+  );
+
+  fireEvent.change(screen.getByRole("textbox", { name: "Peso kg" }), {
+    target: { value: "18" },
+  });
+  fireEvent.change(screen.getByRole("textbox", { name: "Altura cm" }), {
+    target: { value: "110" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Paracetamol pediátrico" }));
+
+  expect(onChange).toHaveBeenCalledWith([
+    expect.objectContaining({
+      activeIngredient: "Paracetamol",
+      strength: "270 mg (2,7 ml de 100 mg/ml)",
+      frequency: "Cada 6 horas",
+    }),
+  ]);
+});

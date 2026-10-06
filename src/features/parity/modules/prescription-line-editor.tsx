@@ -16,6 +16,7 @@ import {
   SimpleGrid,
   Stack,
   Text,
+  TextInput,
 } from "@mantine/core";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 
@@ -34,6 +35,11 @@ import {
   lineFromPreset,
   type PrescriptionLine,
 } from "@/domain/prescriptions/dental-vademecum";
+import {
+  calculatePediatricDose,
+  pediatricLineFromDose,
+  type PediatricMedication,
+} from "@/domain/prescriptions/pediatric-dosing";
 import styles from "@/shared/ui/parity.module.css";
 
 const MEDICATION_OPTIONS = Object.entries(
@@ -42,6 +48,27 @@ const MEDICATION_OPTIONS = Object.entries(
     return groups;
   }, {}),
 ).map(([group, items]) => ({ group, items }));
+
+function ageMonthsFromBirthDate(value: string | null | undefined): number {
+  if (!value) return 0;
+  const birthDate = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(birthDate.getTime())) return 0;
+  const today = new Date();
+  let months =
+    (today.getFullYear() - birthDate.getFullYear()) * 12 +
+    today.getMonth() -
+    birthDate.getMonth();
+  if (today.getDate() < birthDate.getDate()) months -= 1;
+  return Math.max(0, months);
+}
+
+function ageLabel(ageMonths: number): string {
+  if (!ageMonths) return "Sin fecha";
+  const years = Math.floor(ageMonths / 12);
+  const months = ageMonths % 12;
+  if (!years) return `${months} meses`;
+  return months ? `${years} años ${months} meses` : `${years} años`;
+}
 
 /**
  * Medicines of a prescription as dropdowns: choosing a medicine of the
@@ -52,12 +79,16 @@ export function PrescriptionLinesEditor({
   lines,
   onChange,
   medicalProfile,
+  patientBirthDate,
 }: {
   medicalProfile?: unknown;
+  patientBirthDate?: string | null | undefined;
   lines: PrescriptionLine[];
   onChange: (lines: PrescriptionLine[]) => void;
 }) {
   const [protocolError, setProtocolError] = useState<string | null>(null);
+  const [pediatricWeightKg, setPediatricWeightKg] = useState("");
+  const [pediatricHeightCm, setPediatricHeightCm] = useState("");
   const allergic = hasNsaidAllergy(medicalProfile);
   const conflicts = prescriptionAllergyConflicts(
     medicalProfile,
@@ -99,6 +130,33 @@ export function PrescriptionLinesEditor({
       ...presets.filter((line) => !names.has(line.activeIngredient.toLowerCase())),
     ]);
   };
+  const ageMonths = ageMonthsFromBirthDate(patientBirthDate);
+  const addPediatricDose = (medication: PediatricMedication) => {
+    setProtocolError(null);
+    if (allergic && isNsaidMedication(medication)) {
+      setProtocolError("Alergia a AINEs: este medicamento no se puede añadir.");
+      return;
+    }
+    const weightKg = Number(pediatricWeightKg.replace(",", "."));
+    if (!Number.isFinite(weightKg) || weightKg <= 0) {
+      setProtocolError("Introduce el peso en kg para calcular la pauta pediátrica.");
+      return;
+    }
+    const heightCm = Number(pediatricHeightCm.replace(",", "."));
+    const dose = calculatePediatricDose({
+      medication,
+      weightKg,
+      ageMonths,
+      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+    });
+    if (!dose.allowed) {
+      setProtocolError(dose.warning ?? "Revisa edad y peso antes de añadir esta pauta.");
+      return;
+    }
+    const nextLine = pediatricLineFromDose(dose);
+    const kept = lines.filter((line) => line.activeIngredient.trim());
+    onChange([...kept, nextLine]);
+  };
 
   return (
     <Stack gap="sm">
@@ -126,6 +184,52 @@ export function PrescriptionLinesEditor({
             </Button>
           ))}
       </Group>
+      <div className={styles.row}>
+        <div className={styles.rowMain}>
+          <Text size="sm" fw={600}>
+            Pautas pediátricas:
+          </Text>
+          <Text size="xs" c="dimmed">
+            Calcula por peso. La altura solo activa avisos de IMC alto; verifica siempre la
+            presentación y la indicación clínica.
+          </Text>
+          <SimpleGrid cols={{ base: 2, md: 4 }} spacing="xs" mt={6}>
+            <TextInput
+              label="Peso kg"
+              inputMode="decimal"
+              value={pediatricWeightKg}
+              onChange={(event) => setPediatricWeightKg(event.currentTarget.value)}
+            />
+            <TextInput
+              label="Altura cm"
+              inputMode="decimal"
+              value={pediatricHeightCm}
+              onChange={(event) => setPediatricHeightCm(event.currentTarget.value)}
+            />
+            <TextInput label="Edad" value={ageLabel(ageMonths)} readOnly />
+          </SimpleGrid>
+          <Group gap="xs" mt="xs">
+            {(
+              [
+                "Paracetamol",
+                "Ibuprofeno",
+                "Amoxicilina",
+                "Amoxicilina / ácido clavulánico",
+              ] as const
+            ).map((medication) => (
+              <Button
+                key={medication}
+                size="compact-sm"
+                variant="light"
+                disabled={allergic && isNsaidMedication(medication)}
+                onClick={() => addPediatricDose(medication)}
+              >
+                {medication} pediátrico
+              </Button>
+            ))}
+          </Group>
+        </div>
+      </div>
 
       {lines.map((line, index) => {
         const preset = findMedicationPreset(line.activeIngredient);

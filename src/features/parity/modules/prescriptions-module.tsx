@@ -315,6 +315,7 @@ export function PrescriptionsModule() {
           </Group>
           <PrescriptionLinesEditor
             medicalProfile={selectedPatient.data?.medicalProfile}
+            patientBirthDate={selectedPatient.data?.birthDate}
             lines={lines}
             onChange={setLines}
           />
@@ -461,6 +462,7 @@ export function PrescriptionsModule() {
         <Stack gap="sm">
           <PrescriptionLinesEditor
             medicalProfile={editedPatient.data?.medicalProfile}
+            patientBirthDate={editedPatient.data?.birthDate}
             lines={editLines}
             onChange={setEditLines}
           />

@@ -20,6 +20,7 @@ vi.mock("@/shared/api/browser", () => ({
         batch: api.batch,
         snapshots: { list: async () => ({ items: [] }) },
       },
+      budgets: { listForPatient: async () => ({ items: [] }) },
     },
   }),
 }));
