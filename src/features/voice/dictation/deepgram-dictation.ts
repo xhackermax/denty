@@ -83,6 +83,8 @@ export interface DictationEvents {
   onStatus(status: "connecting" | "listening" | "finalizing"): void;
   onInterim(text: string): void;
   onFinal(text: string): void;
+  /** Fired after Deepgram detects an actual pause that closes the spoken utterance. */
+  onSpeechFinal?(): void;
   onError(error: DictationError): void;
   onEnd(result: { graceful: boolean; heardSpeech: boolean }): void;
 }
@@ -114,7 +116,9 @@ function microphoneError(cause: unknown): DictationError {
   return new DictationError("UNSUPPORTED");
 }
 
-function transcriptOf(data: unknown): { text: string; isFinal: boolean } | null {
+function transcriptOf(
+  data: unknown,
+): { text: string; isFinal: boolean; speechFinal: boolean } | null {
   if (typeof data !== "string") return null;
   let message: unknown;
   try {
@@ -125,6 +129,7 @@ function transcriptOf(data: unknown): { text: string; isFinal: boolean } | null 
   const result = message as {
     type?: unknown;
     is_final?: unknown;
+    speech_final?: unknown;
     channel?: { alternatives?: { transcript?: unknown }[] };
   };
   if (result.type !== "Results") return null;
@@ -132,6 +137,7 @@ function transcriptOf(data: unknown): { text: string; isFinal: boolean } | null 
   return {
     text: typeof transcript === "string" ? transcript.trim() : "",
     isFinal: result.is_final === true,
+    speechFinal: result.speech_final === true,
   };
 }
 
@@ -280,6 +286,7 @@ export async function startDeepgramDictation(
     heardSpeech = true;
     if (result.isFinal) events.onFinal(result.text);
     else events.onInterim(result.text);
+    if (result.speechFinal) events.onSpeechFinal?.();
   };
   socket.onerror = () => {
     // The close event that follows carries the outcome.
