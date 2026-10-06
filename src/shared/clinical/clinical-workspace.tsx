@@ -141,9 +141,11 @@ function SortablePlanRow({
 export function ClinicalWorkspace({
   patientId,
   mode = "combined",
+  onOpenGuidedFlow,
 }: {
   patientId: string;
   mode?: ClinicalWorkspaceMode;
+  onOpenGuidedFlow?: () => void;
 }) {
   const showPlan = mode !== "budget";
   const showBudget = mode !== "plan";
@@ -456,6 +458,11 @@ export function ClinicalWorkspace({
               >
                 Crear desde el plan
               </Button>
+              {onOpenGuidedFlow ? (
+                <Button size="xs" variant="subtle" onClick={onOpenGuidedFlow}>
+                  Firma y citas
+                </Button>
+              ) : null}
             </Group>
           </div>
 
