@@ -182,7 +182,19 @@ export function ClinicalWorkspace({
     (showPlan && (workflow.isError || sync.isError)) ||
     (showBudget && budgetHistory.isError);
   const budgets = budgetHistory.data?.items ?? [];
-  const comparableBudgets = budgets.filter((budget) => budget.status === "DRAFT");
+  const comparableBudgetKeys = new Set(
+    budgets
+      .filter(
+        (budget) =>
+          budget.status === "DRAFT" &&
+          budget.scope !== "primary" &&
+          budget.scope !== "secondary",
+      )
+      .map(
+        (budget) =>
+          `${budget.scope ?? "plan"}|${budget.title?.trim().toLowerCase() ?? ""}`,
+      ),
+  );
   const serverSequencedItems = (plan.data?.route?.length
     ? plan.data.route
     : (plan.data?.items ?? [])) as PlanItemView[];
@@ -463,7 +475,7 @@ export function ClinicalWorkspace({
               >
                 Crear desde el plan
               </Button>
-              {comparableBudgets.length >= 2 ? (
+              {comparableBudgetKeys.size >= 2 ? (
                 <Button size="xs" variant="light" color="teal" onClick={() => setCompareOpen(true)}>
                   Comparar opciones
                 </Button>
