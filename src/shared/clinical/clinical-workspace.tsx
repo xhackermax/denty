@@ -20,6 +20,7 @@ import {
   useDeleteDraftBudgetMutation,
   useClinicalPlanQuery,
   useClinicalSyncQuery,
+  useReorderClinicalPlanMutation,
   useClinicalWorkflowQuery,
   usePatientBudgetsQuery,
   useSyncBudgetFromPlanMutation,
@@ -51,6 +52,7 @@ export function ClinicalWorkspace({ patientId }: { patientId: string }) {
   const syncBudget = useSyncBudgetFromPlanMutation(patientId);
   const updateDraftBudget = useUpdateDraftBudgetMutation(patientId);
   const deleteDraftBudget = useDeleteDraftBudgetMutation(patientId);
+  const reorderPlan = useReorderClinicalPlanMutation(patientId);
   const treatmentCatalog = useTreatmentCatalogQuery();
   const addItem = useAddClinicalPlanItemMutation(patientId);
   const [treatmentCatalogId, setTreatmentCatalogId] = useState<string | null>(null);
@@ -65,6 +67,7 @@ export function ClinicalWorkspace({ patientId }: { patientId: string }) {
   const selectedTreatment = activeCatalog.find((item) => item.id === treatmentCatalogId);
   const hasError = workflow.isError || plan.isError || sync.isError;
   const budgets = budgetHistory.data?.items ?? [];
+  const sequencedItems = plan.data?.route?.length ? plan.data.route : (plan.data?.items ?? []);
   const editedBudgetTotal = openBudget?.items.reduce((sum, item) => {
     if (item.billingMode && item.billingMode !== "separate") return sum;
     const price = Number(budgetPrices[item.id]);
@@ -132,6 +135,16 @@ export function ClinicalWorkspace({ patientId }: { patientId: string }) {
         () => undefined,
       );
   };
+  const movePlanItem = (itemId: string, direction: -1 | 1) => {
+    const from = sequencedItems.findIndex((item) => item.id === itemId);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= sequencedItems.length) return;
+    const orderedIds = sequencedItems.map((item) => item.id);
+    const [moved] = orderedIds.splice(from, 1);
+    if (!moved) return;
+    orderedIds.splice(to, 0, moved);
+    reorderPlan.mutate(orderedIds);
+  };
 
   return (
     <Stack gap="md">
@@ -142,9 +155,9 @@ export function ClinicalWorkspace({ patientId }: { patientId: string }) {
       ) : null}
       <Group justify="space-between">
         <div>
-          <Text fw={800}>Flujo clínico</Text>
+          <Text fw={800}>Presupuestos y plan de tratamiento</Text>
           <Text size="sm" c="dimmed">
-            Odontograma, plan y presupuesto comparten la misma fuente persistida.
+            Organiza la secuencia clínica y revisa los presupuestos del paciente.
           </Text>
         </div>
         <Badge variant="light">Servidor</Badge>
@@ -211,44 +224,74 @@ export function ClinicalWorkspace({ patientId }: { patientId: string }) {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <div>
-            <h3 className={styles.sectionTitle}>Plan activo</h3>
+            <h3 className={styles.sectionTitle}>Presupuestos y plan de tratamiento</h3>
             <p className={styles.sectionDescription}>
-              {plan.data?.items.length ?? 0} tratamientos persistidos.
+              {sequencedItems.length} tratamientos persistidos en secuencia clínica.
             </p>
           </div>
           <Badge>{plan.data?.status ?? "SIN PLAN"}</Badge>
         </div>
-        <div className={styles.rowList}>
-          {(plan.data?.route?.length ? plan.data.route : (plan.data?.items ?? [])).map((item) => {
-            const catalogItem = activeCatalog.find((entry) => entry.id === item.treatmentCatalogId);
-            const requiresLab = catalogItem?.requiresLab ?? false;
-            return (
-              <div className={styles.row} key={item.id}>
-                <div className={styles.rowMain}>
-                  <span className={styles.rowTitle}>{item.label}</span>
-                  <span className={styles.rowMeta}>
-                    Fase {item.phase} · {item.tooth ?? "General"} · {item.treatmentCode}
-                  </span>
-                </div>
-                <div className={styles.rowActions}>
-                  <Badge variant="light">{item.status}</Badge>
-                  {item.priceCents != null ? (
-                    <Text fw={700}>{formatEUR(item.priceCents)}</Text>
-                  ) : null}
-                  {requiresLab ? (
+        <div
+          className={styles.rowList}
+          role="region"
+          aria-label="Secuencia del plan de tratamiento"
+        >
+          <ol
+            className={`${styles.rowList} ${styles.sequenceList}`}
+            aria-label="Tratamientos a realizar"
+          >
+            {sequencedItems.map((item, index) => {
+              const catalogItem = activeCatalog.find(
+                (entry) => entry.id === item.treatmentCatalogId,
+              );
+              const requiresLab = catalogItem?.requiresLab ?? false;
+              return (
+                <li className={styles.row} key={item.id}>
+                  <Text fw={850}>{index + 1}</Text>
+                  <div className={styles.rowMain}>
+                    <span className={styles.rowTitle}>{item.label}</span>
+                    <span className={styles.rowMeta}>
+                      Fase {item.phase} · {item.tooth ?? "General"} · {item.treatmentCode}
+                    </span>
+                  </div>
+                  <div className={styles.rowActions}>
+                    <Badge variant="light">{item.status}</Badge>
+                    {item.priceCents != null ? (
+                      <Text fw={700}>{formatEUR(item.priceCents)}</Text>
+                    ) : null}
+                    {requiresLab ? (
+                      <Button
+                        component={Link}
+                        href={`/app/laboratory?patientId=${encodeURIComponent(patientId)}&planItemId=${encodeURIComponent(item.id)}`}
+                        size="xs"
+                        variant="light"
+                      >
+                        Enviar a laboratorio
+                      </Button>
+                    ) : null}
                     <Button
-                      component={Link}
-                      href={`/app/laboratory?patientId=${encodeURIComponent(patientId)}&planItemId=${encodeURIComponent(item.id)}`}
                       size="xs"
-                      variant="light"
+                      variant="subtle"
+                      disabled={index === 0 || reorderPlan.isPending}
+                      onClick={() => movePlanItem(item.id, -1)}
+                      aria-label={`Subir ${item.label}`}
                     >
-                      Enviar a laboratorio
+                      Subir
                     </Button>
-                  ) : null}
-                </div>
-              </div>
-            );
-          })}
+                    <Button
+                      size="xs"
+                      variant="subtle"
+                      disabled={index === sequencedItems.length - 1 || reorderPlan.isPending}
+                      onClick={() => movePlanItem(item.id, 1)}
+                      aria-label={`Bajar ${item.label}`}
+                    >
+                      Bajar
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
           {!plan.isLoading && !plan.data?.items.length ? (
             <Text c="dimmed">Todavía no hay tratamientos en el plan.</Text>
           ) : null}

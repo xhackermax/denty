@@ -40,6 +40,7 @@ import {
   planSyncResultSchema,
   priorityOverrideSchema,
   recordPreferenceSchema,
+  reorderPlanItemsSchema,
   saveDentalEntityResultSchema,
   saveDentalEntitySchema,
   snapshotsSchema,
@@ -63,6 +64,12 @@ export function createClinicalResource(client: ApiClient) {
           `/api/patients/${encodeId(patientId)}/clinical-plan/items`,
           clinicalPlanItemSchema,
           createPlanItemSchema.parse(payload),
+        ),
+      reorder: (patientId: string, orderedIds: string[]) =>
+        client.mutation(
+          `/api/patients/${encodeId(patientId)}/clinical-plan/reorder`,
+          clinicalPlanSchema,
+          reorderPlanItemsSchema.parse({ orderedIds }),
         ),
       setItemPrice: (itemId: string, priceCents: number) =>
         client.mutation(

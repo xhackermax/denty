@@ -81,6 +81,27 @@ describe("createDentyApi", () => {
     expect(init?.method).toBe("DELETE");
   });
 
+  it("uses an explicit endpoint for treatment plan item reordering", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        id: "plan-1",
+        patientId: "patient-1",
+        status: "DRAFT",
+        items: [],
+        route: [],
+        budgets: [],
+      }),
+    );
+    const api = createDentyApi(new ApiClient({ baseUrl: "https://api.example.test", fetchImpl }));
+
+    await api.clinical.plan.reorder("patient/1", ["item-b", "item-a"]);
+
+    const [url, init] = fetchImpl.mock.calls[0] ?? [];
+    expect(url).toBe("https://api.example.test/api/patients/patient%2F1/clinical-plan/reorder");
+    expect(init?.method).toBe("POST");
+    expect(JSON.parse(String(init?.body))).toEqual({ orderedIds: ["item-b", "item-a"] });
+  });
+
   it("supports editing and deleting managed users", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()

@@ -89,6 +89,12 @@
   gap: 8px;
 }
 
+.sequenceList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .row {
   display: flex;
   min-height: 48px;

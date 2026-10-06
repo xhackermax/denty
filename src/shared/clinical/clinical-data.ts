@@ -141,6 +141,19 @@ export function useAddClinicalPlanItemMutation(patientId: string) {
   });
 }
 
+export function useReorderClinicalPlanMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      getBrowserApi().clinical.plan.reorder(patientId, orderedIds),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.plan(patientId) });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.budgets(patientId) });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.sync(patientId) });
+    },
+  });
+}
+
 export function useSyncPlanFromOdontogramMutation(patientId: string) {
   const queryClient = useQueryClient();
   return useMutation({

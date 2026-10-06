@@ -459,7 +459,7 @@ export class ClinicalRepository {
       this.client.select<PlanItemRow>("clinical_plan_items", {
         select: "*",
         plan_id: `eq.${plan.id}`,
-        order: "phase.asc,priority.desc",
+        order: "priority.desc,phase.asc",
       }),
       this.client.select<DependencyRow>("clinical_plan_dependencies", {
         select: "*",
@@ -522,6 +522,27 @@ export class ClinicalRepository {
       p_is_ad_hoc: input.adHoc ?? false,
     });
     return mapPlanItem(row);
+  }
+
+  async reorderClinicalPlanItems(patientId: string, orderedIds: string[]) {
+    const plan = await this.getClinicalPlan(patientId);
+    if (!plan) return null;
+    const known = new Set(plan.items.map((item) => item.id));
+    if (orderedIds.length !== known.size || orderedIds.some((id) => !known.has(id))) {
+      throw new SupabaseRestError("La secuencia no coincide con el plan activo.", 422, {
+        code: "PLAN_SEQUENCE_MISMATCH",
+      });
+    }
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        this.client.patch<PlanItemRow>(
+          "clinical_plan_items",
+          { id: `eq.${id}`, plan_id: `eq.${plan.id}`, clinic_id: `eq.${this.clinicId}` },
+          { priority: orderedIds.length - index },
+        ),
+      ),
+    );
+    return this.getClinicalPlan(patientId);
   }
 
   async listConsentRequirements(patientId: string) {

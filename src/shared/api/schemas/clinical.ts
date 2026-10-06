@@ -18,6 +18,10 @@ export const createPlanItemSchema = z.object({
   adHoc: z.boolean().default(false),
 });
 
+export const reorderPlanItemsSchema = z.object({
+  orderedIds: z.array(idSchema).min(1).max(200),
+});
+
 export const clinicalPlanItemSchema = z
   .object({
     id: idSchema,

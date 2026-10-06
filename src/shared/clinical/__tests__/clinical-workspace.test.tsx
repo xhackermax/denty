@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   updateBudget: vi.fn(),
   deleteBudget: vi.fn(),
+  reorderPlan: vi.fn(),
 }));
 
 vi.mock("../clinical-data", () => ({
@@ -14,8 +15,50 @@ vi.mock("../clinical-data", () => ({
   useClinicalPlanQuery: () => ({
     data: {
       status: "DRAFT",
-      items: [],
-      route: [],
+      items: [
+        {
+          id: "plan-a",
+          label: "Obturación",
+          tooth: "46",
+          treatmentCode: "FILLING",
+          phase: 1,
+          priority: 20,
+          status: "PLANNED",
+          priceCents: 9000,
+        },
+        {
+          id: "plan-b",
+          label: "Corona",
+          tooth: "46",
+          treatmentCode: "CROWN",
+          phase: 2,
+          priority: 10,
+          status: "PLANNED",
+          priceCents: 30000,
+        },
+      ],
+      route: [
+        {
+          id: "plan-a",
+          label: "Obturación",
+          tooth: "46",
+          treatmentCode: "FILLING",
+          phase: 1,
+          priority: 20,
+          status: "PLANNED",
+          priceCents: 9000,
+        },
+        {
+          id: "plan-b",
+          label: "Corona",
+          tooth: "46",
+          treatmentCode: "CROWN",
+          phase: 2,
+          priority: 10,
+          status: "PLANNED",
+          priceCents: 30000,
+        },
+      ],
       budgets: [],
     },
     isError: false,
@@ -68,6 +111,7 @@ vi.mock("../clinical-data", () => ({
   useSyncBudgetFromPlanMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useTreatmentCatalogQuery: () => ({ data: { items: [] } }),
   useAddClinicalPlanItemMutation: () => ({ mutate: vi.fn(), isPending: false }),
+  useReorderClinicalPlanMutation: () => ({ mutate: mocks.reorderPlan, isPending: false }),
   useUpdateDraftBudgetMutation: () => ({
     mutateAsync: mocks.updateBudget,
     isPending: false,
@@ -90,6 +134,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.updateBudget.mockResolvedValue({});
   mocks.deleteBudget.mockResolvedValue({});
+  mocks.reorderPlan.mockReset();
 });
 
 function renderWorkspace() {
@@ -101,6 +146,29 @@ function renderWorkspace() {
 }
 
 describe("patient budget history", () => {
+  it("renames the workspace around budgets and treatment plan sequencing", () => {
+    renderWorkspace();
+
+    expect(screen.getAllByText("Presupuestos y plan de tratamiento").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("region", { name: "Secuencia del plan de tratamiento" }),
+    ).toBeInTheDocument();
+  });
+
+  it("reorders the treatment plan sequence with task-like controls", () => {
+    renderWorkspace();
+    const sequence = screen.getByRole("region", { name: "Secuencia del plan de tratamiento" });
+    const rows = within(sequence).getAllByRole("listitem");
+    expect(within(rows[0]!).getByText("1")).toBeInTheDocument();
+    expect(within(rows[0]!).getByText("Obturación")).toBeInTheDocument();
+    expect(within(rows[1]!).getByText("2")).toBeInTheDocument();
+    expect(within(rows[1]!).getByText("Corona")).toBeInTheDocument();
+
+    fireEvent.click(within(rows[1]!).getByRole("button", { name: "Subir Corona" }));
+
+    expect(mocks.reorderPlan).toHaveBeenCalledWith(["plan-b", "plan-a"]);
+  });
+
   it("no muestra la tarjeta de estado de sincronización", () => {
     renderWorkspace();
     expect(screen.queryByText("Estado de sincronización")).not.toBeInTheDocument();

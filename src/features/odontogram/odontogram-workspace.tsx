@@ -1046,7 +1046,7 @@ function OdontogramEditor({
                   void autosave.flush().then(open, () => {});
                 }}
               >
-                Plan y presupuesto
+                Presupuestos y plan de tratamiento
               </Button>
             ) : null}
             {!historical ? (
@@ -1608,8 +1608,8 @@ function OdontogramEditor({
       >
         <summary>
           <span>
-            <strong>Plan, presupuesto y sincronización</strong>
-            <small>Herramientas del flujo clínico completo</small>
+            <strong>Presupuestos y plan de tratamiento</strong>
+            <small>Presupuestos y plan de tratamiento</small>
           </span>
         </summary>
         <div className={parityStyles.disclosureBody}>

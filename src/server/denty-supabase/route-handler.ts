@@ -43,6 +43,7 @@ import {
   createScopedBudgetSchema,
   periodontalExamInputSchema,
   periodontalMeasurementSchema,
+  reorderPlanItemsSchema,
 } from "@/shared/api/schemas/clinical";
 import {
   accountingExportQuerySchema,
@@ -2947,6 +2948,23 @@ export async function handleSupabaseDentyRoute(
     ) {
       const patientId = decodeURIComponent(parts[2] ?? "");
       const plan = await clinical.getClinicalPlan(patientId);
+      return plan
+        ? json(200, plan, headers)
+        : error(404, "CLINICAL_PLAN_NOT_FOUND", "El paciente todavía no tiene un plan clínico.");
+    }
+    if (
+      parts.length === 5 &&
+      parts[0] === "api" &&
+      parts[1] === "patients" &&
+      parts[3] === "clinical-plan" &&
+      parts[4] === "reorder" &&
+      method === "POST"
+    ) {
+      if (identity.actor.role === "PATIENT")
+        return error(403, "FORBIDDEN", "El portal no puede reordenar el plan clínico.");
+      const patientId = decodeURIComponent(parts[2] ?? "");
+      const payload = await parseJson(request, reorderPlanItemsSchema);
+      const plan = await clinical.reorderClinicalPlanItems(patientId, payload.orderedIds);
       return plan
         ? json(200, plan, headers)
         : error(404, "CLINICAL_PLAN_NOT_FOUND", "El paciente todavía no tiene un plan clínico.");
