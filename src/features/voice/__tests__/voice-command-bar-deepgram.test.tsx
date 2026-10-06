@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   session: vi.fn(),
   agenda: vi.fn(),
   permission: vi.fn(),
+  permissionState: vi.fn(),
   push: vi.fn(),
   pathname: { value: "/app/agenda" },
   execute: vi.fn(),
@@ -31,7 +32,12 @@ vi.mock("@/shared/api/browser", () => ({
   }),
 }));
 vi.mock("@/shared/patients/patient-data", () => ({ usePatientsQuery: () => ({ data: [] }) }));
-vi.mock("@/shared/ui/device-permissions", () => ({ requestMediaPermission: mocks.permission }));
+vi.mock("@/shared/ui/device-permissions", () => ({
+  queryMediaPermission: mocks.permissionState,
+  requestMediaPermission: mocks.permission,
+  mediaPermissionErrorMessage: (_kind: string, cause: unknown) =>
+    cause instanceof Error ? cause.message : "No se pudo acceder al micrófono.",
+}));
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname.value,
   useRouter: () => ({ push: mocks.push }),
@@ -70,6 +76,7 @@ beforeEach(() => {
     actor: { role: "DENTIST", clinicId: "clinic", permissions: [] },
   });
   mocks.agenda.mockImplementation(() => new Promise(() => {}));
+  mocks.permissionState.mockResolvedValue("prompt");
   mocks.permission.mockResolvedValue(undefined);
   mocks.start.mockImplementation(async (_deps: unknown, events: DictationEvents) => {
     mocks.events.current = events;
