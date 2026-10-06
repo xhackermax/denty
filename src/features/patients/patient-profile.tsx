@@ -99,6 +99,7 @@ function PatientRouteCard({
 export function PatientProfile({ patientId }: { patientId: string }) {
   const searchParams = useSearchParams();
   const requestedView = searchParams.get("view");
+  const requestedAction = searchParams.get("action");
   const initialTab =
     requestedView === "plan"
       ? "plan"
@@ -127,6 +128,12 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
+
+  useEffect(() => {
+    if (initialTab === "budgets" && requestedAction === "sign") {
+      setTreatmentFlowOpen(true);
+    }
+  }, [initialTab, requestedAction]);
 
   if (patientQuery.isError) {
     return (
@@ -465,6 +472,18 @@ export function PatientProfile({ patientId }: { patientId: string }) {
               icon={IconHeartbeat}
               title="Clínica"
               description="Odontograma y especialidades"
+            />
+            <PatientRouteCard
+              href={`/app/patients/${patientId}?view=plan`}
+              icon={IconFileText}
+              title="Plan de tratamiento"
+              description="Qué vamos a hacer y en qué orden"
+            />
+            <PatientRouteCard
+              href={`/app/patients/${patientId}?view=budgets`}
+              icon={IconReceipt}
+              title="Presupuestos"
+              description="Opciones, comparación, precios y firma"
             />
             <PatientRouteCard
               href={`/app/agenda?patientId=${patientId}`}
