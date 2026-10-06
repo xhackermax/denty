@@ -217,7 +217,7 @@ async function run(
           if ((await face.isVisible()) && (await face.isEnabled())) {
             await face.tap();
             await expect(
-              page.getByText("Guardado · plan y presupuesto al día", { exact: true }),
+              page.getByText("Guardado · información clínica al día", { exact: true }),
             ).toBeVisible({ timeout: 15_000 });
             entry.persistedEntityCount = (await fakeSupabase.state()).dental_entities?.length;
           } else entry.result = "unavailable";

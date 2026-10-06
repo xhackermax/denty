@@ -8,7 +8,7 @@ import { MouthStateProvider } from "./mouth-state-context";
 import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
 import { useAutosave, type AutosaveStatus } from "./use-autosave";
 import { Alert, Badge, Button, Group, Modal, Select, SimpleGrid, Text } from "@mantine/core";
-import { IconArrowBackUp, IconArrowForwardUp, IconArrowRight } from "@tabler/icons-react";
+import { IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -41,17 +41,12 @@ import {
   type ToothSurface,
   type TriStateFamily,
 } from "@/domain";
-import { TreatmentFlowModal } from "@/shared/clinical/treatment-flow";
 import { getBrowserApi } from "@/shared/api/browser";
 import { createClinicalAutoSync } from "@/shared/clinical/auto-sync";
 import {
   invalidateClinicalPatient,
   useCreateClinicalEncounterMutation,
-  usePatientBudgetsQuery,
 } from "@/shared/clinical/clinical-data";
-import type { BudgetView } from "@/shared/clinical/budget-options";
-import { formatEUR } from "@/domain/money";
-import { ClinicalWorkspace } from "@/shared/clinical/clinical-workspace";
 import {
   odontogramEntities,
   useOdontogramQuery,
@@ -454,77 +449,10 @@ function autosaveLabel(status: AutosaveStatus, dirty: boolean, sync: ClinicalSyn
   if (status === "saving") return "Guardando…";
   if (status === "error") return "Sin guardar";
   if (dirty) return "Cambios pendientes…";
-  if (sync === "syncing") return "Guardado · actualizando plan y presupuesto…";
-  if (sync === "updated") return "Guardado · plan y presupuesto al día";
+  if (sync === "syncing") return "Guardado · actualizando información clínica…";
+  if (sync === "updated") return "Guardado · información clínica al día";
   if (sync === "error") return "Guardado · no se pudo actualizar el plan";
   return status === "saved" ? "Guardado" : "Se guarda automáticamente";
-}
-
-function budgetDate(value: string | undefined): string {
-  if (!value) return "Fecha no disponible";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "Fecha no disponible"
-    : date.toLocaleDateString("es-ES", { dateStyle: "medium" });
-}
-
-function BudgetHistoryStrip({ patientId }: { patientId: string }) {
-  const budgetHistory = usePatientBudgetsQuery(patientId);
-  const completedBudgets = (budgetHistory.data?.items ?? []).filter(
-    (budget: BudgetView) => budget.status === "SIGNED",
-  );
-  const latestBudgets = completedBudgets.slice(0, 4);
-
-  return (
-    <section className={styles.budgetHistoryStrip} aria-labelledby="odontogram-budget-history">
-      <Group justify="space-between" gap="sm" wrap="nowrap">
-        <div>
-          <Text id="odontogram-budget-history" fw={800} size="sm">
-            Historial de presupuestos realizados
-          </Text>
-          <Text size="xs" c="dimmed">
-            Presupuestos firmados y conservados para este paciente
-          </Text>
-        </div>
-        <Badge variant="light" color="teal">
-          {completedBudgets.length}
-        </Badge>
-      </Group>
-      {budgetHistory.isError ? (
-        <Text size="xs" c="red">
-          No se pudo cargar el historial de presupuestos.
-        </Text>
-      ) : budgetHistory.isLoading ? (
-        <Text size="xs" c="dimmed">
-          Cargando presupuestos...
-        </Text>
-      ) : latestBudgets.length ? (
-        <div className={styles.budgetHistoryList}>
-          {latestBudgets.map((budget) => (
-            <article className={styles.budgetHistoryItem} key={budget.id}>
-              <div>
-                <Text fw={750} size="sm" lineClamp={1}>
-                  {budget.title || budget.code}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {budget.code}
-                  {budget.revision === undefined ? "" : ` · Rev. ${budget.revision}`}
-                  {` · ${budgetDate(budget.createdAt)}`}
-                </Text>
-              </div>
-              <Text fw={850} size="sm">
-                {formatEUR(budget.totalCents)}
-              </Text>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <Text size="xs" c="dimmed">
-          Todavía no hay presupuestos realizados para este paciente.
-        </Text>
-      )}
-    </section>
-  );
 }
 
 interface OdontogramEditorProps {
@@ -532,7 +460,7 @@ interface OdontogramEditorProps {
   activeTab: ClinicalTab;
   setActiveTab: (tab: ClinicalTab) => void;
   patientId: string;
-  initialSection?: "odontogram" | "diagnosis" | "plan";
+  initialSection?: "odontogram" | "diagnosis";
   initialAction?: "implant-surgery";
   birthDate?: string;
   initialEntities: readonly DentalEntity[];
@@ -545,7 +473,6 @@ interface OdontogramEditorProps {
   selectedSnapshotId: string | undefined;
   onSelectSnapshot: (snapshotId: string | null) => void;
   onSave: (entities: readonly DentalEntity[]) => Promise<void>;
-  onOpenTreatmentFlow: () => void;
   clinicalSync: ClinicalSyncStatus;
 }
 function OdontogramEditor({
@@ -566,7 +493,6 @@ function OdontogramEditor({
   selectedSnapshotId,
   onSelectSnapshot,
   onSave,
-  onOpenTreatmentFlow,
   clinicalSync,
 }: OdontogramEditorProps) {
   const [currentPerioReadings, setCurrentPerioReadings] = useState<PeriodontalReading[]>(
@@ -994,19 +920,6 @@ function OdontogramEditor({
       ))}
     </div>
   );
-  const openClinicalSection = (sectionId: "treatment-plan" | "patient-budgets") => {
-    const open = () => {
-      const section = document.getElementById(sectionId);
-      if (section instanceof HTMLDetailsElement) section.open = true;
-      section?.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
-    if (!dirty) {
-      open();
-      return;
-    }
-    void autosave.flush().then(open, () => undefined);
-  };
-
   const failure = autosave.error ?? saveError;
   const conflict = failure instanceof DentyApiError && failure.kind === "conflict";
   // The history view replaces the whole editor so nothing else competes for attention.
@@ -1045,28 +958,6 @@ function OdontogramEditor({
               <Button size="xs" loading={saving} disabled={!dirty} onClick={() => void saveNow()}>
                 Guardar
               </Button>
-            ) : null}
-            {!historical ? (
-              <>
-                <Button
-                  size="xs"
-                  color="teal"
-                  variant="light"
-                  loading={saving}
-                  onClick={() => openClinicalSection("treatment-plan")}
-                >
-                  Plan de tratamiento
-                </Button>
-                <Button
-                  size="xs"
-                  color="teal"
-                  rightSection={<IconArrowRight size={15} />}
-                  loading={saving}
-                  onClick={() => openClinicalSection("patient-budgets")}
-                >
-                  Presupuestos
-                </Button>
-              </>
             ) : null}
             {!historical ? (
               <Button
@@ -1488,7 +1379,6 @@ function OdontogramEditor({
           readings={currentPerioReadings}
           readOnly={historical}
         />
-        <BudgetHistoryStrip patientId={patientId} />
         <OdontogramLayerControls
           state={viewState}
           onToggleLayer={(layerId) =>
@@ -1620,52 +1510,6 @@ function OdontogramEditor({
           </Alert>
         ) : null}
       </MouthStateProvider>
-      <details
-        className={parityStyles.disclosure}
-        id="treatment-plan"
-        {...(initialSection === "plan" ? { open: true } : {})}
-      >
-        <summary>
-          <span>
-            <strong>Plan de tratamiento</strong>
-            <small>Secuencia clínica y orden de los tratamientos</small>
-          </span>
-        </summary>
-        <div className={parityStyles.disclosureBody}>
-          {!historical ? (
-            <ClinicalWorkspace patientId={patientId} mode="plan" />
-          ) : (
-            <Alert color="yellow" title="Plan clínico actual no modificado">
-              El snapshot histórico no modifica el plan actual. Vuelve al odontograma actual para
-              realizar cambios clínicos.
-            </Alert>
-          )}
-        </div>
-      </details>
-
-      <details className={parityStyles.disclosure} id="patient-budgets">
-        <summary>
-          <span>
-            <strong>Presupuestos</strong>
-            <small>Precios, versiones, firma y citas</small>
-          </span>
-        </summary>
-        <div className={parityStyles.disclosureBody}>
-          {!historical ? (
-            <ClinicalWorkspace
-              patientId={patientId}
-              mode="budget"
-              onOpenGuidedFlow={onOpenTreatmentFlow}
-            />
-          ) : (
-            <Alert color="yellow" title="Presupuestos actuales no modificados">
-              El snapshot histórico no modifica presupuestos. Vuelve al odontograma actual para
-              realizar cambios económicos.
-            </Alert>
-          )}
-        </div>
-      </details>
-
       <details className={parityStyles.disclosure}>
         <summary>
           <span>
@@ -1696,8 +1540,7 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   const searchParams = useSearchParams();
   const sectionParam = searchParams.get("section");
   const actionParam = searchParams.get("action");
-  const initialSection =
-    sectionParam === "diagnosis" || sectionParam === "plan" ? sectionParam : "odontogram";
+  const initialSection = sectionParam === "diagnosis" ? "diagnosis" : "odontogram";
   const initialAction = actionParam === "implant-surgery" ? "implant-surgery" : undefined;
   const [activeTab, setActiveTab] = useState<ClinicalTab>(
     initialAction === "implant-surgery"
@@ -1728,7 +1571,6 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   const saveMutation = useSaveOdontogramBatchMutation(patientId, {
     onCommitted: (version) => ownVersionsRef.current.add(version),
   });
-  const [treatmentFlowOpen, setTreatmentFlowOpen] = useState(false);
   const [clinicalSync, setClinicalSync] = useState<ClinicalSyncStatus>("idle");
   const queryClient = useQueryClient();
   // Plan and budget follow every save on their own; the guided flow stays optional.
@@ -1797,11 +1639,6 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
     : `${query.data.id ?? patientId}-${editorVersion ?? 0}`;
   return (
     <>
-      <TreatmentFlowModal
-        patientId={patientId}
-        opened={treatmentFlowOpen}
-        onClose={() => setTreatmentFlowOpen(false)}
-      />
       <OdontogramViewSwitch
         editor={
           <OdontogramEditor
@@ -1832,7 +1669,6 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
               setClinicalSync("syncing");
               void autoSync.request();
             }}
-            onOpenTreatmentFlow={() => setTreatmentFlowOpen(true)}
             clinicalSync={clinicalSync}
           />
         }

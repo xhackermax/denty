@@ -30,7 +30,7 @@ async function expectChartBack(page: Page, tooth: string, state = "caries") {
   await expect(page.getByText("No se pudo cargar")).toHaveCount(0);
   // A freshly opened chart has nothing pending: no stale "saving" or error state carried over.
   await expect(
-    page.getByText(/^(Se guarda automáticamente|Guardado · plan y presupuesto al día)$/),
+    page.getByText(/^(Se guarda automáticamente|Guardado · información clínica al día)$/),
   ).toBeVisible();
 }
 
@@ -149,8 +149,11 @@ for (const [index, step] of FLOW_STEPS.entries()) {
       await fakeSupabase.patch("budgets", `id=eq.${String(budget!.id)}`, { status: "SIGNED" });
       moves = index - 1;
     }
-    await page.getByRole("button", { name: "Presupuestos" }).click();
-  await page.getByRole("button", { name: "Firma y citas" }).click();
+    await expect(page.getByRole("button", { name: "Plan de tratamiento" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Presupuestos" })).toHaveCount(0);
+
+    await page.goto(`/app/patients/${PATIENT_ID}?view=budgets`);
+    await page.getByRole("button", { name: "Firma y citas" }).click();
     const flow = page.getByRole("dialog");
     await expect(flow).toBeVisible();
     for (let move = 0; move < moves; move += 1) {
@@ -158,18 +161,22 @@ for (const [index, step] of FLOW_STEPS.entries()) {
     }
     await expect(flow.getByText(step, { exact: true }).first()).toBeVisible();
 
-    // Out through the browser with the flow open, then back.
+    // Going back returns to the clean odontogram, with the edit intact.
     await page.goBack();
-    await expect(page).not.toHaveURL(new RegExp(`${odontogram}$`));
-    await page.goForward();
+    await expect(page).toHaveURL(new RegExp(`${odontogram}$`));
     await expectChartBack(page, "36");
 
-    // And out through the menu after closing the flow.
-    await page.getByRole("button", { name: "Presupuestos" }).click();
-  await page.getByRole("button", { name: "Firma y citas" }).click();
+    // Forward returns to the patient record stage, not to an embedded odontogram panel.
+    await page.goForward();
+    await expect(page).toHaveURL(new RegExp(`/app/patients/${PATIENT_ID}\\?view=budgets`));
+    await expect(page.getByRole("button", { name: "Firma y citas" })).toBeVisible();
+
+    // Closing the flow and using the global menu still preserves the chart when returning.
+    await page.getByRole("button", { name: "Firma y citas" }).click();
     await page.keyboard.press("Escape");
     await (await sidebarLink(page, /^Agenda/)).click();
     await expect(page).toHaveURL(/\/app\/agenda/);
+    await page.goBack();
     await page.goBack();
     await expectChartBack(page, "36");
 

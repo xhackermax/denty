@@ -109,7 +109,7 @@ test("edits save themselves, keep the editor in place and bring plan and budget 
   await waitFor(() => expect(api.batch).toHaveBeenCalledTimes(1), { timeout: 3000 });
   await waitFor(() => expect(api.syncBudget).toHaveBeenCalledTimes(1));
   expect(api.syncPlan).toHaveBeenCalledTimes(1);
-  expect(await screen.findByText("Guardado · plan y presupuesto al día")).toBeInTheDocument();
+  expect(await screen.findByText("Guardado · información clínica al día")).toBeInTheDocument();
   expect(api.flow).not.toHaveBeenCalledWith(true);
 
   // Same editor instance: the next edit saves against the version just written.

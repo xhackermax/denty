@@ -44,7 +44,7 @@ test("a long treatment and a huge amount fit the plan and budget steps on a phon
   const failures = await isolatePage(page);
   await page.goto(`/app/patients/${PATIENT_ID}/odontogram`);
   await page.getByRole("button", { name: "Diente 36 superficie oclusal" }).click();
-  await expect(page.getByText("Guardado · plan y presupuesto al día")).toBeVisible({
+  await expect(page.getByText("Guardado · información clínica al día")).toBeVisible({
     timeout: 15_000,
   });
   const [item] = (await fakeSupabase.state()).clinical_plan_items!;
@@ -54,7 +54,7 @@ test("a long treatment and a huge amount fit the plan and budget steps on a phon
     price_snapshot_cents: 9_999_999_999,
   });
 
-  await page.getByRole("button", { name: "Presupuestos" }).click();
+  await page.goto(`/app/patients/${PATIENT_ID}?view=budgets`);
   await page.getByRole("button", { name: "Firma y citas" }).click();
   const price = page.getByRole("textbox", { name: /^Precio de Rehabilitación/ });
   await expect(price).toHaveValue("99.999.999,99 €");

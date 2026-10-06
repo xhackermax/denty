@@ -36,6 +36,18 @@ import {
     "/app/patients/juan-perez/odontogram?section=diagnosis",
   );
   assert.equal(
+    clinicalPipelineHref("plan", "juan-perez"),
+    "/app/patients/juan-perez?view=plan",
+  );
+  assert.equal(
+    clinicalPipelineHref("budget", "juan-perez"),
+    "/app/patients/juan-perez?view=budgets",
+  );
+  assert.equal(
+    clinicalPipelineHref("signature", "juan-perez"),
+    "/app/patients/juan-perez?view=budgets&action=sign",
+  );
+  assert.equal(
     clinicalPipelineHref("appointments", "juan-perez"),
     "/app/agenda?patientId=juan-perez",
   );

@@ -87,11 +87,17 @@ describe("clinical pipeline progress", () => {
     expect(clinicalPipelineHref("diagnosis", "juan-perez")).toBe(
       "/app/patients/juan-perez/odontogram?section=diagnosis",
     );
+    expect(clinicalPipelineHref("plan", "juan-perez")).toBe(
+      "/app/patients/juan-perez?view=plan",
+    );
     expect(clinicalPipelineHref("consents", "juan-perez")).toBe(
       "/app/documents?patientId=juan-perez&workflow=consents",
     );
+    expect(clinicalPipelineHref("budget", "juan-perez")).toBe(
+      "/app/patients/juan-perez?view=budgets",
+    );
     expect(clinicalPipelineHref("signature", "juan-perez")).toBe(
-      "/app/finance?patientId=juan-perez&view=budgets&action=sign",
+      "/app/patients/juan-perez?view=budgets&action=sign",
     );
     expect(clinicalPipelineHref("appointments", "juan-perez")).toBe(
       "/app/agenda?patientId=juan-perez",
