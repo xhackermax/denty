@@ -93,8 +93,25 @@ export const laboratoryPriceListItemSchema = z
     updatedAt: isoDateTimeSchema.optional(),
   })
   .strict();
+export const laboratoryPriceHistoryItemSchema = z
+  .object({
+    id: z.string().min(1),
+    laboratoryId: idSchema,
+    workTypeId: idSchema,
+    workTypeName: z.string().min(1),
+    priceCents: z.number().int().nonnegative(),
+    turnaroundDays: z.number().int().min(0).max(365),
+    active: z.boolean(),
+    version: z.number().int().positive(),
+    changedAt: isoDateTimeSchema,
+    changedBy: idSchema.nullable().optional(),
+  })
+  .strict();
 export const laboratoryPriceListSchema = z
-  .object({ items: z.array(laboratoryPriceListItemSchema) })
+  .object({
+    items: z.array(laboratoryPriceListItemSchema),
+    history: z.array(laboratoryPriceHistoryItemSchema).default([]),
+  })
   .strict();
 export const upsertLaboratoryPriceSchema = z
   .object({
