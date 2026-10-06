@@ -1,6 +1,13 @@
 "use client";
 
 import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Alert,
   Badge,
   Button,
@@ -13,7 +20,7 @@ import {
   TextInput,
 } from "@mantine/core";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatEUR } from "@/domain/money";
 import {
   useAddClinicalPlanItemMutation,
@@ -28,8 +35,23 @@ import {
   useTreatmentCatalogQuery,
   useUpdateDraftBudgetMutation,
 } from "@/shared/clinical/clinical-data";
+import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
+import { DragHandle } from "@/shared/drag/drag-handle";
 import styles from "@/shared/ui/parity.module.css";
 import type { BudgetView } from "./budget-options";
+
+type ClinicalWorkspaceMode = "plan" | "budget" | "combined";
+
+interface PlanItemView {
+  id: string;
+  tooth?: string | null;
+  treatmentCatalogId?: string | null;
+  treatmentCode: string;
+  label: string;
+  phase: number;
+  status: string;
+  priceCents?: number | null;
+}
 
 function budgetDate(value: string | undefined): string {
   if (!value) return "Fecha no disponible";
@@ -43,38 +65,145 @@ function readableError(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export function ClinicalWorkspace({ patientId }: { patientId: string }) {
-  const workflow = useClinicalWorkflowQuery(patientId);
+function reorderIds(ids: readonly string[], activeId: string, overId: string): string[] {
+  const from = ids.indexOf(activeId);
+  const to = ids.indexOf(overId);
+  if (from < 0 || to < 0 || from === to) return [...ids];
+  const next = [...ids];
+  const [moved] = next.splice(from, 1);
+  if (!moved) return [...ids];
+  next.splice(to, 0, moved);
+  return next;
+}
+
+function SortablePlanRow({
+  item,
+  index,
+  patientId,
+  requiresLab,
+  disabled,
+}: {
+  item: PlanItemView;
+  index: number;
+  patientId: string;
+  requiresLab: boolean;
+  disabled: boolean;
+}) {
+  const sortable = useSortable({ id: item.id, disabled });
+  const dragStyle = {
+    transform: CSS.Transform.toString(sortable.transform),
+    transition: sortable.transition,
+    zIndex: sortable.isDragging ? 20 : undefined,
+    opacity: sortable.isDragging ? 0.72 : 1,
+  };
+
+  return (
+    <li
+      ref={sortable.setNodeRef}
+      style={dragStyle}
+      className={`${styles.row} ${styles.draggablePlanRow}`}
+      data-dragging={sortable.isDragging || undefined}
+    >
+      <DragHandle
+        label={`Mover ${item.label}`}
+        disabled={disabled}
+        attributes={sortable.attributes}
+        listeners={sortable.listeners}
+        setActivatorNodeRef={sortable.setActivatorNodeRef}
+      />
+      <Text fw={850} className={styles.planSequenceNumber}>
+        {index + 1}
+      </Text>
+      <div className={styles.rowMain}>
+        <span className={styles.rowTitle}>{item.label}</span>
+        <span className={styles.rowMeta}>
+          Fase {item.phase} · {item.tooth ?? "General"} · {item.treatmentCode}
+        </span>
+      </div>
+      <div className={styles.rowActions}>
+        <Badge variant="light">{item.status}</Badge>
+        {item.priceCents != null ? <Text fw={700}>{formatEUR(item.priceCents)}</Text> : null}
+        {requiresLab ? (
+          <Button
+            component={Link}
+            href={`/app/laboratory?patientId=${encodeURIComponent(patientId)}&planItemId=${encodeURIComponent(item.id)}`}
+            size="xs"
+            variant="light"
+          >
+            Enviar a laboratorio
+          </Button>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+export function ClinicalWorkspace({
+  patientId,
+  mode = "combined",
+}: {
+  patientId: string;
+  mode?: ClinicalWorkspaceMode;
+}) {
+  const showPlan = mode !== "budget";
+  const showBudget = mode !== "plan";
+  const workflow = useClinicalWorkflowQuery(patientId, showPlan);
   const plan = useClinicalPlanQuery(patientId);
-  const budgetHistory = usePatientBudgetsQuery(patientId);
-  const sync = useClinicalSyncQuery(patientId);
+  const budgetHistory = usePatientBudgetsQuery(patientId, showBudget);
+  const sync = useClinicalSyncQuery(patientId, showPlan);
   const syncPlan = useSyncPlanFromOdontogramMutation(patientId);
   const syncBudget = useSyncBudgetFromPlanMutation(patientId);
   const updateDraftBudget = useUpdateDraftBudgetMutation(patientId);
   const deleteDraftBudget = useDeleteDraftBudgetMutation(patientId);
   const reorderPlan = useReorderClinicalPlanMutation(patientId);
-  const treatmentCatalog = useTreatmentCatalogQuery();
+  const treatmentCatalog = useTreatmentCatalogQuery(showPlan);
   const addItem = useAddClinicalPlanItemMutation(patientId);
   const [treatmentCatalogId, setTreatmentCatalogId] = useState<string | null>(null);
   const [tooth, setTooth] = useState("");
+  const [optimisticOrder, setOptimisticOrder] = useState<string[] | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
   const [openBudget, setOpenBudget] = useState<BudgetView | null>(null);
   const [editingBudget, setEditingBudget] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<BudgetView | null>(null);
   const [budgetTitle, setBudgetTitle] = useState("");
   const [budgetPrices, setBudgetPrices] = useState<Record<string, number | string>>({});
   const [budgetFormError, setBudgetFormError] = useState<string | null>(null);
+
   const activeCatalog = (treatmentCatalog.data?.items ?? []).filter((item) => item.active);
   const selectedTreatment = activeCatalog.find((item) => item.id === treatmentCatalogId);
-  const hasError = workflow.isError || plan.isError || sync.isError;
+  const hasError =
+    plan.isError ||
+    (showPlan && (workflow.isError || sync.isError)) ||
+    (showBudget && budgetHistory.isError);
   const budgets = budgetHistory.data?.items ?? [];
-  const sequencedItems = plan.data?.route?.length ? plan.data.route : (plan.data?.items ?? []);
+  const serverSequencedItems = (plan.data?.route?.length
+    ? plan.data.route
+    : (plan.data?.items ?? [])) as PlanItemView[];
+
+  const sequencedItems = useMemo(() => {
+    if (!optimisticOrder) return serverSequencedItems;
+    const byId = new Map(serverSequencedItems.map((item) => [item.id, item]));
+    const ordered = optimisticOrder
+      .map((id) => byId.get(id))
+      .filter((item): item is PlanItemView => Boolean(item));
+    const seen = new Set(ordered.map((item) => item.id));
+    return [...ordered, ...serverSequencedItems.filter((item) => !seen.has(item.id))];
+  }, [optimisticOrder, serverSequencedItems]);
+
+  useEffect(() => {
+    if (!optimisticOrder) return;
+    const serverIds = serverSequencedItems.map((item) => item.id);
+    if (serverIds.join("|") === optimisticOrder.join("|")) setOptimisticOrder(null);
+  }, [optimisticOrder, serverSequencedItems]);
+
   const editedBudgetTotal = openBudget?.items.reduce((sum, item) => {
     if (item.billingMode && item.billingMode !== "separate") return sum;
     const price = Number(budgetPrices[item.id]);
     if (!Number.isFinite(price) || price < 0) return sum;
     return sum + Math.round(price * 100) * (item.quantity ?? 1);
   }, 0);
-  const showBudget = (budget: BudgetView, edit = false) => {
+
+  const showBudgetDetails = (budget: BudgetView, edit = false) => {
     setOpenBudget(budget);
     setEditingBudget(edit);
     setBudgetTitle(budget.title ?? "");
@@ -89,6 +218,7 @@ export function ClinicalWorkspace({ patientId }: { patientId: string }) {
     setBudgetFormError(null);
     updateDraftBudget.reset();
   };
+
   const saveBudget = () => {
     if (!openBudget || openBudget.version === undefined) return;
     const items = openBudget.items.map((item) => {
@@ -123,6 +253,7 @@ export function ClinicalWorkspace({ patientId }: { patientId: string }) {
         () => undefined,
       );
   };
+
   const removeBudget = () => {
     if (!deleteCandidate || deleteCandidate.version === undefined) return;
     deleteDraftBudget
@@ -135,386 +266,421 @@ export function ClinicalWorkspace({ patientId }: { patientId: string }) {
         () => undefined,
       );
   };
-  const movePlanItem = (itemId: string, direction: -1 | 1) => {
-    const from = sequencedItems.findIndex((item) => item.id === itemId);
-    const to = from + direction;
-    if (from < 0 || to < 0 || to >= sequencedItems.length) return;
-    const orderedIds = sequencedItems.map((item) => item.id);
-    const [moved] = orderedIds.splice(from, 1);
-    if (!moved) return;
-    orderedIds.splice(to, 0, moved);
-    reorderPlan.mutate(orderedIds);
+
+  const applyPlanOrder = (activeId: string, overId: string) => {
+    const currentIds = sequencedItems.map((item) => item.id);
+    const orderedIds = reorderIds(currentIds, activeId, overId);
+    if (orderedIds.join("|") === currentIds.join("|")) return;
+    setOptimisticOrder(orderedIds);
+    reorderPlan.mutate(orderedIds, {
+      onError: () => setOptimisticOrder(null),
+    });
   };
+
+  const title =
+    mode === "plan"
+      ? "Plan de tratamiento"
+      : mode === "budget"
+        ? "Presupuestos"
+        : "Presupuestos y plan de tratamiento";
+  const description =
+    mode === "plan"
+      ? "Ordena la secuencia clínica arrastrando cada tratamiento."
+      : mode === "budget"
+        ? "Precios, versiones, aceptación y documentos económicos del paciente."
+        : "Organiza la secuencia clínica y revisa los presupuestos del paciente.";
 
   return (
     <Stack gap="md">
       {hasError ? (
-        <Alert color="red" title="No se pudo cargar el flujo clínico">
-          No se genera un plan alternativo en memoria. Revisa la API/Supabase y reintenta.
+        <Alert color="red" title="No se pudo cargar la información clínica">
+          Revisa la conexión con Denty y vuelve a intentarlo.
         </Alert>
       ) : null}
+
       <Group justify="space-between">
         <div>
-          <Text fw={800}>Presupuestos y plan de tratamiento</Text>
+          <Text fw={800}>{title}</Text>
           <Text size="sm" c="dimmed">
-            Organiza la secuencia clínica y revisa los presupuestos del paciente.
+            {description}
           </Text>
         </div>
         <Badge variant="light">Servidor</Badge>
       </Group>
-      <Group>
-        <Button
-          size="xs"
-          variant="light"
-          loading={syncPlan.isPending}
-          onClick={() => syncPlan.mutate()}
-        >
-          Sincronizar plan desde odontograma
-        </Button>
-        <Button
-          size="xs"
-          loading={syncBudget.isPending}
-          onClick={() => syncBudget.mutate()}
-          disabled={!plan.data?.items.length}
-        >
-          Sincronizar presupuesto desde plan
-        </Button>
-      </Group>
-      <section className={styles.section}>
-        <Text fw={800}>Añadir tratamiento al plan</Text>
-        <Text size="sm" c="dimmed" mt="xs">
-          El selector se alimenta del catálogo clínico persistido de la clínica.
-        </Text>
-        <Group mt="sm" align="end" grow>
-          <Select
-            label="Tratamiento"
-            placeholder="Selecciona tratamiento"
-            searchable
-            value={treatmentCatalogId}
-            onChange={setTreatmentCatalogId}
-            data={activeCatalog.map((item) => ({
-              value: item.id,
-              label: `${item.name} · ${(item.defaultPriceCents / 100).toFixed(2)} €`,
-            }))}
-          />
-          <TextInput
-            label="Diente / zona"
-            placeholder="16"
-            value={tooth}
-            onChange={(event) => setTooth(event.currentTarget.value)}
-          />
-          <Button
-            disabled={!selectedTreatment}
-            loading={addItem.isPending}
-            onClick={() => {
-              if (!selectedTreatment) return;
-              addItem.mutate({
-                treatmentCatalogId: selectedTreatment.id,
-                treatmentCode: selectedTreatment.code,
-                label: selectedTreatment.name,
-                ...(tooth.trim() ? { tooth: tooth.trim() } : {}),
-                priceCents: selectedTreatment.defaultPriceCents,
-              });
-            }}
-          >
-            Añadir al plan
-          </Button>
-        </Group>
-      </section>
-      <section className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <h3 className={styles.sectionTitle}>Presupuestos y plan de tratamiento</h3>
-            <p className={styles.sectionDescription}>
-              {sequencedItems.length} tratamientos persistidos en secuencia clínica.
-            </p>
-          </div>
-          <Badge>{plan.data?.status ?? "SIN PLAN"}</Badge>
-        </div>
-        <div
-          className={styles.rowList}
-          role="region"
-          aria-label="Secuencia del plan de tratamiento"
-        >
-          <ol
-            className={`${styles.rowList} ${styles.sequenceList}`}
-            aria-label="Tratamientos a realizar"
-          >
-            {sequencedItems.map((item, index) => {
-              const catalogItem = activeCatalog.find(
-                (entry) => entry.id === item.treatmentCatalogId,
-              );
-              const requiresLab = catalogItem?.requiresLab ?? false;
-              return (
-                <li className={styles.row} key={item.id}>
-                  <Text fw={850}>{index + 1}</Text>
-                  <div className={styles.rowMain}>
-                    <span className={styles.rowTitle}>{item.label}</span>
-                    <span className={styles.rowMeta}>
-                      Fase {item.phase} · {item.tooth ?? "General"} · {item.treatmentCode}
-                    </span>
-                  </div>
-                  <div className={styles.rowActions}>
-                    <Badge variant="light">{item.status}</Badge>
-                    {item.priceCents != null ? (
-                      <Text fw={700}>{formatEUR(item.priceCents)}</Text>
-                    ) : null}
-                    {requiresLab ? (
-                      <Button
-                        component={Link}
-                        href={`/app/laboratory?patientId=${encodeURIComponent(patientId)}&planItemId=${encodeURIComponent(item.id)}`}
-                        size="xs"
-                        variant="light"
-                      >
-                        Enviar a laboratorio
-                      </Button>
-                    ) : null}
-                    <Button
-                      size="xs"
-                      variant="subtle"
-                      disabled={index === 0 || reorderPlan.isPending}
-                      onClick={() => movePlanItem(item.id, -1)}
-                      aria-label={`Subir ${item.label}`}
-                    >
-                      Subir
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant="subtle"
-                      disabled={index === sequencedItems.length - 1 || reorderPlan.isPending}
-                      onClick={() => movePlanItem(item.id, 1)}
-                      aria-label={`Bajar ${item.label}`}
-                    >
-                      Bajar
-                    </Button>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-          {!plan.isLoading && !plan.data?.items.length ? (
-            <Text c="dimmed">Todavía no hay tratamientos en el plan.</Text>
-          ) : null}
-        </div>
-      </section>
-      <section className={styles.section} aria-labelledby="patient-budget-history">
-        <div className={styles.sectionHeader}>
-          <div>
-            <h3 className={styles.sectionTitle} id="patient-budget-history">
-              Presupuestos anteriores
-            </h3>
-            <p className={styles.sectionDescription}>
-              Consulta las versiones guardadas de este paciente. Los firmados se conservan sin
-              cambios.
-            </p>
-          </div>
-          <Badge variant="light">{budgets.length}</Badge>
-        </div>
-        {budgetHistory.isError ? (
-          <Alert color="red" title="No se pudo cargar el historial de presupuestos">
-            {readableError(budgetHistory.error, "Comprueba la conexión e inténtalo de nuevo.")}
-          </Alert>
-        ) : budgetHistory.isLoading ? (
-          <Text size="sm" c="dimmed">
-            Cargando presupuestos…
-          </Text>
-        ) : budgets.length ? (
-          <div className={styles.rowList}>
-            {budgets.map((budget) => {
-              const canManage = budget.status === "DRAFT" && budget.version !== undefined;
-              return (
-                <div className={styles.row} key={budget.id}>
-                  <div className={styles.rowMain}>
-                    <span className={styles.rowTitle}>{budget.title || budget.code}</span>
-                    <span className={styles.rowMeta}>
-                      {budget.code}
-                      {budget.revision === undefined ? "" : ` · Revisión ${budget.revision}`}
-                      {` · ${budgetDate(budget.createdAt)}`}
-                    </span>
-                  </div>
-                  <div className={styles.rowActions}>
-                    <Badge variant="light">
-                      {budget.status === "SIGNED" ? "Firmado" : "Borrador"}
-                    </Badge>
-                    <Text fw={700}>{formatEUR(budget.totalCents)}</Text>
-                    <Button size="xs" variant="subtle" onClick={() => showBudget(budget)}>
-                      Abrir
-                    </Button>
-                    {canManage ? (
-                      <>
-                        <Button size="xs" variant="light" onClick={() => showBudget(budget, true)}>
-                          Editar
-                        </Button>
-                        <Button
-                          size="xs"
-                          variant="subtle"
-                          color="red"
-                          onClick={() => {
-                            deleteDraftBudget.reset();
-                            setDeleteCandidate(budget);
-                          }}
-                        >
-                          Eliminar
-                        </Button>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <Text size="sm" c="dimmed">
-            Todavía no hay presupuestos guardados para este paciente.
-          </Text>
-        )}
-      </section>
-      <Modal
-        opened={openBudget !== null}
-        onClose={() => {
-          setOpenBudget(null);
-          setEditingBudget(false);
-        }}
-        title={
-          editingBudget
-            ? `Editar presupuesto ${openBudget?.code ?? ""}`
-            : `Presupuesto ${openBudget?.code ?? ""}`
-        }
-        size="lg"
-        centered
-      >
-        {openBudget ? (
-          <Stack gap="sm">
-            <Group justify="space-between">
-              <Text size="sm" c="dimmed">
-                {budgetDate(openBudget.createdAt)}
-                {openBudget.revision === undefined ? "" : ` · Revisión ${openBudget.revision}`}
-              </Text>
-              <Badge variant="light">
-                {openBudget.status === "SIGNED" ? "Firmado" : "Borrador"}
-              </Badge>
-            </Group>
-            {editingBudget ? (
-              <TextInput
-                label="Nombre del presupuesto"
-                value={budgetTitle}
-                maxLength={120}
-                onChange={(event) => {
-                  setBudgetFormError(null);
-                  updateDraftBudget.reset();
-                  setBudgetTitle(event.currentTarget.value);
+
+      {showPlan ? (
+        <>
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <h3 className={styles.sectionTitle}>Plan de tratamiento</h3>
+                <p className={styles.sectionDescription}>
+                  {sequencedItems.length
+                    ? `${sequencedItems.length} tratamientos. Arrastra para cambiar el orden clínico.`
+                    : "Todavía no hay tratamientos en el plan."}
+                </p>
+              </div>
+              <Group gap="xs">
+                <Badge>{plan.data?.status ?? "SIN PLAN"}</Badge>
+                <Button
+                  size="xs"
+                  variant="light"
+                  loading={syncPlan.isPending}
+                  onClick={() => syncPlan.mutate()}
+                >
+                  Sincronizar
+                </Button>
+              </Group>
+            </div>
+
+            {sequencedItems.length ? (
+              <ClinicalDragContext
+                keyboardCoordinates={sortableKeyboardCoordinates}
+                onDragStart={(event) => setDragId(String(event.active.id))}
+                onDragCancel={() => setDragId(null)}
+                onDragEnd={(event) => {
+                  const activeId = String(event.active.id);
+                  const overId = event.over ? String(event.over.id) : null;
+                  setDragId(null);
+                  if (overId) applyPlanOrder(activeId, overId);
                 }}
-              />
-            ) : null}
-            <div className={styles.rowList}>
-              {openBudget.items.map((item) => {
-                const quantity = item.quantity ?? 1;
-                const isPriced = item.billingMode === undefined || item.billingMode === "separate";
-                const editedUnitPrice = Number(budgetPrices[item.id] ?? 0);
-                const editedLineTotal =
-                  isPriced && Number.isFinite(editedUnitPrice) && editedUnitPrice >= 0
-                    ? Math.round(editedUnitPrice * 100) * quantity
-                    : 0;
-                return (
-                  <div className={styles.row} key={item.id}>
-                    <div className={styles.rowMain}>
-                      <span className={styles.rowTitle}>
-                        {item.tooth ? `Diente ${item.tooth} · ` : ""}
-                        {item.description}
-                        {quantity > 1 ? ` · ${quantity} uds.` : ""}
-                      </span>
-                      {editingBudget ? (
-                        <NumberInput
-                          label={`${item.description} · importe unitario en euros`}
-                          value={budgetPrices[item.id] ?? 0}
-                          min={0}
-                          max={21_474_836.47}
-                          decimalScale={2}
-                          disabled={!isPriced}
-                          onChange={(value) => {
-                            setBudgetFormError(null);
-                            updateDraftBudget.reset();
-                            setBudgetPrices((current) => ({ ...current, [item.id]: value }));
-                          }}
+              >
+                <SortableContext
+                  items={sequencedItems.map((item) => item.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <ol
+                    className={`${styles.rowList} ${styles.sequenceList}`}
+                    aria-label="Tratamientos a realizar"
+                  >
+                    {sequencedItems.map((item, index) => {
+                      const catalogItem = activeCatalog.find(
+                        (entry) => entry.id === item.treatmentCatalogId,
+                      );
+                      return (
+                        <SortablePlanRow
+                          key={item.id}
+                          item={item}
+                          index={index}
+                          patientId={patientId}
+                          requiresLab={catalogItem?.requiresLab ?? false}
+                          disabled={reorderPlan.isPending}
                         />
+                      );
+                    })}
+                  </ol>
+                </SortableContext>
+              </ClinicalDragContext>
+            ) : !plan.isLoading ? (
+              <Text c="dimmed">Todavía no hay tratamientos en el plan.</Text>
+            ) : null}
+
+            {dragId ? (
+              <Text size="xs" c="dimmed" mt="xs" role="status">
+                Suelta el tratamiento en la posición deseada.
+              </Text>
+            ) : null}
+            {reorderPlan.isError ? (
+              <Alert color="red" mt="sm" title="No se pudo guardar el nuevo orden">
+                Se ha restaurado el orden anterior. Vuelve a intentarlo.
+              </Alert>
+            ) : null}
+          </section>
+
+          <details className={styles.disclosure}>
+            <summary>
+              <span>
+                <strong>Añadir tratamiento</strong>
+                <small>Solo cuando no venga ya del odontograma</small>
+              </span>
+            </summary>
+            <div className={styles.disclosureBody}>
+              <Group align="end" grow>
+                <Select
+                  label="Tratamiento"
+                  placeholder="Selecciona tratamiento"
+                  searchable
+                  value={treatmentCatalogId}
+                  onChange={setTreatmentCatalogId}
+                  data={activeCatalog.map((item) => ({
+                    value: item.id,
+                    label: `${item.name} · ${(item.defaultPriceCents / 100).toFixed(2)} €`,
+                  }))}
+                />
+                <TextInput
+                  label="Diente / zona"
+                  placeholder="16"
+                  value={tooth}
+                  onChange={(event) => setTooth(event.currentTarget.value)}
+                />
+                <Button
+                  disabled={!selectedTreatment}
+                  loading={addItem.isPending}
+                  onClick={() => {
+                    if (!selectedTreatment) return;
+                    addItem.mutate({
+                      treatmentCatalogId: selectedTreatment.id,
+                      treatmentCode: selectedTreatment.code,
+                      label: selectedTreatment.name,
+                      ...(tooth.trim() ? { tooth: tooth.trim() } : {}),
+                      priceCents: selectedTreatment.defaultPriceCents,
+                    });
+                  }}
+                >
+                  Añadir al plan
+                </Button>
+              </Group>
+            </div>
+          </details>
+        </>
+      ) : null}
+
+      {showBudget ? (
+        <section className={styles.section} aria-labelledby="patient-budget-history">
+          <div className={styles.sectionHeader}>
+            <div>
+              <h3 className={styles.sectionTitle} id="patient-budget-history">
+                Presupuestos
+              </h3>
+              <p className={styles.sectionDescription}>
+                Versiones económicas del plan. Los presupuestos firmados quedan conservados.
+              </p>
+            </div>
+            <Group gap="xs">
+              <Badge variant="light">{budgets.length}</Badge>
+              <Button
+                size="xs"
+                loading={syncBudget.isPending}
+                onClick={() => syncBudget.mutate()}
+                disabled={!plan.data?.items.length}
+              >
+                Crear desde el plan
+              </Button>
+            </Group>
+          </div>
+
+          {budgetHistory.isError ? (
+            <Alert color="red" title="No se pudo cargar el historial de presupuestos">
+              {readableError(budgetHistory.error, "Comprueba la conexión e inténtalo de nuevo.")}
+            </Alert>
+          ) : budgetHistory.isLoading ? (
+            <Text size="sm" c="dimmed">
+              Cargando presupuestos…
+            </Text>
+          ) : budgets.length ? (
+            <div className={styles.rowList}>
+              {budgets.map((budget) => {
+                const canManage = budget.status === "DRAFT" && budget.version !== undefined;
+                return (
+                  <div className={styles.row} key={budget.id}>
+                    <div className={styles.rowMain}>
+                      <span className={styles.rowTitle}>{budget.title || budget.code}</span>
+                      <span className={styles.rowMeta}>
+                        {budget.code}
+                        {budget.revision === undefined ? "" : ` · Revisión ${budget.revision}`}
+                        {` · ${budgetDate(budget.createdAt)}`}
+                      </span>
+                    </div>
+                    <div className={styles.rowActions}>
+                      <Badge variant="light">
+                        {budget.status === "SIGNED" ? "Firmado" : "Borrador"}
+                      </Badge>
+                      <Text fw={700}>{formatEUR(budget.totalCents)}</Text>
+                      <Button size="xs" variant="subtle" onClick={() => showBudgetDetails(budget)}>
+                        Abrir
+                      </Button>
+                      {canManage ? (
+                        <>
+                          <Button
+                            size="xs"
+                            variant="light"
+                            onClick={() => showBudgetDetails(budget, true)}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="subtle"
+                            color="red"
+                            onClick={() => {
+                              deleteDraftBudget.reset();
+                              setDeleteCandidate(budget);
+                            }}
+                          >
+                            Eliminar
+                          </Button>
+                        </>
                       ) : null}
                     </div>
-                    <Text fw={600}>
-                      {formatEUR(editingBudget ? editedLineTotal : item.totalCents)}
-                    </Text>
                   </div>
                 );
               })}
             </div>
-            {budgetFormError || updateDraftBudget.error ? (
-              <Alert color="red" title="No se pudo guardar el presupuesto">
-                {budgetFormError ??
-                  readableError(
-                    updateDraftBudget.error,
-                    "Comprueba la conexión e inténtalo de nuevo.",
-                  )}
-              </Alert>
-            ) : null}
-            <Group justify="space-between">
-              <Text fw={800}>
-                Total{" "}
-                {formatEUR(
-                  editingBudget
-                    ? (editedBudgetTotal ?? openBudget.totalCents)
-                    : openBudget.totalCents,
-                )}
-              </Text>
-              <Group>
-                <Button
-                  variant="default"
-                  onClick={() => {
-                    setOpenBudget(null);
-                    setEditingBudget(false);
-                  }}
-                >
-                  Cerrar
-                </Button>
-                {editingBudget ? (
-                  <Button loading={updateDraftBudget.isPending} onClick={saveBudget}>
-                    Guardar cambios
-                  </Button>
-                ) : null}
-              </Group>
-            </Group>
-          </Stack>
-        ) : null}
-      </Modal>
-      <Modal
-        opened={deleteCandidate !== null}
-        onClose={() => setDeleteCandidate(null)}
-        title="¿Eliminar este presupuesto?"
-        centered
-      >
-        {deleteCandidate ? (
-          <Stack gap="sm">
-            <Text size="sm">
-              Se eliminará el borrador {deleteCandidate.code} por{" "}
-              {formatEUR(deleteCandidate.totalCents)}. Esta acción no se puede deshacer.
+          ) : (
+            <Text size="sm" c="dimmed">
+              Todavía no hay presupuestos guardados para este paciente.
             </Text>
-            {deleteDraftBudget.error ? (
-              <Alert color="red" title="No se pudo eliminar">
-                {readableError(
-                  deleteDraftBudget.error,
-                  "El presupuesto puede tener una firma o un movimiento asociado.",
-                )}
-              </Alert>
+          )}
+        </section>
+      ) : null}
+
+      {showBudget ? (
+        <>
+          <Modal
+            opened={openBudget !== null}
+            onClose={() => {
+              setOpenBudget(null);
+              setEditingBudget(false);
+            }}
+            title={
+              editingBudget
+                ? `Editar presupuesto ${openBudget?.code ?? ""}`
+                : `Presupuesto ${openBudget?.code ?? ""}`
+            }
+            size="lg"
+            centered
+          >
+            {openBudget ? (
+              <Stack gap="sm">
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">
+                    {budgetDate(openBudget.createdAt)}
+                    {openBudget.revision === undefined
+                      ? ""
+                      : ` · Revisión ${openBudget.revision}`}
+                  </Text>
+                  <Badge variant="light">
+                    {openBudget.status === "SIGNED" ? "Firmado" : "Borrador"}
+                  </Badge>
+                </Group>
+                {editingBudget ? (
+                  <TextInput
+                    label="Nombre del presupuesto"
+                    value={budgetTitle}
+                    maxLength={120}
+                    onChange={(event) => {
+                      setBudgetFormError(null);
+                      updateDraftBudget.reset();
+                      setBudgetTitle(event.currentTarget.value);
+                    }}
+                  />
+                ) : null}
+                <div className={styles.rowList}>
+                  {openBudget.items.map((item) => {
+                    const quantity = item.quantity ?? 1;
+                    const isPriced =
+                      item.billingMode === undefined || item.billingMode === "separate";
+                    const editedUnitPrice = Number(budgetPrices[item.id] ?? 0);
+                    const editedLineTotal =
+                      isPriced && Number.isFinite(editedUnitPrice) && editedUnitPrice >= 0
+                        ? Math.round(editedUnitPrice * 100) * quantity
+                        : 0;
+                    return (
+                      <div className={styles.row} key={item.id}>
+                        <div className={styles.rowMain}>
+                          <span className={styles.rowTitle}>
+                            {item.tooth ? `Diente ${item.tooth} · ` : ""}
+                            {item.description}
+                            {quantity > 1 ? ` · ${quantity} uds.` : ""}
+                          </span>
+                          {editingBudget ? (
+                            <NumberInput
+                              label={`${item.description} · importe unitario en euros`}
+                              value={budgetPrices[item.id] ?? 0}
+                              min={0}
+                              max={21_474_836.47}
+                              decimalScale={2}
+                              disabled={!isPriced}
+                              onChange={(value) => {
+                                setBudgetFormError(null);
+                                updateDraftBudget.reset();
+                                setBudgetPrices((current) => ({
+                                  ...current,
+                                  [item.id]: value,
+                                }));
+                              }}
+                            />
+                          ) : null}
+                        </div>
+                        <Text fw={600}>
+                          {formatEUR(editingBudget ? editedLineTotal : item.totalCents)}
+                        </Text>
+                      </div>
+                    );
+                  })}
+                </div>
+                {budgetFormError || updateDraftBudget.error ? (
+                  <Alert color="red" title="No se pudo guardar el presupuesto">
+                    {budgetFormError ??
+                      readableError(
+                        updateDraftBudget.error,
+                        "Comprueba la conexión e inténtalo de nuevo.",
+                      )}
+                  </Alert>
+                ) : null}
+                <Group justify="space-between">
+                  <Text fw={800}>
+                    Total{" "}
+                    {formatEUR(
+                      editingBudget
+                        ? (editedBudgetTotal ?? openBudget.totalCents)
+                        : openBudget.totalCents,
+                    )}
+                  </Text>
+                  <Group>
+                    <Button
+                      variant="default"
+                      onClick={() => {
+                        setOpenBudget(null);
+                        setEditingBudget(false);
+                      }}
+                    >
+                      Cerrar
+                    </Button>
+                    {editingBudget ? (
+                      <Button loading={updateDraftBudget.isPending} onClick={saveBudget}>
+                        Guardar cambios
+                      </Button>
+                    ) : null}
+                  </Group>
+                </Group>
+              </Stack>
             ) : null}
-            <Group justify="flex-end">
-              <Button variant="default" onClick={() => setDeleteCandidate(null)}>
-                Cancelar
-              </Button>
-              <Button color="red" loading={deleteDraftBudget.isPending} onClick={removeBudget}>
-                Eliminar presupuesto
-              </Button>
-            </Group>
-          </Stack>
-        ) : null}
-      </Modal>
+          </Modal>
+
+          <Modal
+            opened={deleteCandidate !== null}
+            onClose={() => setDeleteCandidate(null)}
+            title="¿Eliminar este presupuesto?"
+            centered
+          >
+            {deleteCandidate ? (
+              <Stack gap="sm">
+                <Text size="sm">
+                  Se eliminará el borrador {deleteCandidate.code} por{" "}
+                  {formatEUR(deleteCandidate.totalCents)}. Esta acción no se puede deshacer.
+                </Text>
+                {deleteDraftBudget.error ? (
+                  <Alert color="red" title="No se pudo eliminar">
+                    {readableError(
+                      deleteDraftBudget.error,
+                      "El presupuesto puede tener una firma o un movimiento asociado.",
+                    )}
+                  </Alert>
+                ) : null}
+                <Group justify="flex-end">
+                  <Button variant="default" onClick={() => setDeleteCandidate(null)}>
+                    Cancelar
+                  </Button>
+                  <Button color="red" loading={deleteDraftBudget.isPending} onClick={removeBudget}>
+                    Eliminar presupuesto
+                  </Button>
+                </Group>
+              </Stack>
+            ) : null}
+          </Modal>
+        </>
+      ) : null}
     </Stack>
   );
 }
