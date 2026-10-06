@@ -134,13 +134,13 @@ test("RG002 undo the final saved finding persists an empty odontogram", async ({
   const failures = await isolatePage(page);
   await page.goto(editor);
   await page.getByRole("button", { name: "Diente 36 superficie oclusal", exact: true }).click();
-  await expect(page.getByText("Guardado · plan y presupuesto al día", { exact: true })).toBeVisible(
+  await expect(page.getByText("Guardado · información clínica al día", { exact: true })).toBeVisible(
     { timeout: 15_000 },
   );
   await page.getByRole("button", { name: "Deshacer", exact: true }).click();
   try {
     await expect(
-      page.getByText("Guardado · plan y presupuesto al día", { exact: true }),
+      page.getByText("Guardado · información clínica al día", { exact: true }),
     ).toBeVisible({ timeout: 15_000 });
     await expect
       .poll(
