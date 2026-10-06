@@ -35,7 +35,12 @@ vi.mock("@/shared/api/browser", () => ({
 vi.mock("@/shared/patients/patient-data", () => ({
   usePatientsQuery: () => ({ data: { items: [] } }),
 }));
-vi.mock("@/shared/ui/device-permissions", () => ({ requestMediaPermission: vi.fn() }));
+vi.mock("@/shared/ui/device-permissions", () => ({
+  queryMediaPermission: vi.fn(async () => "prompt"),
+  requestMediaPermission: vi.fn(),
+  mediaPermissionErrorMessage: (_kind: string, cause: unknown) =>
+    cause instanceof Error ? cause.message : "No se pudo acceder al micrófono.",
+}));
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname.value,
   useRouter: () => ({ push: mocks.push }),
