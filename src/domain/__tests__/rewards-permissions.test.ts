@@ -65,6 +65,28 @@ describe("permissions", () => {
     expect(requiredPermissionForRoute("/app/admin/users")).toBe("users.manage");
   });
 
+  it("reserva la configuración de laboratorios al catálogo administrativo", () => {
+    expect(requiredPermissionForRoute("/app/laboratory")).toBe("lab.read");
+    expect(requiredPermissionForRoute("/app/laboratory/configuration")).toBe("catalog.manage");
+
+    const assistant: ActorContext = {
+      role: "ASSISTANT",
+      permissions: permissionsForRole("ASSISTANT"),
+    };
+    const admin: ActorContext = {
+      role: "ADMIN",
+      permissions: permissionsForRole("ADMIN"),
+    };
+
+    expect(decideStaffRouteAccess(assistant, "/app/laboratory/configuration")).toEqual({
+      kind: "forbidden",
+      required: "catalog.manage",
+    });
+    expect(decideStaffRouteAccess(admin, "/app/laboratory/configuration")).toEqual({
+      kind: "allow",
+    });
+  });
+
   it("aplica el guard de staff sin crear una segunda matriz de permisos", () => {
     const assistant: ActorContext = {
       role: "ASSISTANT",
