@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas din\u00e1micas verificadas en source",
-  "routeCount": 261,
+  "routeCount": 265,
   "routes": [
     {
       "method": "GET",
@@ -881,6 +881,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/laboratory-price-list",
+      "source": "src/shared/api/resources/core.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/laboratory-price-list",
+      "source": "src/shared/api/resources/core.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/notifications",
       "source": "apps/api/src/modules/notifications/routes.ts",
       "kind": "browser"
@@ -1159,6 +1171,12 @@
       "method": "POST",
       "path": "/api/patients/:patientId/clinical-plan/items",
       "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:patientId/clinical-plan/reorder",
+      "source": "src/shared/api/resources/clinical.ts",
       "kind": "browser"
     },
     {
@@ -1530,6 +1548,12 @@
       "method": "PATCH",
       "path": "/api/users/:id",
       "source": "apps/api/src/modules/users/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/:id",
+      "source": "src/shared/api/resources/admin.ts",
       "kind": "browser"
     },
     {
