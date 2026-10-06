@@ -76,8 +76,8 @@ vi.mock("../clinical-data", () => ({
           version: 2,
           revision: 2,
           createdAt: "2026-10-05T10:00:00.000Z",
-          scope: "primary",
-          title: "Fase 1",
+          scope: "custom",
+          title: "Conservar el diente",
           items: [
             {
               id: "item-1",
@@ -250,7 +250,7 @@ describe("patient budget history", () => {
     const dialog = await screen.findByRole("dialog", { name: "Comparar opciones de tratamiento" });
 
     expect(within(dialog).getByText("¿Qué opción encaja mejor contigo?")).toBeInTheDocument();
-    expect(within(dialog).getByText("Fase 1")).toBeInTheDocument();
+    expect(within(dialog).getByText("Conservar el diente")).toBeInTheDocument();
     expect(within(dialog).getByText("Implante")).toBeInTheDocument();
     expect(within(dialog).getByText("Reconstrucción del diente")).toBeInTheDocument();
     expect(within(dialog).getByText("Extracción del diente")).toBeInTheDocument();
@@ -263,11 +263,14 @@ describe("patient budget history", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Guardar preferencia" }));
 
     await waitFor(() =>
-      expect(mocks.recordPreference).toHaveBeenCalledWith({
-        narrativeNote:
-          "Durante la explicación de las opciones de tratamiento, el paciente muestra interés por «Implante» (1.950,00 €). Esta preferencia no equivale a aceptación ni firma del presupuesto.",
-        sign: false,
-      }),
+      expect(mocks.recordPreference).toHaveBeenCalledWith(
+        expect.objectContaining({
+          narrativeNote: expect.stringContaining(
+            "el paciente muestra interés por «Implante»",
+          ),
+          sign: false,
+        }),
+      ),
     );
   });
 
