@@ -22,7 +22,8 @@ async function chartWithBothPhases(page: import("@playwright/test").Page) {
 }
 
 async function goToBudget(page: import("@playwright/test").Page) {
-  await page.getByRole("button", { name: "Plan y presupuesto" }).click();
+  await page.getByRole("button", { name: "Presupuestos" }).click();
+  await page.getByRole("button", { name: "Firma y citas" }).click();
   const flow = page.getByRole("dialog");
   const budgetStep = flow.getByRole("radiogroup", { name: "Cómo presupuestar" });
   for (let i = 0; i < 3 && !(await budgetStep.isVisible()); i++) {
@@ -77,7 +78,8 @@ test("a custom budget can be added alongside the phases", async ({ page }) => {
 test("the plan step offers the patient-friendly treatment plan document", async ({ page }) => {
   const failures = await isolatePage(page);
   await chartWithBothPhases(page);
-  await page.getByRole("button", { name: "Plan y presupuesto" }).click();
+  await page.getByRole("button", { name: "Presupuestos" }).click();
+  await page.getByRole("button", { name: "Firma y citas" }).click();
   await page.getByRole("button", { name: "Documento del plan" }).click();
   const document = page.getByRole("dialog", { name: "Tu plan de tratamiento" });
   await expect(document.getByRole("region", { name: "Fase 1 · Recuperar la salud" })).toBeVisible();
