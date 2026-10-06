@@ -59,6 +59,9 @@ import {
   laboratorySchema,
   createLaboratorySchema,
   updateLaboratorySchema,
+  laboratoryPriceListSchema,
+  laboratoryPriceListItemSchema,
+  upsertLaboratoryPriceSchema,
   laboratoryBalancesSchema,
   supplierInvoicesSchema,
   supplierInvoiceSchema,
@@ -242,6 +245,15 @@ export function createCoreResource(client: ApiClient) {
           updateLaboratorySchema.parse(payload),
           { method: "PATCH" },
         ),
+      priceList: {
+        list: () => client.request("/api/laboratory-price-list", laboratoryPriceListSchema),
+        upsert: (payload: z.input<typeof upsertLaboratoryPriceSchema>) =>
+          client.mutation(
+            "/api/laboratory-price-list",
+            laboratoryPriceListItemSchema,
+            upsertLaboratoryPriceSchema.parse(payload),
+          ),
+      },
       balances: () => client.request("/api/laboratories/balances", laboratoryBalancesSchema),
       supplierInvoices: {
         list: () => client.request("/api/supplier-invoices", supplierInvoicesSchema),

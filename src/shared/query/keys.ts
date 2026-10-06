@@ -55,6 +55,7 @@ export const dentyQueryKeys = {
     all: ["denty", "laboratory", "works"] as const,
     laboratories: ["denty", "laboratory", "master"] as const,
     balances: ["denty", "laboratory", "balances"] as const,
+    priceList: ["denty", "laboratory", "price-list"] as const,
     supplierInvoices: ["denty", "laboratory", "supplier-invoices"] as const,
     supplierPayments: ["denty", "laboratory", "supplier-payments"] as const,
     suppliers: ["denty", "laboratory", "suppliers"] as const,

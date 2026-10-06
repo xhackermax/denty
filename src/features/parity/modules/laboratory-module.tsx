@@ -28,6 +28,7 @@ import {
   useLabCallPatientTaskMutation,
   useLaboratoriesQuery,
   useLaboratoryBalancesQuery,
+  useLaboratoryPriceListQuery,
   useLaboratoryQuery,
   useLabReworkMutation,
   useLabTransitionMutation,
@@ -36,6 +37,7 @@ import {
   useRecordSupplierPaymentMutation,
   useSupplierInvoicesQuery,
   useUpdateLaboratoryMutation,
+  useUpsertLaboratoryPriceMutation,
 } from "./laboratory-data";
 
 function centsFromEuros(value: number | string): number {
@@ -53,13 +55,15 @@ function nextLabStatus(status: string): "SENT" | "IN_PRODUCTION" | "RECEIVED" | 
 
 export function LaboratoryModule() {
   const searchParams = useSearchParams();
-  const { permissions } = useActiveTenant();
+  const { permissions, role } = useActiveTenant();
+  const canConfigureLabs = role === "ADMIN";
   const canReadFinance = permissions.includes("finance.read");
   const canWriteFinance = permissions.includes("finance.write");
   const deepLinkedPatientId = searchParams.get("patientId");
   const deepLinkedPlanItemId = searchParams.get("planItemId");
   const works = useLaboratoryQuery();
   const laboratories = useLaboratoriesQuery();
+  const priceList = useLaboratoryPriceListQuery(canConfigureLabs);
   const balances = useLaboratoryBalancesQuery(canReadFinance);
   const supplierInvoices = useSupplierInvoicesQuery(canReadFinance);
   const patients = usePatientsQuery();
@@ -71,6 +75,7 @@ export function LaboratoryModule() {
   const addAttachment = useLabAttachmentMutation();
   const createLaboratory = useCreateLaboratoryMutation();
   const updateLaboratory = useUpdateLaboratoryMutation();
+  const upsertPrice = useUpsertLaboratoryPriceMutation();
   const recordInvoice = useRecordSupplierInvoiceMutation();
   const recordPayment = useRecordSupplierPaymentMutation();
   const allocatePayment = useAllocateSupplierPaymentMutation();
@@ -78,6 +83,7 @@ export function LaboratoryModule() {
   const [patientId, setPatientId] = useState<string | null>(deepLinkedPatientId);
   const patientPlan = usePatientClinicalPlanQuery(patientId);
   const [laboratoryId, setLaboratoryId] = useState<string | null>(null);
+  const [priceListItemId, setPriceListItemId] = useState<string | null>(null);
   const [clinicalPlanItemId, setClinicalPlanItemId] = useState<string | null>(deepLinkedPlanItemId);
   const [title, setTitle] = useState("");
   const [workCostEuros, setWorkCostEuros] = useState<number | string>(0);
@@ -91,6 +97,10 @@ export function LaboratoryModule() {
   const [labPhone, setLabPhone] = useState("");
   const [labEmail, setLabEmail] = useState("");
   const [labTurnaround, setLabTurnaround] = useState<number | string>(7);
+  const [priceLabId, setPriceLabId] = useState<string | null>(null);
+  const [priceWorkTypeName, setPriceWorkTypeName] = useState("");
+  const [priceEuros, setPriceEuros] = useState<number | string>(0);
+  const [priceTurnaround, setPriceTurnaround] = useState<number | string>(7);
 
   const [invoiceLabId, setInvoiceLabId] = useState<string | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -103,6 +113,7 @@ export function LaboratoryModule() {
     works.isError ||
     laboratories.isError ||
     patients.isError ||
+    (canConfigureLabs && priceList.isError) ||
     (canReadFinance && (balances.isError || supplierInvoices.isError));
   const labOptions = (laboratories.data?.items ?? [])
     .filter((lab) => lab.active)
@@ -117,6 +128,13 @@ export function LaboratoryModule() {
     .map((invoice) => ({
       value: invoice.id,
       label: `${invoice.invoiceNumber} · ${formatEUR(invoice.totalCents)}`,
+    }));
+  const activePriceItems = (priceList.data?.items ?? []).filter((item) => item.active);
+  const priceOptions = activePriceItems
+    .filter((item) => !laboratoryId || item.laboratoryId === laboratoryId)
+    .map((item) => ({
+      value: item.id,
+      label: `${item.workTypeName} · ${formatEUR(item.priceCents)}`,
     }));
 
   const createCallTask = (work: NonNullable<typeof works.data>["items"][number]) => {
@@ -148,6 +166,12 @@ export function LaboratoryModule() {
     setLabEmail("");
     setLabTurnaround(7);
   };
+  const clearPriceForm = () => {
+    setPriceLabId(null);
+    setPriceWorkTypeName("");
+    setPriceEuros(0);
+    setPriceTurnaround(7);
+  };
 
   return (
     <Stack gap="md">
@@ -158,114 +182,13 @@ export function LaboratoryModule() {
       <section className={styles.section}>
         <Group justify="space-between">
           <div>
-            <h3 className={styles.sectionTitle}>Laboratorios</h3>
+            <h3 className={styles.sectionTitle}>Uso diario del laboratorio</h3>
             <p className={styles.sectionDescription}>
-              Maestro persistente de la clínica. Los laboratorios desactivados conservan su
-              histórico.
+              Registro operativo de trabajos enviados, recibidos, colocados y repetidos.
             </p>
           </div>
-          <Badge variant="light">{laboratories.data?.items.length ?? 0}</Badge>
+          <Badge>{works.data?.items.length ?? 0}</Badge>
         </Group>
-        <Group grow align="end">
-          <TextInput
-            label="Nombre"
-            value={labName}
-            onChange={(event) => setLabName(event.currentTarget.value)}
-          />
-          <TextInput
-            label="NIF/CIF"
-            value={labTaxId}
-            onChange={(event) => setLabTaxId(event.currentTarget.value)}
-          />
-          <TextInput
-            label="Teléfono"
-            value={labPhone}
-            onChange={(event) => setLabPhone(event.currentTarget.value)}
-          />
-          <TextInput
-            label="Email"
-            value={labEmail}
-            onChange={(event) => setLabEmail(event.currentTarget.value)}
-          />
-          <NumberInput
-            label="Plazo habitual (días)"
-            min={0}
-            max={365}
-            value={labTurnaround}
-            onChange={setLabTurnaround}
-          />
-          <Button
-            disabled={!labName.trim()}
-            loading={createLaboratory.isPending || updateLaboratory.isPending}
-            onClick={() => {
-              const payload = {
-                name: labName.trim(),
-                taxId: labTaxId,
-                phone: labPhone,
-                email: labEmail,
-                defaultTurnaroundDays: Number(labTurnaround) || 0,
-              };
-              if (editingLabId) {
-                const current = laboratories.data?.items.find((lab) => lab.id === editingLabId);
-                if (!current) return;
-                updateLaboratory.mutate(
-                  { id: editingLabId, payload: { ...payload, expectedVersion: current.version } },
-                  { onSuccess: clearLabForm },
-                );
-              } else {
-                createLaboratory.mutate(payload, { onSuccess: clearLabForm });
-              }
-            }}
-          >
-            {editingLabId ? "Guardar" : "Crear laboratorio"}
-          </Button>
-          {editingLabId ? (
-            <Button variant="subtle" onClick={clearLabForm}>
-              Cancelar
-            </Button>
-          ) : null}
-        </Group>
-        <div className={styles.rowList}>
-          {(laboratories.data?.items ?? []).map((lab) => (
-            <div className={styles.row} key={lab.id}>
-              <div className={styles.rowMain}>
-                <span className={styles.rowTitle}>{lab.name}</span>
-                <span className={styles.rowMeta}>
-                  {lab.taxId || "Sin NIF/CIF"} · {lab.defaultTurnaroundDays} días ·{" "}
-                  {lab.active ? "Activo" : "Inactivo"}
-                </span>
-              </div>
-              <div className={styles.rowActions}>
-                <Button
-                  size="xs"
-                  variant="light"
-                  onClick={() => {
-                    setEditingLabId(lab.id);
-                    setLabName(lab.name);
-                    setLabTaxId(lab.taxId ?? "");
-                    setLabPhone(lab.phone ?? "");
-                    setLabEmail(lab.email ?? "");
-                    setLabTurnaround(lab.defaultTurnaroundDays);
-                  }}
-                >
-                  Editar
-                </Button>
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  onClick={() =>
-                    updateLaboratory.mutate({
-                      id: lab.id,
-                      payload: { expectedVersion: lab.version, active: !lab.active },
-                    })
-                  }
-                >
-                  {lab.active ? "Desactivar" : "Activar"}
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
       </section>
 
       <section className={styles.section}>
@@ -298,8 +221,27 @@ export function LaboratoryModule() {
             clearable
             label="Laboratorio"
             value={laboratoryId}
-            onChange={setLaboratoryId}
+            onChange={(value) => {
+              setLaboratoryId(value);
+              setPriceListItemId(null);
+            }}
             data={labOptions}
+          />
+          <Select
+            searchable
+            clearable
+            label="Procedimiento del laboratorio"
+            value={priceListItemId}
+            onChange={(value) => {
+              setPriceListItemId(value);
+              const item = activePriceItems.find((candidate) => candidate.id === value);
+              if (!item) return;
+              setLaboratoryId(item.laboratoryId);
+              setTitle(item.workTypeName);
+              setWorkCostEuros(item.priceCents / 100);
+            }}
+            data={priceOptions}
+            disabled={!canConfigureLabs || priceOptions.length === 0}
           />
           <Select
             searchable
@@ -339,6 +281,7 @@ export function LaboratoryModule() {
                   onSuccess: () => {
                     setTitle("");
                     setClinicalPlanItemId(null);
+                    setPriceListItemId(null);
                     setWorkCostEuros(0);
                   },
                 },
@@ -349,6 +292,185 @@ export function LaboratoryModule() {
           </Button>
         </Group>
       </section>
+
+      {canConfigureLabs ? (
+        <section className={styles.section}>
+          <Group justify="space-between">
+            <div>
+              <h3 className={styles.sectionTitle}>Configuracion de laboratorios</h3>
+              <p className={styles.sectionDescription}>
+                Datos maestros, tipos de trabajo y precios disponibles para cada laboratorio.
+              </p>
+            </div>
+            <Badge variant="light">{laboratories.data?.items.length ?? 0}</Badge>
+          </Group>
+          <Group grow align="end">
+            <TextInput
+              label="Nombre"
+              value={labName}
+              onChange={(event) => setLabName(event.currentTarget.value)}
+            />
+            <TextInput
+              label="NIF/CIF"
+              value={labTaxId}
+              onChange={(event) => setLabTaxId(event.currentTarget.value)}
+            />
+            <TextInput
+              label="Teléfono"
+              value={labPhone}
+              onChange={(event) => setLabPhone(event.currentTarget.value)}
+            />
+            <TextInput
+              label="Email"
+              value={labEmail}
+              onChange={(event) => setLabEmail(event.currentTarget.value)}
+            />
+            <NumberInput
+              label="Plazo habitual (días)"
+              min={0}
+              max={365}
+              value={labTurnaround}
+              onChange={setLabTurnaround}
+            />
+            <Button
+              disabled={!labName.trim()}
+              loading={createLaboratory.isPending || updateLaboratory.isPending}
+              onClick={() => {
+                const payload = {
+                  name: labName.trim(),
+                  taxId: labTaxId,
+                  phone: labPhone,
+                  email: labEmail,
+                  defaultTurnaroundDays: Number(labTurnaround) || 0,
+                };
+                if (editingLabId) {
+                  const current = laboratories.data?.items.find((lab) => lab.id === editingLabId);
+                  if (!current) return;
+                  updateLaboratory.mutate(
+                    { id: editingLabId, payload: { ...payload, expectedVersion: current.version } },
+                    { onSuccess: clearLabForm },
+                  );
+                } else {
+                  createLaboratory.mutate(payload, { onSuccess: clearLabForm });
+                }
+              }}
+            >
+              {editingLabId ? "Guardar" : "Crear laboratorio"}
+            </Button>
+            {editingLabId ? (
+              <Button variant="subtle" onClick={clearLabForm}>
+                Cancelar
+              </Button>
+            ) : null}
+          </Group>
+          <div className={styles.rowList}>
+            {(laboratories.data?.items ?? []).map((lab) => (
+              <div className={styles.row} key={lab.id}>
+                <div className={styles.rowMain}>
+                  <span className={styles.rowTitle}>{lab.name}</span>
+                  <span className={styles.rowMeta}>
+                    {lab.taxId || "Sin NIF/CIF"} · {lab.defaultTurnaroundDays} días ·{" "}
+                    {lab.active ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+                <div className={styles.rowActions}>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    onClick={() => {
+                      setEditingLabId(lab.id);
+                      setLabName(lab.name);
+                      setLabTaxId(lab.taxId ?? "");
+                      setLabPhone(lab.phone ?? "");
+                      setLabEmail(lab.email ?? "");
+                      setLabTurnaround(lab.defaultTurnaroundDays);
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    onClick={() =>
+                      updateLaboratory.mutate({
+                        id: lab.id,
+                        payload: { expectedVersion: lab.version, active: !lab.active },
+                      })
+                    }
+                  >
+                    {lab.active ? "Desactivar" : "Activar"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <h3 className={styles.sectionTitle}>Tipos de trabajo y precios</h3>
+          <Group grow align="end">
+            <Select
+              label="Laboratorio"
+              value={priceLabId}
+              onChange={setPriceLabId}
+              data={labOptions}
+            />
+            <TextInput
+              label="Tipo de trabajo"
+              value={priceWorkTypeName}
+              onChange={(event) => setPriceWorkTypeName(event.currentTarget.value)}
+            />
+            <NumberInput
+              label="Precio (€)"
+              min={0}
+              decimalScale={2}
+              value={priceEuros}
+              onChange={setPriceEuros}
+            />
+            <NumberInput
+              label="Plazo (días)"
+              min={0}
+              max={365}
+              value={priceTurnaround}
+              onChange={setPriceTurnaround}
+            />
+            <Button
+              disabled={!priceLabId || !priceWorkTypeName.trim()}
+              loading={upsertPrice.isPending}
+              onClick={() => {
+                if (!priceLabId) return;
+                upsertPrice.mutate(
+                  {
+                    laboratoryId: priceLabId,
+                    workTypeName: priceWorkTypeName.trim(),
+                    priceCents: centsFromEuros(priceEuros),
+                    turnaroundDays: Number(priceTurnaround) || 0,
+                    active: true,
+                  },
+                  { onSuccess: clearPriceForm },
+                );
+              }}
+            >
+              Guardar precio
+            </Button>
+          </Group>
+          <div className={styles.rowList}>
+            {(priceList.data?.items ?? []).map((item) => {
+              const lab = laboratories.data?.items.find(
+                (candidate) => candidate.id === item.laboratoryId,
+              );
+              return (
+                <div className={styles.row} key={item.id}>
+                  <div className={styles.rowMain}>
+                    <span className={styles.rowTitle}>{item.workTypeName}</span>
+                    <span className={styles.rowMeta}>
+                      {lab?.name ?? "Laboratorio"} · {formatEUR(item.priceCents)} ·{" "}
+                      {item.turnaroundDays} días · {item.active ? "Activo" : "Inactivo"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
@@ -533,6 +655,16 @@ export function LaboratoryModule() {
 
       {canReadFinance ? (
         <>
+          <section className={styles.section}>
+            <Group justify="space-between">
+              <div>
+                <h3 className={styles.sectionTitle}>Facturas y pagos</h3>
+                <p className={styles.sectionDescription}>
+                  Control financiero de facturas, pagos imputados y saldos por laboratorio.
+                </p>
+              </div>
+            </Group>
+          </section>
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Saldo por laboratorio</h3>
             <Text size="sm" c="dimmed">

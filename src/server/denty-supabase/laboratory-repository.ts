@@ -95,6 +95,20 @@ interface SupplierPaymentRow {
   idempotency_key: string;
   created_at: string;
 }
+interface LaboratoryPriceListRow {
+  id: string;
+  clinic_id: string;
+  laboratory_id: string;
+  work_type_id: string;
+  work_type_name: string;
+  work_type_code: string | null;
+  price_cents: number;
+  turnaround_days: number;
+  active: boolean;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
 interface AppointmentRow {
   id: string;
   patient_id: string;
@@ -153,6 +167,15 @@ export interface SupplierPaymentInput {
   note?: string;
   idempotencyKey: string;
 }
+export interface UpsertLaboratoryPriceInput {
+  laboratoryId: string;
+  workTypeName: string;
+  workTypeCode?: string;
+  priceCents: number;
+  turnaroundDays: number;
+  active?: boolean;
+  expectedVersion?: number;
+}
 
 const laboratory = (r: LaboratoryRow) => ({
   id: r.id,
@@ -191,6 +214,20 @@ const supplierPayment = (r: SupplierPaymentRow) => ({
   note: r.note ?? null,
   idempotencyKey: r.idempotency_key,
   createdAt: r.created_at,
+});
+
+const laboratoryPriceListItem = (r: LaboratoryPriceListRow) => ({
+  id: r.id,
+  laboratoryId: r.laboratory_id,
+  workTypeId: r.work_type_id,
+  workTypeName: r.work_type_name,
+  workTypeCode: r.work_type_code ?? null,
+  priceCents: Number(r.price_cents),
+  turnaroundDays: r.turnaround_days,
+  active: r.active,
+  version: r.version,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
 });
 
 export class LaboratoryRepository {
@@ -234,6 +271,30 @@ export class LaboratoryRepository {
         p_address: input.address ?? null,
         p_default_turnaround_days: input.defaultTurnaroundDays ?? null,
         p_active: input.active ?? null,
+      }),
+    );
+  }
+
+  async listPriceList() {
+    const rows = await this.client.select<LaboratoryPriceListRow>("laboratory_price_list_view", {
+      select: "*",
+      clinic_id: `eq.${this.clinicId}`,
+      order: "work_type_name.asc",
+    });
+    return { items: rows.map(laboratoryPriceListItem) };
+  }
+
+  async upsertPriceListItem(input: UpsertLaboratoryPriceInput) {
+    return laboratoryPriceListItem(
+      await this.client.rpc<LaboratoryPriceListRow>("upsert_laboratory_price_list_item", {
+        p_clinic_id: this.clinicId,
+        p_laboratory_id: input.laboratoryId,
+        p_work_type_name: input.workTypeName,
+        p_work_type_code: input.workTypeCode ?? null,
+        p_price_cents: input.priceCents,
+        p_turnaround_days: input.turnaroundDays,
+        p_active: input.active ?? true,
+        p_expected_version: input.expectedVersion ?? null,
       }),
     );
   }

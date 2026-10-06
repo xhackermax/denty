@@ -9,6 +9,7 @@ import type {
   recordSupplierInvoiceSchema,
   recordSupplierPaymentSchema,
   updateLaboratorySchema,
+  upsertLaboratoryPriceSchema,
 } from "@/shared/api/schemas/core";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
@@ -31,6 +32,14 @@ export function useLaboratoriesQuery(enabled = true) {
   return useQuery({
     queryKey: dentyQueryKeys.laboratory.laboratories,
     queryFn: () => getBrowserApi().laboratory.listLaboratories(),
+    enabled,
+  });
+}
+
+export function useLaboratoryPriceListQuery(enabled = true) {
+  return useQuery({
+    queryKey: dentyQueryKeys.laboratory.priceList,
+    queryFn: () => getBrowserApi().laboratory.priceList.list(),
     enabled,
   });
 }
@@ -81,6 +90,15 @@ export function useUpdateLaboratoryMutation() {
   return useMutation({
     mutationFn: (input: { id: string; payload: z.input<typeof updateLaboratorySchema> }) =>
       getBrowserApi().laboratory.updateLaboratory(input.id, input.payload),
+    onSuccess: () => invalidateLaboratory(queryClient),
+  });
+}
+
+export function useUpsertLaboratoryPriceMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: z.input<typeof upsertLaboratoryPriceSchema>) =>
+      getBrowserApi().laboratory.priceList.upsert(payload),
     onSuccess: () => invalidateLaboratory(queryClient),
   });
 }

@@ -31,6 +31,8 @@ const TABLE_INVALIDATIONS: Record<string, readonly QueryKey[]> = {
   lab_work_status_events: [dentyQueryKeys.laboratory.root, dentyQueryKeys.dashboard.root],
   lab_reworks: [dentyQueryKeys.laboratory.root, dentyQueryKeys.analytics.root],
   lab_attachments: [dentyQueryKeys.laboratory.root],
+  laboratory_work_types: [dentyQueryKeys.laboratory.root],
+  laboratory_price_list_items: [dentyQueryKeys.laboratory.root],
   supplier_invoices: [dentyQueryKeys.laboratory.root, dentyQueryKeys.finance.root, dentyQueryKeys.analytics.root, dentyQueryKeys.dashboard.root],
   supplier_invoice_items: [dentyQueryKeys.laboratory.root, dentyQueryKeys.analytics.root, dentyQueryKeys.dashboard.root],
   supplier_payments: [dentyQueryKeys.laboratory.root, dentyQueryKeys.finance.root, dentyQueryKeys.analytics.root, dentyQueryKeys.dashboard.root],

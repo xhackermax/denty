@@ -72,6 +72,7 @@ import {
   recordSupplierInvoiceSchema,
   recordSupplierPaymentSchema,
   updateLaboratorySchema,
+  upsertLaboratoryPriceSchema,
   updateTaskSchema,
 } from "@/shared/api/schemas/core";
 import { patientAppointmentRequestInputSchema } from "@/shared/api/schemas/portal";
@@ -380,6 +381,7 @@ export const LOCALLY_HANDLED_SECTIONS: ReadonlySet<string> = new Set([
   "accounting",
   "lab-works",
   "laboratories",
+  "laboratory-price-list",
   "suppliers",
   "supplier-invoices",
   "supplier-payments",
@@ -1252,6 +1254,31 @@ export async function handleSupabaseDentyRoute(
         ),
         headers,
       );
+    }
+    if (parts.length === 2 && parts[0] === "api" && parts[1] === "laboratory-price-list") {
+      if (identity.actor.role !== "ADMIN") {
+        return error(
+          403,
+          "FORBIDDEN",
+          "Solo administracion puede configurar precios de laboratorio.",
+        );
+      }
+      if (method === "GET") {
+        const d = requireActorPermission(identity, "lab.read");
+        if (d) return d;
+        return json(200, await laboratory.listPriceList(), headers);
+      }
+      if (method === "POST") {
+        const d = requireActorPermission(identity, "lab.write");
+        if (d) return d;
+        return json(
+          201,
+          await laboratory.upsertPriceListItem(
+            await parseJson(request, upsertLaboratoryPriceSchema),
+          ),
+          headers,
+        );
+      }
     }
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "lab-works") {
       if (method === "GET") {
