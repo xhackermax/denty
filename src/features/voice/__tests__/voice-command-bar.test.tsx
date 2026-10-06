@@ -118,7 +118,7 @@ async function openPanel() {
 }
 
 describe("VoiceCommandBar", () => {
-  it("puts dictated speech in the editable field without executing it", async () => {
+  it("auto-applies a clear dictated odontogram finding while the browser keeps listening", async () => {
     mocks.pathname.value = `/app/patients/${PATIENT_ID}`;
     mount();
     fireEvent.click(await screen.findByRole("button", { name: "Escuchar comando" }));
@@ -127,8 +127,8 @@ describe("VoiceCommandBar", () => {
     mocks.recognition.current?.emit("Oye Denty marca caries en el 16", true);
     const field = await screen.findByRole("textbox", { name: "Escribe o dicta una instrucción" });
     await waitFor(() => expect(field).toHaveValue("marca caries en el 16"));
-    fireEvent.click(screen.getByRole("button", { name: "Detener micrófono" }));
-    expect(mocks.execute).not.toHaveBeenCalled();
+    await waitFor(() => expect(mocks.execute).toHaveBeenCalledTimes(1), { timeout: 1_500 });
+    expect(screen.getByRole("button", { name: "Detener escucha" })).toBeInTheDocument();
     expect(mocks.push).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Confirmar" })).toBeNull();
   });
