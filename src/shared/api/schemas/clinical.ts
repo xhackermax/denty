@@ -72,6 +72,7 @@ export const clinicalBudgetSchema = z
     totalCents: z.number().int(),
     version: versionSchema.optional(),
     revision: versionSchema.optional(),
+    sourcePlanVersion: versionSchema.nullable().optional(),
     createdAt: z.coerce.string().optional(),
     signedFingerprint: z.string().nullable().optional(),
     currentPlanFingerprint: z.string().nullable().optional(),
