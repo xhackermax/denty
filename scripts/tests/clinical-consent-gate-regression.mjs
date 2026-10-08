@@ -125,7 +125,10 @@ try {
   assert.match(optionSignatureSql, /join public\.budget_items bi/);
   assert.match(optionSignatureSql, /bi\.budget_id = v_budget\.id/);
   assert.match(optionSignatureSql, /cr\.status <> 'SATISFIED'/);
-  assert.match(optionSignatureSql, /security invoker/);
+  assert.match(optionSignatureSql, /BUDGET_EMPTY/);
+  assert.match(optionSignatureSql, /v_invalid_items/);
+  assert.match(optionSignatureSql, /PLAN_OUTDATED/);
+  assert.doesNotMatch(optionSignatureSql, /security definer/i);
   assert.match(treatmentFlow, /startAt === "signature"/);
 
   console.log("clinical consent gate regression: OK");
