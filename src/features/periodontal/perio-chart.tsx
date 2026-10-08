@@ -55,6 +55,7 @@ interface Props {
   /** The chart overlay needs PD even when gingival margin (GM) is still unmeasured. */
   onSiteReadingsChange?: (readings: readonly Partial<PeriodontalReading>[]) => void;
   selectedTooth?: string;
+  onSelectTooth?: (tooth: string) => void;
   owner?: PerioDraftOwner;
   onPresenceChange?: (tooth: string, presence: "missing" | "implant") => PerioPresenceChange;
   onPresenceRestore?: (change: PerioPresenceChange) => ReturnType<typeof useMouthState>;
@@ -78,6 +79,7 @@ export function PerioChart({
   onReadingsChange,
   onSiteReadingsChange,
   selectedTooth,
+  onSelectTooth,
   onPresenceChange,
   onPresenceRestore,
   onBeforeFinalize,
@@ -95,6 +97,8 @@ export function PerioChart({
   const current = useRef(session);
   current.current = owner.session ?? session;
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [manualSelection, setManualSelection] = useState<string | null>(null);
+  useEffect(() => setManualSelection(null), [selectedTooth]);
   const [ready, setReady] = useState(readOnly || owner.initialized),
     [dirty, setDirty] = useState(owner.dirty),
     [closed, setClosed] = useState(owner.closed),
@@ -362,8 +366,9 @@ export function PerioChart({
     }
   };
   const disabled = readOnly || !ready || finishing || closed || owner.checkpoint !== null;
-  const manualTooth = selectedTooth && session.exam.teeth[selectedTooth] ? selectedTooth
-    : session.cursor.tooth;
+  const requestedManualTooth = manualSelection ?? selectedTooth;
+  const manualTooth = requestedManualTooth && session.exam.teeth[requestedManualTooth]
+    ? requestedManualTooth : session.cursor.tooth;
   const manualData = session.exam.teeth[manualTooth];
   const applyManual = (tooth: string, site: (typeof PERIODONTAL_SITES)[number],
     field: "pd" | "gm", raw: string) => {
@@ -489,6 +494,17 @@ export function PerioChart({
             <Text fw={750} size="sm">Sondaje manual · diente {manualTooth}</Text>
             <Text size="xs" c="dimmed">6 sitios · milímetros · cambios visibles en el odontograma</Text>
           </Group>
+          <Select
+            label="Pieza para entrada manual"
+            searchable
+            data={Object.keys(session.exam.teeth).filter((tooth) => !session.exam.teeth[tooth]?.missing)}
+            value={manualTooth}
+            onChange={(value) => {
+              if (!value) return;
+              setManualSelection(value);
+              onSelectTooth?.(value);
+            }}
+          />
           {manualData?.missing ? (
             <Text size="xs">Pieza ausente: no se puede sondar.</Text>
           ) : manualData ? (
