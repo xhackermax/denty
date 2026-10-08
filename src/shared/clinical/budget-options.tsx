@@ -183,11 +183,8 @@ export function BudgetOptions({
   latest.current = { phases, create, onSelect };
 
   useEffect(() => {
-    setCustom((current) => {
-      const byId = new Map(existingCustomBudgets.map((budget) => [budget.id, budget]));
-      for (const budget of current) if (!byId.has(budget.id)) byId.set(budget.id, budget);
-      return [...byId.values()];
-    });
+    // The server is authoritative. Do not retain stale/deleted alternatives across plan versions.
+    setCustom([...existingCustomBudgets]);
     if (existingCustomBudgets.length) setMode("single");
   }, [existingCustomBudgets]);
 
@@ -280,7 +277,7 @@ export function BudgetOptions({
         </Group>
       ) : null}
 
-      {mode === "single" && !wholeLoading && (wholeError || !wholeBudget) ? (
+      {mode === "single" && !wholeLoading && (wholeError || !wholeBudget) && !custom.length ? (
         <Alert color="red" title="No se pudo preparar el presupuesto">
           <Stack gap="xs">
             <Text size="sm">{errorText(wholeError, "Inténtalo de nuevo.")}</Text>
@@ -307,13 +304,17 @@ export function BudgetOptions({
         aria-label="Presupuesto que firma el paciente"
       >
         <Stack gap="sm">
-          {visible.map((budget, index) => (
+          {visible.map((budget) => (
             <BudgetCard
               key={budget.id}
               budget={budget}
               selectable={all.length > 1}
               planLabel={
-                mode === "single" ? `Plan ${String.fromCharCode(65 + index)}` : undefined
+                mode === "single"
+                  ? budget.scope === "plan"
+                    ? "Plan A"
+                    : `Plan ${String.fromCharCode(66 + custom.findIndex((item) => item.id === budget.id))}`
+                  : undefined
               }
               summary={
                 budget.scope === "primary" || budget.scope === "secondary"
