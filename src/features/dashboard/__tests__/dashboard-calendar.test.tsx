@@ -157,7 +157,14 @@ describe("DashboardCalendar", () => {
     expect(grid.querySelectorAll('a[data-outside]')).toHaveLength(42);
   });
 
-  it("handles 28-day and leap-year 29-day Februaries", () => {
+  it("shows all 28 days in a common-year February", () => {
+    mount("2027-02-10");
+    const grid = screen.getByRole("group", { name: "Días del mes" });
+    expect(grid.querySelectorAll('a[data-outside="false"]')).toHaveLength(28);
+    expect(grid.querySelectorAll('a[data-outside]')).toHaveLength(42);
+  });
+
+  it("shows all 29 days in a leap-year February", () => {
     mount("2028-02-10");
     const grid = screen.getByRole("group", { name: "Días del mes" });
     expect(grid.querySelectorAll('a[data-outside="false"]')).toHaveLength(29);
