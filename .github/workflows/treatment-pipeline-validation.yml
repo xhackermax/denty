@@ -16,7 +16,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: treatment-pipeline-${{ github.ref }}
+  group: treatment-pipeline-${{ github.sha }}
   cancel-in-progress: true
 jobs:
   treatment-pipeline:
@@ -37,3 +37,10 @@ jobs:
         run: node scripts/tests/clinical-consent-gate-regression.mjs
       - name: Focused tests
         run: npx vitest run src/shared/clinical/__tests__/clinical-workspace.test.tsx src/shared/clinical/__tests__/deferred-budget-follow-up.test.tsx src/server/denty-supabase/__tests__/scoped-budgets.test.ts src/shared/clinical/__tests__/budget-options.test.tsx
+      - name: Production build smoke test
+        env:
+          SUPABASE_URL: http://127.0.0.1:54399
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54399
+          SUPABASE_PUBLISHABLE_KEY: e2e-publishable
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: e2e-publishable
+        run: npm run -s build
