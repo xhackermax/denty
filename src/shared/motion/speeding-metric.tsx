@@ -5,6 +5,7 @@ import { motion, useInView, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 import { motionTokens } from "./motion-tokens";
+import { useVisualPreferences } from "@/shared/ui/visual-preferences-provider";
 import { shouldStartSpeedingMetric } from "./speeding-metric-trigger";
 import styles from "./speeding-metric.module.css";
 
@@ -67,6 +68,8 @@ export function SpeedingMetric({
   "aria-label": ariaLabel,
 }: SpeedingMetricProps) {
   const reducedMotion = useReducedMotion();
+  const { animations } = useVisualPreferences();
+  const skipMotion = !animations || reducedMotion;
   const rootRef = useRef<HTMLSpanElement>(null);
   const hasPlayedRef = useRef(false);
   const inView = useInView(rootRef, { amount: 0.55 });
@@ -77,16 +80,16 @@ export function SpeedingMetric({
   const displayText = formatSpeedingMetric(displayValue, { kind, locale, decimals, currency });
 
   useEffect(() => {
-    if (reducedMotion || hasScrolled) return;
+    if (skipMotion || hasScrolled) return;
 
     const armFromScroll = () => setHasScrolled(true);
     window.addEventListener("scroll", armFromScroll, { capture: true, passive: true });
 
     return () => window.removeEventListener("scroll", armFromScroll, true);
-  }, [hasScrolled, reducedMotion]);
+  }, [hasScrolled, skipMotion]);
 
   useEffect(() => {
-    if (reducedMotion) {
+    if (skipMotion) {
       hasPlayedRef.current = true;
       setDisplayValue(value);
       setSpeeding(false);
@@ -119,9 +122,9 @@ export function SpeedingMetric({
     });
 
     return () => controls.stop();
-  }, [duration, hasScrolled, inView, reducedMotion, value]);
+  }, [duration, hasScrolled, inView, skipMotion, value]);
 
-  const settled = reducedMotion || !speeding;
+  const settled = skipMotion || !speeding;
 
   return (
     <span
