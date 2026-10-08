@@ -22,7 +22,7 @@ assert.ok(workspace.includes("focusedLayer={inspectorLayer}"), "Inspector focus 
 assert.ok(workspace.includes('inspectorLayer === "perio"'), "Periodontal editor must be focused, not duplicated");
 assert.ok(workspace.includes('inspectorLayer === "ortho"'), "Orthodontic editor must be focused, not duplicated");
 assert.ok(workspace.includes("styles.inspectorScroll"), "Tools must live in bounded scrollable panel");
-assert.ok(controls.includes("onToggleLayer(layerId)"), "Buttons must toggle overlays");
+assert.ok(controls.includes("onToggle(layerId)"), "Buttons must toggle overlays");
 assert.ok(controls.includes("onFocus(layerId)"), "Editing a layer must not remove other layers");
 assert.ok(styles.includes("max-height: min(66dvh, 720px)"), "Inspector must stay bounded");
 console.log("Unified odontogram contract OK: one chart, multi-layer overlays, focused clinical editors");
