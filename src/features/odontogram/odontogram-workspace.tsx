@@ -1202,6 +1202,13 @@ function OdontogramEditor({
               </Text>
             ) : null}
           </div>
+          {chartOpen && viewState.visibleLayerIds.includes("perio") &&
+            viewState.subfiltersByLayer.perio.includes("sondaje") ? (
+            <Text size="xs" c="dimmed">
+              Sondaje (mm) en hexágonos: fila vestibular MV · V · DV;
+              fila palatina/lingual MP · P/L · DP. Hexágono vacío = sin medir.
+            </Text>
+          ) : null}
           {chartOpen && viewState.visibleLayerIds.includes("general") ? (
             <>
               <OdontogramLegend
