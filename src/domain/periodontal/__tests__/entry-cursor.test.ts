@@ -164,6 +164,9 @@ test("main chart includes BOP and suppuration before measuring PD, without chang
     .toMatchObject({ tooth: "16", probingDepth: 4 });
   expect(examToVisualReadings(session.exam).find((reading) => reading.site === "V"))
     .not.toHaveProperty("recession");
+  session = applyPerioCommand(session, { type: "goTo", tooth: "16" }, mouth);
   session = applyPerioCommand(session, { type: "missing" }, mouth);
-  expect(session.exam.teeth["18"]?.missing).toBe(true);
+  expect(session.exam.teeth["16"]?.missing).toBe(true);
+  expect(examToVisualReadings(session.exam).some((reading) => reading.tooth === "16"))
+    .toBe(false);
 });
