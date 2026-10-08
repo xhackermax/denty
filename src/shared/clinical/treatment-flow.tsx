@@ -83,7 +83,7 @@ export interface TreatmentFlowModalProps {
   patientId: string;
   opened: boolean;
   onClose: () => void;
-  startAt?: "plan" | "consents" | "signature";
+  startAt?: "plan" | "consents" | "signature" | undefined;
   preferredBudgetId?: string;
 }
 
@@ -124,7 +124,7 @@ function TreatmentFlow({
 }: {
   patientId: string;
   onClose: () => void;
-  startAt?: "plan" | "consents" | "signature";
+  startAt?: "plan" | "consents" | "signature" | undefined;
   preferredBudgetId?: string;
 }) {
   const syncQuery = useClinicalSyncQuery(patientId);
