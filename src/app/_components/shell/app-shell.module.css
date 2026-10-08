@@ -362,12 +362,12 @@
 
 @media (width >= 75em) {
   .sidebar {
-    width: 224px;
+    width: 320px;
     padding: 14px 12px 18px;
   }
 
   .main {
-    margin-left: 224px;
+    margin-left: 320px;
     padding-inline: 34px;
   }
 

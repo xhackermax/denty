@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SidebarWeekAgenda, weekDatesMadrid } from "../sidebar-week-agenda";
+import { SidebarWeekAgenda } from "../sidebar-week-agenda";
 
 const mocks = vi.hoisted(() => ({
   monthSummary: vi.fn(),
@@ -31,6 +31,10 @@ function mount(initialToday = "2026-10-08") {
   );
 }
 
+function currentMonthDays(): NodeListOf<Element> {
+  return screen.getByRole("group", { name: "Días del mes" }).querySelectorAll('a[data-outside="false"]');
+}
+
 beforeEach(() => {
   mocks.siteId = "site-zaragoza";
   mocks.loading = false;
@@ -52,62 +56,80 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("SidebarWeekAgenda", () => {
-  it("uses Monday-first Madrid days even across month and DST boundaries", () => {
-    expect(weekDatesMadrid("2026-10-08")).toEqual([
-      "2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08",
-      "2026-10-09", "2026-10-10", "2026-10-11",
-    ]);
-    expect(weekDatesMadrid("2026-10-25")).toEqual([
-      "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22",
-      "2026-10-23", "2026-10-24", "2026-10-25",
-    ]);
-    expect(weekDatesMadrid("2026-11-01")[0]).toBe("2026-10-26");
-  });
-
-  it("replaces the label with seven linked days and real scoped appointment counts", async () => {
+describe("SidebarWeekAgenda: full month", () => {
+  it("shows 31 October dates inside six complete Monday-first weeks", async () => {
     mount();
-    expect(screen.queryByText(/^Agenda$/)).not.toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Días de la semana" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Semana anterior" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Semana siguiente" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Abrir agenda de hoy$/ })).toHaveAttribute("href", "/app/agenda?date=2026-10-08");
-    const today = await screen.findByRole("link", { name: /jueves, 8 de octubre, 3 citas/i });
-    expect(today).toHaveAttribute("href", "/app/agenda?date=2026-10-08");
-    expect(today).toHaveAttribute("data-busy", "true");
-    expect(screen.getByText("4 citas esta semana")).toBeInTheDocument();
+    expect(screen.getByText("Agenda")).toBeInTheDocument();
+    expect(screen.getByText("Octubre de 2026")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Días de la semana" }).children).toHaveLength(7);
+    expect(currentMonthDays()).toHaveLength(31);
+    expect(screen.getByRole("group", { name: "Días del mes" }).querySelectorAll("a")).toHaveLength(42);
+    expect(screen.getByRole("link", { name: /sábado, 31 de octubre/i })).toHaveAttribute(
+      "href", "/app/agenda?date=2026-10-31",
+    );
+    const busy = await screen.findByRole("link", { name: /jueves, 8 de octubre, 3 citas/i });
+    expect(busy).toHaveAttribute("href", "/app/agenda?date=2026-10-08");
+    expect(busy).toHaveAttribute("data-busy", "true");
+    expect(screen.getByText("6 citas este mes")).toBeInTheDocument();
     expect(mocks.monthSummary).toHaveBeenCalledWith("2026-10", "site-zaragoza");
   });
 
-  it("moves between weeks and returns to this week's days", async () => {
+  it("navigates by month, loads new totals and returns to today", async () => {
     mount();
-    fireEvent.click(screen.getByRole("button", { name: "Semana siguiente" }));
-    expect(await screen.findByRole("link", { name: /lunes, 12 de octubre/i })).toHaveAttribute(
-      "href", "/app/agenda?date=2026-10-12",
+    fireEvent.click(screen.getByRole("button", { name: "Mes siguiente" }));
+    expect(screen.getByText("Noviembre de 2026")).toBeInTheDocument();
+    expect(currentMonthDays()).toHaveLength(30);
+    expect(await screen.findByText("4 citas este mes")).toBeInTheDocument();
+    expect(mocks.monthSummary).toHaveBeenCalledWith("2026-11", "site-zaragoza");
+    expect(screen.getByRole("link", { name: /domingo, 1 de noviembre, 4 citas/i })).toHaveAttribute(
+      "href", "/app/agenda?date=2026-11-01",
     );
     fireEvent.click(screen.getByRole("button", { name: "Hoy" }));
-    expect(screen.getByRole("link", { name: /Abrir agenda del jueves, 8 de octubre/i })).toHaveAttribute(
+    expect(screen.getByText("Octubre de 2026")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Abrir agenda del jueves, 8 de octubre/i })).toHaveAttribute(
       "href", "/app/agenda?date=2026-10-08",
     );
   });
 
-  it("loads both months when the week crosses into November", async () => {
-    mount("2026-10-30");
-    await waitFor(() => {
-      expect(mocks.monthSummary).toHaveBeenCalledWith("2026-10", "site-zaragoza");
-      expect(mocks.monthSummary).toHaveBeenCalledWith("2026-11", "site-zaragoza");
-    });
-    expect(await screen.findByRole("link", { name: /domingo, 1 de noviembre, 4 citas/i }))
-      .toHaveAttribute("href", "/app/agenda?date=2026-11-01");
-    expect(screen.getByText("6 citas esta semana")).toBeInTheDocument();
+  it("keeps boundary dates linked and DST changes do not skip days", () => {
+    mount();
+    const nextMonth = screen.getByRole("link", { name: /domingo, 1 de noviembre, mes contiguo/i });
+    expect(nextMonth).toHaveAttribute("href", "/app/agenda?date=2026-11-01");
+    expect(nextMonth).toHaveAttribute("data-outside", "true");
+    expect(screen.getByRole("link", { name: /domingo, 25 de octubre/i })).toHaveAttribute(
+      "href", "/app/agenda?date=2026-10-25",
+    );
+    expect(screen.getByRole("link", { name: /lunes, 26 de octubre/i })).toHaveAttribute(
+      "href", "/app/agenda?date=2026-10-26",
+    );
   });
 
-  it("does not request private appointment data before an active site is available", () => {
+  it.each([
+    ["2027-02-10", 28],
+    ["2028-02-10", 29],
+  ])("shows every day of February for %s", (date, length) => {
+    mount(date);
+    expect(currentMonthDays()).toHaveLength(length);
+    expect(screen.getByRole("group", { name: "Días del mes" }).querySelectorAll("a")).toHaveLength(42);
+  });
+
+  it("never fetches private appointment counts without an active clinic site", () => {
     mocks.siteId = null;
     mount();
+    expect(currentMonthDays()).toHaveLength(31);
     expect(screen.getByText("Selecciona una sede")).toBeInTheDocument();
     expect(mocks.monthSummary).not.toHaveBeenCalled();
     expect(screen.getByRole("link", { name: /jueves, 8 de octubre, citas no disponibles/i }))
       .toHaveAttribute("href", "/app/agenda?date=2026-10-08");
+  });
+
+  it("reuses the monthly summary cache for each requested month", async () => {
+    mount();
+    await waitFor(() => expect(mocks.monthSummary).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Mes siguiente" }));
+    await waitFor(() => expect(mocks.monthSummary).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole("button", { name: "Mes anterior" }));
+    await waitFor(() => expect(screen.getByText("6 citas este mes")).toBeInTheDocument());
+    expect(mocks.monthSummary).toHaveBeenCalledTimes(2);
   });
 });
