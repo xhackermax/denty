@@ -51,6 +51,11 @@ const STATUS_LABELS: Record<PediatricToothStatus, string> = {
   space_maintainer: "Mantenedor de espacio",
 };
 
+function isVisiblyPresent(status: PediatricToothStatus | undefined, fallback: boolean) {
+  if (!status) return fallback;
+  return !["unerupted", "exfoliated", "congenitally_missing"].includes(status);
+}
+
 const NO_ENTITIES: readonly DentalEntity[] = [];
 
 export function PediatricPanel({
