@@ -164,9 +164,10 @@ export function PerioChart({
     else owner.reconcile(mouth);
   }, [mouth, owner, readOnly]);
   useEffect(() => {
+    if (!ready) return;
     onReadingsChange?.(examToReadings(session.exam, { requireMargin: true }));
     onSiteReadingsChange?.(examToSites(session.exam));
-  }, [session.exam, onReadingsChange, onSiteReadingsChange]);
+  }, [session.exam, ready, onReadingsChange, onSiteReadingsChange]);
   useUnsavedChangesGuard({
     dirty: dirty && !readOnly && !closed,
     onSave: async () => {
