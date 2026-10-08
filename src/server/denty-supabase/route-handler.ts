@@ -41,6 +41,7 @@ import {
   planItemPriceSchema,
   odontogramBatchSchema,
   createScopedBudgetSchema,
+  createClinicalPlanBranchSchema,
   periodontalExamInputSchema,
   periodontalMeasurementSchema,
   reorderPlanItemsSchema,
@@ -3003,6 +3004,20 @@ export async function handleSupabaseDentyRoute(
       }
       const patientId = decodeURIComponent(parts[2] ?? "");
       return json(200, await clinical.listPatientBudgets(patientId), headers);
+    }
+    if (
+      parts.length === 5 &&
+      parts[0] === "api" &&
+      parts[1] === "patients" &&
+      parts[3] === "clinical-plan" &&
+      parts[4] === "branches" &&
+      method === "POST"
+    ) {
+      const denied = requireActorPermission(identity, "clinical.write");
+      if (denied) return denied;
+      const patientId = decodeURIComponent(parts[2] ?? "");
+      const payload = await parseJson(request, createClinicalPlanBranchSchema);
+      return json(201, await clinical.createClinicalPlanBranch(patientId, payload), headers);
     }
     if (
       parts.length === 4 &&
