@@ -27,6 +27,7 @@ import { useVisualPreferences } from "@/shared/ui/visual-preferences-provider";
 import styles from "./app-shell.module.css";
 import { MoreMenu, isActive } from "./more-menu";
 import { ShellPreferences } from "./shell-preferences";
+import { SidebarWeekAgenda } from "./sidebar-week-agenda";
 
 export function DentyAppShell({ children }: { children: ReactNode }) {
   const tNav = useTranslations("Navigation");
@@ -47,6 +48,10 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
   const renderLink = (item: NavigationItem) => {
     const Icon = item.icon;
     const active = isActive(pathname, item.href);
+
+    if (item.key === "agenda") {
+      return <SidebarWeekAgenda key={item.href} active={active} />;
+    }
 
     return (
       <Tooltip key={item.href} label={tNav(item.key)} position="right">
