@@ -81,11 +81,11 @@ export function VisualPersonalizationPanel() {
               data-selected={theme.id === palette}
               onClick={() => setPalette(theme.id)}
               aria-pressed={theme.id === palette}
-              aria-label={theme.number ? \`Seleccionar paleta \${theme.number}, \${theme.name}\` : "Seleccionar paleta Denty original"}
+              aria-label={theme.number ? "Seleccionar paleta " + theme.number + ", " + theme.name : "Seleccionar paleta Denty original"}
             >
               <span className={styles.palettePreview} data-palette={theme.id} aria-hidden="true" />
               <span className={styles.choiceTitle}>
-                <span className={styles.number}>{theme.number ? \`N.º \${theme.number}\` : "Denty"}</span>
+                <span className={styles.number}>{theme.number ? "N.º " + theme.number : "Denty"}</span>
                 <strong>{theme.name}</strong>
                 {palette === theme.id ? <IconCheck size={17} aria-label="Seleccionado" /> : null}
               </span>
@@ -110,7 +110,7 @@ export function VisualPersonalizationPanel() {
               data-selected={background.id === wallpaper}
               onClick={() => setWallpaper(background.id)}
               aria-pressed={background.id === wallpaper}
-              aria-label={\`Seleccionar fondo \${background.name}\`}
+              aria-label={"Seleccionar fondo " + background.name}
             >
               <span className={styles.wallpaperPreview} data-wallpaper={background.id} aria-hidden="true" />
               <span className={styles.choiceTitle}>
