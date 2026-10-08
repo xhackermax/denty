@@ -11,6 +11,7 @@ import { AdminPaymentTerminalsPanel } from "./admin-payment-terminals-panel";
 import { AdminSitesPanel } from "./admin-sites-panel";
 import { AdminTreatmentCatalogPanel } from "./admin-treatment-catalog-panel";
 import { AdminLaboratoriesPanel } from "./admin-laboratories-panel";
+import { AdminCommunicationsPanel } from "./admin-communications-panel";
 
 export function AdminPage({
   section = "home",
@@ -22,6 +23,7 @@ export function AdminPage({
     | "laboratories"
     | "sites"
     | "payments"
+    | "communications"
     | "export"
     | "navigation";
 }) {
@@ -37,13 +39,15 @@ export function AdminPage({
                 ? "Sedes y doctores"
                 : section === "payments"
                   ? "Cobros y datáfonos"
-                  : section === "laboratories"
-                    ? "Laboratorios"
-                    : section === "export"
-                      ? "Exportar datos"
-                      : section === "navigation"
-                        ? "Menú de la clínica"
-                        : "Catálogo"
+                  : section === "communications"
+                    ? "Comunicaciones"
+                    : section === "laboratories"
+                      ? "Laboratorios"
+                      : section === "export"
+                        ? "Exportar datos"
+                        : section === "navigation"
+                          ? "Menú de la clínica"
+                          : "Catálogo"
         }
         description="Usuarios, sedes y configuración."
       />
@@ -83,6 +87,12 @@ export function AdminPage({
               Datos fiscales, contacto, trabajos realizados, costes y tiempos
             </span>
           </Link>
+          <Link className={styles.cardLink} href="/app/admin/communications">
+            <span className={styles.cardLinkTitle}>Comunicaciones</span>
+            <span className={styles.cardLinkDescription}>
+              Confirmación de citas por enlace, WhatsApp y SMS
+            </span>
+          </Link>
           <Link className={styles.cardLink} href="/app/admin/export">
             <span className={styles.cardLinkTitle}>Exportar datos</span>
             <span className={styles.cardLinkDescription}>Pacientes, citas y tratamientos</span>
@@ -104,6 +114,7 @@ export function AdminPage({
       {section === "laboratories" ? <AdminLaboratoriesPanel /> : null}
       {section === "sites" ? <AdminSitesPanel /> : null}
       {section === "payments" ? <AdminPaymentTerminalsPanel /> : null}
+      {section === "communications" ? <AdminCommunicationsPanel /> : null}
       {section === "export" ? <AdminExportPanel /> : null}
       {section === "navigation" ? (
         <section className={styles.section}>

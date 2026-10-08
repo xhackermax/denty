@@ -45,6 +45,20 @@ interface ConsentRow {
   revoked_at: string | null;
   created_at: string;
 }
+interface AppointmentMessagingSettingsRow {
+  clinic_id: string;
+  reminder_days_before: number;
+  preferred_channel: "WHATSAPP" | "SMS";
+  whatsapp_enabled: boolean;
+  sms_enabled: boolean;
+  whatsapp_provider: string;
+  sms_provider: string;
+  whatsapp_from: string | null;
+  sms_from: string | null;
+  confirmation_link_base_url: string | null;
+  reminder_template: string;
+  updated_at: string;
+}
 
 const campaign = (r: CampaignRow, roi?: Record<string, unknown>) => ({
   id: r.id,
@@ -93,6 +107,20 @@ const consent = (r: ConsentRow) => ({
   revokedAt: r.revoked_at,
   createdAt: r.created_at,
 });
+const appointmentMessagingSettings = (r: AppointmentMessagingSettingsRow) => ({
+  clinicId: r.clinic_id,
+  reminderDaysBefore: r.reminder_days_before,
+  preferredChannel: r.preferred_channel,
+  whatsappEnabled: r.whatsapp_enabled,
+  smsEnabled: r.sms_enabled,
+  whatsappProvider: r.whatsapp_provider,
+  smsProvider: r.sms_provider,
+  whatsappFrom: r.whatsapp_from,
+  smsFrom: r.sms_from,
+  confirmationLinkBaseUrl: r.confirmation_link_base_url,
+  reminderTemplate: r.reminder_template,
+  updatedAt: r.updated_at,
+});
 
 export class EngagementRepository {
   constructor(
@@ -115,6 +143,49 @@ export class EngagementRepository {
     ]);
     const roiMap = new Map(roi.map((x) => [String(x.campaignId ?? ""), x]));
     return { items: rows.map((r) => campaign(r, roiMap.get(r.id))) };
+  }
+  async getAppointmentMessagingSettings() {
+    const row = await this.client.rpc<AppointmentMessagingSettingsRow>(
+      "get_appointment_messaging_settings",
+      { p_clinic_id: this.clinicId },
+    );
+    return appointmentMessagingSettings(row);
+  }
+  async updateAppointmentMessagingSettings(input: {
+    reminderDaysBefore: number;
+    preferredChannel: "WHATSAPP" | "SMS";
+    whatsappEnabled: boolean;
+    smsEnabled: boolean;
+    whatsappProvider: string;
+    smsProvider: string;
+    whatsappFrom?: string;
+    smsFrom?: string;
+    confirmationLinkBaseUrl?: string;
+    reminderTemplate: string;
+  }) {
+    const row = await this.client.rpc<AppointmentMessagingSettingsRow>(
+      "update_appointment_messaging_settings",
+      {
+        p_clinic_id: this.clinicId,
+        p_reminder_days_before: input.reminderDaysBefore,
+        p_preferred_channel: input.preferredChannel,
+        p_whatsapp_enabled: input.whatsappEnabled,
+        p_sms_enabled: input.smsEnabled,
+        p_whatsapp_provider: input.whatsappProvider,
+        p_sms_provider: input.smsProvider,
+        p_whatsapp_from: input.whatsappFrom ?? null,
+        p_sms_from: input.smsFrom ?? null,
+        p_confirmation_link_base_url: input.confirmationLinkBaseUrl ?? null,
+        p_reminder_template: input.reminderTemplate,
+      },
+    );
+    return appointmentMessagingSettings(row);
+  }
+  async queueAppointmentConfirmationReminders() {
+    return this.client.rpc<{ queued: number; skipped: number }>(
+      "queue_appointment_confirmation_reminders",
+      { p_clinic_id: this.clinicId },
+    );
   }
   async createCampaign(input: {
     provider: string;

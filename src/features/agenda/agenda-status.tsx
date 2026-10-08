@@ -21,7 +21,7 @@ export interface AgendaStatusMeta {
 
 // Status is never conveyed by color alone: every state also has its own icon and name.
 export const AGENDA_STATUS_META: Readonly<Record<AgendaStatus, AgendaStatusMeta>> = {
-  PLANNED: { label: "Pendiente", nextLabel: "Ha llegado", icon: IconClock },
+  PLANNED: { label: "Pendiente de confirmación", nextLabel: "Ha llegado", icon: IconClock },
   CONFIRMED: { label: "Confirmada", nextLabel: "Ha llegado", icon: IconUserCheck },
   RUNNING_LATE: { label: "Con retraso", nextLabel: "Ha llegado", icon: IconHourglass },
   ARRIVED: { label: "Ha llegado", nextLabel: "A gabinete", icon: IconDoorEnter },

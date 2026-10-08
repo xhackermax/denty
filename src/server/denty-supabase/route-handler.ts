@@ -94,6 +94,7 @@ import {
   createPatientAttributionTouchSchema,
   setCommunicationConsentSchema,
   snoozeAlertSchema,
+  updateAppointmentMessagingSettingsSchema,
   updateMarketingCampaignSchema,
 } from "@/shared/api/schemas/engagement";
 import {
@@ -727,6 +728,43 @@ export async function handleSupabaseDentyRoute(
       const d = requireActorPermission(identity, "communications.read");
       if (d) return d;
       return json(200, await engagement.listCommunications(), headers);
+    }
+    if (
+      parts.length === 4 &&
+      parts[0] === "api" &&
+      parts[1] === "admin" &&
+      parts[2] === "communications" &&
+      parts[3] === "appointment-settings"
+    ) {
+      if (method === "GET") {
+        const d = requireActorPermission(identity, "communications.read");
+        if (d) return d;
+        return json(200, await engagement.getAppointmentMessagingSettings(), headers);
+      }
+      if (method === "PUT") {
+        const d = requireActorPermission(identity, "communications.manage");
+        if (d) return d;
+        return json(
+          200,
+          await engagement.updateAppointmentMessagingSettings(
+            await parseJson(request, updateAppointmentMessagingSettingsSchema),
+          ),
+          headers,
+        );
+      }
+    }
+    if (
+      parts.length === 5 &&
+      parts[0] === "api" &&
+      parts[1] === "admin" &&
+      parts[2] === "communications" &&
+      parts[3] === "appointment-reminders" &&
+      parts[4] === "queue" &&
+      method === "POST"
+    ) {
+      const d = requireActorPermission(identity, "communications.manage");
+      if (d) return d;
+      return json(200, await engagement.queueAppointmentConfirmationReminders(), headers);
     }
     if (
       parts.length === 4 &&
@@ -1794,10 +1832,16 @@ export async function handleSupabaseDentyRoute(
         "no-show": "NO_SHOW",
         complete: "COMPLETED",
         cancel: "CANCELLED",
-        "running-late": "RUNNING_LATE",
         "confirm-waiting-room": "WAITING",
       } as const;
+      const confirmationStatusByPath = {
+        confirm: "CONFIRMED",
+        pending: "PLANNED",
+        "running-late": "RUNNING_LATE",
+      } as const;
       const transition = transitionByPath[parts[3] as keyof typeof transitionByPath];
+      const confirmationStatus =
+        confirmationStatusByPath[parts[3] as keyof typeof confirmationStatusByPath];
       if (transition) {
         const payload = await parseJson(
           request,
@@ -1819,6 +1863,27 @@ export async function handleSupabaseDentyRoute(
             "La cita cambió antes de actualizar su estado.",
             { currentVersion: result.currentVersion },
           );
+        }
+        return json(200, result, headers);
+      }
+      if (confirmationStatus) {
+        const payload = await parseJson(
+          request,
+          z.object({
+            expectedVersion: z.number().int().positive(),
+            reason: z.string().max(500).optional(),
+          }),
+        );
+        const result = await agenda.setConfirmationStatus(
+          decodeURIComponent(parts[2] ?? ""),
+          payload.expectedVersion,
+          confirmationStatus,
+          payload.reason,
+        );
+        if ("conflict" in result) {
+          return error(409, "APPOINTMENT_VERSION_CONFLICT", "La cita cambió antes de guardarse.", {
+            currentVersion: result.currentVersion,
+          });
         }
         return json(200, result, headers);
       }
@@ -2110,9 +2175,15 @@ export async function handleSupabaseDentyRoute(
       parts[0] === "api" &&
       parts[1] === "analytics" &&
       method === "GET" &&
-      ["summary", "treatments", "doctors", "monthly", "periods", "profitability", "specialties"].includes(
-        parts[2] ?? "",
-      )
+      [
+        "summary",
+        "treatments",
+        "doctors",
+        "monthly",
+        "periods",
+        "profitability",
+        "specialties",
+      ].includes(parts[2] ?? "")
     ) {
       const denied = requireActorPermission(identity, "finance.read");
       if (denied) return denied;

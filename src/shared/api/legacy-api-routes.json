@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas din\u00e1micas verificadas en source",
-  "routeCount": 266,
+  "routeCount": 274,
   "routes": [
     {
       "method": "GET",
@@ -61,6 +61,24 @@
       "method": "GET",
       "path": "/api/admin/communications",
       "source": "apps/api/src/modules/communications/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/communications/appointment-settings",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/communications/appointment-settings",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/communications/appointment-reminders/queue",
+      "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
     {
@@ -501,6 +519,12 @@
     },
     {
       "method": "POST",
+      "path": "/api/appointments/:id/confirm",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
       "path": "/api/appointments/:id/confirm-waiting-room",
       "source": "apps/api/src/modules/appointments/operations-routes.ts",
       "kind": "browser"
@@ -511,6 +535,18 @@
       "source": "apps/api/src/modules/appointments/routes.ts",
       "kind": "browser",
       "note": "Ruta registrada din\u00e1micamente por statusActions en Denty 2.3.7."
+    },
+    {
+      "method": "POST",
+      "path": "/api/appointments/:id/pending",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/appointments/:id/running-late",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
     },
     {
       "method": "POST",

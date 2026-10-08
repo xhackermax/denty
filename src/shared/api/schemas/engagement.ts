@@ -45,6 +45,51 @@ export const communicationTemplatesSchema = z.object({
   ),
 });
 
+export const appointmentMessagingSettingsSchema = z
+  .object({
+    clinic_id: idSchema.optional(),
+    clinicId: idSchema.optional(),
+    reminder_days_before: z.number().int().min(1).max(30).optional(),
+    reminderDaysBefore: z.number().int().min(1).max(30).optional(),
+    preferred_channel: z.enum(["WHATSAPP", "SMS"]).optional(),
+    preferredChannel: z.enum(["WHATSAPP", "SMS"]).optional(),
+    whatsapp_enabled: z.boolean().optional(),
+    whatsappEnabled: z.boolean().optional(),
+    sms_enabled: z.boolean().optional(),
+    smsEnabled: z.boolean().optional(),
+    whatsapp_provider: z.string().optional(),
+    whatsappProvider: z.string().optional(),
+    sms_provider: z.string().optional(),
+    smsProvider: z.string().optional(),
+    whatsapp_from: z.string().nullable().optional(),
+    whatsappFrom: z.string().nullable().optional(),
+    sms_from: z.string().nullable().optional(),
+    smsFrom: z.string().nullable().optional(),
+    confirmation_link_base_url: z.string().nullable().optional(),
+    confirmationLinkBaseUrl: z.string().nullable().optional(),
+    reminder_template: z.string().optional(),
+    reminderTemplate: z.string().optional(),
+  })
+  .passthrough();
+
+export const updateAppointmentMessagingSettingsSchema = z.object({
+  reminderDaysBefore: z.number().int().min(1).max(30),
+  preferredChannel: z.enum(["WHATSAPP", "SMS"]),
+  whatsappEnabled: z.boolean(),
+  smsEnabled: z.boolean(),
+  whatsappProvider: z.string().min(1).max(80),
+  smsProvider: z.string().min(1).max(80),
+  whatsappFrom: z.string().max(120).optional(),
+  smsFrom: z.string().max(120).optional(),
+  confirmationLinkBaseUrl: z.string().url().optional(),
+  reminderTemplate: z.string().min(1).max(500),
+});
+
+export const queueAppointmentRemindersResultSchema = z.object({
+  queued: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+});
+
 export const setCommunicationConsentSchema = z.object({
   channel: communicationChannelSchema,
   category: z.string().min(1).default("*"),

@@ -368,6 +368,26 @@ export class AgendaRepository {
     return mapRpcAppointment(result);
   }
 
+  async setConfirmationStatus(
+    id: string,
+    expectedVersion: number,
+    status: Extract<Appointment["status"], "PLANNED" | "CONFIRMED" | "RUNNING_LATE">,
+    reason?: string,
+  ): Promise<Appointment | { conflict: true; currentVersion: number }> {
+    const result = await this.client.rpc<AppointmentRpcResult>(
+      "set_appointment_confirmation_status",
+      {
+        p_appointment_id: id,
+        p_expected_version: expectedVersion,
+        p_new_status: status,
+        p_reason: reason ?? null,
+      },
+    );
+    if (result.conflict)
+      return { conflict: true, currentVersion: result.currentVersion ?? expectedVersion };
+    return mapRpcAppointment(result);
+  }
+
   async getContext(actor: { role: string; staffId?: string | null }) {
     const [staff, sites, cabinets, schedules, settings] = await Promise.all([
       this.client.select<StaffRow>("staff_members", {

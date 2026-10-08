@@ -168,6 +168,21 @@ export function useAppointmentTransitionMutation(date: string) {
         getBrowserApi().appointments.arrive(input.id, input.expectedVersion),
       onSuccess: () => void invalidate(),
     }),
+    confirm: useMutation({
+      mutationFn: (input: { id: string; expectedVersion: number }) =>
+        getBrowserApi().appointments.confirm(input.id, input.expectedVersion),
+      onSuccess: () => void invalidate(),
+    }),
+    pending: useMutation({
+      mutationFn: (input: { id: string; expectedVersion: number }) =>
+        getBrowserApi().appointments.pending(input.id, input.expectedVersion),
+      onSuccess: () => void invalidate(),
+    }),
+    runningLate: useMutation({
+      mutationFn: (input: { id: string; expectedVersion: number }) =>
+        getBrowserApi().appointments.runningLate(input.id, input.expectedVersion),
+      onSuccess: () => void invalidate(),
+    }),
     waiting: useMutation({
       mutationFn: (input: { id: string; expectedVersion: number }) =>
         getBrowserApi().appointments.waiting(input.id, input.expectedVersion),

@@ -13,6 +13,9 @@ import {
   communicationsSchema,
   communicationTemplatesSchema,
   createCommunicationSchema,
+  appointmentMessagingSettingsSchema,
+  queueAppointmentRemindersResultSchema,
+  updateAppointmentMessagingSettingsSchema,
   createMarketingCampaignSchema,
   finishGamePlaySchema,
   gameDashboardSchema,
@@ -45,6 +48,26 @@ export function createEngagementResource(client: ApiClient) {
   return {
     communications: {
       list: () => client.request("/api/admin/communications", communicationsSchema),
+      appointmentSettings: () =>
+        client.request(
+          "/api/admin/communications/appointment-settings",
+          appointmentMessagingSettingsSchema,
+        ),
+      updateAppointmentSettings: (
+        payload: z.input<typeof updateAppointmentMessagingSettingsSchema>,
+      ) =>
+        client.mutation(
+          "/api/admin/communications/appointment-settings",
+          appointmentMessagingSettingsSchema,
+          updateAppointmentMessagingSettingsSchema.parse(payload),
+          { method: "PUT" },
+        ),
+      queueAppointmentReminders: () =>
+        client.mutation(
+          "/api/admin/communications/appointment-reminders/queue",
+          queueAppointmentRemindersResultSchema,
+          {},
+        ),
       templates: () =>
         client.request("/api/admin/communications/templates", communicationTemplatesSchema),
       forPatient: (patientId: string) =>

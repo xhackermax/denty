@@ -172,6 +172,18 @@ export function createCoreResource(client: ApiClient) {
         client.mutation(`/api/appointments/${encodeId(id)}/arrive`, appointmentSchema, {
           expectedVersion,
         }),
+      confirm: (id: string, expectedVersion: number) =>
+        client.mutation(`/api/appointments/${encodeId(id)}/confirm`, appointmentSchema, {
+          expectedVersion,
+        }),
+      pending: (id: string, expectedVersion: number) =>
+        client.mutation(`/api/appointments/${encodeId(id)}/pending`, appointmentSchema, {
+          expectedVersion,
+        }),
+      runningLate: (id: string, expectedVersion: number) =>
+        client.mutation(`/api/appointments/${encodeId(id)}/running-late`, appointmentSchema, {
+          expectedVersion,
+        }),
       waiting: (id: string, expectedVersion: number) =>
         client.mutation(`/api/appointments/${encodeId(id)}/waiting`, appointmentSchema, {
           expectedVersion,
