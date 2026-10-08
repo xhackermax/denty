@@ -33,7 +33,7 @@ begin
   if v_budget.version <> p_expected_version then
     return jsonb_build_object('conflict', true, 'currentVersion', v_budget.version);
   end if;
-  if v_budget.status <> 'DRAFT' then
+  if v_budget.status not in ('DRAFT', 'PRESENTED', 'ACCEPTED') then
     raise exception 'BUDGET_NOT_EDITABLE' using errcode='23514';
   end if;
   if v_budget.clinical_plan_id is null then
