@@ -28,6 +28,7 @@ function showCard(heightPx = 90, reason = "Implante 46; Corona 11; Raspado Q1; E
     glyphs,
   };
   const onOpen = vi.fn();
+  const onCopy = vi.fn();
   render(
     <MantineProvider>
       <AgendaAppointmentCard
@@ -38,12 +39,13 @@ function showCard(heightPx = 90, reason = "Implante 46; Corona 11; Raspado Q1; E
         dimmed={false}
         menu={null}
         onOpen={onOpen}
+        onCopy={onCopy}
         onDragStart={vi.fn()}
         onResizeStart={vi.fn()}
       />
     </MantineProvider>,
   );
-  return onOpen;
+  return { onOpen, onCopy };
 }
 
 describe("tarjeta de agenda sencilla", () => {
@@ -52,7 +54,7 @@ describe("tarjeta de agenda sencilla", () => {
     expect(screen.getByText("Consulta personalizada")).toBeVisible();
   });
   it("muestra un máximo de tres símbolos y abre el detalle completo al tocar", () => {
-    const onOpen = showCard();
+    const { onOpen } = showCard();
     expect(
       screen.getAllByRole("img").filter((icon) => icon.getAttribute("aria-label") !== "Pendiente"),
     ).toHaveLength(3);
@@ -63,11 +65,18 @@ describe("tarjeta de agenda sencilla", () => {
     expect(onOpen).toHaveBeenCalledOnce();
   });
   it("permite abrir con teclado y mantiene el detalle clínico en su nombre accesible", () => {
-    const onOpen = showCard();
+    const { onOpen } = showCard();
     const card = screen.getByRole("article");
     expect(card).toHaveAccessibleName(/Implante 46/);
     fireEvent.keyDown(card, { key: "Enter" });
     expect(onOpen).toHaveBeenCalledOnce();
+  });
+  it("copia una cita con clic derecho sin abrir el detalle", () => {
+    const { onOpen, onCopy } = showCard();
+    const card = screen.getByRole("article");
+    fireEvent.contextMenu(card);
+    expect(onCopy).toHaveBeenCalledOnce();
+    expect(onOpen).not.toHaveBeenCalled();
   });
   it("una cita pequeña conserva un símbolo y avisa del resto sin texto largo", () => {
     showCard(30);
@@ -100,6 +109,7 @@ describe("tarjeta de agenda sencilla", () => {
           patient={undefined}
           staffName={undefined}
           cabinetName={undefined}
+          siteName={undefined}
           staffOptions={[]}
           busy={false}
           onClose={onClose}
@@ -170,7 +180,7 @@ describe("tarjeta de agenda sencilla", () => {
   });
 });
 it("drag grip keyboard activation does not open appointment details", () => {
-  const onOpen = showCard();
+  const { onOpen } = showCard();
   const grip = screen.getByRole("button", { name: "Mover cita de Ana García López" });
   fireEvent.keyDown(grip, { key: " ", code: "Space" });
   expect(onOpen).not.toHaveBeenCalled();
