@@ -98,7 +98,7 @@
   left: -7px;
   height: 3px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--denty-violet) 50%, var(--denty-card-solid));
+  background: color-mix(in srgb, var(--denty-clinical-violet) 50%, var(--denty-card-solid));
   content: "";
   pointer-events: none;
 }
@@ -209,24 +209,24 @@
 }
 
 .toothButton[data-prosthesis-range="true"] {
-  border-color: color-mix(in srgb, var(--denty-violet) 38%, var(--denty-line));
-  background: color-mix(in srgb, var(--denty-violet) 5%, var(--denty-card));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-violet) 14%, transparent);
+  border-color: color-mix(in srgb, var(--denty-clinical-violet) 38%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-clinical-violet) 5%, var(--denty-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-clinical-violet) 14%, transparent);
 }
 
 .toothButton[data-prosthesis-endpoint="true"] {
-  border-color: color-mix(in srgb, var(--denty-violet) 62%, var(--denty-line));
-  background: color-mix(in srgb, var(--denty-violet) 7%, var(--denty-card));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-violet) 16%, transparent);
+  border-color: color-mix(in srgb, var(--denty-clinical-violet) 62%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-clinical-violet) 7%, var(--denty-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-clinical-violet) 16%, transparent);
 }
 
 .toothButton[data-selected="true"][data-prosthesis-range="true"] {
-  border-color: color-mix(in srgb, var(--denty-teal) 34%, var(--denty-violet));
+  border-color: color-mix(in srgb, var(--denty-teal) 34%, var(--denty-clinical-violet));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-teal) 20%, transparent);
 }
 
 .toothButton[data-selected="true"][data-prosthesis-endpoint="true"] {
-  border-color: color-mix(in srgb, var(--denty-teal) 42%, var(--denty-violet));
+  border-color: color-mix(in srgb, var(--denty-teal) 42%, var(--denty-clinical-violet));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--denty-teal) 22%, transparent);
 }
 
@@ -237,7 +237,7 @@
   padding: 1px 3px;
   border-radius: 3px;
   background: color-mix(in srgb, var(--denty-card-solid) 88%, transparent);
-  color: color-mix(in srgb, var(--denty-violet) 68%, var(--denty-muted));
+  color: color-mix(in srgb, var(--denty-clinical-violet) 68%, var(--denty-muted));
   content: "Pilar";
   font-size: 0.42rem;
   font-weight: 650;
@@ -286,7 +286,7 @@
 }
 
 .toothLayerMark[data-layer="replacement"] {
-  color: var(--denty-violet);
+  color: var(--denty-clinical-violet);
 }
 
 .toothButton[data-arch="upper"] .toothSvg {
@@ -433,8 +433,8 @@
 .surface[data-state="implant"],
 .surface[data-state="prosthesis"],
 .surface[data-state="removable"] {
-  fill: color-mix(in srgb, var(--denty-violet) 36%, var(--denty-card-solid));
-  stroke: var(--denty-violet);
+  fill: color-mix(in srgb, var(--denty-clinical-violet) 36%, var(--denty-card-solid));
+  stroke: var(--denty-clinical-violet);
 }
 
 .toothSvg[data-state="missing"] {
@@ -463,8 +463,8 @@
 }
 
 .abutmentMark {
-  fill: color-mix(in srgb, var(--denty-violet) 30%, var(--denty-card-solid));
-  stroke: var(--denty-violet);
+  fill: color-mix(in srgb, var(--denty-clinical-violet) 30%, var(--denty-card-solid));
+  stroke: var(--denty-clinical-violet);
   stroke-width: 1.5;
   pointer-events: none;
 }
@@ -478,7 +478,7 @@
 
 .dentureMark[data-implants] {
   stroke-dasharray: 4 2;
-  stroke: var(--denty-violet);
+  stroke: var(--denty-clinical-violet);
 }
 
 .splintMark {
@@ -517,16 +517,16 @@
 }
 
 .implantMark {
-  fill: color-mix(in srgb, var(--denty-violet) 10%, var(--denty-card-solid));
-  stroke: var(--denty-violet);
+  fill: color-mix(in srgb, var(--denty-clinical-violet) 10%, var(--denty-card-solid));
+  stroke: var(--denty-clinical-violet);
   stroke-width: 1.3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .prosthesisMark {
-  fill: color-mix(in srgb, var(--denty-violet) 20%, var(--denty-card-solid));
-  stroke: var(--denty-violet);
+  fill: color-mix(in srgb, var(--denty-clinical-violet) 20%, var(--denty-card-solid));
+  stroke: var(--denty-clinical-violet);
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -609,7 +609,7 @@
 }
 
 .legendDot[data-tone="violet"] {
-  background: var(--denty-violet);
+  background: var(--denty-clinical-violet);
 }
 
 .clinicalTabs {
@@ -977,14 +977,14 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 .legendSwatch[data-state="implant"] {
-  border-color: var(--denty-violet);
-  background: color-mix(in srgb, var(--denty-violet) 36%, var(--denty-card-solid));
+  border-color: var(--denty-clinical-violet);
+  background: color-mix(in srgb, var(--denty-clinical-violet) 36%, var(--denty-card-solid));
 }
 
 .legendSwatch[data-state="prosthesis"],
 .legendSwatch[data-state="removable"] {
-  border-color: var(--denty-violet);
-  background: color-mix(in srgb, var(--denty-violet) 36%, var(--denty-card-solid));
+  border-color: var(--denty-clinical-violet);
+  background: color-mix(in srgb, var(--denty-clinical-violet) 36%, var(--denty-card-solid));
 }
 
 .legendSymbol {
@@ -1054,9 +1054,9 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   gap: 10px;
   margin-top: 14px;
   padding: 13px;
-  border: 1px solid color-mix(in srgb, var(--denty-violet) 34%, var(--denty-line));
+  border: 1px solid color-mix(in srgb, var(--denty-clinical-violet) 34%, var(--denty-line));
   border-radius: 14px;
-  background: color-mix(in srgb, var(--denty-violet) 6%, var(--denty-card-solid));
+  background: color-mix(in srgb, var(--denty-clinical-violet) 6%, var(--denty-card-solid));
 }
 
 .bridgePickerHeading {
@@ -1072,15 +1072,15 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   align-items: center;
   margin: -6px 0 14px;
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--denty-violet) 30%, var(--denty-line));
+  border: 1px solid color-mix(in srgb, var(--denty-clinical-violet) 30%, var(--denty-line));
   border-radius: 10px;
-  background: color-mix(in srgb, var(--denty-violet) 7%, var(--denty-card-solid));
+  background: color-mix(in srgb, var(--denty-clinical-violet) 7%, var(--denty-card-solid));
   color: var(--denty-muted);
   font-size: 0.7rem;
 }
 
 .bridgeSelectionBanner strong {
-  color: var(--denty-violet);
+  color: var(--denty-clinical-violet);
   white-space: nowrap;
 }
 
@@ -1261,7 +1261,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 .orthoTooth[data-mark="band"] svg path:last-child {
   fill: none;
-  stroke: var(--denty-violet);
+  stroke: var(--denty-clinical-violet);
   stroke-width: 3;
 }
 
@@ -1310,7 +1310,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 .orthoLegend i[data-mark="band"] {
-  border-color: var(--denty-violet);
+  border-color: var(--denty-clinical-violet);
 }
 
 .orthoLegend i[data-mark="attachment"] {
@@ -1345,7 +1345,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 .pediatricToothButton[data-status="pulpotomy"] svg,
 .pediatricToothButton[data-status="pulpectomy"] svg {
-  stroke: var(--denty-violet);
+  stroke: var(--denty-clinical-violet);
 }
 
 .pediatricToothButton[data-status="pediatric_crown"] svg {
@@ -1398,7 +1398,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 .pediatricLegend span[data-status="pulpotomy"]::before,
 .pediatricLegend span[data-status="pulpectomy"]::before {
-  background: var(--denty-violet);
+  background: var(--denty-clinical-violet);
 }
 
 .pediatricLegend span[data-status="erupting"]::before {
