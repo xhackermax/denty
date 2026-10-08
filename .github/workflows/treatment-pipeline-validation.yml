@@ -4,11 +4,14 @@ on:
     branches:
       - pipeline-postmerge-hardening
       - feature/visual-personalization-palettes
+      - fix/wallpapers-faithful-svg-assets
       - main
       - security-confirmation-explicit-click
   pull_request:
     paths:
       - "src/shared/clinical/**"
+      - "public/wallpapers/**"
+      - "scripts/tests/wallpaper-artwork-regression.mjs"
       - "src/domain/visual-personalization.ts"
       - "src/shared/ui/visual-preferences-provider.tsx"
       - "src/shared/ui/__tests__/visual-preferences-provider.test.tsx"
@@ -66,6 +69,8 @@ jobs:
         run: npx vitest run src/app/api/clinic-contacts/route.test.ts src/features/admin/clinic-contacts/__tests__/clinic-contacts-list.test.tsx
       - name: Visual preferences and palette contract
         run: npx vitest run src/domain/__tests__/visual-personalization.test.ts src/shared/ui/__tests__/visual-preferences-provider.test.tsx
+      - name: Wallpaper fidelity and preview contracts
+        run: node scripts/tests/wallpaper-artwork-regression.mjs
       - name: Vercel architecture gate
         run: npm run -s architecture:check
       - name: Production build smoke test

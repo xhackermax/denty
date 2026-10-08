@@ -99,8 +99,8 @@ export function VisualPersonalizationPanel() {
       <Stack gap="xs">
         <Title order={4}>Fondos de pantalla</Title>
         <Text size="xs" c="dimmed">
-          Diseños CSS originales inspirados en degradados abstractos y mallas digitales.
-          No descargan imágenes externas ni dificultan la lectura de las fichas.
+          Fondos vectoriales de alta resolución, inspirados en tus referencias. Las miniaturas
+          muestran el mismo fondo que se aplicará, sin cargar imágenes externas.
         </Text>
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
           {VISUAL_WALLPAPERS.map((background) => (

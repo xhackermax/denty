@@ -91,23 +91,25 @@
 .wallpaperPreview[data-wallpaper="none"] {
   background: linear-gradient(135deg, var(--denty-bg) 40%, var(--denty-bg-elevated));
 }
+/* Preview exactly the same SVG as the actual wallpaper. */
+.wallpaperPreview {
+  height: auto;
+  aspect-ratio: 16 / 9;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
 .wallpaperPreview[data-wallpaper="aurora"] {
-  background:
-    radial-gradient(ellipse at 75% 5%, #8bb8f7aa, transparent 70%),
-    radial-gradient(ellipse at 10% 90%, #ab8de599, transparent 70%),
-    #eff5fe;
+  background-image: url("/wallpapers/aurora-luxury.svg");
 }
+
 .wallpaperPreview[data-wallpaper="silk"] {
-  background:
-    radial-gradient(ellipse 35% 100% at 70% 0%, #b4a7edbb, transparent 90%),
-    radial-gradient(ellipse 40% 90% at 30% 95%, #85bae0bb, transparent 85%),
-    conic-gradient(from 200deg at 75% 40%, #d4e8f8, #8c9fe9, #f4eef9, #b5d4ec);
+  background-image: url("/wallpapers/silk-3d.svg");
 }
+
 .wallpaperPreview[data-wallpaper="mesh"] {
-  background:
-    repeating-linear-gradient(32deg, transparent 0 14px, #6acfc77a 15px, transparent 16px 28px),
-    repeating-linear-gradient(148deg, transparent 0 14px, #6acfc766 15px, transparent 16px 28px),
-    linear-gradient(125deg, #081b31, #14556f);
+  background-image: url("/wallpapers/mesh-network.svg");
 }
 
 @media (width <= 36em) {

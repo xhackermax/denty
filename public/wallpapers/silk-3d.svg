@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice">
+<title>Escena abstracta 3D de capas curvas tornasoladas, volumen y reflejos</title>
+<defs>
+ <linearGradient id="sky" x1=".04" y1="0" x2=".9" y2="1"><stop stop-color="#f3c3bf"/><stop offset=".32" stop-color="#ffe4df"/><stop offset=".68" stop-color="#cce3fa"/><stop offset="1" stop-color="#9bbce8"/></linearGradient>
+ <radialGradient id="sun"><stop stop-color="#fff8ec" stop-opacity=".9"/><stop offset="1" stop-color="#f6d3ea" stop-opacity="0"/></radialGradient>
+ <linearGradient id="backWave" x1=".15" y1="0" x2=".8" y2="1"><stop stop-color="#ffe1d2"/><stop offset=".18" stop-color="#fca2ba"/><stop offset=".43" stop-color="#a9b1f4"/><stop offset=".71" stop-color="#66cbdc"/><stop offset="1" stop-color="#ad81bc"/></linearGradient>
+ <linearGradient id="middleWave" x1="0" y1=".05" x2="1" y2=".9"><stop stop-color="#ffd9c5"/><stop offset=".24" stop-color="#ee9cba"/><stop offset=".41" stop-color="#aa86dd"/><stop offset=".56" stop-color="#6483cf"/><stop offset=".77" stop-color="#48b9cc"/><stop offset="1" stop-color="#2a6599"/></linearGradient>
+ <linearGradient id="frontWave" x1=".2" y1="0" x2=".75" y2="1"><stop stop-color="#f5c8db"/><stop offset=".12" stop-color="#d19bdb"/><stop offset=".30" stop-color="#747dc4"/><stop offset=".56" stop-color="#195f9c"/><stop offset=".76" stop-color="#14718e"/><stop offset="1" stop-color="#103e6e"/></linearGradient>
+ <linearGradient id="highlight" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#fff" stop-opacity=".2"/><stop offset=".26" stop-color="#fff" stop-opacity=".74"/><stop offset=".65" stop-color="#d5fcff" stop-opacity=".68"/><stop offset="1" stop-color="#fff" stop-opacity=".07"/></linearGradient>
+ <radialGradient id="purpleShadow"><stop stop-color="#2e286f" stop-opacity=".64"/><stop offset="1" stop-color="#2e286f" stop-opacity="0"/></radialGradient>
+ <filter id="blur" x="-20%" y="-30%" width="140%" height="170%"><feGaussianBlur stdDeviation="28"/></filter>
+ <filter id="rim" x="-20%" y="-30%" width="140%" height="180%"><feGaussianBlur stdDeviation="4"/></filter>
+</defs>
+<rect width="1600" height="900" fill="url(#sky)"/>
+<ellipse cx="520" cy="80" rx="800" ry="520" fill="url(#sun)" opacity=".75"/>
+<path d="M-100 530 C200 390 370 420 625 505 C895 594 1115 275 1710 355 L1710 950 L-100 950Z" fill="#354ba0" opacity=".32" filter="url(#blur)"/>
+<path d="M-100 480 C218 342 402 384 626 455 C874 530 1170 231 1708 300 L1708 950 L-100 950Z" fill="url(#backWave)"/>
+<path d="M-100 481 C213 344 417 378 631 456 C887 537 1206 244 1708 301" fill="none" stroke="url(#highlight)" stroke-width="11" opacity=".75" filter="url(#rim)"/>
+<path d="M-100 620 C150 492 343 478 561 572 C843 692 1110 351 1710 390 L1710 950 L-100 950Z" fill="url(#middleWave)"/>
+<path d="M-100 624 C167 484 351 485 575 572 C872 688 1150 366 1690 392" fill="none" stroke="url(#highlight)" stroke-width="5" opacity=".82"/>
+<ellipse cx="920" cy="703" rx="800" ry="140" fill="url(#purpleShadow)" filter="url(#blur)"/>
+<path d="M-110 755 C194 625 361 662 598 732 C901 826 1233 512 1710 517 L1710 950 L-100 950Z" fill="url(#frontWave)"/>
+<path d="M-80 763 C211 626 369 668 603 734 C915 819 1242 535 1710 519" stroke="url(#highlight)" fill="none" stroke-width="9" opacity=".82" filter="url(#rim)"/>
+<path d="M-100 760 C199 622 365 658 597 730 C894 823 1238 526 1710 518" stroke="#e5f9ff" fill="none" stroke-width="1.7" stroke-opacity=".64"/>
+<path d="M-70 860 C380 688 520 780 782 811 C1160 869 1295 700 1690 666" fill="none" stroke="#c6c7ff" stroke-opacity=".14" stroke-width="58" filter="url(#blur)"/>
+</svg>

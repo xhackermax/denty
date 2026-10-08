@@ -90,40 +90,23 @@ html[data-mantine-color-scheme="dark"][data-denty-palette]:not([data-denty-palet
   --denty-line: color-mix(in srgb, var(--denty-palette-accent) 23%, transparent);
 }
 
-/* Original wallpaper interpretations, rendered by CSS, no third-party images. */
-/* Smooth gradient with spacious, low-contrast colour light. */
-html[data-denty-wallpaper="aurora"] body {
-  background-color: var(--denty-bg);
-  background-image:
-    radial-gradient(ellipse 72% 63% at 87% 8%, color-mix(in srgb, var(--denty-blue) 25%, transparent), transparent 74%),
-    radial-gradient(ellipse 56% 46% at 6% 86%, color-mix(in srgb, var(--denty-violet) 17%, transparent), transparent 78%),
-    radial-gradient(ellipse 45% 54% at 54% 56%, color-mix(in srgb, var(--denty-teal) 11%, transparent), transparent 80%);
-  background-attachment: fixed;
+/* One fixed-size, full-resolution vector artwork per wallpaper.
+   This existing body pseudo-element is the same viewport canvas on desktop
+   and mobile. The higher specificity also overrides the stock dark-mode haze. */
+html[data-denty-wallpaper="aurora"]:not([data-denty-wallpaper="none"]) body::before {
+  background: url("/wallpapers/aurora-luxury.svg") center / cover no-repeat;
 }
 
-/* Sculpted soft-gradient ribbons inspired by abstract 3D backgrounds. */
-html[data-denty-wallpaper="silk"] body {
-  background-color: var(--denty-bg);
-  background-image:
-    radial-gradient(ellipse 32% 100% at 92% 16%, color-mix(in srgb, var(--denty-violet) 22%, transparent), transparent 84%),
-    radial-gradient(ellipse 42% 110% at 76% 72%, color-mix(in srgb, var(--denty-blue) 21%, transparent), transparent 82%),
-    radial-gradient(ellipse 47% 66% at 12% 35%, color-mix(in srgb, var(--denty-teal) 15%, transparent), transparent 82%),
-    conic-gradient(from 214deg at 73% 28%, transparent 0deg, color-mix(in srgb, var(--denty-blue) 7%, transparent) 95deg, transparent 172deg, color-mix(in srgb, var(--denty-violet) 8%, transparent) 236deg, transparent 320deg);
-  background-attachment: fixed;
+html[data-denty-wallpaper="silk"]:not([data-denty-wallpaper="none"]) body::before {
+  background: url("/wallpapers/silk-3d.svg") center / cover no-repeat;
 }
 
-/* Wireframe motifs from repeating diagonals; decorative only, never a chart grid. */
-html[data-denty-wallpaper="mesh"] body {
-  background-color: var(--denty-bg);
-  background-image:
-    radial-gradient(ellipse 74% 60% at 88% 15%, color-mix(in srgb, var(--denty-blue) 19%, transparent), transparent 80%),
-    repeating-linear-gradient(32deg, transparent 0 44px, color-mix(in srgb, var(--denty-blue) 12%, transparent) 45px, transparent 46px 88px),
-    repeating-linear-gradient(148deg, transparent 0 44px, color-mix(in srgb, var(--denty-teal) 10%, transparent) 45px, transparent 46px 88px);
-  background-attachment: fixed;
+html[data-denty-wallpaper="mesh"]:not([data-denty-wallpaper="none"]) body::before {
+  background: url("/wallpapers/mesh-network.svg") center / cover no-repeat;
 }
 
 html[data-denty-wallpaper]:not([data-denty-wallpaper="none"]) body::before {
-  opacity: 0.3;
+  opacity: 1;
 }
 
 /* A user-off toggle takes precedence over decorative CSS effects even if the OS
