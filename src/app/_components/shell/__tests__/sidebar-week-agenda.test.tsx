@@ -71,7 +71,7 @@ describe("SidebarWeekAgenda", () => {
     expect(screen.getByRole("group", { name: "Días de la semana" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Semana anterior" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Semana siguiente" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Abrir agenda de hoy/ })).toHaveAttribute("href", "/app/agenda?date=2026-10-08");
+    expect(screen.getByRole("link", { name: /^Abrir agenda de hoy$/ })).toHaveAttribute("href", "/app/agenda?date=2026-10-08");
     const today = await screen.findByRole("link", { name: /jueves, 8 de octubre, 3 citas/i });
     expect(today).toHaveAttribute("href", "/app/agenda?date=2026-10-08");
     expect(today).toHaveAttribute("data-busy", "true");
@@ -86,7 +86,7 @@ describe("SidebarWeekAgenda", () => {
       "href", "/app/agenda?date=2026-10-12",
     );
     fireEvent.click(screen.getByRole("button", { name: "Hoy" }));
-    expect(screen.getByRole("link", { name: /jueves, 8 de octubre/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Abrir agenda del jueves, 8 de octubre/i })).toHaveAttribute(
       "href", "/app/agenda?date=2026-10-08",
     );
   });
