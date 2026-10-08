@@ -43,6 +43,8 @@ jobs:
         run: npx vitest run src/shared/clinical/__tests__/clinical-workspace.test.tsx src/shared/clinical/__tests__/deferred-budget-follow-up.test.tsx src/server/denty-supabase/__tests__/scoped-budgets.test.ts src/shared/clinical/__tests__/budget-options.test.tsx
       - name: Confirmation security tests
         run: npx vitest run "src/app/confirmar-cita/[token]/confirmation-action.test.ts"
+      - name: Contact permissions tests
+        run: npx vitest run src/app/api/clinic-contacts/route.test.ts src/features/admin/clinic-contacts/__tests__/clinic-contacts-list.test.tsx
       - name: Production build smoke test
         env:
           SUPABASE_URL: http://127.0.0.1:54399
