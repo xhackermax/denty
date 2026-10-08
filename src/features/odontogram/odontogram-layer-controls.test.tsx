@@ -9,7 +9,7 @@ import { createInitialOdontogramViewState } from "./odontogram-view-state";
 afterEach(cleanup);
 
 describe("odontogram layer controls", () => {
-  it("keeps only the four frequent layers visible and exposes the rest in Más capas", () => {
+  it("exposes all eight areas directly in a compact multi-layer toolbar", () => {
     const onToggleLayer = vi.fn();
     const onFocusLayer = vi.fn();
     render(
@@ -30,18 +30,19 @@ describe("odontogram layer controls", () => {
     expect(screen.getByRole("button", { name: "Mostrar capa Perio" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("button", { name: "Mostrar capa Endo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mostrar capa Prótesis" })).toBeInTheDocument();
-    const frequentLayers = screen.getByLabelText("Capas frecuentes");
-    expect(within(frequentLayers).getAllByRole("button", { name: /^Mostrar capa / })).toHaveLength(4);
-    expect(within(frequentLayers).queryByRole("button", { name: "Mostrar capa Orto" })).not.toBeInTheDocument();
-
-    const moreLayers = screen.getByText("Más capas").closest("details");
-    expect(moreLayers).not.toHaveAttribute("open");
-    fireEvent.click(screen.getByText("Más capas"));
-    expect(moreLayers).toHaveAttribute("open");
-    fireEvent.click(within(moreLayers!).getByRole("button", { name: "Mostrar capa Cirugía" }));
+    const areas = screen.getByLabelText("Áreas clínicas");
+    expect(within(areas).getAllByRole("button", { name: /^Mostrar capa / })).toHaveLength(8);
+    expect(within(areas).getByRole("button", { name: "Mostrar capa Orto" })).toBeInTheDocument();
+    expect(within(areas).getByRole("button", { name: "Mostrar capa Recambio" })).toBeInTheDocument();
+    expect(screen.queryByText("Más capas")).not.toBeInTheDocument();
+    fireEvent.click(within(areas).getByRole("button", { name: "Mostrar capa Cirugía" }));
     expect(onToggleLayer).toHaveBeenCalledWith("surgery");
     fireEvent.click(screen.getByRole("button", { name: "Editar área General" }));
     expect(onFocusLayer).toHaveBeenCalledWith("general");
+    fireEvent.click(within(areas).getByRole("button", { name: "Mostrar capa Perio" }));
+    fireEvent.click(within(areas).getByRole("button", { name: "Mostrar capa Endo" }));
+    expect(onToggleLayer).toHaveBeenCalledWith("perio");
+    expect(onToggleLayer).toHaveBeenCalledWith("endo");
   });
 
   it("offers visible subfilters without coupling them to the layer toggle", () => {
