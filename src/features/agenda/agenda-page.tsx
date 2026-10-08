@@ -322,6 +322,7 @@ export function AgendaPage() {
   const resizingRef = useRef<{ id: string; startY: number; initialDuration: number } | null>(null);
   const touchRef = useRef<{ x: number; y: number } | null>(null);
   const longPressRef = useRef<{ timer: number; x: number; y: number } | null>(null);
+  const suppressSlotClickRef = useRef(false);
 
   const effectiveDayCount: AgendaDayCount = isMobile ? 1 : dayCount;
   const rangeStart = rangeStartFor(anchor, effectiveDayCount);
@@ -686,11 +687,11 @@ export function AgendaPage() {
     }
   };
 
-  const copyAppointment = (appointment: AgendaAppointmentView) => {
+  const copyAppointment = useCallback((appointment: AgendaAppointmentView) => {
     setCopied(appointment);
     setSelectedId(appointment.id);
     setAgendaNotice(`Cita de ${appointment.patientName} copiada. Haz clic derecho en un hueco, o mantenlo pulsado en móvil, para pegarla.`);
-  };
+  }, []);
 
   const clearLongPress = () => {
     if (longPressRef.current) window.clearTimeout(longPressRef.current.timer);
@@ -1046,6 +1047,7 @@ export function AgendaPage() {
     opened,
     pending,
     selectedId,
+    copyAppointment,
   ]);
 
   // Resize with live preview; committed (with conflict check) on release.
@@ -1558,6 +1560,8 @@ export function AgendaPage() {
                 onContextMenu={(event) => {
                   if (!copied || event.target !== event.currentTarget) return;
                   event.preventDefault();
+                  clearLongPress();
+                  suppressSlotClickRef.current = true;
                   const rect = event.currentTarget.getBoundingClientRect();
                   void pasteAppointmentAt(
                     copied,
@@ -1576,6 +1580,7 @@ export function AgendaPage() {
                     timer: window.setTimeout(() => {
                       touchRef.current = null;
                       longPressRef.current = null;
+                      suppressSlotClickRef.current = true;
                       void pasteAppointmentAt(
                         copied,
                         member,
@@ -1593,6 +1598,10 @@ export function AgendaPage() {
                 onPointerUp={clearLongPress}
                 onPointerCancel={clearLongPress}
                 onClick={(event) => {
+                  if (suppressSlotClickRef.current) {
+                    suppressSlotClickRef.current = false;
+                    return;
+                  }
                   if (event.target !== event.currentTarget) return;
                   const rect = event.currentTarget.getBoundingClientRect();
                   openAppointmentAtSlot(member.id, event.clientY, rect.top);
