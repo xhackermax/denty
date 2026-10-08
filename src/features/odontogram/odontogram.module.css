@@ -1994,6 +1994,31 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 
+/* All eight clinical areas remain immediately available in one compact rail.
+   Horizontal movement only affects the controls, never the anatomical chart. */
+.layerToolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.layerToolbar .layerButtons {
+  min-width: 0;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  padding: 3px 0;
+  scrollbar-width: thin;
+}
+
+.layerToolbar .layerButtonPair {
+  flex: 0 0 auto;
+}
+
+.layerToolbar .layerAction {
+  white-space: nowrap;
+}
+
 /* One chart, one clinical inspector. Never stack specialty odontograms.
    Compact and medium viewports use a floating tool drawer; large screens
    dock it beside a permanent single chart. No second arch is created. */
