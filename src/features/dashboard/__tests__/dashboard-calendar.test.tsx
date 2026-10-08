@@ -128,8 +128,8 @@ describe("DashboardCalendar", () => {
       },
     ]);
     mount();
-    expect(await screen.findByText("Pendiente")).toBeInTheDocument();
-    expect(screen.getByText("En sala")).toBeInTheDocument();
+    expect(await screen.findByText("Pendiente de confirmación")).toBeInTheDocument();
+    expect(screen.getByText("Ha llegado")).toBeInTheDocument();
   });
 
   it("says when the chosen day is free", async () => {
