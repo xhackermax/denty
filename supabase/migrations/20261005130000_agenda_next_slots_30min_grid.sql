@@ -1,4 +1,4 @@
-﻿-- Offer next-free-slot times on a 30-minute grid instead of every 15 minutes.
+-- Offer next-free-slot times on a 30-minute grid instead of every 15 minutes.
 -- Nearest free slots across the clinic's doctors, limited to a daily time window so reception
 -- can answer "Â¿por la maÃ±ana o por la tarde?" in one search instead of paging day by day.
 -- Doctors with a weekly rota are free only inside it; doctors without one fall back to the
