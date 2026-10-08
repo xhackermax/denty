@@ -1140,7 +1140,7 @@ function OdontogramEditor({
           onApplyPreset={(presetId) => {
             setViewState((current) => applyViewPreset(current, presetId));
             setInspectorLayer(null);
-          }
+          }}
           onReset={() => {
             setViewState((current) => resetOdontogramView(current));
             setInspectorLayer("general");
@@ -1720,7 +1720,6 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
   );
   const expectedVersion = historical ? undefined : query.data.version;
   const birthDate = patientQuery.data?.birthDate ?? undefined;
-  const mouth = deriveMouthState(initialEntities, birthDate ? { birthDate } : {});
   const editorKey = selectedSnapshot
     ? `snapshot-${selectedSnapshot.id}`
     : `${query.data.id ?? patientId}-${editorVersion ?? 0}`;
