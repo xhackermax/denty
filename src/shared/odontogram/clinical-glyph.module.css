@@ -26,8 +26,8 @@
 
 .glyph[data-clinical-state="redo"] .icon,
 .glyph[data-clinical-state="redo"] :global(.clinical-accent) {
-  color: var(--denty-blue-text);
-  stroke: var(--denty-blue);
+  color: var(--denty-clinical-blue-text);
+  stroke: var(--denty-clinical-blue);
 }
 
 .surface {
@@ -41,7 +41,7 @@
 }
 
 .glyph[data-clinical-state="redo"] .surface[data-active="true"] {
-  fill: var(--denty-blue);
+  fill: var(--denty-clinical-blue);
   stroke: var(--denty-danger);
   stroke-width: 3px;
 }

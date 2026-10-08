@@ -2,6 +2,7 @@
 
 import { ActionIcon, Menu, SegmentedControl, Text } from "@mantine/core";
 import { IconAdjustments, IconMoon, IconSun, IconSunMoon } from "@tabler/icons-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { useDensity } from "@/shared/ui/density-provider";
@@ -30,6 +31,10 @@ export function ShellPreferences() {
         </Menu.Item>
         <Menu.Item leftSection={<IconSunMoon size={16} />} onClick={() => setPreference("time")}>
           {t("auto")}
+        </Menu.Item>
+        <Menu.Divider />
+        <Menu.Item component={Link} href="/app/settings#personalizacion">
+          Personalizar colores, fondos y animaciones
         </Menu.Item>
         <Menu.Divider />
         <Menu.Label>{t("density")}</Menu.Label>

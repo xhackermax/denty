@@ -10,12 +10,15 @@
   --denty-line: rgb(60 60 67 / 12%);
   --denty-line-strong: rgb(60 60 67 / 20%);
   --denty-blue: #007aff;
+  --denty-clinical-blue: #007aff;
+  --denty-clinical-blue-text: #0062cc;
   --denty-blue-text: #0062cc; /* brand blue as text: #007aff is 3.7:1 on the page, this is 5.3:1 */
   --denty-teal: #0a84ff;
   --denty-cyan: #32ade6;
   --denty-green: #30a46c;
   --denty-amber: #b7791f;
   --denty-gold: #c58a10;
+  --denty-clinical-violet: #7c5cff;
   --denty-violet: #7c5cff;
   --denty-indigo: #5856d6;
   --denty-danger: #d93b3b;
@@ -53,12 +56,15 @@ html[data-mantine-color-scheme="dark"] {
   --denty-line: rgb(84 84 88 / 34%);
   --denty-line-strong: rgb(99 99 102 / 52%);
   --denty-blue: #0a84ff;
+  --denty-clinical-blue: #0a84ff;
+  --denty-clinical-blue-text: #4da3ff;
   --denty-blue-text: #4da3ff;
   --denty-teal: #64d2ff;
   --denty-cyan: #64d2ff;
   --denty-green: #30d158;
   --denty-amber: #ffd60a;
   --denty-gold: #ffd60a;
+  --denty-clinical-violet: #bf5af2;
   --denty-violet: #bf5af2;
   --denty-indigo: #5e5ce6;
   --denty-danger: #ff453a;

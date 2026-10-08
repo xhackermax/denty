@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import type { DentyMessages } from "@/i18n/messages";
 import { DentyQueryProvider } from "@/shared/query";
 import { DensityProvider } from "@/shared/ui/density-provider";
+import { VisualPreferencesProvider } from "@/shared/ui/visual-preferences-provider";
 import { dentyTheme } from "@/styles/theme";
 
 import { TimeColorSchemeProvider } from "./_components/shell/time-color-scheme-provider";
@@ -22,11 +23,13 @@ export function Providers({ children, messages }: ProvidersProps) {
     <NextIntlClientProvider locale="es" messages={messages} timeZone="Europe/Madrid">
       <MantineProvider defaultColorScheme="light" theme={dentyTheme}>
         <TimeColorSchemeProvider>
+          <VisualPreferencesProvider>
           <DentyQueryProvider>
             <NuqsAdapter>
               <DensityProvider>{children}</DensityProvider>
             </NuqsAdapter>
           </DentyQueryProvider>
+          </VisualPreferencesProvider>
         </TimeColorSchemeProvider>
       </MantineProvider>
     </NextIntlClientProvider>

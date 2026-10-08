@@ -3,11 +3,22 @@ on:
   push:
     branches:
       - pipeline-postmerge-hardening
+      - feature/visual-personalization-palettes
       - main
       - security-confirmation-explicit-click
   pull_request:
     paths:
       - "src/shared/clinical/**"
+      - "src/domain/visual-personalization.ts"
+      - "src/shared/ui/visual-preferences-provider.tsx"
+      - "src/shared/ui/__tests__/visual-preferences-provider.test.tsx"
+      - "src/features/parity/modules/visual-personalization-*"
+      - "src/features/parity/modules/settings-module.tsx"
+      - "src/app/providers.tsx"
+      - "src/app/layout.tsx"
+      - "src/app/_components/shell/**"
+      - "src/styles/**"
+      - "src/shared/motion/**"
       - "src/features/dashboard/**"
       - "src/features/parity/admin-page.tsx"
       - "package.json"
@@ -53,6 +64,8 @@ jobs:
         run: npx vitest run "src/app/confirmar-cita/[token]/confirmation-action.test.ts"
       - name: Contact permissions tests
         run: npx vitest run src/app/api/clinic-contacts/route.test.ts src/features/admin/clinic-contacts/__tests__/clinic-contacts-list.test.tsx
+      - name: Visual preferences and palette contract
+        run: npx vitest run src/domain/__tests__/visual-personalization.test.ts src/shared/ui/__tests__/visual-preferences-provider.test.tsx
       - name: Production build smoke test
         env:
           SUPABASE_URL: http://127.0.0.1:54399

@@ -32,6 +32,26 @@ const timeColorSchemeScript = `
   }
 })();`;
 
+const visualPreferenceScript = `
+(function () {
+  try {
+    var raw = localStorage.getItem("denty.ui.visual.v1");
+    if (!raw || raw.length > 2048) return;
+    var parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
+    var palettes = ["denty", "27", "25", "22", "19", "17", "15", "14", "10", "6"];
+    var wallpapers = ["none", "aurora", "silk", "mesh"];
+    var root = document.documentElement;
+    if (palettes.includes(parsed.palette)) root.dataset.dentyPalette = parsed.palette;
+    if (wallpapers.includes(parsed.wallpaper)) root.dataset.dentyWallpaper = parsed.wallpaper;
+    if (typeof parsed.animations === "boolean") {
+      root.dataset.dentyAnimations = parsed.animations ? "on" : "off";
+    }
+  } catch {
+    // Unavailable/invalid browser preference never blocks the app.
+  }
+})();`;
+
 const inter = localFont({
   src: "./fonts/InterVariable.woff2",
   weight: "100 900",
@@ -54,6 +74,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       <head>
         <ColorSchemeScript defaultColorScheme="light" />
         <script dangerouslySetInnerHTML={{ __html: timeColorSchemeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: visualPreferenceScript }} />
       </head>
       <body className={inter.variable}>
         <Providers messages={ES_MESSAGES}>{children}</Providers>

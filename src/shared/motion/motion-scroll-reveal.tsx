@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import type { MotionIntensity } from "./motion-tokens";
 import { motionTokens } from "./motion-tokens";
+import { useVisualPreferences } from "@/shared/ui/visual-preferences-provider";
 
 export function MotionScrollReveal({
   children,
@@ -18,13 +19,15 @@ export function MotionScrollReveal({
   delay?: number;
 }) {
   const reducedMotion = useReducedMotion();
+  const { animations } = useVisualPreferences();
+  const skipMotion = !animations || reducedMotion;
   const distance = intensity === "subtle" ? 18 : intensity === "expressive" ? 58 : 34;
 
   return (
     <motion.div
       className={className}
       initial={
-        reducedMotion
+        skipMotion
           ? false
           : {
               y: distance,
@@ -33,12 +36,12 @@ export function MotionScrollReveal({
       whileInView={{ y: 0 }}
       viewport={{ once: true, amount: intensity === "expressive" ? 0.12 : 0.18 }}
       transition={{
-        duration: reducedMotion
+        duration: skipMotion
           ? 0
           : intensity === "expressive"
             ? 0.72
             : motionTokens.duration.panel,
-        delay: reducedMotion ? 0 : delay,
+        delay: skipMotion ? 0 : delay,
         ease: motionTokens.easing.standard,
       }}
     >

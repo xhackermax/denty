@@ -22,6 +22,7 @@ import { VoiceCommandBar } from "@/features/voice/voice-command-bar";
 import { MotionPage } from "@/shared/motion";
 import { OfflineBanner } from "@/shared/ui";
 import { DevicePermissions } from "@/shared/ui/device-permissions";
+import { useVisualPreferences } from "@/shared/ui/visual-preferences-provider";
 
 import styles from "./app-shell.module.css";
 import { MoreMenu, isActive } from "./more-menu";
@@ -32,6 +33,7 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
   const tShell = useTranslations("Shell");
   const tCommon = useTranslations("Common");
   const pathname = usePathname();
+  const { animations } = useVisualPreferences();
 
   const { pinned } = useResolvedNavigation();
   const sidebarItems = navItemsFor(pinned);
@@ -60,16 +62,16 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
           {active ? (
             <motion.span
               className={styles.navIndicator}
-              layoutId="denty-desktop-nav-indicator"
-              transition={{ type: "spring", stiffness: 420, damping: 38, mass: 0.68 }}
+              {...(animations ? { layoutId: "denty-desktop-nav-indicator" } : {})}
+              transition={animations ? { type: "spring", stiffness: 420, damping: 38, mass: 0.68 } : { duration: 0 }}
               aria-hidden="true"
             />
           ) : null}
           <motion.span
             className={styles.navLinkContent}
-            animate={active ? { scale: 1.05, y: -1 } : { scale: 1, y: 0 }}
-            whileTap={{ scale: 0.965 }}
-            transition={{ type: "spring", stiffness: 440, damping: 34 }}
+            animate={animations ? (active ? { scale: 1.05, y: -1 } : { scale: 1, y: 0 }) : { scale: 1, y: 0 }}
+            {...(animations ? { whileTap: { scale: 0.965 } } : {})}
+            transition={animations ? { type: "spring", stiffness: 440, damping: 34 } : { duration: 0 }}
           >
             <Icon size={20} stroke={1.8} aria-hidden={true} />
             <span className={styles.navLabel}>{tNav(item.key)}</span>
@@ -184,16 +186,16 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
               {active ? (
                 <motion.span
                   className={styles.bottomIndicator}
-                  layoutId="denty-mobile-nav-indicator"
-                  transition={{ type: "spring", stiffness: 420, damping: 38, mass: 0.68 }}
+                  {...(animations ? { layoutId: "denty-mobile-nav-indicator" } : {})}
+                  transition={animations ? { type: "spring", stiffness: 420, damping: 38, mass: 0.68 } : { duration: 0 }}
                   aria-hidden="true"
                 />
               ) : null}
               <motion.span
                 className={styles.bottomLinkContent}
-                animate={active ? { scale: 1.06, y: -1 } : { scale: 1, y: 0 }}
-                whileTap={{ scale: 0.94 }}
-                transition={{ type: "spring", stiffness: 440, damping: 34 }}
+                animate={animations ? (active ? { scale: 1.06, y: -1 } : { scale: 1, y: 0 }) : { scale: 1, y: 0 }}
+                {...(animations ? { whileTap: { scale: 0.94 } } : {})}
+                transition={animations ? { type: "spring", stiffness: 440, damping: 34 } : { duration: 0 }}
               >
                 <Icon size={20} aria-hidden={true} />
                 <span>{tNav(item.key)}</span>
