@@ -36,6 +36,7 @@ export interface BudgetView {
   totalCents: number;
   version?: number | undefined;
   revision?: number | undefined;
+  sourcePlanVersion?: number | null | undefined;
   createdAt?: string | undefined;
   scope?: string | undefined;
   title?: string | null | undefined;
