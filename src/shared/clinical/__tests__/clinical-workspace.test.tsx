@@ -281,9 +281,9 @@ describe("patient budget history", () => {
     expect(within(dialog).getByText("¿Qué opción encaja mejor contigo?")).toBeInTheDocument();
     expect(within(dialog).getByText("Conservar el diente")).toBeInTheDocument();
     expect(within(dialog).getByText("Implante")).toBeInTheDocument();
-    expect(within(dialog).getByText("Reconstrucción del diente")).toBeInTheDocument();
-    expect(within(dialog).getByText("Extracción del diente")).toBeInTheDocument();
-    expect(within(dialog).getByText("Colocación del implante")).toBeInTheDocument();
+    expect(within(dialog).getByText("Diente 46: Reconstrucción del diente")).toBeInTheDocument();
+    expect(within(dialog).getByText("Diente 46: Extracción del diente")).toBeInTheDocument();
+    expect(within(dialog).getByText("Diente 46: Colocación del implante")).toBeInTheDocument();
 
     const interestButtons = within(dialog).getAllByRole("button", {
       name: "Me interesa esta opción",
@@ -305,7 +305,11 @@ describe("patient budget history", () => {
 
   it("saves draft edits with the expected version and updated line items", async () => {
     renderWorkspace();
-    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    fireEvent.click(
+      within(screen.getByRole("region", { name: "Presupuestos" })).getAllByRole("button", {
+        name: "Editar",
+      })[0]!,
+    );
     const dialog = await screen.findByRole("dialog", { name: "Editar presupuesto P-1-R2" });
     fireEvent.change(within(dialog).getByLabelText("Nombre del presupuesto"), {
       target: { value: "Fase 1 revisada" },
@@ -327,7 +331,11 @@ describe("patient budget history", () => {
 
   it("requires confirmation before deleting a draft", async () => {
     renderWorkspace();
-    fireEvent.click(screen.getByRole("button", { name: "Eliminar" }));
+    fireEvent.click(
+      within(screen.getByRole("region", { name: "Presupuestos" })).getAllByRole("button", {
+        name: "Eliminar",
+      })[0]!,
+    );
     const dialog = await screen.findByRole("dialog", { name: "¿Eliminar este presupuesto?" });
     expect(within(dialog).getByText(/Esta acción no se puede deshacer/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar presupuesto" }));
