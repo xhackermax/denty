@@ -236,6 +236,72 @@ export function useSignBudgetMutation(patientId: string) {
   });
 }
 
+/**
+ * Patient has not accepted the budget yet. Keep one durable pending-signature
+ * document and one open follow-up task linked to the same budget.
+ */
+export function useDeferBudgetDecisionMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      budgetId: string;
+      budgetCode: string;
+      totalCents: number;
+      patientName: string;
+    }) => {
+      const api = getBrowserApi();
+      const [documents, tasks] = await Promise.all([
+        api.documents.list(patientId),
+        api.tasks.list(),
+      ]);
+      const existingDocument = documents.items.find(
+        (document) =>
+          document.type === "BUDGET" &&
+          document.data?.budgetId === input.budgetId &&
+          document.data?.decision === "PENDING_SIGNATURE" &&
+          document.status !== "ARCHIVED",
+      );
+      const document =
+        existingDocument ??
+        (await api.documents.create({
+          patientId,
+          type: "BUDGET",
+          title: `Presupuesto ${input.budgetCode} · pendiente de firma`,
+          data: {
+            budgetId: input.budgetId,
+            budgetCode: input.budgetCode,
+            totalCents: input.totalCents,
+            decision: "PENDING_SIGNATURE",
+          },
+        }));
+      const existingTask = tasks.items.find(
+        (task) =>
+          task.sourceType === "budget_pending_signature" &&
+          task.sourceId === input.budgetId &&
+          task.status !== "DONE" &&
+          task.status !== "CANCELLED",
+      );
+      const task =
+        existingTask ??
+        (await api.tasks.create({
+          title: `Llamar a ${input.patientName || "paciente"}: presupuesto pendiente`,
+          description: `Seguimiento del presupuesto ${input.budgetCode}. El paciente ha decidido pensárselo o realizar el tratamiento más adelante.`,
+          patientId,
+          taskType: "budget_follow_up",
+          priority: "NORMAL",
+          sourceType: "budget_pending_signature",
+          sourceId: input.budgetId,
+        }));
+      return { document, task };
+    },
+    onSuccess: () => {
+      invalidateClinicalPatient(queryClient, patientId);
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.documents.root });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.tasks.root });
+    },
+  });
+}
+
 export function useSetPlanItemPriceMutation(patientId: string) {
   const queryClient = useQueryClient();
   return useMutation({
