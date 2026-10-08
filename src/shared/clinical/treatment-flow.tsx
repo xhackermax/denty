@@ -140,9 +140,13 @@ function TreatmentFlow({
   // undefined: nothing chosen yet (the whole plan); null: the choice is being prepared.
   const [chosenBudget, setChosenBudget] = useState<BudgetView | null | undefined>(undefined);
   const budget = chosenBudget === undefined ? wholeBudget : chosenBudget;
-  const existingCustomBudgets = (budgetHistory.data?.items ?? []).filter(
-    (candidate) => candidate.scope === "custom" && candidate.status === "DRAFT",
-  ) as BudgetView[];
+  const existingCustomBudgets = useMemo(
+    () =>
+      (budgetHistory.data?.items ?? []).filter(
+        (candidate) => candidate.scope === "custom" && candidate.status === "DRAFT",
+      ) as BudgetView[],
+    [budgetHistory.data?.items],
+  );
   const signedBudget = syncBudget
     ? ((budgetHistory.data?.items ?? []).find((candidate) => candidate.id === syncBudget.id) as
         | BudgetView
