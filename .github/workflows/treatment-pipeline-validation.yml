@@ -4,14 +4,17 @@ on:
     branches:
       - pipeline-postmerge-hardening
       - main
+      - security-confirmation-explicit-click
   pull_request:
     paths:
       - "src/shared/clinical/**"
+      - "src/app/confirmar-cita/**"
       - "src/features/odontogram/**"
       - "src/features/patients/**"
       - "src/features/parity/modules/documents-module.tsx"
       - "src/server/denty-supabase/clinical-repository.ts"
       - "supabase/migrations/*budget*.sql"
+      - "supabase/migrations/*clinic_contact*.sql"
       - "scripts/tests/clinical-consent-gate-regression.mjs"
       - ".github/workflows/treatment-pipeline-validation.yml"
 permissions:
@@ -38,6 +41,8 @@ jobs:
         run: node scripts/tests/clinical-consent-gate-regression.mjs
       - name: Focused tests
         run: npx vitest run src/shared/clinical/__tests__/clinical-workspace.test.tsx src/shared/clinical/__tests__/deferred-budget-follow-up.test.tsx src/server/denty-supabase/__tests__/scoped-budgets.test.ts src/shared/clinical/__tests__/budget-options.test.tsx
+      - name: Confirmation security tests
+        run: npx vitest run "src/app/confirmar-cita/[token]/confirmation-action.test.ts"
       - name: Production build smoke test
         env:
           SUPABASE_URL: http://127.0.0.1:54399
