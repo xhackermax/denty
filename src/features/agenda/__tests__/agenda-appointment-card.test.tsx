@@ -161,6 +161,25 @@ describe("tarjeta de agenda sencilla", () => {
     expect(container.querySelector('[data-icon="toothbrush"]')).not.toBeNull();
     expect(screen.getByRole("img")).toHaveAccessibleName(/Higiene.*Q1–Q4.*Pendiente/);
   });
+  it.each(["Profilaxis dental", "Limpieza dental", "Raspado Q1", "Mantenimiento periodontal"])(
+    "dibuja un cepillo con cabezal y cerdas visibles en la agenda compacta para %s",
+    (label) => {
+      const glyph = clinicalGlyphFor({ label });
+      expect(glyph?.family).toBe("periodontal_hygiene");
+      const { container } = render(<ClinicalGlyph glyph={glyph!} mode="micro" />);
+      const svg = container.querySelector("svg");
+      expect(svg).toHaveAttribute("viewBox", "0 0 24 24");
+      const toothbrush = svg?.querySelector('[data-icon="toothbrush"]');
+      expect(toothbrush).not.toBeNull();
+      expect(toothbrush?.querySelector('[data-part="brush-handle"]')).not.toBeNull();
+      const bristles = toothbrush?.querySelector('[data-part="brush-bristles"]');
+      expect(bristles).not.toBeNull();
+      // Four upright groups of bristles: the previous three diagonal lines
+      // merged into a pencil-shaped nib at the agenda's 19px icon size.
+      expect((bristles?.getAttribute("d")?.match(/V/g) ?? [])).toHaveLength(4);
+      expect(screen.getByRole("img")).toHaveAccessibleName(new RegExp(label));
+    },
+  );
   it("no marca cinco superficies afectadas cuando el plan no especifica ninguna", () => {
     const glyph = clinicalGlyphFor({ treatmentCode: "FILLING", tooth: "26", label: "Obturación" });
     const { container } = render(<ClinicalGlyph glyph={glyph!} />);
