@@ -1,6 +1,7 @@
 "use client";
 
 import { MotionConfig } from "motion/react";
+import { readBrowserStorageItem, writeBrowserStorageItem } from "@/shared/browser/browser-storage";
 import {
   createContext,
   useCallback,
@@ -36,12 +37,9 @@ let lastStored: string | null | undefined;
 let lastSnapshot: VisualPreferences = { ...DEFAULT_VISUAL_PREFERENCES };
 
 function getSnapshot(): VisualPreferences {
-  let raw: string | null = null;
-  try {
-    raw = window.localStorage.getItem(VISUAL_PREFERENCES_KEY);
-  } catch {
-    return lastSnapshot;
-  }
+  const stored = readBrowserStorageItem(VISUAL_PREFERENCES_KEY);
+  if (!stored.ok) return lastSnapshot;
+  const raw = stored.value;
   if (raw === lastStored) return lastSnapshot;
   lastStored = raw;
   lastSnapshot = parseVisualPreferences(raw);
@@ -71,11 +69,8 @@ function persistPreferences(value: VisualPreferences) {
     animations: value.animations === true,
   } satisfies VisualPreferences;
 
-  try {
-    window.localStorage.setItem(VISUAL_PREFERENCES_KEY, JSON.stringify(normalized));
+  if (writeBrowserStorageItem(VISUAL_PREFERENCES_KEY, JSON.stringify(normalized))) {
     window.dispatchEvent(new Event(VISUAL_PREFERENCES_EVENT));
-  } catch {
-    // Locked-down browsers may block localStorage. Do not crash the clinical interface.
   }
 }
 
