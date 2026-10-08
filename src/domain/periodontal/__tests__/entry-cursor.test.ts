@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { deriveMouthState } from "@/domain/odontogram/mouth-state";
-import { createPerioExam, examToReadings, examToSites, perioSummary } from "../exam";
+import { createPerioExam, examToReadings, examToSites, examToVisualReadings, perioSummary } from "../exam";
 import {
   createPerioSession,
   applyPerioCommand,
@@ -142,4 +142,28 @@ test("temporary loss of retained primary tooth keeps measurements for a later un
   expect(examToSites(removed.exam).some((r) => r.tooth === "55")).toBe(false);
   const restored = reconcileSessionMouth(removed, present);
   expect(restored.exam.teeth["55"]?.sites.MV).toMatchObject({ pd: 6, gm: -2 });
+});
+
+test("main chart includes BOP and suppuration before measuring PD, without changing finalized sites", () => {
+  let session = createPerioSession(createPerioExam(mouth), mouth);
+  session = applyPerioCommand(session, {
+    type: "site", tooth: "16", site: "MV", patch: { bop: true },
+  }, mouth);
+  session = applyPerioCommand(session, {
+    type: "site", tooth: "16", site: "DP", patch: { suppuration: true },
+  }, mouth);
+  expect(examToSites(session.exam)).toHaveLength(0);
+  expect(examToVisualReadings(session.exam)).toEqual([
+    { tooth: "16", site: "MV", bleeding: true, suppuration: false, plaque: false },
+    { tooth: "16", site: "DP", bleeding: false, suppuration: true, plaque: false },
+  ]);
+  session = applyPerioCommand(session, {
+    type: "site", tooth: "16", site: "V", patch: { pd: 4 },
+  }, mouth);
+  expect(examToVisualReadings(session.exam).find((reading) => reading.site === "V"))
+    .toMatchObject({ tooth: "16", probingDepth: 4 });
+  expect(examToVisualReadings(session.exam).find((reading) => reading.site === "V"))
+    .not.toHaveProperty("recession");
+  session = applyPerioCommand(session, { type: "missing" }, mouth);
+  expect(session.exam.teeth["18"]?.missing).toBe(true);
 });
