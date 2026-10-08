@@ -16,6 +16,7 @@ import {
 } from "@mantine/core";
 import { IconPrinter } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -49,6 +50,7 @@ interface TemplateRow {
 }
 
 const TYPE_LABELS: Record<string, string> = {
+  BUDGET: "Presupuesto",
   CONSENT: "Consentimiento",
   CERTIFICATE: "Justificante",
   CLINICAL_DOCUMENT: "Documento clínico",
@@ -566,8 +568,19 @@ export function DocumentsModule() {
                 </span>
               </div>
               <div className={styles.rowActions}>
-                <Badge {...(document.status === "SIGNED" ? { color: "green" } : {})}>
-                  {STATUS_LABELS[document.status] ?? document.status}
+                <Badge
+                  {...(document.status === "SIGNED"
+                    ? { color: "green" }
+                    : document.type === "BUDGET" &&
+                        document.data?.decision === "PENDING_SIGNATURE"
+                      ? { color: "orange" }
+                      : {})}
+                >
+                  {document.type === "BUDGET" &&
+                  document.data?.decision === "PENDING_SIGNATURE" &&
+                  document.status === "DRAFT"
+                    ? "Pendiente de firma"
+                    : (STATUS_LABELS[document.status] ?? document.status)}
                 </Badge>
                 <Badge variant="light">v{document.version}</Badge>
                 {document.checksum ? <Badge variant="outline">SHA-256</Badge> : null}
@@ -586,7 +599,17 @@ export function DocumentsModule() {
                     Imprimir
                   </Button>
                 ) : null}
-                {SIGNABLE_STATES.has(document.status) ? (
+                {document.type === "BUDGET" &&
+                document.data?.decision === "PENDING_SIGNATURE" ? (
+                  <Button
+                    component={Link}
+                    href={`/app/patients/${encodeURIComponent(document.patientId)}?view=budgets&action=sign`}
+                    size="xs"
+                    color="teal"
+                  >
+                    Continuar firma
+                  </Button>
+                ) : SIGNABLE_STATES.has(document.status) ? (
                   <Button size="xs" onClick={() => openSigning(document)}>
                     Firmar
                   </Button>
@@ -610,7 +633,7 @@ export function DocumentsModule() {
                     Descargar
                   </Button>
                 ) : null}
-                {document.status === "DRAFT" ? (
+                {document.status === "DRAFT" && document.type !== "BUDGET" ? (
                   <Button size="xs" variant="light" onClick={() => finalize.mutate(document.id)}>
                     Finalizar
                   </Button>
