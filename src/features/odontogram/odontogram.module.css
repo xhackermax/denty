@@ -285,72 +285,82 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Six small hexagonal PD values, one row per periodontal face.
-   Keep the numbers upright when the upper tooth anatomy is mirrored. */
-.perioHexGrid {
+/* The tooth anatomy sits at the centre of an imaginary six-vertex hexagon.
+   Numbers are floating labels, never badges/hexagons or a grid below the tooth. */
+.toothVisualFrame {
+  position: relative;
   display: grid;
-  width: 54px;
-  grid-template-columns: repeat(3, 18px);
-  grid-template-rows: repeat(2, 18px);
-  gap: 0;
-  align-self: center;
-  order: 4;
+  width: 60px;
+  height: 84px;
   flex: none;
-  pointer-events: none;
-}
-.perioHex {
-  width: 18px;
-  height: 18px;
+  align-self: center;
+  place-items: center;
   overflow: visible;
 }
-.perioHex polygon {
-  fill: color-mix(in srgb, var(--denty-card-solid) 87%, var(--denty-teal) 13%);
-  stroke: var(--denty-green);
-  stroke-width: 1.1;
+
+.perioVertexOverlay {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
 }
-.perioHex text {
-  fill: var(--denty-text);
-  font-size: 10px;
-  font-weight: 800;
+
+.perioVertexNumber {
+  position: absolute;
+  display: grid;
+  min-width: 15px;
+  height: 15px;
+  place-items: center;
+  color: var(--denty-text);
+  font-size: 11px;
+  font-weight: 850;
   font-variant-numeric: tabular-nums;
-  paint-order: stroke;
-  stroke: none;
+  line-height: 1;
+  text-shadow: 0 1px 0 var(--denty-card-solid), 0 -1px 0 var(--denty-card-solid);
+  transform: translate(-50%, -50%);
 }
-.perioHex[data-tier="moderate"] polygon {
-  fill: color-mix(in srgb, var(--denty-card-solid) 82%, var(--denty-warning) 18%);
-  stroke: var(--denty-warning);
+
+/* Vestibular: upper arc; palatal/lingual: lower arc. Together they form six vertices. */
+.perioVertexNumber[data-site="MV"] { left: 8%; top: 23%; }
+.perioVertexNumber[data-site="V"] { left: 50%; top: 2%; }
+.perioVertexNumber[data-site="DV"] { left: 92%; top: 23%; }
+.perioVertexNumber[data-site="MP"] { left: 8%; top: 77%; }
+.perioVertexNumber[data-site="P/L"] { left: 50%; top: 98%; }
+.perioVertexNumber[data-site="DP"] { left: 92%; top: 77%; }
+
+.perioVertexNumber[data-severity="red"] { color: var(--denty-danger); }
+.perioVertexNumber[data-severity="purple"] { color: var(--denty-clinical-violet); }
+
+/* One dot per tooth: red=BOP, yellow=suppuration, two halves=both. */
+.perioFindingDot {
+  position: absolute;
+  top: 50%;
+  right: -2px;
+  width: 11px;
+  height: 11px;
+  border: 1px solid var(--denty-card-solid);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--denty-muted) 18%, transparent);
 }
-.perioHex[data-tier="high"] polygon {
-  fill: color-mix(in srgb, var(--denty-card-solid) 78%, var(--denty-danger) 22%);
-  stroke: var(--denty-danger);
-}
-.perioHex[data-tier="empty"] polygon {
-  fill: transparent;
-  stroke: var(--denty-line-strong);
-  stroke-dasharray: 2 2;
-  opacity: 0.55;
+.perioFindingDot[data-finding="bleeding"] { background: #d62839; }
+.perioFindingDot[data-finding="suppuration"] { background: #f5c518; }
+.perioFindingDot[data-finding="both"] {
+  background: linear-gradient(90deg, #d62839 50%, #f5c518 50%);
 }
 
 .toothLayerMark[data-layer="replacement"] {
   color: var(--denty-clinical-violet);
 }
 
-.toothButton[data-arch="upper"] .toothSvg {
-  order: 1;
-  transform: scaleY(-1);
-}
+.toothButton[data-arch="upper"] .toothVisualFrame { order: 1; }
+.toothButton[data-arch="lower"] .toothVisualFrame { order: 3; }
 
-.toothButton[data-arch="upper"] .toothLabel {
-  order: 3;
-}
-
-.toothButton[data-arch="lower"] .toothLabel {
-  order: 1;
-}
-
-.toothButton[data-arch="lower"] .toothSvg {
-  order: 3;
-}
+/* Flip only the anatomy, never the periodontal numbers and their labels. */
+.toothButton[data-arch="upper"] .toothSvg { transform: scaleY(-1); }
+.toothButton[data-arch="upper"] .toothLabel { order: 3; }
+.toothButton[data-arch="lower"] .toothLabel { order: 1; }
 
 .rootShape {
   fill: color-mix(in srgb, var(--denty-card-solid) 93%, var(--denty-clinical-blue) 7%);
