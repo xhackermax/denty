@@ -1994,13 +1994,16 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 
-/* Unified chart: one anatomical chart plus one bounded context inspector.
-   Selecting multiple layers never mounts another full-mouth diagram. */
+/* One chart, one clinical inspector. Never stack specialty odontograms.
+   Compact and medium viewports use a floating tool drawer; large screens
+   dock it beside a permanent single chart. No second arch is created. */
 .unifiedWorkbench {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 12px;
+  min-width: 0;
 }
 
 .unifiedChartColumn {
@@ -2009,22 +2012,73 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   min-width: 0;
 }
 
+.unifiedChartColumn .arch {
+  min-width: 610px;
+  grid-template-columns: repeat(16, minmax(34px, 1fr));
+  gap: 3px;
+}
+
 .unifiedInspector {
-  min-width: 0;
-  max-height: min(66dvh, 720px);
+  position: fixed;
+  z-index: 225;
+  top: calc(var(--denty-shell-header) + 10px);
+  right: 12px;
+  bottom: calc(var(--denty-shell-mobile-nav) + 18px);
   display: grid;
+  width: min(440px, calc(100vw - 24px));
+  min-width: 0;
+  max-height: calc(100dvh - var(--denty-shell-header) - var(--denty-shell-mobile-nav) - 28px);
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--denty-line);
   border-radius: var(--denty-radius-card);
-  background: var(--denty-card);
-  box-shadow: var(--denty-card-shadow);
+  background: var(--denty-card-solid);
+  box-shadow: var(--denty-shell-shadow);
+}
+
+.unifiedInspector[data-open="false"] {
+  display: none;
+}
+
+.inspectorBackdrop {
+  position: fixed;
+  z-index: 224;
+  inset: 0;
+  border: 0;
+  background: rgb(0 0 0 / 34%);
+  cursor: pointer;
+}
+
+.inspectorBackdrop[data-open="false"] {
+  display: none;
+}
+
+.inspectorOpenAction {
+  flex-shrink: 0;
+}
+
+.inspectorCloseAction {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--denty-line);
+  border-radius: 10px;
+  background: var(--denty-card-solid);
+  color: var(--denty-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.inspectorCloseAction:focus-visible {
+  outline: 2px solid var(--denty-blue);
+  outline-offset: 2px;
 }
 
 .inspectorHeader {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 12px 16px;
@@ -2095,9 +2149,17 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   outline-offset: -2px;
 }
 
-@media (min-width: 1500px) {
+@media (width >= 48em) {
+  .unifiedInspector {
+    bottom: 16px;
+    max-height: calc(100dvh - var(--denty-shell-header) - 26px);
+  }
+}
+
+@media (width >= 80em) {
   .unifiedWorkbench {
-    grid-template-columns: minmax(0, 1.55fr) minmax(340px, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+    gap: 14px;
   }
 
   .unifiedChartColumn {
@@ -2105,9 +2167,69 @@ html[data-mantine-color-scheme="dark"] .crownBase {
     top: calc(var(--denty-shell-header) + 8px);
   }
 
-  .unifiedInspector {
+  .unifiedChartColumn .arch {
+    min-width: 570px;
+    grid-template-columns: repeat(16, minmax(30px, 1fr));
+    gap: 2px;
+  }
+
+  .unifiedChartColumn .toothButton {
+    min-width: 30px;
+    min-height: 102px;
+    padding: 3px 1px;
+  }
+
+  .unifiedChartColumn .toothSvg {
+    width: 31px;
+    height: 52px;
+  }
+
+  .unifiedChartColumn .toothLayerMark {
+    max-width: 38px;
+    font-size: 0.44rem;
+  }
+
+  .unifiedInspector,
+  .unifiedInspector[data-open="false"] {
     position: sticky;
+    z-index: auto;
     top: calc(var(--denty-shell-header) + 8px);
+    right: auto;
+    bottom: auto;
+    display: grid;
+    width: 100%;
     max-height: calc(100dvh - var(--denty-shell-header) - 22px);
+    background: var(--denty-card);
+    box-shadow: var(--denty-card-shadow);
+  }
+
+  .inspectorBackdrop,
+  .inspectorBackdrop[data-open="true"],
+  .inspectorOpenAction,
+  .inspectorCloseAction {
+    display: none;
+  }
+}
+
+@media (width >= 100em) {
+  .unifiedChartColumn .arch {
+    min-width: 760px;
+    grid-template-columns: repeat(16, minmax(41px, 1fr));
+    gap: 4px;
+  }
+
+  .unifiedChartColumn .toothButton {
+    min-width: 41px;
+    min-height: 120px;
+  }
+
+  .unifiedChartColumn .toothSvg {
+    width: 42px;
+    height: 65px;
+  }
+
+  .unifiedChartColumn .toothLayerMark {
+    max-width: 56px;
+    font-size: 0.49rem;
   }
 }
