@@ -7,6 +7,8 @@ import {
   alternativeSetInputSchema,
   budgetFromPlanSchema,
   createScopedBudgetSchema,
+  createClinicalPlanBranchSchema,
+  clinicalPlanBranchResultSchema,
   budgetSyncResultSchema,
   clinicalEncounterInputSchema,
   clinicalEncounterSchema,
@@ -59,6 +61,12 @@ export function createClinicalResource(client: ApiClient) {
     plan: {
       get: (patientId: string) =>
         client.request(`/api/patients/${encodeId(patientId)}/clinical-plan`, clinicalPlanSchema),
+      createBranch: (patientId: string, payload: z.input<typeof createClinicalPlanBranchSchema>) =>
+        client.mutation(
+          `/api/patients/${encodeId(patientId)}/clinical-plan/branches`,
+          clinicalPlanBranchResultSchema,
+          createClinicalPlanBranchSchema.parse(payload),
+        ),
       addItem: (patientId: string, payload: z.input<typeof createPlanItemSchema>) =>
         client.mutation(
           `/api/patients/${encodeId(patientId)}/clinical-plan/items`,
