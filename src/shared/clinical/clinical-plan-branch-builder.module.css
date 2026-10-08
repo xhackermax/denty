@@ -1,0 +1,6 @@
+.catalogSelect { flex: 1; min-width: 190px; }
+.toothInput { width: 155px; }
+@media (max-width: 640px) {
+  .catalogSelect { min-width: 100%; }
+  .toothInput { width: 100%; }
+}
