@@ -83,7 +83,7 @@ jobs:
         run: node scripts/tests/wallpaper-artwork-regression.mjs
       - name: Unified odontogram layers and focus tests
         run: |
-          npx vitest run src/features/odontogram/odontogram-view-state.test.ts src/features/odontogram/odontogram-layer-controls.test.tsx src/features/odontogram/odontogram-workspace.test.tsx src/features/odontogram/odontogram-layer-projection.test.ts src/features/odontogram/orthodontic-tooth-symbols.test.tsx src/features/odontogram/perio-hex-readings.test.tsx src/features/periodontal/__tests__/perio-chart.test.tsx
+          npx vitest run src/features/odontogram/odontogram-view-state.test.ts src/features/odontogram/odontogram-layer-controls.test.tsx src/features/odontogram/odontogram-workspace.test.tsx src/features/odontogram/odontogram-layer-projection.test.ts src/features/odontogram/orthodontic-tooth-symbols.test.tsx src/features/odontogram/perio-hex-readings.test.tsx src/features/periodontal/__tests__/perio-chart.test.tsx src/domain/periodontal/__tests__/entry-cursor.test.ts
           node scripts/tests/single-odontogram-workbench.mjs
           node scripts/stage6-dentition-ui-contract.test.mjs
       - name: Agenda dental hygiene brush icon tests
