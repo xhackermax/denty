@@ -55,7 +55,7 @@
 
 @media (width >= 75em) {
   .root {
-    padding: 8px 8px 9px;
+    padding: 11px 10px 12px;
     border: 1px solid var(--denty-line);
     background: color-mix(in srgb, var(--denty-card-solid) 64%, transparent);
   }
@@ -71,7 +71,7 @@
 
   .expanded {
     display: grid;
-    gap: 5px;
+    gap: 9px;
     min-width: 0;
   }
 
@@ -83,12 +83,12 @@
 
   .openFull {
     display: flex;
-    min-height: 27px;
+    min-height: 30px;
     width: 100%;
     align-items: center;
     gap: 7px;
     color: var(--denty-text);
-    font-size: 0.72rem;
+    font-size: 0.86rem;
     font-weight: 750;
     text-decoration: none;
     text-transform: capitalize;
@@ -109,7 +109,7 @@
     display: flex;
     min-width: 0;
     align-items: center;
-    gap: 2px;
+    gap: 5px;
   }
 
   .control,
@@ -139,7 +139,7 @@
     min-width: 0;
     flex: 1 1 auto;
     color: var(--denty-muted);
-    font-size: 0.61rem;
+    font-size: 0.8rem;
     font-variant-numeric: tabular-nums;
     font-weight: 680;
     letter-spacing: -0.03em;
@@ -148,17 +148,26 @@
     white-space: nowrap;
   }
 
-  .week {
+  .week,
+  .monthGrid {
     display: grid;
     min-width: 0;
-    gap: 2px;
+    gap: 4px;
     grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .week {
+    padding-top: 4px;
+  }
+
+  .monthGrid {
+    grid-auto-rows: 43px;
   }
 
   .day {
     display: grid;
     min-width: 0;
-    min-height: 49px;
+    min-height: 43px;
     gap: 2px;
     align-content: center;
     justify-items: center;
@@ -168,6 +177,10 @@
     text-decoration: none;
   }
 
+  .day[data-outside="true"] {
+    opacity: 0.48;
+  }
+
   .day[data-today="true"] {
     border-color: color-mix(in srgb, var(--mini-accent) 54%, var(--denty-line));
     background: color-mix(in srgb, var(--mini-accent) 13%, transparent);
@@ -175,12 +188,12 @@
 
   .weekday {
     color: var(--denty-muted);
-    font-size: 0.57rem;
+    font-size: 0.65rem;
     font-weight: 750;
   }
 
   .dayNumber {
-    font-size: 0.71rem;
+    font-size: 0.81rem;
     font-variant-numeric: tabular-nums;
     font-weight: 770;
   }
@@ -192,8 +205,8 @@
   }
 
   .busyDot {
-    width: 4px;
-    height: 4px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
     background: var(--mini-accent);
   }
@@ -211,7 +224,7 @@
     min-height: 22px;
     border-top: 1px solid var(--denty-line);
     color: var(--denty-muted);
-    font-size: 0.58rem;
+    font-size: 0.68rem;
     font-weight: 650;
   }
 
