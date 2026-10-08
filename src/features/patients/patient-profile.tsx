@@ -100,6 +100,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const searchParams = useSearchParams();
   const requestedView = searchParams.get("view");
   const requestedAction = searchParams.get("action");
+  const requestedBudgetId = searchParams.get("budgetId") ?? undefined;
   const initialTab =
     requestedView === "plan"
       ? "plan"
@@ -138,10 +139,10 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   useEffect(() => {
     if (initialTab === "budgets" && requestedAction === "sign") {
       setTreatmentFlowStartAt(undefined);
-      setTreatmentFlowBudgetId(undefined);
+      setTreatmentFlowBudgetId(requestedBudgetId);
       setTreatmentFlowOpen(true);
     }
-  }, [initialTab, requestedAction]);
+  }, [initialTab, requestedAction, requestedBudgetId]);
 
   if (patientQuery.isError) {
     return (
