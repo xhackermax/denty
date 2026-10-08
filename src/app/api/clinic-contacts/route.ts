@@ -87,6 +87,8 @@ export async function POST(request: Request): Promise<Response> {
     const parsed = schema.safeParse(body);
     if (!parsed.success) return failure(400, "Parámetros de contacto no válidos.");
     const { operation, parameters } = parsed.data;
+    if (operation !== "list_clinic_contacts" && identity.actor.role !== "ADMIN")
+      return failure(403, "Solo administración puede modificar los contactos.");
     if ("p_clinic_id" in parameters && parameters.p_clinic_id !== identity.actor.clinicId)
       return failure(403, "La clínica no pertenece a la sesión.");
     if ("p_contact_id" in parameters) {

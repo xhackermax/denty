@@ -14,6 +14,7 @@ export default function ClinicContactsPage() {
     clinicId: string;
     contacts: ClinicContact[];
     total: number;
+    canManage: boolean;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function ClinicContactsPage() {
             clinicId: session.actor.clinicId,
             contacts: result.data,
             total: result.totalCount,
+            canManage: session.actor.role === "ADMIN",
           });
       } catch (cause) {
         if (!cancelled)
@@ -54,6 +56,7 @@ export default function ClinicContactsPage() {
       clinicId={data.clinicId}
       initialContacts={data.contacts}
       initialTotalCount={data.total}
+      canManage={data.canManage}
     />
   );
 }

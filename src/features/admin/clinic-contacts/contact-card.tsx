@@ -15,10 +15,12 @@ export function ContactCard({
   onEdit,
   onDelete,
   onMessage,
+  canManage = true,
 }: {
   contact: ClinicContact;
   onEdit: () => void;
   onDelete: () => void;
+  canManage?: boolean;
   onMessage: (message: string, error?: boolean) => void;
 }) {
   const phones = contact.phones
@@ -66,7 +68,7 @@ export function ContactCard({
               {contact.name}
             </Title>
           </Group>
-          <Group gap={4} wrap="nowrap">
+          {canManage ? <Group gap={4} wrap="nowrap">
             <ActionIcon variant="subtle" aria-label={`Editar ${contact.name}`} onClick={onEdit}>
               <IconPencil size={17} />
             </ActionIcon>
@@ -78,7 +80,7 @@ export function ContactCard({
             >
               <IconTrash size={17} />
             </ActionIcon>
-          </Group>
+          </Group> : null}
         </Group>
         {contact.hours ? (
           <Text size="sm" c="dimmed">
