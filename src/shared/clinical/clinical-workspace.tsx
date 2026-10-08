@@ -27,9 +27,7 @@ import {
   useAddClinicalPlanItemMutation,
   useDeleteDraftBudgetMutation,
   useClinicalPlanQuery,
-  useCreateClinicalEncounterMutation,
   useClinicalSyncQuery,
-  useCreateScopedBudgetMutation,
   useReorderClinicalPlanMutation,
   useClinicalWorkflowQuery,
   usePatientBudgetsQuery,
@@ -42,7 +40,8 @@ import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
 import { DragHandle } from "@/shared/drag/drag-handle";
 import styles from "@/shared/ui/parity.module.css";
 import type { BudgetView } from "./budget-options";
-import { TreatmentOptionComparison } from "./treatment-option-comparison";
+import { ClinicalPlanBranchBuilder } from "./clinical-plan-branch-builder";
+import { comparableBudgets } from "./budget-comparison";
 
 type ClinicalWorkspaceMode = "plan" | "budget" | "combined";
 
@@ -159,13 +158,11 @@ export function ClinicalWorkspace({
   const sync = useClinicalSyncQuery(patientId, showPlan);
   const syncPlan = useSyncPlanFromOdontogramMutation(patientId);
   const syncBudget = useSyncBudgetFromPlanMutation(patientId);
-  const createPlanAlternative = useCreateScopedBudgetMutation(patientId);
   const updateDraftBudget = useUpdateDraftBudgetMutation(patientId);
   const deleteDraftBudget = useDeleteDraftBudgetMutation(patientId);
   const reorderPlan = useReorderClinicalPlanMutation(patientId);
   const treatmentCatalog = useTreatmentCatalogQuery(showPlan);
   const addItem = useAddClinicalPlanItemMutation(patientId);
-  const recordPreference = useCreateClinicalEncounterMutation(patientId);
   const [treatmentCatalogId, setTreatmentCatalogId] = useState<string | null>(null);
   const [tooth, setTooth] = useState("");
   const [optimisticOrder, setOptimisticOrder] = useState<string[] | null>(null);
@@ -176,10 +173,9 @@ export function ClinicalWorkspace({
   const [budgetTitle, setBudgetTitle] = useState("");
   const [budgetPrices, setBudgetPrices] = useState<Record<string, number | string>>({});
   const [budgetFormError, setBudgetFormError] = useState<string | null>(null);
-  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareSelectMode, setCompareSelectMode] = useState(false);
+  const [comparisonIds, setComparisonIds] = useState<string[]>([]);
   const [alternativeOpen, setAlternativeOpen] = useState(false);
-  const [alternativeTitle, setAlternativeTitle] = useState("");
-  const [alternativeItems, setAlternativeItems] = useState<string[]>([]);
   const [selectedPlanAlternativeId, setSelectedPlanAlternativeId] = useState<string | null>(null);
 
   const activeCatalog = (treatmentCatalog.data?.items ?? []).filter((item) => item.active);
@@ -191,15 +187,13 @@ export function ClinicalWorkspace({
   const budgets = budgetHistory.data?.items ?? [];
   const currentPlanVersion = plan.data?.version;
   const planAlternativeBudgets = budgets
-    .filter(
-      (budget) =>
-        ["DRAFT", "SIGNED"].includes(budget.status) &&
-        budget.scope === "custom" &&
-        (currentPlanVersion === undefined ||
-          budget.sourcePlanVersion === undefined ||
-          budget.sourcePlanVersion === currentPlanVersion),
-    )
+    .filter((budget) => ["DRAFT", "SIGNED"].includes(budget.status) && budget.scope === "custom")
     .sort((left, right) => (left.createdAt ?? "").localeCompare(right.createdAt ?? ""));
+  const comparisonCandidates = comparableBudgets(budgets);
+  const eligibleSelectedIds = comparisonIds.filter((id) =>
+    comparisonCandidates.some((budget) => budget.id === id),
+  );
+  const comparisonHref = `/app/patients/${encodeURIComponent(patientId)}/budgets/compare?ids=${eligibleSelectedIds.map(encodeURIComponent).join(",")}`;
   useEffect(() => {
     const signedOption = sync.data?.budget;
     if (signedOption?.status === "SIGNED" && signedOption.scope === "custom") {
@@ -211,6 +205,10 @@ export function ClinicalWorkspace({
     (budget) => budget.id === selectedPlanAlternativeId,
   );
   const selectedIsSigned = selectedPlanBudget?.status === "SIGNED";
+  // Alternative-only catalogue items have no canonical plan item yet. The signature
+  // RPC intentionally blocks them until clinically formalized and consented.
+  const selectedNeedsFormalization = Boolean(selectedPlanBudget?.branch &&
+    selectedPlanBudget.items.some((item) => item.clinicalPlanItemId == null));
   const selectedPlanLetter =
     selectedPlanAlternativeId === null
       ? "A"
@@ -221,14 +219,6 @@ export function ClinicalWorkspace({
               planAlternativeBudgets.findIndex((budget) => budget.id === selectedPlanAlternativeId),
             ),
         );
-  const comparableBudgetKeys = new Set(
-    budgets
-      .filter(
-        (budget) =>
-          budget.status === "DRAFT" && budget.scope !== "primary" && budget.scope !== "secondary",
-      )
-      .map((budget) => `${budget.scope ?? "plan"}|${budget.title?.trim().toLowerCase() ?? ""}`),
-  );
   const serverSequencedItems = (
     plan.data?.route?.length ? plan.data.route : (plan.data?.items ?? [])
   ) as PlanItemView[];
@@ -387,15 +377,26 @@ export function ClinicalWorkspace({
                   <Button
                     size="xs"
                     color="teal"
+                    disabled={selectedNeedsFormalization}
                     onClick={() => onOpenGuidedFlow(selectedPlanAlternativeId ?? undefined)}
                   >
-                    {selectedIsSigned
-                      ? `Ver citas del Plan ${selectedPlanLetter}`
-                      : `Continuar con Plan ${selectedPlanLetter} a consentimientos`}
+                    {selectedNeedsFormalization
+                      ? `Formalizar Plan ${selectedPlanLetter} antes de firmar`
+                      : selectedIsSigned
+                        ? `Ver citas del Plan ${selectedPlanLetter}`
+                        : `Continuar con Plan ${selectedPlanLetter} a consentimientos`}
                   </Button>
                 ) : null}
               </Group>
             </div>
+
+            {selectedNeedsFormalization ? (
+              <Alert color="blue" mb="sm">
+                Esta rama contiene tratamientos exclusivos que todavía no pertenecen
+                al plan clínico activo. Puede compararse y presupuestarse, pero no firmarse
+                hasta formalizar dichos tratamientos y sus consentimientos clínicos.
+              </Alert>
+            ) : null}
 
             {sequencedItems.length ? (
               <ClinicalDragContext
@@ -456,21 +457,17 @@ export function ClinicalWorkspace({
               <div>
                 <h3 className={styles.sectionTitle}>Opciones del plan</h3>
                 <p className={styles.sectionDescription}>
-                  Plan A es el plan completo. Crea Plan B o Plan C cuando quieras presentar una
-                  alternativa clínica distinta al paciente.
+                  Plan A es el plan base. Ramifica tratamientos conservando pasos comunes
+                  y añade intervenciones exclusivas al Plan B, C u otras opciones.
                 </p>
               </div>
               <Button
                 size="xs"
                 variant="light"
-                disabled={!sequencedItems.length || planAlternativeBudgets.length >= 2}
-                onClick={() => {
-                  setAlternativeTitle("");
-                  setAlternativeItems([]);
-                  setAlternativeOpen(true);
-                }}
+                disabled={plan.data?.version === undefined}
+                onClick={() => setAlternativeOpen(true)}
               >
-                Crear {planAlternativeBudgets.length === 0 ? "Plan B" : "Plan C"}
+                Ramificar · Plan {String.fromCharCode(66 + planAlternativeBudgets.length)}
               </Button>
             </div>
             <div className={styles.rowList}>
@@ -499,7 +496,7 @@ export function ClinicalWorkspace({
                   </Button>
                 </Group>
               </div>
-              {planAlternativeBudgets.slice(0, 2).map((budget, index) => (
+              {planAlternativeBudgets.map((budget, index) => (
                 <div className={styles.row} key={budget.id}>
                   <div className={styles.rowMain}>
                     <span className={styles.rowTitle}>
@@ -532,74 +529,18 @@ export function ClinicalWorkspace({
             </div>
           </section>
 
-          <Modal
-            opened={alternativeOpen}
-            onClose={() => setAlternativeOpen(false)}
-            title={`Crear ${planAlternativeBudgets.length === 0 ? "Plan B" : "Plan C"}`}
-            centered
-          >
-            <Stack gap="sm">
-              <Text size="sm" c="dimmed">
-                Selecciona únicamente los tratamientos que forman esta alternativa. El precio se
-                revisará después, en Presupuesto.
-              </Text>
-              <TextInput
-                label="Nombre de la alternativa"
-                placeholder="Por ejemplo: conservar el diente / alternativa removible"
-                value={alternativeTitle}
-                onChange={(event) => setAlternativeTitle(event.currentTarget.value)}
-              />
-              <Checkbox.Group
-                label="Tratamientos"
-                value={alternativeItems}
-                onChange={setAlternativeItems}
-              >
-                <Stack gap={6} mt={6}>
-                  {sequencedItems.map((item) => (
-                    <Checkbox
-                      key={item.id}
-                      value={item.id}
-                      label={`${item.tooth ? `Diente ${item.tooth} · ` : ""}${item.label}`}
-                    />
-                  ))}
-                </Stack>
-              </Checkbox.Group>
-              {createPlanAlternative.isError ? (
-                <Alert color="red">
-                  {readableError(createPlanAlternative.error, "No se pudo crear la alternativa.")}
-                </Alert>
-              ) : null}
-              <Group justify="flex-end">
-                <Button variant="default" onClick={() => setAlternativeOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button
-                  color="teal"
-                  loading={createPlanAlternative.isPending}
-                  disabled={!alternativeItems.length}
-                  onClick={() => {
-                    const planLetter = planAlternativeBudgets.length === 0 ? "B" : "C";
-                    createPlanAlternative.mutate(
-                      {
-                        scope: "custom",
-                        title: alternativeTitle.trim() || `Plan ${planLetter}`,
-                        clinicalPlanItemIds: alternativeItems,
-                      },
-                      {
-                        onSuccess: () => {
-                          setAlternativeOpen(false);
-                          setAlternativeItems([]);
-                          setAlternativeTitle("");
-                        },
-                      },
-                    );
-                  }}
-                >
-                  Guardar alternativa
-                </Button>
-              </Group>
-            </Stack>
-          </Modal>
+          {alternativeOpen ? (
+            <ClinicalPlanBranchBuilder
+              opened={alternativeOpen}
+              onClose={() => setAlternativeOpen(false)}
+              patientId={patientId}
+              planVersion={plan.data?.version ?? 0}
+              items={sequencedItems}
+              catalog={activeCatalog}
+              letter={String.fromCharCode(66 + planAlternativeBudgets.length)}
+              onCreated={(budgetId) => setSelectedPlanAlternativeId(budgetId)}
+            />
+          ) : null}
 
           <details className={styles.disclosure}>
             <summary>
@@ -670,10 +611,28 @@ export function ClinicalWorkspace({
               >
                 Crear desde el plan
               </Button>
-              {comparableBudgetKeys.size >= 2 ? (
-                <Button size="xs" variant="light" color="teal" onClick={() => setCompareOpen(true)}>
-                  Comparar opciones
-                </Button>
+              {comparisonCandidates.length >= 2 ? (
+                <>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="teal"
+                    onClick={() => setCompareSelectMode((value) => !value)}
+                  >
+                    {compareSelectMode ? "Cancelar selección" : "Seleccionar y comparar"}
+                  </Button>
+                  {compareSelectMode ? (
+                    <Button
+                      component={Link}
+                      size="xs"
+                      color="teal"
+                      disabled={eligibleSelectedIds.length < 2}
+                      href={comparisonHref}
+                    >
+                      Comparar {eligibleSelectedIds.length} en página aparte
+                    </Button>
+                  ) : null}
+                </>
               ) : null}
               {onOpenGuidedFlow ? (
                 <Button size="xs" variant="subtle" onClick={() => onOpenGuidedFlow()}>
@@ -697,6 +656,20 @@ export function ClinicalWorkspace({
                 const canManage = budget.status === "DRAFT" && budget.version !== undefined;
                 return (
                   <div className={styles.row} key={budget.id}>
+                    {compareSelectMode && comparisonCandidates.some((option) => option.id === budget.id) ? (
+                      <Checkbox
+                        aria-label={`Seleccionar presupuesto ${budget.title || budget.code}`}
+                        checked={comparisonIds.includes(budget.id)}
+                        disabled={!comparisonIds.includes(budget.id) && comparisonIds.length >= 8}
+                        onChange={(event) => {
+                          const checked = event.currentTarget.checked;
+                          setComparisonIds((current) => checked
+                            ? (current.includes(budget.id) || current.length >= 8
+                              ? current : [...current, budget.id])
+                            : current.filter((id) => id !== budget.id));
+                        }}
+                      />
+                    ) : null}
                     <div className={styles.rowMain}>
                       <span className={styles.rowTitle}>{budget.title || budget.code}</span>
                       <span className={styles.rowMeta}>
@@ -750,31 +723,6 @@ export function ClinicalWorkspace({
 
       {showBudget ? (
         <>
-          <TreatmentOptionComparison
-            budgets={budgets}
-            opened={compareOpen}
-            onClose={() => setCompareOpen(false)}
-            onOpenBudget={(budget) => {
-              setCompareOpen(false);
-              showBudgetDetails(budget);
-            }}
-            registeringInterest={recordPreference.isPending}
-            registerError={
-              recordPreference.error
-                ? readableError(
-                    recordPreference.error,
-                    "No se pudo guardar la preferencia del paciente.",
-                  )
-                : null
-            }
-            onRegisterInterest={async (budget) => {
-              const title = budget.title?.trim() || budget.code;
-              await recordPreference.mutateAsync({
-                narrativeNote: `Durante la explicación de las opciones de tratamiento, el paciente muestra interés por «${title}» (${formatEUR(budget.totalCents)}). Esta preferencia no equivale a aceptación ni firma del presupuesto.`,
-                sign: false,
-              });
-            }}
-          />
           <Modal
             opened={openBudget !== null}
             onClose={() => {

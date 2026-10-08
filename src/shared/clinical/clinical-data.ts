@@ -171,6 +171,22 @@ export function useSyncBudgetFromPlanMutation(patientId: string) {
 }
 
 /** Phase or custom budget from a selection of plan items (several budgets per plan). */
+/** Persist an actual clinical branch and its linked budget, never mutating Plan A. */
+export function useCreateClinicalPlanBranchMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      expectedPlanVersion: number;
+      title: string;
+      sharedPlanItemIds: string[];
+      exclusiveTreatments: Array<{ catalogId: string; tooth?: string }>;
+      advantages?: string;
+      disadvantages?: string;
+    }) => getBrowserApi().clinical.plan.createBranch(patientId, input),
+    onSuccess: () => invalidateClinicalPatient(queryClient, patientId),
+  });
+}
+
 export function useCreateScopedBudgetMutation(patientId: string) {
   const queryClient = useQueryClient();
   return useMutation({

@@ -17,6 +17,7 @@ vi.mock("../clinical-data", () => ({
   useClinicalPlanQuery: () => ({
     data: {
       status: "DRAFT",
+      version: 1,
       items: [
         {
           id: "plan-a",
@@ -142,6 +143,12 @@ vi.mock("../clinical-data", () => ({
   useClinicalSyncQuery: () => ({ data: null, isError: false }),
   useSyncPlanFromOdontogramMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useSyncBudgetFromPlanMutation: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateClinicalPlanBranchMutation: () => ({
+    mutateAsync: mocks.createAlternative,
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
   useCreateScopedBudgetMutation: () => ({
     mutate: mocks.createAlternative,
     isPending: false,
@@ -272,35 +279,41 @@ describe("patient budget history", () => {
     expect(screen.getByText("Diente 46 · Obturación")).toBeInTheDocument();
   });
 
-  it("compares two draft options in patient-friendly language and records interest", async () => {
+  it("selects several real budgets and opens a separate comparison page", () => {
     renderWorkspace();
-
-    fireEvent.click(screen.getByRole("button", { name: "Comparar opciones" }));
-    const dialog = await screen.findByRole("dialog", { name: "Comparar opciones de tratamiento" });
-
-    expect(within(dialog).getByText("¿Qué opción encaja mejor contigo?")).toBeInTheDocument();
-    expect(within(dialog).getByText("Conservar el diente")).toBeInTheDocument();
-    expect(within(dialog).getByText("Implante")).toBeInTheDocument();
-    expect(within(dialog).getByText("Diente 46: Reconstrucción del diente")).toBeInTheDocument();
-    expect(within(dialog).getByText("Diente 46: Extracción del diente")).toBeInTheDocument();
-    expect(within(dialog).getByText("Diente 46: Colocación del implante")).toBeInTheDocument();
-
-    const interestButtons = within(dialog).getAllByRole("button", {
-      name: "Me interesa esta opción",
-    });
-    fireEvent.click(interestButtons[1]!);
-    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar preferencia" }));
-
-    await waitFor(() =>
-      expect(mocks.recordPreference).toHaveBeenCalledWith(
-        expect.objectContaining({
-          narrativeNote: expect.stringContaining(
-            "el paciente muestra interés por «Implante»",
-          ),
-          sign: false,
-        }),
-      ),
+    fireEvent.click(screen.getByRole("button", { name: "Seleccionar y comparar" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Seleccionar presupuesto Conservar el diente" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Seleccionar presupuesto Implante" }));
+    const link = screen.getByRole("link", { name: "Comparar 2 en página aparte" });
+    expect(link).toHaveAttribute(
+      "href",
+      "/app/patients/patient-1/budgets/compare?ids=draft-1,draft-2",
     );
+    expect(screen.queryByRole("dialog", { name: "Comparar opciones de tratamiento" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("opens a real treatment branch editor with steps copied from Plan A", async () => {
+    mocks.createAlternative.mockResolvedValue({ budget: { id: "new-branch" } });
+    renderWorkspace();
+    fireEvent.click(screen.getByRole("button", { name: "Ramificar · Plan D" }));
+    const dialog = screen.getByRole("dialog", { name: "Ramificar tratamiento · Plan D" });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: /Nombre del nuevo plan/ }), {
+      target: { value: "Tratamiento periodontal común + prótesis" },
+    });
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: /Fase 1 · Diente 46 · Obturación/ }));
+    fireEvent.change(within(dialog).getByLabelText("Ventajas de esta alternativa"), {
+      target: { value: "Permite una opción removible después del tratamiento periodontal." },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Crear rama y presupuesto" }));
+    await waitFor(() => expect(mocks.createAlternative).toHaveBeenCalledWith({
+      expectedPlanVersion: 1,
+      title: "Tratamiento periodontal común + prótesis",
+      sharedPlanItemIds: ["plan-a"],
+      exclusiveTreatments: [],
+      advantages: "Permite una opción removible después del tratamiento periodontal.",
+      disadvantages: "",
+    }));
   });
 
   it("saves draft edits with the expected version and updated line items", async () => {

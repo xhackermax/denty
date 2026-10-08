@@ -40,6 +40,13 @@ export interface BudgetView {
   createdAt?: string | undefined;
   scope?: string | undefined;
   title?: string | null | undefined;
+  branch?: {
+    id: string;
+    sharedPlanItemIds: string[];
+    advantages: string | null;
+    disadvantages: string | null;
+    sourcePlanVersion: number;
+  } | undefined;
   items: Array<{
     id: string;
     clinicalPlanItemId?: string | null | undefined;

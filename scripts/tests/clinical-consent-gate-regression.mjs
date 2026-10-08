@@ -107,9 +107,10 @@ try {
   const clinicalData = readFileSync("src/shared/clinical/clinical-data.ts", "utf8");
   const documents = readFileSync("src/features/parity/modules/documents-module.tsx", "utf8");
   assert.match(odontogram, /Seguir a plan de tratamiento/);
-  for (const token of ["Plan A · Plan completo", '"Plan B"', "Continuar con Plan"]) {
+  for (const token of ["Plan A · Plan completo", "ClinicalPlanBranchBuilder", "Continuar con Plan"]) {
     assert.ok(workspace.includes(token), `treatment plan pipeline missing ${token}`);
   }
+  assert.match(workspace, /Seleccionar y comparar/);
   assert.match(treatmentFlow, /Continuar a presupuesto/);
   assert.match(treatmentFlow, /Ahora no · dejar pendiente/);
   assert.match(treatmentFlow, /selectedPlanItemIds/);
