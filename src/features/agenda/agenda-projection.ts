@@ -62,7 +62,9 @@ export function projectApiAppointments(
     return {
       id: appointment.id,
       patientId: appointment.patientId,
-      patientName: patientNames.get(appointment.patientId) ?? "Paciente",
+      patientName: appointment.patient
+        ? `${appointment.patient.firstName} ${appointment.patient.lastName}`.trim()
+        : (patientNames.get(appointment.patientId) ?? "Paciente"),
       staffId: appointment.staffId,
       siteId: appointment.siteId,
       ...(appointment.cabinetId ? { cabinetId: appointment.cabinetId } : {}),
