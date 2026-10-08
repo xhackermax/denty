@@ -107,7 +107,7 @@ try {
   const clinicalData = readFileSync("src/shared/clinical/clinical-data.ts", "utf8");
   const documents = readFileSync("src/features/parity/modules/documents-module.tsx", "utf8");
   assert.match(odontogram, /Seguir a plan de tratamiento/);
-  for (const token of ["Plan A · Plan completo", "Crear Plan B", "Continuar con Plan"]) {
+  for (const token of ["Plan A · Plan completo", '"Plan B"', "Continuar con Plan"]) {
     assert.ok(workspace.includes(token), `treatment plan pipeline missing ${token}`);
   }
   assert.match(treatmentFlow, /Continuar a presupuesto/);
@@ -118,6 +118,15 @@ try {
   assert.match(clinicalData, /budget_follow_up/);
   assert.match(documents, /Pendiente de firma/);
   assert.match(documents, /Continuar firma/);
+  const optionSignatureSql = readFileSync(
+    "supabase/migrations/20261008092000_budget_option_consent_signature_gate.sql",
+    "utf8",
+  );
+  assert.match(optionSignatureSql, /join public\.budget_items bi/);
+  assert.match(optionSignatureSql, /bi\.budget_id = v_budget\.id/);
+  assert.match(optionSignatureSql, /cr\.status <> 'SATISFIED'/);
+  assert.match(optionSignatureSql, /security invoker/);
+  assert.match(treatmentFlow, /startAt === "signature"/);
 
   console.log("clinical consent gate regression: OK");
 } finally {
