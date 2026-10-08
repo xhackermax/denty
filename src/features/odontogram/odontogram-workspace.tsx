@@ -1,9 +1,6 @@
 "use client";
 import { QuickDiagnosisBar } from "@/features/diagnosis/quick-diagnosis-bar";
 import { chartArches, deriveMouthState } from "@/domain/odontogram/mouth-state";
-import OdontogramVisual from "./visual/odontogram-visual";
-import { OdontogramViewSwitch } from "./visual/odontogram-view-switch";
-import { toVisualDentition, toVisualTeeth } from "./visual/visual-adapter";
 import { MouthStateProvider } from "./mouth-state-context";
 import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
 import { useAutosave, type AutosaveStatus } from "./use-autosave";
@@ -95,6 +92,7 @@ import {
   isToothStatusVisible,
   layerForToothState,
   ODONTOGRAM_LAYER_LABELS,
+  type OdontogramLayerId,
   resetOdontogramView,
   restoreOdontogramViewPreference,
   subfilterForToothStatus,
@@ -540,7 +538,7 @@ function OdontogramEditor({
   const [bridgeError, setBridgeError] = useState<string | null>(null);
   const [advancedToolsOpen, setAdvancedToolsOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
-  const [perioEditorOpen, setPerioEditorOpen] = useState(false);
+  const [inspectorLayer, setInspectorLayer] = useState<OdontogramLayerId | null>("general");
   const [viewState, setViewState] = useState(createInitialOdontogramViewState);
   const [viewPreferenceLoaded, setViewPreferenceLoaded] = useState(false);
   const [viewPreferenceError, setViewPreferenceError] = useState(false);
@@ -654,6 +652,12 @@ function OdontogramEditor({
     if (initialSection === "diagnosis" && !restored.visibleLayerIds.includes("endo"))
       restored = toggleOdontogramLayer(restored, "endo");
     setViewState(restored);
+    setInspectorLayer(
+      initialAction === "implant-surgery" ? "surgery" :
+      initialSection === "diagnosis" ? "endo" :
+      restored.visibleLayerIds.includes("general") ? "general" :
+      (restored.visibleLayerIds[0] ?? null),
+    );
     setViewPreferenceLoaded(true);
   }, [initialAction, initialSection]);
 
@@ -905,7 +909,7 @@ function OdontogramEditor({
             viewState.subfiltersByLayer.prosthetics.includes("fija") &&
             (tooth === bridgeFrom || tooth === bridgeTo || persistedBridgeEndpoints.has(tooth))
           }
-          readOnly={historical || !activeToolVisible}
+          readOnly={historical || !activeToolVisible || inspectorLayer !== "general"}
           pendingNext={nextVisitMode && pendingToothSet.has(tooth)}
           pickedNext={nextVisitMode && pickedNext.has(tooth)}
           onSelect={() => {
@@ -925,10 +929,10 @@ function OdontogramEditor({
               return;
             }
             setSelectedTooth(tooth);
-            if (!isSurfaceOnlyTool(tool)) applyWhole(tooth);
+            if (inspectorLayer === "general" && !isSurfaceOnlyTool(tool)) applyWhole(tooth);
           }}
           onWholeAction={() => {
-            if (!activeToolVisible || historical) return;
+            if (!activeToolVisible || historical || inspectorLayer !== "general") return;
             if (placementMode !== "bridge") cycleWholeTreatment(tooth);
           }}
           onSurfaceAction={(surface) => applySurface(tooth, surface)}
@@ -1670,10 +1674,7 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
     ? `snapshot-${selectedSnapshot.id}`
     : `${query.data.id ?? patientId}-${editorVersion ?? 0}`;
   return (
-    <>
-      <OdontogramViewSwitch
-        editor={
-          <OdontogramEditor
+    <OdontogramEditor
             perioOwner={perioOwner}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -1703,16 +1704,5 @@ export function OdontogramWorkspace({ patientId }: { patientId: string }) {
             }}
             clinicalSync={clinicalSync}
           />
-        }
-        visual={(openEditor) => (
-          <OdontogramVisual
-            recordKey={editorKey}
-            teeth={toVisualTeeth(initialEntities, initialPeriodontal, mouth)}
-            dentition={toVisualDentition(mouth)}
-            onEdit={openEditor}
-          />
-        )}
-      />
-    </>
   );
 }
