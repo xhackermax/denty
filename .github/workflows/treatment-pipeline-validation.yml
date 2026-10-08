@@ -74,4 +74,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54399
           SUPABASE_PUBLISHABLE_KEY: e2e-publishable
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: e2e-publishable
-        run: node scripts/pipeline/run.mjs vercel-build
+        run: |
+          rm -f tsconfig.tsbuildinfo
+          node scripts/pipeline/run.mjs vercel-build
