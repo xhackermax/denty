@@ -53,14 +53,9 @@ export function SidebarWeekAgenda({ active, initialToday }: { active: boolean; i
     if (initialToday) return;
     const refresh = () => {
       const next = todayMadrid();
-      setToday((previous) => {
-        if (next !== previous) {
-          setWeekAnchor((anchor) =>
-            weekDatesMadrid(anchor)[0] === weekDatesMadrid(previous)[0] ? next : anchor,
-          );
-        }
-        return next;
-      });
+      if (next === today) return;
+      setToday(next);
+      setWeekAnchor((anchor) => weekDatesMadrid(anchor).includes(today) ? next : anchor);
     };
     const onVisible = () => {
       if (document.visibilityState !== "hidden") refresh();
@@ -73,7 +68,7 @@ export function SidebarWeekAgenda({ active, initialToday }: { active: boolean; i
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [initialToday]);
+  }, [initialToday, today]);
 
   const summaries = useQueries({
     queries: months.map((month) => ({
