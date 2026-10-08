@@ -63,14 +63,16 @@ describe("DashboardCalendar", () => {
     mount();
     expect(screen.getByRole("heading", { name: "Agenda" })).toBeInTheDocument();
     expect(screen.getByText("Octubre de 2026")).toBeInTheDocument();
-    const today = await screen.findByRole("button", { name: /sábado, 3 de octubre.*hoy/i });
+    const today = await screen.findByRole("link", { name: /sábado, 3 de octubre.*hoy/i });
     expect(today).toHaveAttribute("data-today", "true");
+    expect(today).toHaveAttribute("href", "/app/agenda?date=2026-10-03");
     expect(mocks.monthSummary).toHaveBeenCalledWith("2026-10", undefined);
   });
 
   it("marks busy days with their appointment count and patients' initials", async () => {
     mount();
-    const busy = await screen.findByRole("button", { name: /16 de octubre, 4 citas/i });
+    const busy = await screen.findByRole("link", { name: /16 de octubre, 4 citas/i });
+    expect(busy).toHaveAttribute("href", "/app/agenda?date=2026-10-16");
     expect(within(busy).getByText("AL")).toBeInTheDocument();
     expect(within(busy).getByText("+3")).toBeInTheDocument();
     expect(within(busy).queryByText("LP")).toBeNull();
@@ -78,7 +80,7 @@ describe("DashboardCalendar", () => {
 
   it("lists the chosen day's appointments and links to that day in the agenda", async () => {
     mount();
-    fireEvent.click(await screen.findByRole("button", { name: /16 de octubre, 4 citas/i }));
+    fireEvent.click(await screen.findByRole("link", { name: /16 de octubre, 4 citas/i }));
     expect(await screen.findByText("Luis Pérez")).toBeInTheDocument();
     expect(screen.getByText("10:30")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Abrir la agenda del 16 de octubre" })).toHaveAttribute(
@@ -132,7 +134,7 @@ describe("DashboardCalendar", () => {
 
   it("says when the chosen day is free", async () => {
     mount();
-    fireEvent.click(await screen.findByRole("button", { name: /20 de octubre, sin citas/i }));
+    fireEvent.click(await screen.findByRole("link", { name: /20 de octubre, sin citas/i }));
     expect(await screen.findByText("Sin citas este día.")).toBeInTheDocument();
   });
 

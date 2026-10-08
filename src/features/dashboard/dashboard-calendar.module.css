@@ -80,6 +80,7 @@
   cursor: pointer;
   font: inherit;
   text-align: left;
+  text-decoration: none;
   transition: background 0.15s ease;
 }
 

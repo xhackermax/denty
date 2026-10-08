@@ -87,10 +87,6 @@ export function AdminPage({
             <span className={styles.cardLinkTitle}>Exportar datos</span>
             <span className={styles.cardLinkDescription}>Pacientes, citas y tratamientos</span>
           </Link>
-          <Link className={styles.cardLink} href="/app/settings">
-            <span className={styles.cardLinkTitle}>Seguridad y ajustes</span>
-            <span className={styles.cardLinkDescription}>Sesiones, RGPD, copias y receta</span>
-          </Link>
         </SimpleGrid>
       ) : null}
       {section === "users" ? <AdminUsersPanel /> : null}

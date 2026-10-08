@@ -199,15 +199,15 @@ export function DashboardCalendar({
             .slice(0, MAX_AVATARS);
           const extra = count - avatars.length;
           return (
-            <button
-              type="button"
+            <Link
+              href={`/app/agenda?date=${day.date}`}
               key={day.date}
               className={styles.day}
               data-today={day.isToday}
               data-selected={day.date === selected}
               data-outside={!day.inMonth}
               data-busy={count > 0}
-              aria-pressed={day.date === selected}
+              aria-current={day.date === selected ? "date" : undefined}
               aria-label={`${longDay.format(asDate(day.date))}, ${countLabel(count)}${day.isToday ? ", hoy" : ""}`}
               onClick={() => {
                 setSelected(day.date);
@@ -225,7 +225,7 @@ export function DashboardCalendar({
                 </span>
               ) : null}
               <span className={styles.number}>{Number(day.date.slice(8))}</span>
-            </button>
+            </Link>
           );
         })}
       </div>
