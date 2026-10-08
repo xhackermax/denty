@@ -141,6 +141,11 @@ export function AgendaAppointmentCard({
           <span className={styles.cardName}>
             {size === "small" ? shortPatientName(appointment.patientName) : appointment.patientName}
           </span>
+          {size === "small" && siteLabel ? (
+            <span className={styles.cardSite} title={siteLabel}>
+              {siteLabel}
+            </span>
+          ) : null}
           {size === "small" ? (
             glyphs.length ? (
               <ClinicalGlyphs glyphs={glyphs} max={1} />
