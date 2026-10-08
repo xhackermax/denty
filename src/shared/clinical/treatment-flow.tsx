@@ -149,9 +149,16 @@ function TreatmentFlow({
   const existingCustomBudgets = useMemo(
     () =>
       (budgetHistory.data?.items ?? [])
-        .filter((candidate) => candidate.scope === "custom" && candidate.status === "DRAFT")
+        .filter(
+          (candidate) =>
+            candidate.scope === "custom" &&
+            candidate.status === "DRAFT" &&
+            (planQuery.data?.version === undefined ||
+              candidate.sourcePlanVersion === undefined ||
+              candidate.sourcePlanVersion === planQuery.data.version),
+        )
         .sort((left, right) => (left.createdAt ?? "").localeCompare(right.createdAt ?? "")) as BudgetView[],
-    [budgetHistory.data?.items],
+    [budgetHistory.data?.items, planQuery.data?.version],
   );
   const preferredBudget = preferredBudgetId
     ? ((budgetHistory.data?.items ?? []).find((candidate) => candidate.id === preferredBudgetId) as
