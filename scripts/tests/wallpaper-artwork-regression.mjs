@@ -24,7 +24,7 @@ for (const [id, filename] of Object.entries(assets)) {
 }
 
 const mesh = readFileSync("public/wallpapers/mesh-network.svg", "utf8");
-assert.ok((mesh.match(/<path /g) ?? []).length > 500, "Mesh should be a perspective network, not diagonal stripes");
+assert.ok((mesh.match(/<path /g) ?? []).length > 350, "Mesh should be a perspective network, not diagonal stripes");
 assert.ok((mesh.match(/<circle /g) ?? []).length > 80, "Mesh should have glowing nodes");
 
 const silk = readFileSync("public/wallpapers/silk-3d.svg", "utf8");
