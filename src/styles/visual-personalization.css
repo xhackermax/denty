@@ -1,0 +1,138 @@
+/* Denty Visual Personalization. Independent of clinical state colors.
+   Original palette swatches: Hostinger article (numbers 6,10,14,15,17,19,22,25,27).
+   Tonal adaptations below serve WCAG contrast in application controls. */
+html[data-denty-palette="27"] {
+  --denty-palette-accent: #C53678;
+  --denty-palette-secondary: #FF5841;
+  --denty-palette-surface: #FDEDED;
+}
+
+html[data-denty-palette="25"] {
+  --denty-palette-accent: #6ACFC7;
+  --denty-palette-secondary: #0C1A1A;
+  --denty-palette-surface: #E7F4F2;
+}
+
+html[data-denty-palette="22"] {
+  --denty-palette-accent: #4F0341;
+  --denty-palette-secondary: #4F0341;
+  --denty-palette-surface: #F7ECF4;
+}
+
+html[data-denty-palette="19"] {
+  --denty-palette-accent: #957C3D;
+  --denty-palette-secondary: #002349;
+  --denty-palette-surface: #E8EFF5;
+}
+
+html[data-denty-palette="17"] {
+  --denty-palette-accent: #178582;
+  --denty-palette-secondary: #BFA181;
+  --denty-palette-surface: #E8F2F1;
+}
+
+html[data-denty-palette="15"] {
+  --denty-palette-accent: #96C2DB;
+  --denty-palette-secondary: #96C2DB;
+  --denty-palette-surface: #E5EDF1;
+}
+
+html[data-denty-palette="14"] {
+  --denty-palette-accent: #FF5100;
+  --denty-palette-secondary: #CD9C8A;
+  --denty-palette-surface: #FAF0E8;
+}
+
+html[data-denty-palette="10"] {
+  --denty-palette-accent: #213F99;
+  --denty-palette-secondary: #E1B0AC;
+  --denty-palette-surface: #F2D4D6;
+}
+
+html[data-denty-palette="6"] {
+  --denty-palette-accent: #00DD00;
+  --denty-palette-secondary: #00DD00;
+  --denty-palette-surface: #ECFFEF;
+}
+
+/* The primary CTA is a darkened version of the selected source swatch
+   so white button text remains distinguishable. The source swatch itself stays intact. */
+html[data-denty-palette]:not([data-denty-palette="denty"]) {
+  --denty-palette-action: color-mix(in srgb, var(--denty-palette-accent) 60%, #000);
+  --denty-palette-readable: color-mix(in srgb, var(--denty-palette-accent) 53%, #000);
+  --denty-blue: var(--denty-palette-accent);
+  --denty-blue-text: var(--denty-palette-readable);
+  --denty-teal: var(--denty-palette-secondary);
+  --denty-violet: var(--denty-palette-secondary);
+  --denty-glow: color-mix(in srgb, var(--denty-palette-accent) 11%, transparent);
+  --mantine-primary-color-filled: var(--denty-palette-action);
+  --mantine-primary-color-filled-hover: color-mix(in srgb, var(--denty-palette-action) 84%, #000);
+  --mantine-primary-color-light: color-mix(in srgb, var(--denty-palette-accent) 13%, transparent);
+  --mantine-primary-color-light-hover: color-mix(in srgb, var(--denty-palette-accent) 22%, transparent);
+  --mantine-primary-color-light-color: var(--denty-palette-readable);
+  --mantine-primary-color-outline: var(--denty-palette-readable);
+}
+
+html[data-mantine-color-scheme="light"][data-denty-palette]:not([data-denty-palette="denty"]) {
+  --denty-bg: color-mix(in srgb, var(--denty-palette-surface) 47%, #f5f5f7);
+  --denty-bg-elevated: color-mix(in srgb, var(--denty-palette-surface) 27%, #fbfbfd);
+  --denty-line: color-mix(in srgb, var(--denty-palette-accent) 15%, transparent);
+  --denty-line-strong: color-mix(in srgb, var(--denty-palette-accent) 27%, transparent);
+}
+
+html[data-mantine-color-scheme="dark"][data-denty-palette]:not([data-denty-palette="denty"]) {
+  --denty-bg: color-mix(in srgb, var(--denty-palette-surface) 8%, #05070d);
+  --denty-bg-elevated: color-mix(in srgb, var(--denty-palette-surface) 9%, #101115);
+  --denty-card-solid: color-mix(in srgb, var(--denty-palette-surface) 8%, #1c1c1e);
+  --denty-card: color-mix(in srgb, var(--denty-palette-surface) 8%, rgb(28 28 30 / 92%));
+  --denty-palette-readable: color-mix(in srgb, var(--denty-palette-accent) 72%, #fff);
+  --denty-glow: color-mix(in srgb, var(--denty-palette-accent) 18%, transparent);
+  --denty-line: color-mix(in srgb, var(--denty-palette-accent) 23%, transparent);
+}
+
+/* Original wallpaper interpretations, rendered by CSS, no third-party images. */
+/* Smooth gradient with spacious, low-contrast colour light. */
+html[data-denty-wallpaper="aurora"] body {
+  background-color: var(--denty-bg);
+  background-image:
+    radial-gradient(ellipse 72% 63% at 87% 8%, color-mix(in srgb, var(--denty-blue) 25%, transparent), transparent 74%),
+    radial-gradient(ellipse 56% 46% at 6% 86%, color-mix(in srgb, var(--denty-violet) 17%, transparent), transparent 78%),
+    radial-gradient(ellipse 45% 54% at 54% 56%, color-mix(in srgb, var(--denty-teal) 11%, transparent), transparent 80%);
+  background-attachment: fixed;
+}
+
+/* Sculpted soft-gradient ribbons inspired by abstract 3D backgrounds. */
+html[data-denty-wallpaper="silk"] body {
+  background-color: var(--denty-bg);
+  background-image:
+    radial-gradient(ellipse 32% 100% at 92% 16%, color-mix(in srgb, var(--denty-violet) 22%, transparent), transparent 84%),
+    radial-gradient(ellipse 42% 110% at 76% 72%, color-mix(in srgb, var(--denty-blue) 21%, transparent), transparent 82%),
+    radial-gradient(ellipse 47% 66% at 12% 35%, color-mix(in srgb, var(--denty-teal) 15%, transparent), transparent 82%),
+    conic-gradient(from 214deg at 73% 28%, transparent 0deg, color-mix(in srgb, var(--denty-blue) 7%, transparent) 95deg, transparent 172deg, color-mix(in srgb, var(--denty-violet) 8%, transparent) 236deg, transparent 320deg);
+  background-attachment: fixed;
+}
+
+/* Wireframe motifs from repeating diagonals; decorative only, never a chart grid. */
+html[data-denty-wallpaper="mesh"] body {
+  background-color: var(--denty-bg);
+  background-image:
+    radial-gradient(ellipse 74% 60% at 88% 15%, color-mix(in srgb, var(--denty-blue) 19%, transparent), transparent 80%),
+    repeating-linear-gradient(32deg, transparent 0 44px, color-mix(in srgb, var(--denty-blue) 12%, transparent) 45px, transparent 46px 88px),
+    repeating-linear-gradient(148deg, transparent 0 44px, color-mix(in srgb, var(--denty-teal) 10%, transparent) 45px, transparent 46px 88px);
+  background-attachment: fixed;
+}
+
+html[data-denty-wallpaper]:not([data-denty-wallpaper="none"]) body::before {
+  opacity: 0.3;
+}
+
+/* A user-off toggle takes precedence over decorative CSS effects even if the OS
+   has no reduced-motion preference. MotionConfig controls JS animations. */
+html[data-denty-animations="off"],
+html[data-denty-animations="off"] *,
+html[data-denty-animations="off"] *::before,
+html[data-denty-animations="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
