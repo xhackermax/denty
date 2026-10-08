@@ -77,6 +77,44 @@ test("keyboard, manual grid and voice share one draft; arrows focus and finaliza
     gm: -1,
   });
 }, 20000);
+test("manual six-site entry updates the main chart feed without requiring gingival margin", async () => {
+  const onSiteReadingsChange = vi.fn();
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MantineProvider>
+        <MouthStateProvider state={deriveMouthState([])}>
+          <PerioChart
+            patientId="p"
+            active
+            readOnly={false}
+            selectedTooth="16"
+            onSiteReadingsChange={onSiteReadingsChange}
+          />
+        </MouthStateProvider>
+      </MantineProvider>
+    </QueryClientProvider>,
+  );
+  const input = screen.getByRole("spinbutton", { name: "Entrada manual 16 MV sondaje" });
+  await waitFor(() => expect(input).not.toBeDisabled());
+  fireEvent.change(input, { target: { value: "6" } });
+  expect(screen.getByLabelText("16 MV sondaje")).toHaveValue(6);
+  await waitFor(() => {
+    expect(onSiteReadingsChange).toHaveBeenLastCalledWith(
+      expect.arrayContaining([expect.objectContaining({
+        tooth: "16", site: "MV", probingDepth: 6,
+      })]),
+    );
+  });
+  const latest = onSiteReadingsChange.mock.calls.at(-1)?.[0] as Partial<PeriodontalReading>[];
+  const site = latest.find((reading) => reading.tooth === "16" && reading.site === "MV");
+  expect(site).not.toHaveProperty("recession");
+  fireEvent.change(input, { target: { value: "" } });
+  await waitFor(() => {
+    const readings = onSiteReadingsChange.mock.calls.at(-1)?.[0] as Partial<PeriodontalReading>[];
+    expect(readings.find((reading) => reading.tooth === "16" && reading.site === "MV")).toBeUndefined();
+  });
+}, 20000);
+
 test("failed finalization retains measurements and reports error", async () => {
   api.perioDrafts.finish.mockRejectedValueOnce(new Error("Servidor no disponible"));
   mount();
