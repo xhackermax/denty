@@ -8,7 +8,7 @@ import {
   normalizePeriodontalSite,
   type PeriodontalReading,
 } from "@/domain/periodontal";
-import { createPerioExam, examToReadings, perioSummary } from "@/domain/periodontal/exam";
+import { createPerioExam, examToReadings, examToSites, perioSummary } from "@/domain/periodontal/exam";
 import {
   applyPerioCommand,
   createPerioSession,
@@ -52,6 +52,9 @@ interface Props {
   readings?: readonly Partial<PeriodontalReading>[];
   visibleIndicators?: readonly string[];
   onReadingsChange?: (readings: PeriodontalReading[]) => void;
+  /** The chart overlay needs PD even when gingival margin (GM) is still unmeasured. */
+  onSiteReadingsChange?: (readings: readonly Partial<PeriodontalReading>[]) => void;
+  selectedTooth?: string;
   owner?: PerioDraftOwner;
   onPresenceChange?: (tooth: string, presence: "missing" | "implant") => PerioPresenceChange;
   onPresenceRestore?: (change: PerioPresenceChange) => ReturnType<typeof useMouthState>;
@@ -73,6 +76,8 @@ export function PerioChart({
     "furcas",
   ],
   onReadingsChange,
+  onSiteReadingsChange,
+  selectedTooth,
   onPresenceChange,
   onPresenceRestore,
   onBeforeFinalize,
@@ -160,7 +165,8 @@ export function PerioChart({
   }, [mouth, owner, readOnly]);
   useEffect(() => {
     onReadingsChange?.(examToReadings(session.exam, { requireMargin: true }));
-  }, [session.exam, onReadingsChange]);
+    onSiteReadingsChange?.(examToSites(session.exam));
+  }, [session.exam, onReadingsChange, onSiteReadingsChange]);
   useUnsavedChangesGuard({
     dirty: dirty && !readOnly && !closed,
     onSave: async () => {
@@ -355,6 +361,20 @@ export function PerioChart({
     }
   };
   const disabled = readOnly || !ready || finishing || closed || owner.checkpoint !== null;
+  const manualTooth = selectedTooth && session.exam.teeth[selectedTooth] ? selectedTooth
+    : session.cursor.tooth;
+  const manualData = session.exam.teeth[manualTooth];
+  const applyManual = (tooth: string, site: (typeof PERIODONTAL_SITES)[number],
+    field: "pd" | "gm", raw: string) => {
+    if (raw !== "" && !/^-?\\d{1,2}$/.test(raw)) return;
+    if (raw === "-" && field === "gm") return;
+    run({
+      type: "site",
+      tooth,
+      site,
+      patch: { [field]: raw === "" ? null : Number(raw) },
+    });
+  };
   return (
     <section ref={chartRef} className={styles.chart} aria-label="Periodontograma">
       <Title order={3}>Periodontograma</Title>
@@ -461,6 +481,47 @@ export function PerioChart({
             </Button>
           </Group>
         </>
+      ) : null}
+      {!readOnly ? (
+        <section className={styles.manualEntry} aria-label={`Entrada manual periodontal pieza ${manualTooth}`}>
+          <Group justify="space-between" gap="xs">
+            <Text fw={750} size="sm">Sondaje manual · diente {manualTooth}</Text>
+            <Text size="xs" c="dimmed">6 sitios · milímetros · cambios visibles en el odontograma</Text>
+          </Group>
+          {manualData?.missing ? (
+            <Text size="xs">Pieza ausente: no se puede sondar.</Text>
+          ) : manualData ? (
+            <div className={styles.manualGrid}>
+              {PERIODONTAL_SITES.map((site) => (
+                <div key={site} className={styles.manualSite}>
+                  <Text size="xs" fw={700}>{site}</Text>
+                  {(["pd", "gm"] as const).map((field) => (
+                    <label key={field} className={styles.manualField}>
+                      <span>{field === "pd" ? "PD" : "GM"}</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        step={1}
+                        min={field === "pd" ? 0 : -15}
+                        max={field === "pd" ? 15 : 5}
+                        aria-label={`Entrada manual ${manualTooth} ${site} ${field === "pd" ? "sondaje" : "margen"}`}
+                        value={manualData.sites[site][field] ?? ""}
+                        disabled={disabled}
+                        onChange={(event) => applyManual(manualTooth, site, field, event.currentTarget.value)}
+                      />
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Text size="xs">Selecciona un diente presente en el odontograma.</Text>
+          )}
+          <Text size="xs" c="dimmed">
+            PD = profundidad de sondaje. GM = margen gingival, opcional. Los valores sin medir
+            quedan en blanco, nunca se suponen como cero.
+          </Text>
+        </section>
       ) : null}
       <Select
         data-print-hide
