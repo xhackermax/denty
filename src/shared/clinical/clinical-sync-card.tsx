@@ -60,8 +60,13 @@ export function ClinicalSyncCard({ patientId }: ClinicalSyncCardProps) {
 
   const sync = syncQuery.data;
   const pendingMutation = planSync.isPending || budgetSync.isPending;
+  const selectedPlanItemIds = new Set(sync.budget?.selectedPlanItemIds ?? []);
   const pendingConsentCount = (consents.data?.items ?? []).filter(
-    (item) => item.status !== "SATISFIED",
+    (item) =>
+      item.status !== "SATISFIED" &&
+      (selectedPlanItemIds.size === 0 ||
+        !item.clinicalPlanItemId ||
+        selectedPlanItemIds.has(item.clinicalPlanItemId)),
   ).length;
 
   return (
@@ -101,7 +106,11 @@ export function ClinicalSyncCard({ patientId }: ClinicalSyncCardProps) {
           <Text c="dimmed" size="xs">
             Presupuesto
           </Text>
-          <Text fw={700}>{sync.budget?.code ?? "Sin presupuesto"}</Text>
+          <Text fw={700}>
+            {sync.budget
+              ? `${sync.budget.code}${sync.budget.scope !== "plan" ? ` · ${sync.budget.title ?? "Plan elegido"}` : ""}`
+              : "Sin presupuesto"}
+          </Text>
           <Text c={sync.budget?.outdated ? "orange" : "dimmed"} size="xs">
             {sync.budget?.outdated ? "Desactualizado" : "Coherente con el plan"}
           </Text>
