@@ -112,7 +112,7 @@ export function OdontogramVisitSummaryPanel({
   }, [draft.text, edited]);
 
   return (
-    <details className={parityStyles.disclosure} open>
+    <details className={parityStyles.disclosure}>
       <summary>
         <span>
           <strong>Visita de hoy</strong>
