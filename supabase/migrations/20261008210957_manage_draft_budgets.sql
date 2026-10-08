@@ -1,3 +1,6 @@
+-- Reconcile the applied Supabase migration from 2026-10-08 with the repository history.
+-- The canonical operations are also defined by 20261005120000_manage_draft_budgets.sql.
+-- CREATE OR REPLACE and permission GRANT/REVOKE are repeatable for existing installations.
 begin;
 
 create or replace function public.update_draft_budget(
