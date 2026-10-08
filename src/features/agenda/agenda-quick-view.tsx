@@ -73,6 +73,7 @@ export interface AgendaQuickViewProps {
   patient: Patient | undefined;
   staffName: string | undefined;
   cabinetName: string | undefined;
+  siteName: string | undefined;
   staffOptions: ReadonlyArray<{ value: string; label: string }>;
   busy: boolean;
   onClose: () => void;
@@ -88,6 +89,7 @@ export function AgendaQuickView({
   patient,
   staffName,
   cabinetName,
+  siteName,
   staffOptions,
   busy,
   onClose,
@@ -307,6 +309,12 @@ export function AgendaQuickView({
               <>
                 <dt>Profesional</dt>
                 <dd>{staffName}</dd>
+              </>
+            ) : null}
+            {siteName ? (
+              <>
+                <dt>Sede</dt>
+                <dd>{siteName}</dd>
               </>
             ) : null}
             {cabinetName ? (
