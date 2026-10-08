@@ -519,7 +519,7 @@ function OdontogramEditor({
   historyRef.current = history;
   const [tool, setTool] = useState<ToothState>("caries");
   const [placementMode, setPlacementMode] = useState<"tooth" | "bridge">("tooth");
-  const [chartOpen, setChartOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [nextVisitMode, setNextVisitMode] = useState(false);
   const [pickedNext, setPickedNext] = useState<ReadonlySet<string>>(new Set());
   const planQuery = useClinicalPlanQuery(patientId);
@@ -549,6 +549,16 @@ function OdontogramEditor({
   const [advancedToolsOpen, setAdvancedToolsOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [inspectorLayer, setInspectorLayer] = useState<OdontogramLayerId | null>("general");
+  // The drawer overlays the chart on compact screens. Retained editor state
+  // stays mounted when it closes, so clinical drafts aren't lost.
+  useEffect(() => {
+    if (!inspectorOpen) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setInspectorOpen(false);
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [inspectorOpen]);
   const [viewState, setViewState] = useState(createInitialOdontogramViewState);
   const [viewPreferenceLoaded, setViewPreferenceLoaded] = useState(false);
   const [viewPreferenceError, setViewPreferenceError] = useState(false);
@@ -1097,38 +1107,21 @@ function OdontogramEditor({
         </Alert>
       ) : null}
 
-      {initialAction === "implant-surgery" ? (
-        <div className={parityStyles.section}>
-          <ImplantSurgeryPanel
-            entities={entities}
-            selectedTooth={selectedTooth}
-            readOnly={historical}
-            onSelectTooth={setSelectedTooth}
-            onCommit={commit}
-          />
-        </div>
-      ) : null}
-
-      <OdontogramVisitSummaryPanel
-        entities={entities}
-        suggestedNextVisit={nextVisitSuggestion}
-        readOnly={historical}
-        saving={encounterMutation.isPending}
-        saveError={encounterMutation.isError}
-        onSaveEncounter={(input) => encounterMutation.mutateAsync(input)}
-      />
-
       <MouthStateProvider state={mouthState}>
         <div className={styles.unifiedWorkbench}>
           <div className={styles.unifiedChartColumn}>
         <OdontogramLayerControls
           state={viewState}
           focusedLayer={inspectorLayer}
-          onFocusLayer={(layerId) => setInspectorLayer(layerId)}
+          onFocusLayer={(layerId) => {
+            setInspectorLayer(layerId);
+            setInspectorOpen(true);
+          }}
           onToggleLayer={(layerId) => {
             const wasVisible = viewState.visibleLayerIds.includes(layerId);
             setViewState((current) => toggleOdontogramLayer(current, layerId));
             setInspectorLayer(wasVisible ? null : layerId);
+            if (!wasVisible) setInspectorOpen(true);
           }}
           onToggleSubfilter={(layerId, subfilterId) =>
             setViewState((current) => toggleOdontogramSubfilter(current, layerId, subfilterId))
@@ -1136,35 +1129,40 @@ function OdontogramEditor({
           onShowAll={() => {
             setViewState((current) => toggleShowAllLayers(current));
             setInspectorLayer(null);
+            setInspectorOpen(false);
           }}
           onApplyPreset={(presetId) => {
             setViewState((current) => applyViewPreset(current, presetId));
             setInspectorLayer(null);
+            setInspectorOpen(false);
           }}
           onReset={() => {
             setViewState((current) => resetOdontogramView(current));
             setInspectorLayer("general");
+            setInspectorOpen(false);
           }}
           onOpenHistory={() => setActiveTab("history")}
         />
         <section className={`${styles.chartPanel} ${parityStyles.bluePerimeterRunner}`}>
           <div className={styles.chartHeader}>
-            <button
-              type="button"
-              className={styles.chartToggle}
-              aria-expanded={chartOpen}
-              onClick={() => setChartOpen((open) => !open)}
+            <Text fw={850}>Odontograma único</Text>
+            <Button
+              size="xs"
+              variant="light"
+              className={styles.inspectorOpenAction}
+              aria-expanded={inspectorOpen}
+              aria-controls="odontogram-clinical-inspector"
+              onClick={() => setInspectorOpen((open) => !open)}
             >
-              <Text fw={850}>Odontograma</Text>
-              <span aria-hidden="true">{chartOpen ? "?" : "?"}</span>
-            </button>
+              {inspectorOpen ? "Cerrar herramientas" : "Herramientas del área"}
+            </Button>
             {!viewState.visibleLayerIds.includes("general") ? (
               <Text size="xs" c="dimmed">
                 Anatomía, identidad y presencia permanecen visibles.
               </Text>
             ) : null}
           </div>
-          {chartOpen && viewState.visibleLayerIds.includes("general") ? (
+          {viewState.visibleLayerIds.includes("general") ? (
             <>
               <OdontogramLegend
                 selection={legendSelection}
@@ -1207,8 +1205,8 @@ function OdontogramEditor({
               ) : null}
             </>
           ) : null}
-          {chartOpen ? (
-            <>
+          <>
+
               <Group gap="xs" className={styles.nextVisitBar}>
                 <Button
                   size="xs"
@@ -1242,8 +1240,7 @@ function OdontogramEditor({
                   Mandíbula
                 </Text>
               </div>
-            </>
-          ) : null}
+          
         </section>
 
         {viewPreferenceError ? (
@@ -1275,14 +1272,44 @@ function OdontogramEditor({
         ) : null}
 
           </div>
-          <section className={styles.unifiedInspector} aria-label="Herramientas del área odontológica">
+          <button
+            type="button"
+            className={styles.inspectorBackdrop}
+            data-open={inspectorOpen}
+            aria-label="Cerrar panel de herramientas"
+            tabIndex={inspectorOpen ? 0 : -1}
+            onClick={() => setInspectorOpen(false)}
+          />
+          <section
+            id="odontogram-clinical-inspector"
+            className={styles.unifiedInspector}
+            data-open={inspectorOpen}
+            aria-label="Herramientas del área odontológica"
+          >
             <div className={styles.inspectorHeader}>
               <strong>{inspectorLayer ? ODONTOGRAM_LAYER_LABELS[inspectorLayer] : "Áreas del odontograma"}</strong>
+              <button
+                className={styles.inspectorCloseAction}
+                type="button"
+                onClick={() => setInspectorOpen(false)}
+                aria-label="Cerrar herramientas y volver al odontograma"
+              >
+                Cerrar
+              </button>
               <Text size="xs" c="dimmed">
                 {viewState.visibleLayerIds.length} {viewState.visibleLayerIds.length === 1 ? "capa visible" : "capas visibles"} · pieza {selectedTooth}
               </Text>
             </div>
             <div className={styles.inspectorScroll}>
+              {initialAction === "implant-surgery" && inspectorLayer === "surgery" ? (
+                <ImplantSurgeryPanel
+                  entities={entities}
+                  selectedTooth={selectedTooth}
+                  readOnly={historical}
+                  onSelectTooth={setSelectedTooth}
+                  onCommit={commit}
+                />
+              ) : null}
               {inspectorLayer === null ? (
                 <Text size="sm" c="dimmed">
                   Selecciona varias capas y pulsa «Editar» en el área de interés. Todas se proyectan sobre los mismos dientes.
@@ -1597,6 +1624,14 @@ function OdontogramEditor({
           </section>
         </div>
       </MouthStateProvider>
+      <OdontogramVisitSummaryPanel
+        entities={entities}
+        suggestedNextVisit={nextVisitSuggestion}
+        readOnly={historical}
+        saving={encounterMutation.isPending}
+        saveError={encounterMutation.isError}
+        onSaveEncounter={(input) => encounterMutation.mutateAsync(input)}
+      />
       <details className={parityStyles.disclosure}>
         <summary>
           <span>
