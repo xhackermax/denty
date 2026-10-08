@@ -2323,3 +2323,166 @@ html[data-mantine-color-scheme="dark"] .crownBase {
     min-width: 46px;
   }
 }
+
+
+/* Full-mouth viewport: never scroll or clip either arch. A ResizeObserver adjusts
+   a single visual transform to BOTH available width and height. The whole tooth,
+   its five surfaces and six periodontal values retain identical coordinates. */
+.unifiedChartColumn {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.unifiedChartColumn > .chartPanel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mouthFitViewport {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+  contain: layout;
+}
+
+.mouthFitStage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 1000px;
+  max-width: none;
+  gap: 7px;
+  transform: translate(-50%, -50%) scale(var(--mouth-scale, 0.65));
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.mouthFitStage .archBlock {
+  min-width: 0;
+  width: 100%;
+  gap: 5px;
+  overflow: visible;
+}
+
+.mouthFitStage .arch {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 4px;
+  padding: 2px 0;
+  overflow: visible;
+}
+
+.mouthFitStage .arch[data-tooth-count="10"] {
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
+
+.mouthFitStage .toothButton {
+  min-width: 0;
+  min-height: 130px;
+  padding-inline: 0;
+}
+
+.mouthFitStage .toothButton:nth-child(8) {
+  margin-right: 0;
+}
+
+.mouthFitStage .toothLayerMark {
+  max-width: 100%;
+}
+
+.inspectorLegend {
+  min-width: 0;
+}
+
+.inspectorLegend .legendGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.inspectorLegend .legendEntry {
+  min-width: 0;
+}
+
+@media (width <= 48em) {
+  /* At phone width use four compact quadrants (8 teeth per row) rather than
+     cramming 16 illegible 15px-wide buttons into one continuous row. */
+  .mouthFitStage {
+    width: 520px;
+    gap: 4px;
+  }
+
+  .mouthFitStage .arch {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .mouthFitStage .arch[data-tooth-count="10"] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .unifiedWorkbench {
+    height: clamp(290px, calc(100dvh - var(--denty-shell-header) - 108px), 840px);
+  }
+
+  .unifiedChartColumn {
+    padding: 7px;
+    gap: 0;
+  }
+
+  .unifiedChartColumn > .chartPanel {
+    padding: 9px;
+  }
+
+  .unifiedChartColumn .chartHeader {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+
+  .unifiedChartColumn .nextVisitBar {
+    margin-block: 2px 4px;
+  }
+
+  .mouthFitStage .toothButton {
+    min-height: 116px;
+  }
+
+  .mouthFitStage .toothLayerMark {
+    display: none;
+  }
+}
+
+@media (width > 48em) {
+  .unifiedWorkbench {
+    height: clamp(340px, calc(100dvh - var(--denty-shell-header) - 120px), 840px);
+  }
+}
+
+@media (max-height: 520px) {
+  .unifiedWorkbench {
+    height: clamp(235px, calc(100dvh - var(--denty-shell-header) - 84px), 450px);
+  }
+
+  .unifiedChartColumn {
+    padding: 5px;
+  }
+
+  .unifiedChartColumn > .chartPanel {
+    padding: 6px;
+  }
+
+  .unifiedChartColumn .nextVisitBar {
+    margin-block: 0;
+  }
+}
