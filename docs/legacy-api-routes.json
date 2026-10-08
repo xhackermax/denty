@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas din\u00e1micas verificadas en source",
-  "routeCount": 265,
+  "routeCount": 266,
   "routes": [
     {
       "method": "GET",
@@ -393,6 +393,13 @@
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
       "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/periods",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser",
+      "note": "Stage 9: historial agrupado por periodo sobre Supabase."
     },
     {
       "method": "GET",
