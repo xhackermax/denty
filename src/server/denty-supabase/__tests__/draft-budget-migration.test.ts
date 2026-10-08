@@ -26,6 +26,7 @@ describe("draft budget SQL migration", () => {
     db = new PGlite();
     await db.exec(`
       create role authenticated;
+      create role anon;
       create schema private;
       create function private.is_clinic_staff(uuid) returns boolean
         language sql as $$ select true $$;
@@ -40,7 +41,7 @@ describe("draft budget SQL migration", () => {
       );
       create table public.budget_items (
         id uuid primary key,
-        budget_id uuid not null,
+        budget_id uuid not null references public.budgets(id) on delete cascade,
         billing_mode text not null,
         quantity integer not null,
         unit_price_cents integer not null,
@@ -50,6 +51,7 @@ describe("draft budget SQL migration", () => {
       create table public.invoices (budget_id uuid not null);
       create table public.payments (budget_id uuid not null);
       create table public.payment_allocations (budget_id uuid not null);
+      alter default privileges in schema public grant execute on functions to anon;
       insert into public.budgets values (
         '${ids.budget}', '${ids.patient}', '${ids.clinic}', 1, 'DRAFT', 'Plan inicial', 2000
       );
@@ -93,6 +95,35 @@ describe("draft budget SQL migration", () => {
       { billing_mode: "included", total_cents: 0 },
       { billing_mode: "separate", total_cents: 2500 },
     ]);
+  });
+
+  it("deletes an unlinked draft and cascades only its budget items", async () => {
+    const status = await resultStatus("select public.delete_draft_budget($1,$2,$3) result", [
+      ids.budget, ids.patient, 1,
+    ]);
+    expect(status).toBe("deleted");
+    const budgets = await db.query<{ count: number }>(
+      "select count(*)::integer as count from public.budgets where id=$1", [ids.budget],
+    );
+    const items = await db.query<{ count: number }>(
+      "select count(*)::integer as count from public.budget_items where budget_id=$1", [ids.budget],
+    );
+    expect(budgets.rows[0]?.count).toBe(0);
+    expect(items.rows[0]?.count).toBe(0);
+  });
+
+  it("does not expose budget mutation RPCs to anonymous users", async () => {
+    const acl = await db.query<{ delete_exec: boolean; update_exec: boolean; staff_exec: boolean }>(`
+      select
+        has_function_privilege('anon','public.delete_draft_budget(uuid,uuid,integer)','EXECUTE') delete_exec,
+        has_function_privilege('anon','public.update_draft_budget(uuid,uuid,integer,text,jsonb)','EXECUTE') update_exec,
+        has_function_privilege('authenticated','public.delete_draft_budget(uuid,uuid,integer)','EXECUTE') staff_exec
+    `);
+    expect(acl.rows[0]).toEqual({
+      delete_exec: false,
+      update_exec: false,
+      staff_exec: true,
+    });
   });
 
   it("rejects stale, linked, or non-draft records without deleting them", async () => {
