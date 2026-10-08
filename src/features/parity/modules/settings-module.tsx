@@ -21,6 +21,7 @@ import { dentyQueryKeys } from "@/shared/query";
 import styles from "@/shared/ui/parity.module.css";
 import { ManagedBackupsPanel } from "./managed-backups-panel";
 import { BillingSettingsSection } from "./billing-settings-section";
+import { VisualPersonalizationPanel } from "./visual-personalization-panel";
 
 export function SettingsModule() {
   const queryClient = useQueryClient();
@@ -116,6 +117,8 @@ export function SettingsModule() {
           suffix=" días"
         />
       </section>
+
+      <VisualPersonalizationPanel />
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Tu menú</h3>
