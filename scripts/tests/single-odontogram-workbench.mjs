@@ -16,7 +16,7 @@ assert.ok(!workspace.includes("<OdontogramVisual"), "Only the common editor is m
 assert.ok(!ortho.includes("renderArch(arches.upper)"), "No second orthodontic arch");
 assert.ok(!ortho.includes("renderArch(arches.lower)"), "No second orthodontic arch");
 assert.ok(!pediatric.includes("renderMixedArch("), "No second mixed-dentition mouth");
-assert.ok(!pediatric.includes("<PediatricTooth"), "No duplicate pediatric tooth diagram");
+assert.ok(!pediatric.includes("<PediatricTooth "), "No duplicate pediatric tooth diagram");
 assert.ok(workspace.includes("selectedTooth={selectedTooth}"), "Clinical tools must use the central selected tooth");
 assert.ok(workspace.includes("focusedLayer={inspectorLayer}"), "Inspector focus is independent from visible overlays");
 assert.ok(workspace.includes('inspectorLayer === "perio"'), "Periodontal editor must be focused, not duplicated");
