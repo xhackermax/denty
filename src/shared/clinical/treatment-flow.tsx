@@ -83,6 +83,7 @@ export interface TreatmentFlowModalProps {
   opened: boolean;
   onClose: () => void;
   startAt?: "plan" | "consents";
+  preferredBudgetId?: string;
 }
 
 export function TreatmentFlowModal({
@@ -90,6 +91,7 @@ export function TreatmentFlowModal({
   opened,
   onClose,
   startAt,
+  preferredBudgetId,
 }: TreatmentFlowModalProps) {
   const isMobile = useMediaQuery("(max-width: 48em)") ?? false;
   return (
@@ -102,7 +104,12 @@ export function TreatmentFlowModal({
     >
       {/* Remounted on every open: it always starts from the current clinical state. */}
       {opened ? (
-        <TreatmentFlow patientId={patientId} onClose={onClose} startAt={startAt} />
+        <TreatmentFlow
+          patientId={patientId}
+          onClose={onClose}
+          startAt={startAt}
+          preferredBudgetId={preferredBudgetId}
+        />
       ) : null}
     </Modal>
   );
@@ -112,10 +119,12 @@ function TreatmentFlow({
   patientId,
   onClose,
   startAt,
+  preferredBudgetId,
 }: {
   patientId: string;
   onClose: () => void;
   startAt?: "plan" | "consents";
+  preferredBudgetId?: string;
 }) {
   const syncQuery = useClinicalSyncQuery(patientId);
   const planQuery = useClinicalPlanQuery(patientId);
@@ -131,9 +140,6 @@ function TreatmentFlow({
     () => (planQuery.data?.items ?? []).filter(isOpenPlanItem),
     [planQuery.data?.items],
   );
-  const pendingConsents = (consentsQuery.data?.items ?? []).filter(
-    (item) => item.status !== "SATISFIED",
-  );
   const syncBudget = syncQuery.data?.budget ?? null;
   const wholeBudget = (budgetSync.data?.budget ?? null) as BudgetView | null;
   // The budget the patient signs: the whole plan, a phase or a custom selection.
@@ -147,25 +153,44 @@ function TreatmentFlow({
       ) as BudgetView[],
     [budgetHistory.data?.items],
   );
+  const preferredBudget = preferredBudgetId
+    ? ((budgetHistory.data?.items ?? []).find((candidate) => candidate.id === preferredBudgetId) as
+        | BudgetView
+        | undefined)
+    : undefined;
   const signedBudget = syncBudget
     ? ((budgetHistory.data?.items ?? []).find((candidate) => candidate.id === syncBudget.id) as
         | BudgetView
         | undefined)
     : undefined;
-  const selectedBudget = budget ?? signedBudget ?? null;
+  const selectedBudget = budget ?? preferredBudget ?? signedBudget ?? null;
   const selectedPlanItemIds = new Set(
     (selectedBudget?.items ?? [])
       .map((item) => item.clinicalPlanItemId)
       .filter((id): id is string => Boolean(id)),
   );
+  const relevantConsentRequirements = (consentsQuery.data?.items ?? []).filter(
+    (requirement) =>
+      selectedPlanItemIds.size === 0 ||
+      !requirement.clinicalPlanItemId ||
+      selectedPlanItemIds.has(requirement.clinicalPlanItemId),
+  );
+  const pendingConsents = relevantConsentRequirements.filter(
+    (item) => item.status !== "SATISFIED",
+  );
   const appointmentItems = selectedPlanItemIds.size
     ? openItems.filter((item) => selectedPlanItemIds.has(item.id))
     : openItems;
   const state: TreatmentFlowState = {
-    openItemCount: openItems.length,
+    openItemCount: appointmentItems.length,
     pendingConsentCount: pendingConsents.length,
     budget: syncBudget ? { status: syncBudget.status, outdated: syncBudget.outdated } : null,
   };
+
+  useEffect(() => {
+    if (!preferredBudget || chosenBudget !== undefined) return;
+    setChosenBudget(preferredBudget);
+  }, [chosenBudget, preferredBudget]);
 
   // Opening the flow derives the plan from the saved odontogram first, unless the
   // current budget is already signed. Re-syncing then can obsolete the signature
@@ -274,7 +299,7 @@ function TreatmentFlow({
           patientName={patientName}
           patient={patientQuery.data}
           items={openItems}
-          requirements={consentsQuery.data?.items ?? []}
+          requirements={relevantConsentRequirements}
         />
       </RetainedFlowStep>
       {step === "budget" && syncBudget?.status === "SIGNED" && !syncBudget.outdated && !budget ? (
