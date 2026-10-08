@@ -108,6 +108,12 @@ export function PediatricPanel({
   }, [patientId, persistedSignature]);
   const chosenTooth = allTeeth.includes(selectedTooth) ? selectedTooth : (allTeeth[0] ?? "55");
 
+  // One shared tooth selection drives both the main chart and this context editor.
+  // Loading a different tooth must never reuse the previous tooth's draft status.
+  useEffect(() => {
+    setStatus(toothStates[chosenTooth] ?? "healthy");
+  }, [chosenTooth, toothStates]);
+
   const fallbackPresence = (tooth: string) =>
     stage === "primary" ? true : mixedDefault.has(tooth);
   const presentFor = (tooth: string) =>
