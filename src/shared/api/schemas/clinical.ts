@@ -78,6 +78,13 @@ export const clinicalBudgetSchema = z
     currentPlanFingerprint: z.string().nullable().optional(),
     scope: z.enum(["plan", "primary", "secondary", "custom"]).default("plan"),
     title: z.string().nullable().optional(),
+    branch: z.object({
+      id: idSchema,
+      sharedPlanItemIds: z.array(idSchema),
+      advantages: z.string().nullable(),
+      disadvantages: z.string().nullable(),
+      sourcePlanVersion: versionSchema,
+    }).optional(),
     items: z.array(clinicalBudgetItemSchema).default([]),
   })
   .passthrough();
