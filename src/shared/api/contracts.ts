@@ -156,6 +156,13 @@ export const appointmentSchema = z.object({
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
   clinical: appointmentClinicalSchema.optional(),
+  patient: z
+    .object({
+      id: idSchema,
+      firstName: z.string().min(1),
+      lastName: z.string().min(1),
+    })
+    .optional(),
 });
 
 export const createAppointmentSchema = z.object({
@@ -169,6 +176,8 @@ export const createAppointmentSchema = z.object({
   endsAt: isoDateTimeSchema,
   title: z.string().min(1),
   reason: z.string().min(1).optional(),
+  /** Explicit user confirmation for an intentional double booking. */
+  allowOverlap: z.boolean().optional(),
 });
 
 export const updateAppointmentSchema = createAppointmentSchema
