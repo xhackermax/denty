@@ -48,7 +48,10 @@ function walk(dir) {
 }
 walk(srcRoot);
 
-const runtime = sourceFiles.map((file) => [relative(root, file), readFileSync(file, "utf8")]);
+const runtime = sourceFiles.map((file) => [
+  relative(root, file).replaceAll("\\", "/"),
+  readFileSync(file, "utf8"),
+]);
 for (const [file, text] of runtime) {
   assert.doesNotMatch(text, removedAccountPattern, `${file}: removed account/runtime residue`);
   assert.equal(text.includes(removedPublicFlag), false, `${file}: removed account toggle residue`);
