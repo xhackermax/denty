@@ -138,7 +138,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
   useEffect(() => {
     if (initialTab === "budgets" && requestedAction === "sign") {
-      setTreatmentFlowStartAt(undefined);
+      setTreatmentFlowStartAt(requestedBudgetId ? "signature" : undefined);
       setTreatmentFlowBudgetId(requestedBudgetId);
       setTreatmentFlowOpen(true);
     }
