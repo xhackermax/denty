@@ -76,6 +76,15 @@ interface DependencyRow {
   reason: string | null;
 }
 
+interface PlanBranchRow {
+  id: string;
+  budget_id: string;
+  shared_item_ids: string[];
+  advantages: string | null;
+  disadvantages: string | null;
+  source_plan_version: number;
+}
+
 interface BudgetRow {
   id: string;
   clinical_plan_id: string | null;
@@ -388,6 +397,39 @@ export class ClinicalRepository {
     const budget = await this.getBudget(row.id);
     if (!budget) throw new SupabaseRestError("No se pudo leer el presupuesto creado.", 502, row);
     return { budget, sync: await this.getClinicalSync(patientId) };
+  }
+
+  /** Fork the current plan without inserting alternative-only items into Plan A. */
+  async createClinicalPlanBranch(
+    patientId: string,
+    input: {
+      expectedPlanVersion: number;
+      title: string;
+      sharedPlanItemIds: string[];
+      exclusiveTreatments: Array<{ catalogId: string; tooth?: string }>;
+      advantages?: string;
+      disadvantages?: string;
+    },
+  ) {
+    const created = await this.client.rpc<{ id: string; budget_id: string }>(
+      "create_clinical_plan_branch",
+      {
+        p_patient_id: patientId,
+        p_expected_plan_version: input.expectedPlanVersion,
+        p_title: input.title,
+        p_shared_item_ids: input.sharedPlanItemIds,
+        p_exclusive_items: input.exclusiveTreatments.map(({ catalogId, tooth }) => ({
+          catalog_id: catalogId,
+          tooth: tooth ?? null,
+        })),
+        p_advantages: input.advantages || null,
+        p_disadvantages: input.disadvantages || null,
+      },
+    );
+    const budget = await this.getBudget(created.budget_id);
+    if (!budget)
+      throw new SupabaseRestError("No se pudo consultar el presupuesto de la alternativa.", 502, created);
+    return { budget };
   }
 
   async updateDraftBudget(
@@ -783,11 +825,20 @@ export class ClinicalRepository {
     });
     const budget = budgets[0];
     if (!budget) return null;
-    const items = await this.client.select<BudgetItemRow>("budget_items", {
-      select: "*",
-      budget_id: `eq.${budget.id}`,
-      order: "created_at.asc",
-    });
+    const [items, branches] = await Promise.all([
+      this.client.select<BudgetItemRow>("budget_items", {
+        select: "*",
+        budget_id: `eq.${budget.id}`,
+        order: "created_at.asc",
+      }),
+      this.client.select<PlanBranchRow>("clinical_plan_branches", {
+        select: "id,budget_id,shared_item_ids,advantages,disadvantages,source_plan_version",
+        budget_id: `eq.${budget.id}`,
+        clinic_id: `eq.${this.clinicId}`,
+        limit: 1,
+      }),
+    ]);
+    const branch = branches[0];
     return {
       id: budget.id,
       code: budget.code,
@@ -799,6 +850,13 @@ export class ClinicalRepository {
       createdAt: budget.created_at,
       scope: budget.scope ?? "plan",
       title: budget.title ?? null,
+      ...(branch ? { branch: {
+        id: branch.id,
+        sharedPlanItemIds: branch.shared_item_ids,
+        advantages: branch.advantages,
+        disadvantages: branch.disadvantages,
+        sourcePlanVersion: branch.source_plan_version,
+      }} : {}),
       items: items.map((item) => ({
         id: item.id,
         clinicalPlanItemId: item.clinical_plan_item_id,
