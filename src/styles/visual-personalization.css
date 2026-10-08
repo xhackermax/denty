@@ -90,41 +90,23 @@ html[data-mantine-color-scheme="dark"][data-denty-palette]:not([data-denty-palet
   --denty-line: color-mix(in srgb, var(--denty-palette-accent) 23%, transparent);
 }
 
-/* The actual wallpaper is a full-resolution locally hosted vector scene.
-   All previews render these same files; no surrogate CSS texture. The
-   wallpaper is a fixed viewport canvas, independent from scrolling and theme. */
-html[data-denty-wallpaper="aurora"] body {
-  background-image: url("/wallpapers/aurora-luxury.svg");
+/* One fixed-size, full-resolution vector artwork per wallpaper.
+   This existing body pseudo-element is the same viewport canvas on desktop
+   and mobile. The higher specificity also overrides the stock dark-mode haze. */
+html[data-denty-wallpaper="aurora"]:not([data-denty-wallpaper="none"]) body::before {
+  background: url("/wallpapers/aurora-luxury.svg") center / cover no-repeat;
 }
 
-html[data-denty-wallpaper="silk"] body {
-  background-image: url("/wallpapers/silk-3d.svg");
+html[data-denty-wallpaper="silk"]:not([data-denty-wallpaper="none"]) body::before {
+  background: url("/wallpapers/silk-3d.svg") center / cover no-repeat;
 }
 
-html[data-denty-wallpaper="mesh"] body {
-  background-image: url("/wallpapers/mesh-network.svg");
+html[data-denty-wallpaper="mesh"]:not([data-denty-wallpaper="none"]) body::before {
+  background: url("/wallpapers/mesh-network.svg") center / cover no-repeat;
 }
 
-html[data-denty-wallpaper]:not([data-denty-wallpaper="none"]) body {
-  background-color: var(--denty-bg);
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-attachment: fixed;
-}
-
-/* The default Denty ambient gradient was drawn above the wallpaper, washing
-   out its light, shadows and glowing nodes. Omit it only for image backgrounds. */
 html[data-denty-wallpaper]:not([data-denty-wallpaper="none"]) body::before {
-  display: none;
-}
-
-@media (hover: none) and (pointer: coarse) {
-  /* Mobile Safari doesn't reliably support fixed background attachment. */
-  html[data-denty-wallpaper]:not([data-denty-wallpaper="none"]) body {
-    background-attachment: scroll;
-    background-size: 100% 100vh;
-  }
+  opacity: 1;
 }
 
 /* A user-off toggle takes precedence over decorative CSS effects even if the OS
