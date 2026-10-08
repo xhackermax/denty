@@ -16,7 +16,7 @@ import { AGENDA_STATUS_META } from "@/features/agenda/agenda-status";
 import styles from "./dashboard-calendar.module.css";
 
 const WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"];
-// Show one patient marker and the remaining appointment count on each day.
+// A day tile is ~38 px wide: one face plus a count fits.
 const MAX_AVATARS = 1;
 // The card is a glance, not the agenda: the next two visits, then a link to the rest.
 const MAX_LISTED = 2;
@@ -107,7 +107,7 @@ export function DashboardCalendar({
     queryFn: () => api.dayAppointments(selected, site),
   });
 
-  const weeks = useMemo(() => buildMonthGrid(month, today, { minWeeks: 6 }), [month, today]);
+  const weeks = useMemo(() => buildMonthGrid(month, today), [month, today]);
   const byDay = useMemo(
     () =>
       new Map<string, MonthDaySummary>((summary.data?.days ?? []).map((day) => [day.date, day])),
