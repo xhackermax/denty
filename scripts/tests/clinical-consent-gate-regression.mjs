@@ -100,6 +100,25 @@ try {
   assert.match(pipelineCard, /key: "consents"/);
   assert.match(pipelineCard, /Plan → consentimientos → presupuesto → firma → citas/);
 
+  // Restored chairside pipeline: odontogram → Plan A/B/C → consents → budget signature → visits.
+  const odontogram = readFileSync("src/features/odontogram/odontogram-workspace.tsx", "utf8");
+  const workspace = readFileSync("src/shared/clinical/clinical-workspace.tsx", "utf8");
+  const treatmentFlow = readFileSync("src/shared/clinical/treatment-flow.tsx", "utf8");
+  const clinicalData = readFileSync("src/shared/clinical/clinical-data.ts", "utf8");
+  const documents = readFileSync("src/features/parity/modules/documents-module.tsx", "utf8");
+  assert.match(odontogram, /Seguir a plan de tratamiento/);
+  for (const token of ["Plan A · Plan completo", "Crear Plan B", "Continuar con Plan"]) {
+    assert.ok(workspace.includes(token), `treatment plan pipeline missing ${token}`);
+  }
+  assert.match(treatmentFlow, /Continuar a presupuesto/);
+  assert.match(treatmentFlow, /Ahora no · dejar pendiente/);
+  assert.match(treatmentFlow, /selectedPlanItemIds/);
+  assert.match(treatmentFlow, /relevantConsentRequirements/);
+  assert.match(clinicalData, /budget_pending_signature/);
+  assert.match(clinicalData, /budget_follow_up/);
+  assert.match(documents, /Pendiente de firma/);
+  assert.match(documents, /Continuar firma/);
+
   console.log("clinical consent gate regression: OK");
 } finally {
   rmSync(outDir, { recursive: true, force: true });
