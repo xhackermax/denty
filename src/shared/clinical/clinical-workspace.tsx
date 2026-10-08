@@ -189,8 +189,16 @@ export function ClinicalWorkspace({
     (showPlan && (workflow.isError || sync.isError)) ||
     ((showPlan || showBudget) && budgetHistory.isError);
   const budgets = budgetHistory.data?.items ?? [];
+  const currentPlanVersion = plan.data?.version;
   const planAlternativeBudgets = budgets
-    .filter((budget) => budget.status === "DRAFT" && budget.scope === "custom")
+    .filter(
+      (budget) =>
+        budget.status === "DRAFT" &&
+        budget.scope === "custom" &&
+        (currentPlanVersion === undefined ||
+          budget.sourcePlanVersion === undefined ||
+          budget.sourcePlanVersion === currentPlanVersion),
+    )
     .sort((left, right) => (left.createdAt ?? "").localeCompare(right.createdAt ?? ""));
   const selectedPlanLetter =
     selectedPlanAlternativeId === null
