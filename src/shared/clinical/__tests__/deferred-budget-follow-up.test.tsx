@@ -68,6 +68,7 @@ describe("useDeferBudgetDecisionMutation", () => {
       budgetCode: "P-1",
       totalCents: 125000,
       patientName: "Ana Ruiz",
+      reason: "THINKING",
     });
 
     await waitFor(() => expect(api.createTask).toHaveBeenCalledOnce());
@@ -80,6 +81,8 @@ describe("useDeferBudgetDecisionMutation", () => {
         budgetCode: "P-1",
         totalCents: 125000,
         decision: "PENDING_SIGNATURE",
+        decisionReason: "THINKING",
+        followUpOn: null,
       },
     });
     expect(api.createTask).toHaveBeenCalledWith(
@@ -89,6 +92,35 @@ describe("useDeferBudgetDecisionMutation", () => {
         sourceType: "budget_pending_signature",
         sourceId: "budget-1",
         title: expect.stringContaining("Ana Ruiz"),
+      }),
+    );
+  });
+
+  it("programa la llamada para una decisión de tratamiento posterior", async () => {
+    const { result } = renderHook(() => useDeferBudgetDecisionMutation("patient-1"), {
+      wrapper,
+    });
+    result.current.mutate({
+      budgetId: "budget-1",
+      budgetCode: "P-1",
+      totalCents: 125000,
+      patientName: "Ana Ruiz",
+      reason: "LATER",
+      followUpOn: "2026-10-15",
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(api.createDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          decisionReason: "LATER",
+          followUpOn: "2026-10-15",
+        }),
+      }),
+    );
+    expect(api.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scheduledOn: "2026-10-15",
+        description: expect.stringContaining("más adelante"),
       }),
     );
   });
@@ -134,6 +166,7 @@ describe("useDeferBudgetDecisionMutation", () => {
       budgetCode: "P-1",
       totalCents: 125000,
       patientName: "Ana Ruiz",
+      reason: "THINKING",
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
