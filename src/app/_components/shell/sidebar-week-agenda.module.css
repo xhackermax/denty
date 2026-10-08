@@ -1,0 +1,250 @@
+.root {
+  --mini-accent: var(--denty-green);
+  min-width: 0;
+  border-radius: 15px;
+}
+
+.railLink {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 48px;
+  place-items: center;
+  border-radius: 14px;
+  color: var(--denty-muted);
+  text-decoration: none;
+}
+
+.railLink[data-active="true"] {
+  background: color-mix(in srgb, var(--mini-accent) 16%, transparent);
+  color: var(--denty-text);
+}
+
+.railDate {
+  position: absolute;
+  top: 21px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--mini-accent);
+  font-size: 0.55rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.railDot {
+  position: absolute;
+  top: 10px;
+  right: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--mini-accent);
+}
+
+.expanded {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .railLink:hover {
+    background: color-mix(in srgb, var(--mini-accent) 12%, transparent);
+    color: var(--denty-text);
+  }
+}
+
+@media (width >= 75em) {
+  .root {
+    padding: 8px 8px 9px;
+    border: 1px solid var(--denty-line);
+    background: color-mix(in srgb, var(--denty-card-solid) 64%, transparent);
+  }
+
+  .root[data-active="true"] {
+    border-color: color-mix(in srgb, var(--mini-accent) 40%, var(--denty-line));
+    background: color-mix(in srgb, var(--mini-accent) 7%, var(--denty-card-solid));
+  }
+
+  .railLink {
+    display: none;
+  }
+
+  .expanded {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .openFull {
+    display: flex;
+    min-height: 27px;
+    width: 100%;
+    align-items: center;
+    gap: 7px;
+    color: var(--denty-text);
+    font-size: 0.72rem;
+    font-weight: 750;
+    text-decoration: none;
+    text-transform: capitalize;
+  }
+
+  .openFull > svg:first-child {
+    flex: none;
+    color: var(--mini-accent);
+  }
+
+  .openFull > svg:last-child {
+    flex: none;
+    margin-left: auto;
+    color: var(--denty-muted);
+  }
+
+  .controls {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .control,
+  .todayButton {
+    display: grid;
+    min-width: 24px;
+    min-height: 29px;
+    flex: 0 0 auto;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--denty-muted);
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .todayButton {
+    min-width: 29px;
+    font-size: 0.63rem;
+    font-weight: 750;
+  }
+
+  .range {
+    overflow: hidden;
+    min-width: 0;
+    flex: 1 1 auto;
+    color: var(--denty-muted);
+    font-size: 0.61rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 680;
+    letter-spacing: -0.03em;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .week {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .day {
+    display: grid;
+    min-width: 0;
+    min-height: 49px;
+    gap: 2px;
+    align-content: center;
+    justify-items: center;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    color: var(--denty-text);
+    text-decoration: none;
+  }
+
+  .day[data-today="true"] {
+    border-color: color-mix(in srgb, var(--mini-accent) 54%, var(--denty-line));
+    background: color-mix(in srgb, var(--mini-accent) 13%, transparent);
+  }
+
+  .weekday {
+    color: var(--denty-muted);
+    font-size: 0.57rem;
+    font-weight: 750;
+  }
+
+  .dayNumber {
+    font-size: 0.71rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 770;
+  }
+
+  .dots {
+    display: grid;
+    height: 4px;
+    place-items: center;
+  }
+
+  .busyDot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--mini-accent);
+  }
+
+  .busyDot[data-full="true"] {
+    width: 6px;
+    height: 6px;
+  }
+
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 3px;
+    min-height: 22px;
+    border-top: 1px solid var(--denty-line);
+    color: var(--denty-muted);
+    font-size: 0.58rem;
+    font-weight: 650;
+  }
+
+  .footer > a {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 1px;
+    color: var(--denty-blue-text);
+    text-decoration: none;
+  }
+
+  .footer > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .control:hover,
+    .todayButton:hover,
+    .day:hover {
+      background: color-mix(in srgb, var(--mini-accent) 15%, transparent);
+    }
+
+    .openFull:hover,
+    .footer > a:hover {
+      color: var(--denty-blue-text);
+    }
+  }
+}
+
+.root :is(a, button):focus-visible {
+  outline: 2px solid var(--denty-blue);
+  outline-offset: 1px;
+}
