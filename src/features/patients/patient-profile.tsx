@@ -120,7 +120,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const [activeTab, setActiveTab] = useState<string | null>(initialTab);
   const [treatmentFlowOpen, setTreatmentFlowOpen] = useState(false);
   const [treatmentFlowStartAt, setTreatmentFlowStartAt] = useState<
-    "plan" | "consents" | undefined
+    "plan" | "consents" | "signature" | undefined
   >(undefined);
   const [treatmentFlowBudgetId, setTreatmentFlowBudgetId] = useState<string | undefined>(
     undefined,
