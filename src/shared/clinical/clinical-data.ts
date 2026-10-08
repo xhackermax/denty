@@ -232,7 +232,36 @@ export function useSignBudgetMutation(patientId: string) {
         signerName: input.signerName,
         signatureData: input.signatureData,
       }),
-    onSuccess: () => invalidateClinicalPatient(queryClient, patientId),
+    onSuccess: (_result, input) => {
+      invalidateClinicalPatient(queryClient, patientId);
+      // A budget can be signed days after being deferred. Close only the matching
+      // open callback task; a failed cleanup never rolls back a valid signature.
+      void getBrowserApi()
+        .tasks.list()
+        .then(async ({ items }) => {
+          const followUps = items.filter(
+            (task) =>
+              task.patientId === patientId &&
+              task.sourceType === "budget_pending_signature" &&
+              task.sourceId === input.budgetId &&
+              (task.status === "OPEN" || task.status === "IN_PROGRESS"),
+          );
+          await Promise.all(
+            followUps.map((task) =>
+              getBrowserApi().tasks.update(task.id, {
+                status: "DONE",
+                expectedVersion: task.version,
+              }),
+            ),
+          );
+        })
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.tasks.root });
+        })
+        .catch(() => {
+          // Follow-up remains visible if the task service is unavailable.
+        });
+    },
   });
 }
 
