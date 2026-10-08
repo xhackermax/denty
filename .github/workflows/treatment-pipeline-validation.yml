@@ -7,6 +7,7 @@ on:
       - fix/wallpapers-faithful-svg-assets
       - feat/single-unified-odontogram-workbench
       - feat/odontogram-single-canvas-workspace
+      - feat/sidebar-mini-week-agenda
       - main
       - security-confirmation-explicit-click
   pull_request:
@@ -66,6 +67,8 @@ jobs:
         run: npx vitest run src/shared/clinical/__tests__/clinical-workspace.test.tsx src/shared/clinical/__tests__/deferred-budget-follow-up.test.tsx src/server/denty-supabase/__tests__/scoped-budgets.test.ts src/shared/clinical/__tests__/budget-options.test.tsx
       - name: Dashboard and admin navigation tests
         run: npx vitest run src/features/dashboard/__tests__/dashboard-calendar.test.tsx src/features/parity/__tests__/admin-home-navigation.test.tsx
+      - name: Interactive sidebar mini agenda tests
+        run: npx vitest run src/app/_components/shell/__tests__/sidebar-week-agenda.test.tsx
       - name: Confirmation security tests
         run: npx vitest run "src/app/confirmar-cita/[token]/confirmation-action.test.ts"
       - name: Contact permissions tests
