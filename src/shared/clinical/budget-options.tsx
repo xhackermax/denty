@@ -51,6 +51,8 @@ export interface BudgetView {
   }>;
 }
 
+const EMPTY_BUDGETS: readonly BudgetView[] = [];
+
 export interface BudgetPlanItem {
   id: string;
   treatmentCode: string;
@@ -150,7 +152,7 @@ export function BudgetOptions({
   onRetryWhole,
   selectedId,
   onSelect,
-  existingCustomBudgets = [],
+  existingCustomBudgets = EMPTY_BUDGETS,
 }: {
   patientId: string;
   items: readonly BudgetPlanItem[];
