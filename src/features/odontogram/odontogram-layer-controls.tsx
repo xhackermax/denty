@@ -69,8 +69,6 @@ const SUBFILTER_LABELS: Record<OdontogramLayerId, Readonly<Record<string, string
   },
 };
 
-const FREQUENT_LAYERS: readonly OdontogramLayerId[] = ["general", "perio", "endo", "prosthetics"];
-const MORE_LAYERS = ODONTOGRAM_LAYER_IDS.filter((layerId) => !FREQUENT_LAYERS.includes(layerId));
 const PRESETS: readonly { id: OdontogramPresetId; label: string }[] = [
   { id: "exploration", label: "Exploración" },
   { id: "periodontal_review", label: "Revisión periodontal" },
@@ -152,22 +150,21 @@ export function OdontogramLayerControls({
   return (
     <nav className={styles.layerControls} aria-label="Capas del odontograma">
       <p className={styles.layerHelp}>
-        Pulsa las áreas para superponer varias en el mismo dibujo. «Editar» abre sus herramientas sin crear otro odontograma.
+        Activa una o varias áreas sobre los mismos dientes. «Editar» abre las herramientas del área elegida.
       </p>
       <div className={styles.layerToolbar}>
-        <div className={styles.layerButtons} aria-label="Capas frecuentes">
-          {FREQUENT_LAYERS.map((layerId) => (
-            <LayerButton key={layerId} layerId={layerId} state={state} focused={focusedLayer === layerId} onToggle={onToggleLayer} onFocus={onFocusLayer} />
+        <div className={styles.layerButtons} aria-label="Áreas clínicas">
+          {ODONTOGRAM_LAYER_IDS.map((layerId) => (
+            <LayerButton
+              key={layerId}
+              layerId={layerId}
+              state={state}
+              focused={focusedLayer === layerId}
+              onToggle={onToggleLayer}
+              onFocus={onFocusLayer}
+            />
           ))}
         </div>
-        <details className={styles.layerDisclosure}>
-          <summary>Más capas</summary>
-          <div className={styles.layerButtons} aria-label="Más capas">
-            {MORE_LAYERS.map((layerId) => (
-              <LayerButton key={layerId} layerId={layerId} state={state} focused={focusedLayer === layerId} onToggle={onToggleLayer} onFocus={onFocusLayer} />
-            ))}
-          </div>
-        </details>
         <button type="button" className={styles.layerAction} onClick={onShowAll}>
           {state.mode === "normal" ? "Mostrar todo" : "Volver a vista anterior"}
         </button>
