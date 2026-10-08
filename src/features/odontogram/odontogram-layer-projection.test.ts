@@ -7,6 +7,7 @@ import {
 } from "./odontogram-view-state";
 import {
   orthodonticMarkForTooth,
+  orthodonticSymbolsForTooth,
   periodontalMarksForTooth,
   pediatricReplacementForTooth,
 } from "./odontogram-layer-projection";
@@ -36,6 +37,56 @@ describe("odontogram shared layer projection", () => {
     const withoutAppliances = toggleOdontogramSubfilter(state, "ortho", "aparatos");
     expect(orthodonticMarkForTooth(dentalState, "11", withoutAppliances)).toBeNull();
     expect(orthodonticMarkForTooth(dentalState, "12", withoutAppliances)).toBe("space");
+  });
+
+  it("renders the orthodontic appliances selected in the clinical record on their correct arch", () => {
+    const dentalState = createOdontogramEntityState([{
+      id: "orthodontic-patient-1",
+      entityType: "ORTHODONTIC",
+      status: "active",
+      active: true,
+      attributes: {
+        appliances: ["brackets", "aligners", "retainer", "expander", "lingual_arch"],
+        toothMarks: { "11": "miniscrew", "21": "band", "22": "attachment", "23": "extract",
+          "24": "space", "25": "maintainer" },
+      },
+    }]);
+    const view = toggleOdontogramLayer(createInitialOdontogramViewState(), "ortho");
+    expect(orthodonticSymbolsForTooth(dentalState, "11", view)).toEqual([
+      "bracket", "aligner", "retainer", "expander", "miniscrew",
+    ]);
+    expect(orthodonticSymbolsForTooth(dentalState, "31", view)).toEqual([
+      "bracket", "aligner", "retainer", "lingual_arch",
+    ]);
+    expect(orthodonticMarkForTooth(dentalState, "11", view)).toBe("miniscrew");
+    expect(orthodonticMarkForTooth(dentalState, "25", view)).toBe("maintainer");
+    expect(orthodonticSymbolsForTooth(dentalState, "21", view)).toContain("band");
+    expect(orthodonticSymbolsForTooth(dentalState, "22", view)).toContain("attachment");
+    expect(orthodonticSymbolsForTooth(dentalState, "23", view)).toContain("extract");
+    expect(orthodonticSymbolsForTooth(dentalState, "24", view)).toContain("space");
+
+    const noAppliances = toggleOdontogramSubfilter(view, "ortho", "aparatos");
+    expect(orthodonticSymbolsForTooth(dentalState, "11", noAppliances)).toEqual([]);
+    expect(orthodonticSymbolsForTooth(dentalState, "23", noAppliances)).toEqual(["extract"]);
+    expect(orthodonticSymbolsForTooth(dentalState, "24", noAppliances)).toEqual(["space"]);
+  });
+
+  it("updates the overlays directly from unsaved ortho form changes and respects hidden layers", () => {
+    const dentalState = createOdontogramEntityState([]);
+    const view = toggleOdontogramLayer(createInitialOdontogramViewState(), "ortho");
+    const draft = {
+      appliances: ["brackets"] as const,
+      toothMarks: { "12": "miniscrew", "13": "maintainer" },
+    };
+    expect(orthodonticSymbolsForTooth(dentalState, "12", view, draft)).toEqual([
+      "bracket", "miniscrew",
+    ]);
+    expect(orthodonticSymbolsForTooth(dentalState, "13", view, draft)).toEqual([
+      "bracket", "maintainer",
+    ]);
+    expect(orthodonticSymbolsForTooth(
+      dentalState, "12", createInitialOdontogramViewState(), draft,
+    )).toEqual([]);
   });
 
   it("projects pediatric replacement statuses only when their layer and filter are visible", () => {
