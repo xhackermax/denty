@@ -47,11 +47,19 @@ export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
     if (!patientId) return null;
     const sync = syncQuery.data;
     if (!sync) return null;
+    const selectedPlanItemIds = new Set(sync.budget?.selectedPlanItemIds ?? []);
     const futureCount = (projectionQuery.data?.appointments ?? []).filter(
-      (item) => !["CANCELLED", "NO_SHOW", "COMPLETED"].includes(item.status),
+      (item) =>
+        !["CANCELLED", "NO_SHOW", "COMPLETED"].includes(item.status) &&
+        (selectedPlanItemIds.size === 0 ||
+          (item.clinicalPlanItemId ? selectedPlanItemIds.has(item.clinicalPlanItemId) : false)),
     ).length;
     const requiredConsents = (consentRequirementsQuery.data?.items ?? []).filter(
-      (item) => item.requiredBefore === "BUDGET_SIGNATURE",
+      (item) =>
+        item.requiredBefore === "BUDGET_SIGNATURE" &&
+        (selectedPlanItemIds.size === 0 ||
+          !item.clinicalPlanItemId ||
+          selectedPlanItemIds.has(item.clinicalPlanItemId)),
     );
     const signedRequiredConsentCount = requiredConsents.filter(
       (item) => item.status === "SATISFIED",
@@ -61,7 +69,10 @@ export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
       patientId,
       odontogramVersion: sync.odontogram.version,
       diagnosisCount: workflowQuery.data?.problems.length ?? 0,
-      activePlanItemCount: sync.plan.itemCount,
+      activePlanItemCount:
+        sync.budget?.status === "SIGNED" && selectedPlanItemIds.size > 0
+          ? selectedPlanItemIds.size
+          : sync.plan.itemCount,
       plan: {
         version: sync.plan.version,
         sourceOdontogramVersion: sync.plan.sourceOdontogramVersion ?? -1,
