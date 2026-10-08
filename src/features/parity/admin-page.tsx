@@ -88,7 +88,7 @@ export function AdminPage({
             <span className={styles.cardLinkDescription}>Pacientes, citas y tratamientos</span>
           </Link>
           <Link className={styles.cardLink} href="/app/settings">
-            <span className={styles.cardLinkTitle}>Seguridad y privacidad</span>
+            <span className={styles.cardLinkTitle}>Seguridad y ajustes</span>
             <span className={styles.cardLinkDescription}>Sesiones, RGPD, copias y receta</span>
           </Link>
         </SimpleGrid>
