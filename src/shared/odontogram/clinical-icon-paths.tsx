@@ -96,11 +96,21 @@ export function ClinicalIconPaths({
         </>
       );
     case "periodontal_hygiene":
+      // A side-on toothbrush silhouette, not a diagonal instrument/pencil.
+      // Distinct bristle clusters and a bent grip remain legible at agenda micro (19 px).
+      // Drawn for Denty after comparing CC0 toothbrush SVG references.
       return (
         <g data-icon="toothbrush">
-          <path d="M4 19L14.5 8.5Q15.5 7.5 16.9 8.9L18.1 10.1Q19.5 11.5 18.5 12.5L8 23H4Z" />
-          <path className="clinical-accent" d="M13.5 7.5L16.5 4.5M15.5 9.5L19 6M17.5 11.5L21 8" />
-          <path d="M5.5 19.5L8.5 22.5M8 16L11 19" />
+          <path
+            data-part="brush-handle"
+            d="M3.3 11.8H9.6C11.2 11.8 12 12.3 13 13.2L14 14.1C14.5 14.55 15 14.7 15.6 14.7H21.2C22.15 14.7 22.8 15.35 22.8 16.2S22.15 17.7 21.2 17.7H15.4C13.9 17.7 13 17.3 12 16.4L11 15.5C10.5 15.05 10 14.85 9.35 14.85H3.3C2.4 14.85 1.8 14.2 1.8 13.35S2.4 11.8 3.3 11.8Z"
+          />
+          <path
+            data-part="brush-bristles"
+            className="clinical-accent"
+            strokeWidth={1.7}
+            d="M3.6 11.8V5.5M5.75 11.8V4.5M7.9 11.8V5.5M10.05 11.8V4.5"
+          />
         </g>
       );
     case "sealant":
