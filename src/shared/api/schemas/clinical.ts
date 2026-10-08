@@ -360,6 +360,9 @@ export const clinicalSyncStateSchema = z.object({
       totalCents: z.number().int(),
       sourcePlanVersion: versionSchema.nullable(),
       version: versionSchema.optional(),
+      scope: z.enum(["plan", "primary", "secondary", "custom"]).default("plan"),
+      title: z.string().nullable().optional(),
+      selectedPlanItemIds: z.array(idSchema).default([]),
       outdated: z.boolean(),
     })
     .nullable(),
