@@ -272,6 +272,7 @@ export class ClinicalRepository {
           .filter(
             (row) =>
               row.status === "SIGNED" &&
+              row.clinical_plan_id === plan.id &&
               row.source_plan_version === plan.version,
           )
           .sort((left, right) => right.created_at.localeCompare(left.created_at))[0]
