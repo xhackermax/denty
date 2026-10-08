@@ -232,18 +232,25 @@ describe("patient budget history", () => {
     expect(screen.getByRole("region", { name: "Presupuestos" })).toBeInTheDocument();
   });
 
-  it("shows Plan A/B/C alternatives in the treatment plan surface", () => {
+  it("shows Plan A/B/C alternatives and carries the chosen plan to consents", () => {
+    const openFlow = vi.fn();
     render(
       <MantineProvider>
-        <ClinicalWorkspace patientId="patient-1" mode="plan" onOpenGuidedFlow={vi.fn()} />
+        <ClinicalWorkspace patientId="patient-1" mode="plan" onOpenGuidedFlow={openFlow} />
       </MantineProvider>,
     );
     expect(screen.getByText("Plan A · Plan completo")).toBeInTheDocument();
     expect(screen.getByText(/Plan B · Conservar el diente/)).toBeInTheDocument();
     expect(screen.getByText(/Plan C · Implante/)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Continuar a consentimientos" }),
+      screen.getByRole("button", { name: "Continuar con Plan A a consentimientos" }),
     ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Elegir Plan B" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continuar con Plan B a consentimientos" }),
+    );
+    expect(openFlow).toHaveBeenCalledWith("draft-1");
   });
 
   it("no muestra la tarjeta de estado de sincronización", () => {
