@@ -1205,9 +1205,7 @@ function OdontogramEditor({
               ) : null}
             </>
           ) : null}
-          <>
-
-              <Group gap="xs" className={styles.nextVisitBar}>
+          <Group gap="xs" className={styles.nextVisitBar}>
                 <Button
                   size="xs"
                   variant={nextVisitMode ? "filled" : pending.length ? "light" : "default"}
@@ -1240,7 +1238,6 @@ function OdontogramEditor({
                   Mandíbula
                 </Text>
               </div>
-          
         </section>
 
         {viewPreferenceError ? (
