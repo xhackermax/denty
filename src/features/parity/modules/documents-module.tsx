@@ -603,7 +603,7 @@ export function DocumentsModule() {
                 document.data?.decision === "PENDING_SIGNATURE" ? (
                   <Button
                     component={Link}
-                    href={`/app/patients/${encodeURIComponent(document.patientId)}?view=budgets&action=sign`}
+                    href={`/app/patients/${encodeURIComponent(document.patientId)}?view=budgets&action=sign&budgetId=${encodeURIComponent(String(document.data?.budgetId ?? ""))}`}
                     size="xs"
                     color="teal"
                   >
