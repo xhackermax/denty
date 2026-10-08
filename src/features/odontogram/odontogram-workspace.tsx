@@ -1109,6 +1109,34 @@ function OdontogramEditor({
       />
 
       <MouthStateProvider state={mouthState}>
+        <div className={styles.unifiedWorkbench}>
+          <div className={styles.unifiedChartColumn}>
+        <OdontogramLayerControls
+          state={viewState}
+          focusedLayer={inspectorLayer}
+          onFocusLayer={(layerId) => setInspectorLayer(layerId)}
+          onToggleLayer={(layerId) => {
+            const wasVisible = viewState.visibleLayerIds.includes(layerId);
+            setViewState((current) => toggleOdontogramLayer(current, layerId));
+            setInspectorLayer(wasVisible ? null : layerId);
+          }}
+          onToggleSubfilter={(layerId, subfilterId) =>
+            setViewState((current) => toggleOdontogramSubfilter(current, layerId, subfilterId))
+          }
+          onShowAll={() => {
+            setViewState((current) => toggleShowAllLayers(current));
+            setInspectorLayer(null);
+          }}
+          onApplyPreset={(presetId) => {
+            setViewState((current) => applyViewPreset(current, presetId));
+            setInspectorLayer(null);
+          }
+          onReset={() => {
+            setViewState((current) => resetOdontogramView(current));
+            setInspectorLayer("general");
+          }}
+          onOpenHistory={() => setActiveTab("history")}
+        />
         <section className={`${styles.chartPanel} ${parityStyles.bluePerimeterRunner}`}>
           <div className={styles.chartHeader}>
             <button
@@ -1208,7 +1236,52 @@ function OdontogramEditor({
           ) : null}
         </section>
 
-        {viewState.visibleLayerIds.includes("general") ? (
+        {viewPreferenceError ? (
+          <Alert color="yellow" title="No se pudo restaurar o guardar la preferencia de vista">
+            Las capas siguen disponibles durante esta sesión. Comprueba el almacenamiento local del
+            navegador para conservar esta configuración.
+          </Alert>
+        ) : null}
+        {!activeToolVisible && activeToolLayer ? (
+          <Alert color="yellow" title="La herramienta activa pertenece a una capa oculta">
+            Reactiva {ODONTOGRAM_LAYER_LABELS[activeToolLayer]} o cambia de herramienta antes de
+            registrar una marca.
+            <Button
+              size="xs"
+              ml="sm"
+              onClick={() =>
+                setViewState((current) => {
+                  if (!current.visibleLayerIds.includes(activeToolLayer))
+                    return toggleOdontogramLayer(current, activeToolLayer);
+                  return activeToolFilter
+                    ? toggleOdontogramSubfilter(current, activeToolLayer, activeToolFilter)
+                    : current;
+                })
+              }
+            >
+              Reactivar capa
+            </Button>
+          </Alert>
+        ) : null}
+
+          </div>
+          <section className={styles.unifiedInspector} aria-label="Herramientas del área odontológica">
+            <div className={styles.inspectorHeader}>
+              <strong>{inspectorLayer ? ODONTOGRAM_LAYER_LABELS[inspectorLayer] : "Áreas del odontograma"}</strong>
+              <Text size="xs" c="dimmed">
+                {viewState.visibleLayerIds.length} {viewState.visibleLayerIds.length === 1 ? "capa visible" : "capas visibles"} · pieza {selectedTooth}
+              </Text>
+            </div>
+            <div className={styles.inspectorScroll}>
+              {inspectorLayer === null ? (
+                <Text size="sm" c="dimmed">
+                  Selecciona varias capas y pulsa «Editar» en el área de interés. Todas se proyectan sobre los mismos dientes.
+                </Text>
+              ) : null}
+              {inspectorLayer && !viewState.visibleLayerIds.includes(inspectorLayer) ? (
+                <Text size="sm" c="dimmed">Activa esta capa para trabajar con sus herramientas.</Text>
+              ) : null}
+        {(inspectorLayer === "general" || inspectorLayer === "prosthetics") ? (
           <details
             className={styles.advancedTools}
             open={advancedToolsOpen}
@@ -1410,70 +1483,26 @@ function OdontogramEditor({
           </details>
         ) : null}
 
+              {inspectorLayer === "general" ? (
         <QuickDiagnosisBar
           patientId={patientId}
           readings={currentPerioReadings}
           readOnly={historical}
         />
-        <OdontogramLayerControls
-          state={viewState}
-          onToggleLayer={(layerId) =>
-            setViewState((current) => toggleOdontogramLayer(current, layerId))
-          }
-          onToggleSubfilter={(layerId, subfilterId) =>
-            setViewState((current) => toggleOdontogramSubfilter(current, layerId, subfilterId))
-          }
-          onShowAll={() => setViewState((current) => toggleShowAllLayers(current))}
-          onApplyPreset={(presetId) =>
-            setViewState((current) => applyViewPreset(current, presetId))
-          }
-          onReset={() => setViewState((current) => resetOdontogramView(current))}
-          onOpenHistory={() => setActiveTab("history")}
-        />
-        {viewPreferenceError ? (
-          <Alert color="yellow" title="No se pudo restaurar o guardar la preferencia de vista">
-            Las capas siguen disponibles durante esta sesión. Comprueba el almacenamiento local del
-            navegador para conservar esta configuración.
-          </Alert>
-        ) : null}
-        {!activeToolVisible && activeToolLayer ? (
-          <Alert color="yellow" title="La herramienta activa pertenece a una capa oculta">
-            Reactiva {ODONTOGRAM_LAYER_LABELS[activeToolLayer]} o cambia de herramienta antes de
-            registrar una marca.
-            <Button
-              size="xs"
-              ml="sm"
-              onClick={() =>
-                setViewState((current) => {
-                  if (!current.visibleLayerIds.includes(activeToolLayer))
-                    return toggleOdontogramLayer(current, activeToolLayer);
-                  return activeToolFilter
-                    ? toggleOdontogramSubfilter(current, activeToolLayer, activeToolFilter)
-                    : current;
-                })
-              }
-            >
-              Reactivar capa
-            </Button>
-          </Alert>
-        ) : null}
-
-        {viewState.visibleLayerIds.includes("general") ? (
+              ) : null}
+        {inspectorLayer === "general" && viewState.visibleLayerIds.includes("general") ? (
           <details className={styles.layerEditor}>
             <summary>Piezas adicionales y supernumerarias</summary>
             <SupernumeraryPanel entities={entities} readOnly={historical} onCommit={commit} />
           </details>
         ) : null}
 
-        <RetainedFlowStep active={viewState.visibleLayerIds.includes("perio")}>
-          <details
-            className={styles.layerEditor}
-            onToggle={(event) => setPerioEditorOpen(event.currentTarget.open)}
-          >
+        <RetainedFlowStep active={inspectorLayer === "perio" && viewState.visibleLayerIds.includes("perio")}>
+          <details className={styles.layerEditor} open>
             <summary>Editar periodonto</summary>
             <PerioChart
               patientId={patientId}
-              active={viewState.visibleLayerIds.includes("perio") && perioEditorOpen}
+              active={inspectorLayer === "perio" && viewState.visibleLayerIds.includes("perio")}
               readOnly={historical}
               readings={initialPeriodontal}
               visibleIndicators={viewState.subfiltersByLayer.perio}
@@ -1487,19 +1516,21 @@ function OdontogramEditor({
             />
           </details>
         </RetainedFlowStep>
-        <RetainedFlowStep active={viewState.visibleLayerIds.includes("ortho")}>
-          <details className={styles.layerEditor}>
+        <RetainedFlowStep active={inspectorLayer === "ortho" && viewState.visibleLayerIds.includes("ortho")}>
+          <details className={styles.layerEditor} open>
             <summary>Editar ortodoncia</summary>
             <OrthodonticPanel
               patientId={patientId}
+              selectedTooth={selectedTooth}
+              onSelectTooth={setSelectedTooth}
               entities={entities}
               readOnly={historical}
               onCommit={commit}
             />
           </details>
         </RetainedFlowStep>
-        <RetainedFlowStep active={viewState.visibleLayerIds.includes("replacement")}>
-          <details className={styles.layerEditor}>
+        <RetainedFlowStep active={inspectorLayer === "replacement" && viewState.visibleLayerIds.includes("replacement")}>
+          <details className={styles.layerEditor} open>
             <summary>Editar recambio y dentición</summary>
             {mouthState.dentition === "permanent" ? (
               // An adult has no primary teeth to track; the panel would only add temporary ones.
@@ -1509,6 +1540,8 @@ function OdontogramEditor({
             ) : (
               <PediatricPanel
                 patientId={patientId}
+                selectedTooth={selectedTooth}
+                onSelectTooth={setSelectedTooth}
                 {...(birthDate === undefined ? {} : { birthDate })}
                 readOnly={historical}
                 initialEntities={entities}
@@ -1517,8 +1550,8 @@ function OdontogramEditor({
             )}
           </details>
         </RetainedFlowStep>
-        <RetainedFlowStep active={viewState.visibleLayerIds.includes("endo")}>
-          <details className={styles.layerEditor}>
+        <RetainedFlowStep active={inspectorLayer === "endo" && viewState.visibleLayerIds.includes("endo")}>
+          <details className={styles.layerEditor} open>
             <summary>Editar endodoncia</summary>
             <EndodonticPanel
               selectedTooth={selectedTooth}
@@ -1527,8 +1560,8 @@ function OdontogramEditor({
             />
           </details>
         </RetainedFlowStep>
-        <RetainedFlowStep active={viewState.visibleLayerIds.includes("surgery")}>
-          <details className={styles.layerEditor}>
+        <RetainedFlowStep active={inspectorLayer === "surgery" && viewState.visibleLayerIds.includes("surgery")}>
+          <details className={styles.layerEditor} open>
             <summary>Editar cirugía</summary>
             <SurgeryPanel
               selectedTooth={selectedTooth}
@@ -1540,11 +1573,19 @@ function OdontogramEditor({
           </details>
         </RetainedFlowStep>
 
-        {viewState.visibleLayerIds.includes("proposal") ? (
+        {inspectorLayer === "proposal" && viewState.visibleLayerIds.includes("proposal") ? (
           <Alert color="blue" title="Propuestas del plan">
             Selecciona un plan para mostrar sus propuestas.
           </Alert>
         ) : null}
+              {inspectorLayer === "prosthetics" ? (
+                <Text size="xs" c="dimmed">
+                  Las herramientas de prótesis se encuentran en «Más herramientas». Sus componentes se dibujan sobre el odontograma común.
+                </Text>
+              ) : null}
+            </div>
+          </section>
+        </div>
       </MouthStateProvider>
       <details className={parityStyles.disclosure}>
         <summary>
