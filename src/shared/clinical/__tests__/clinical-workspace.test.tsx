@@ -298,7 +298,7 @@ describe("patient budget history", () => {
     renderWorkspace();
     fireEvent.click(screen.getByRole("button", { name: "Ramificar · Plan D" }));
     const dialog = screen.getByRole("dialog", { name: "Ramificar tratamiento · Plan D" });
-    fireEvent.change(within(dialog).getByLabelText("Nombre del nuevo plan"), {
+    fireEvent.change(within(dialog).getByRole("textbox", { name: /Nombre del nuevo plan/ }), {
       target: { value: "Tratamiento periodontal común + prótesis" },
     });
     fireEvent.click(within(dialog).getByRole("checkbox", { name: /Fase 1 · Diente 46 · Obturación/ }));
