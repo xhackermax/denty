@@ -55,9 +55,7 @@ describe("tarjeta de agenda sencilla", () => {
   });
   it("muestra un máximo de tres símbolos y abre el detalle completo al tocar", () => {
     const { onOpen } = showCard();
-    expect(
-      screen.getAllByRole("img").filter((icon) => icon.getAttribute("aria-label") !== "Pendiente"),
-    ).toHaveLength(3);
+    expect(document.querySelectorAll("[data-family]")).toHaveLength(3);
     expect(screen.getByText("+1")).toBeVisible();
     expect(screen.queryByText(reason)).not.toBeInTheDocument();
     expect(screen.getByText("Ana García López")).toBeVisible();
@@ -80,9 +78,7 @@ describe("tarjeta de agenda sencilla", () => {
   });
   it("una cita pequeña conserva un símbolo y avisa del resto sin texto largo", () => {
     showCard(30);
-    expect(
-      screen.getAllByRole("img").filter((icon) => icon.getAttribute("aria-label") !== "Pendiente"),
-    ).toHaveLength(1);
+    expect(document.querySelectorAll("[data-family]")).toHaveLength(1);
     expect(screen.getByText("+3")).toBeVisible();
     expect(screen.queryByText(reason)).not.toBeInTheDocument();
   });
@@ -121,9 +117,7 @@ describe("tarjeta de agenda sencilla", () => {
         />
       </MantineProvider>,
     );
-    expect(
-      screen.getAllByRole("img").filter((icon) => icon.getAttribute("aria-label") !== "Pendiente"),
-    ).toHaveLength(4);
+    expect(document.querySelectorAll("[data-family]")).toHaveLength(4);
     expect(screen.getByText(reason)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Cerrar detalle de la cita" }));
     expect(onClose).toHaveBeenCalledOnce();
