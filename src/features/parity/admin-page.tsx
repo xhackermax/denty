@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import styles from "@/shared/ui/parity.module.css";
 import { PageHeader } from "@/shared/ui";
-import { NavigationLayoutEditor } from "@/features/navigation/navigation-layout-editor";
 
 import { AdminExportPanel } from "./admin-export-panel";
 import { AdminUsersPanel } from "./admin-users-panel";
@@ -24,8 +23,7 @@ export function AdminPage({
     | "sites"
     | "payments"
     | "communications"
-    | "export"
-    | "navigation";
+    | "export";
 }) {
   return (
     <div className={styles.grid}>
@@ -45,20 +43,12 @@ export function AdminPage({
                       ? "Laboratorios"
                       : section === "export"
                         ? "Exportar datos"
-                        : section === "navigation"
-                          ? "Menú de la clínica"
-                          : "Catálogo"
+                        : "Catálogo"
         }
         description="Usuarios, sedes y configuración."
       />
       {section === "home" ? (
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
-          <Link className={styles.cardLink} href="/app/patients">
-            <span className={styles.cardLinkTitle}>Pacientes</span>
-            <span className={styles.cardLinkDescription}>
-              Búsqueda visual, última visita y próxima cita
-            </span>
-          </Link>
           <Link className={styles.cardLink} href="/app/admin/users">
             <span className={styles.cardLinkTitle}>Usuarios y roles</span>
             <span className={styles.cardLinkDescription}>
@@ -97,12 +87,6 @@ export function AdminPage({
             <span className={styles.cardLinkTitle}>Exportar datos</span>
             <span className={styles.cardLinkDescription}>Pacientes, citas y tratamientos</span>
           </Link>
-          <Link className={styles.cardLink} href="/app/admin/navigation">
-            <span className={styles.cardLinkTitle}>Menú de la clínica</span>
-            <span className={styles.cardLinkDescription}>
-              Orden del menú lateral por defecto; cada usuario puede personalizar el suyo
-            </span>
-          </Link>
           <Link className={styles.cardLink} href="/app/settings">
             <span className={styles.cardLinkTitle}>Seguridad y privacidad</span>
             <span className={styles.cardLinkDescription}>Sesiones, RGPD, copias y receta</span>
@@ -116,15 +100,6 @@ export function AdminPage({
       {section === "payments" ? <AdminPaymentTerminalsPanel /> : null}
       {section === "communications" ? <AdminCommunicationsPanel /> : null}
       {section === "export" ? <AdminExportPanel /> : null}
-      {section === "navigation" ? (
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Orden por defecto</h3>
-          <p className={styles.sectionDescription}>
-            Lo verá todo el equipo salvo quien haya personalizado su menú en Ajustes.
-          </p>
-          <NavigationLayoutEditor scope="clinic" />
-        </section>
-      ) : null}
     </div>
   );
 }
