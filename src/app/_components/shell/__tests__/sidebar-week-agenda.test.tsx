@@ -86,7 +86,7 @@ describe("SidebarWeekAgenda: full month", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Hoy" }));
     expect(screen.getByText("Octubre de 2026")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /jueves, 8 de octubre/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Abrir agenda del jueves, 8 de octubre/i })).toHaveAttribute(
       "href", "/app/agenda?date=2026-10-08",
     );
   });
