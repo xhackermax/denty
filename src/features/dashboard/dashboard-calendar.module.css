@@ -1,8 +1,8 @@
 .card {
   display: grid;
-  gap: 10px;
+  gap: 14px;
   min-width: 0;
-  padding: 14px;
+  padding: 18px;
   border: 1px solid var(--denty-line);
   border-radius: var(--denty-radius-card);
   background: var(--denty-card);
@@ -25,7 +25,7 @@
 
 .title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1.08rem;
   font-weight: 750;
 }
 
@@ -33,7 +33,7 @@
   overflow: hidden;
   margin: 0;
   color: var(--denty-muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -46,33 +46,34 @@
 }
 
 .monthTitle {
-  font-size: 0.82rem;
+  font-size: 0.94rem;
   font-weight: 700;
   text-align: center;
 }
 
 .grid {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .weekday {
+  padding: 4px 0 6px;
   color: var(--denty-muted);
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
   text-align: center;
 }
 
-/* Short fixed-height tiles: six weeks stay ~200 px tall on any width. */
+/* Full-sized tiles: all six calendar weeks stay visible at once. */
 .day {
   position: relative;
   display: flex;
   align-items: flex-end;
   min-width: 0;
-  height: 30px;
-  padding: 3px 5px;
+  height: 54px;
+  padding: 7px 8px;
   border: 0;
   border-radius: 9px;
   background: color-mix(in srgb, var(--denty-text) 5%, transparent);
@@ -96,6 +97,7 @@
 }
 
 .day[data-outside="true"] {
+  opacity: 0.58;
   color: var(--denty-muted); /* faded, yet still readable: these days are tappable */
 }
 
@@ -109,7 +111,7 @@
 }
 
 .number {
-  font-size: 0.68rem;
+  font-size: 0.86rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 1;
@@ -117,8 +119,8 @@
 
 .people {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 5px;
+  right: 5px;
   display: flex;
   align-items: center;
 }
@@ -127,14 +129,14 @@
 .more {
   display: grid;
   flex: none;
-  width: 14px;
-  height: 14px;
-  margin-left: -4px;
+  width: 19px;
+  height: 19px;
+  margin-left: -3px;
   border: 1.5px solid var(--denty-card-solid);
   border-radius: 999px;
   background: var(--denty-blue);
   color: #fff;
-  font-size: 0.42rem;
+  font-size: 0.52rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   place-items: center;
@@ -165,7 +167,7 @@
 
 .dayTitle {
   overflow: hidden;
-  font-size: 0.8rem;
+  font-size: 0.86rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -249,5 +251,38 @@
 @media (prefers-reduced-motion: reduce) {
   .day {
     transition: none;
+  }
+}
+
+/* Keep the full 7-column month readable on narrow mobile screens. */
+@media (width < 30em) {
+  .card {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .grid {
+    gap: 4px;
+  }
+
+  .day {
+    height: 46px;
+    padding: 5px;
+  }
+
+  .number {
+    font-size: 0.78rem;
+  }
+
+  .people {
+    top: 3px;
+    right: 3px;
+  }
+
+  .avatar,
+  .more {
+    width: 15px;
+    height: 15px;
+    font-size: 0.43rem;
   }
 }
