@@ -18,7 +18,7 @@
 .treatments li { display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; font-size: .87rem; }
 .treatments strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .horizontalScroll { overflow-x: auto; padding-bottom: 10px; }
-.columns { display: grid; gap: 16px; align-items: stretch; min-width: max-content; }
+.columns { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(270px, 1fr); gap: 16px; align-items: stretch; min-width: max-content; }
 .column {
   display: flex; flex-direction: column;
   width: 100%; min-width: 270px; overflow: hidden;
