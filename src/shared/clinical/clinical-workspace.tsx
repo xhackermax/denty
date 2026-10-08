@@ -663,7 +663,7 @@ export function ClinicalWorkspace({
                 </Button>
               ) : null}
               {onOpenGuidedFlow ? (
-                <Button size="xs" variant="subtle" onClick={onOpenGuidedFlow}>
+                <Button size="xs" variant="subtle" onClick={() => onOpenGuidedFlow?.()}>
                   Firma y citas
                 </Button>
               ) : null}
