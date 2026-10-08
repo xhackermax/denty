@@ -9,6 +9,8 @@ const api = vi.hoisted(() => ({
   createDocument: vi.fn(),
   listTasks: vi.fn(),
   createTask: vi.fn(),
+  updateTask: vi.fn(),
+  signBudget: vi.fn(),
 }));
 
 vi.mock("@/shared/api/browser", () => ({
@@ -20,11 +22,20 @@ vi.mock("@/shared/api/browser", () => ({
     tasks: {
       list: api.listTasks,
       create: api.createTask,
+      update: api.updateTask,
+    },
+    billing: {
+      budgets: {
+        sign: api.signBudget,
+      },
     },
   }),
 }));
 
-import { useDeferBudgetDecisionMutation } from "../clinical-data";
+import {
+  useDeferBudgetDecisionMutation,
+  useSignBudgetMutation,
+} from "../clinical-data";
 
 function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>;
@@ -35,6 +46,8 @@ describe("useDeferBudgetDecisionMutation", () => {
     vi.clearAllMocks();
     api.listDocuments.mockResolvedValue({ items: [] });
     api.listTasks.mockResolvedValue({ items: [] });
+    api.signBudget.mockResolvedValue({ budget: { id: "budget-1", status: "SIGNED" } });
+    api.updateTask.mockResolvedValue({});
     api.createDocument.mockResolvedValue({
       id: "doc-1",
       patientId: "patient-1",
@@ -123,6 +136,48 @@ describe("useDeferBudgetDecisionMutation", () => {
         description: expect.stringContaining("más adelante"),
       }),
     );
+  });
+
+  it("cierra la tarea de seguimiento al firmar el mismo presupuesto", async () => {
+    api.listTasks.mockResolvedValue({
+      items: [
+        {
+          id: "callback-1",
+          patientId: "patient-1",
+          status: "OPEN",
+          version: 2,
+          sourceType: "budget_pending_signature",
+          sourceId: "budget-1",
+        },
+        {
+          id: "other-budget",
+          patientId: "patient-1",
+          status: "OPEN",
+          version: 1,
+          sourceType: "budget_pending_signature",
+          sourceId: "budget-2",
+        },
+      ],
+    });
+    const { result } = renderHook(() => useSignBudgetMutation("patient-1"), { wrapper });
+
+    result.current.mutate({
+      budgetId: "budget-1",
+      expectedVersion: 3,
+      signerName: "Ana Ruiz",
+      signatureData: "data:image/png;base64,ZmlybWE=",
+    });
+
+    await waitFor(() => expect(api.updateTask).toHaveBeenCalledOnce());
+    expect(api.signBudget).toHaveBeenCalledWith("budget-1", {
+      expectedVersion: 3,
+      signerName: "Ana Ruiz",
+      signatureData: "data:image/png;base64,ZmlybWE=",
+    });
+    expect(api.updateTask).toHaveBeenCalledWith("callback-1", {
+      status: "DONE",
+      expectedVersion: 2,
+    });
   });
 
   it("no duplica documento ni tarea si se repite el seguimiento", async () => {
