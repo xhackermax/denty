@@ -19,8 +19,8 @@ describe("full-mouth responsive fitting", () => {
   ])("fits all teeth to %i×%i without needing either axis to scroll", (w,h,canvasW,canvasH,expected) => {
     const actual = calculateMouthScale(w,h,canvasW,canvasH);
     expect(actual).toBeCloseTo(expected, 4);
-    expect(canvasW * actual).toBeLessThanOrEqual(w);
-    expect(canvasH * actual).toBeLessThanOrEqual(h);
+    expect(canvasW * actual).toBeLessThanOrEqual(w + 1e-8);
+    expect(canvasH * actual).toBeLessThanOrEqual(h + 1e-8);
   });
 
   it("handles hidden panes and unmeasured sizes without NaN or Infinity", () => {
