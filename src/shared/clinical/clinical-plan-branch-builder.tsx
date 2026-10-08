@@ -4,6 +4,7 @@ import { Alert, Badge, Button, Checkbox, Group, Modal, Select, Stack, Text, Text
 import { useState } from "react";
 import { formatEUR } from "@/domain/money";
 import { useCreateClinicalPlanBranchMutation } from "./clinical-data";
+import styles from "./clinical-plan-branch-builder.module.css";
 
 interface CommonItem {
   id: string;
@@ -117,7 +118,7 @@ export function ClinicalPlanBranchBuilder({
               placeholder="Por ejemplo: implante o prótesis removible"
               value={catalogId}
               onChange={setCatalogId}
-              style={{ flex: 1, minWidth: 190 }}
+              className={styles.catalogSelect}
             />
             <TextInput
               label="Diente o zona"
@@ -125,7 +126,7 @@ export function ClinicalPlanBranchBuilder({
               value={tooth}
               maxLength={40}
               onChange={(event) => setTooth(event.currentTarget.value)}
-              style={{ width: 155 }}
+              className={styles.toothInput}
             />
             <Button
               disabled={!catalogId || exclusive.length >= 50}
