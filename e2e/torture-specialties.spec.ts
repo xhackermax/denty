@@ -7,11 +7,8 @@ const face = (page: Page) => page.getByRole("button", { name: "Diente 36 superfi
 
 async function openOrthodontics(page: Page) {
   await page.getByRole("combobox", { name: "Preset de vista" }).selectOption("orthodontic_review");
-  await page
-    .locator("summary")
-    .filter({ hasText: /^Editar ortodoncia$/ })
-    .click();
-  return page.getByRole("region", { name: "Odontograma ortodóntico", exact: true });
+  await page.getByRole("button", { name: "Editar área Orto" }).click();
+  return page.getByRole("region", { name: "Herramientas de ortodoncia", exact: true });
 }
 
 test.beforeEach(async ({ context, baseURL }) => {
@@ -30,8 +27,11 @@ test("SP-001: persisted orthodontic notes, overjet and tooth mark hydrate after 
     .getByRole("textbox", { name: "Notas ortodónticas" })
     .fill("Control persistente de ortodoncia");
   await panel.getByRole("textbox", { name: "Overjet", exact: true }).fill("7");
-  await panel.locator('button[title="36 · Sin marca. Clic para cambiar."]').click();
-  await panel.getByRole("button", { name: "Guardar odontograma ortodóntico" }).click();
+  await panel.getByRole("combobox", { name: "Seleccionar pieza para ortodoncia" }).click();
+  await page.getByRole("option", { name: "36" }).click();
+  await panel.getByRole("combobox", { name: "Marca ortodóntica del diente seleccionado" }).click();
+  await page.getByRole("option", { name: "Bracket" }).click();
+  await panel.getByRole("button", { name: "Guardar ortodoncia" }).click();
   await expect(page.getByText(saved)).toBeVisible({ timeout: 15_000 });
   const entities = (await fakeSupabase.state()).dental_entities!;
   expect(entities).toHaveLength(1);
@@ -49,9 +49,11 @@ test("SP-001: persisted orthodontic notes, overjet and tooth mark hydrate after 
     "Control persistente de ortodoncia",
   );
   await expect(restored.getByRole("textbox", { name: "Overjet", exact: true })).toHaveValue("7 mm");
+  await restored.getByRole("combobox", { name: "Seleccionar pieza para ortodoncia" }).click();
+  await page.getByRole("option", { name: "36" }).click();
   await expect(
-    restored.locator('button[title="36 · Bracket. Clic para cambiar."]'),
-  ).toHaveAttribute("data-mark", "bracket");
+    restored.getByRole("combobox", { name: "Marca ortodóntica del diente seleccionado" }),
+  ).toHaveValue("Bracket");
   expect((await fakeSupabase.state()).dental_entities).toEqual(entities);
   expect(failures).toEqual([]);
 });
