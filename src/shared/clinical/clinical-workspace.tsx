@@ -193,13 +193,24 @@ export function ClinicalWorkspace({
   const planAlternativeBudgets = budgets
     .filter(
       (budget) =>
-        budget.status === "DRAFT" &&
+        ["DRAFT", "SIGNED"].includes(budget.status) &&
         budget.scope === "custom" &&
         (currentPlanVersion === undefined ||
           budget.sourcePlanVersion === undefined ||
           budget.sourcePlanVersion === currentPlanVersion),
     )
     .sort((left, right) => (left.createdAt ?? "").localeCompare(right.createdAt ?? ""));
+  useEffect(() => {
+    const signedOption = sync.data?.budget;
+    if (signedOption?.status === "SIGNED" && signedOption.scope === "custom") {
+      setSelectedPlanAlternativeId(signedOption.id);
+    }
+  }, [sync.data?.budget?.id, sync.data?.budget?.status, sync.data?.budget?.scope]);
+
+  const selectedPlanBudget = planAlternativeBudgets.find(
+    (budget) => budget.id === selectedPlanAlternativeId,
+  );
+  const selectedIsSigned = selectedPlanBudget?.status === "SIGNED";
   const selectedPlanLetter =
     selectedPlanAlternativeId === null
       ? "A"
@@ -383,7 +394,9 @@ export function ClinicalWorkspace({
                     color="teal"
                     onClick={() => onOpenGuidedFlow(selectedPlanAlternativeId ?? undefined)}
                   >
-                    Continuar con Plan {selectedPlanLetter} a consentimientos
+                    {selectedIsSigned
+                      ? `Ver citas del Plan ${selectedPlanLetter}`
+                      : `Continuar con Plan ${selectedPlanLetter} a consentimientos`}
                   </Button>
                 ) : null}
               </Group>
@@ -500,7 +513,9 @@ export function ClinicalWorkspace({
                     </span>
                   </div>
                   <Group gap="xs">
-                    {selectedPlanAlternativeId === budget.id ? (
+                    {budget.status === "SIGNED" ? (
+                      <Badge color="green">Firmado</Badge>
+                    ) : selectedPlanAlternativeId === budget.id ? (
                       <Badge color="teal">Elegido</Badge>
                     ) : (
                       <Badge variant="light">{budget.items.length} tratamientos</Badge>
