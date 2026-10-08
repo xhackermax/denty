@@ -22,7 +22,11 @@ import { useMemo, useState } from "react";
 
 import { todayMadrid } from "@/domain/dates";
 import { getBrowserApi } from "@/shared/api/browser";
-import { useClinicalPlanQuery, useConsentRequirementsQuery } from "@/shared/clinical/clinical-data";
+import {
+  useClinicalPlanQuery,
+  useConsentRequirementsQuery,
+  usePatientBudgetsQuery,
+} from "@/shared/clinical/clinical-data";
 import { documentValues, useDocumentContext } from "@/shared/documents/document-context";
 import { printClinicalDocument } from "@/shared/documents/print-document";
 import { PrintNotice, usePrintNotice } from "@/shared/print/print-notice";
@@ -140,6 +144,12 @@ export function DocumentsModule() {
   const doctorId = doctorChoice ?? context.defaultDoctorId;
   const consents = useConsentRequirementsQuery(patientId ?? "", Boolean(patientId));
   const plan = useClinicalPlanQuery(patientId ?? "", Boolean(patientId));
+  const patientBudgets = usePatientBudgetsQuery(patientId ?? "", Boolean(patientId));
+  const signedBudgetIds = new Set(
+    (patientBudgets.data?.items ?? [])
+      .filter((budget) => budget.status === "SIGNED")
+      .map((budget) => budget.id),
+  );
 
   const invalidateClinical = (targetPatientId: string) => {
     void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.documents.root });
@@ -550,10 +560,20 @@ export function DocumentsModule() {
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Documentos</h3>
         <div className={styles.rowList}>
-          {visibleDocuments.map((document) => (
+          {visibleDocuments.map((document) => {
+            const pendingBudget =
+              document.type === "BUDGET" && document.data?.decision === "PENDING_SIGNATURE";
+            const budgetId =
+              typeof document.data?.budgetId === "string" ? document.data.budgetId : null;
+            const budgetSigned = Boolean(budgetId && signedBudgetIds.has(budgetId));
+            return (
             <div className={styles.row} key={document.id}>
               <div className={styles.rowMain}>
-                <span className={styles.rowTitle}>{document.title}</span>
+                <span className={styles.rowTitle}>
+                  {pendingBudget && budgetSigned
+                    ? `Presupuesto ${document.data?.budgetCode ?? ""} · firmado`
+                    : document.title}
+                </span>
                 <span className={styles.rowMeta}>
                   {TYPE_LABELS[document.type] ?? document.type} ·{" "}
                   {new Date(document.createdAt).toLocaleDateString("es-ES")} ·{" "}
@@ -569,18 +589,15 @@ export function DocumentsModule() {
               </div>
               <div className={styles.rowActions}>
                 <Badge
-                  {...(document.status === "SIGNED"
+                  {...(document.status === "SIGNED" || budgetSigned
                     ? { color: "green" }
-                    : document.type === "BUDGET" &&
-                        document.data?.decision === "PENDING_SIGNATURE"
-                      ? { color: "orange" }
-                      : {})}
+                    : pendingBudget ? { color: "orange" } : {})}
                 >
-                  {document.type === "BUDGET" &&
-                  document.data?.decision === "PENDING_SIGNATURE" &&
-                  document.status === "DRAFT"
-                    ? "Pendiente de firma"
-                    : (STATUS_LABELS[document.status] ?? document.status)}
+                  {budgetSigned
+                    ? "Firmado"
+                    : pendingBudget && document.status === "DRAFT"
+                      ? "Pendiente de firma"
+                      : (STATUS_LABELS[document.status] ?? document.status)}
                 </Badge>
                 <Badge variant="light">v{document.version}</Badge>
                 {document.checksum ? <Badge variant="outline">SHA-256</Badge> : null}
@@ -599,17 +616,20 @@ export function DocumentsModule() {
                     Imprimir
                   </Button>
                 ) : null}
-                {document.type === "BUDGET" &&
-                document.data?.decision === "PENDING_SIGNATURE" ? (
+                {pendingBudget && budgetId ? (
                   <Button
                     component={Link}
-                    href={`/app/patients/${encodeURIComponent(document.patientId)}?view=budgets&action=sign&budgetId=${encodeURIComponent(String(document.data?.budgetId ?? ""))}`}
+                    href={
+                      budgetSigned
+                        ? `/app/patients/${encodeURIComponent(document.patientId)}?view=budgets`
+                        : `/app/patients/${encodeURIComponent(document.patientId)}?view=budgets&action=sign&budgetId=${encodeURIComponent(budgetId)}`
+                    }
                     size="xs"
                     color="teal"
                   >
-                    Continuar firma
+                    {budgetSigned ? "Ver presupuesto firmado" : "Continuar firma"}
                   </Button>
-                ) : SIGNABLE_STATES.has(document.status) ? (
+                ) : pendingBudget ? null : SIGNABLE_STATES.has(document.status) ? (
                   <Button size="xs" onClick={() => openSigning(document)}>
                     Firmar
                   </Button>
@@ -640,7 +660,8 @@ export function DocumentsModule() {
                 ) : null}
               </div>
             </div>
-          ))}
+            );
+          })}
           {!documents.isLoading && visibleDocuments.length === 0 ? (
             <Text c="dimmed">Sin documentos.</Text>
           ) : null}
