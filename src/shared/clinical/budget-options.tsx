@@ -164,7 +164,9 @@ export function BudgetOptions({
 }) {
   const phases = useMemo(() => splitPlanByPhase(items), [items]);
   const bothPhases = phases.primary.length > 0 && phases.secondary.length > 0;
-  const [mode, setMode] = useState<BudgetMode>(bothPhases ? "phases" : "single");
+  const [mode, setMode] = useState<BudgetMode>(
+    existingCustomBudgets.length ? "single" : bothPhases ? "phases" : "single",
+  );
   const [phaseBudgets, setPhaseBudgets] = useState<Partial<Record<TreatmentPhase, BudgetView>>>({});
   const [custom, setCustom] = useState<BudgetView[]>(() => [...existingCustomBudgets]);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -183,6 +185,7 @@ export function BudgetOptions({
       for (const budget of current) if (!byId.has(budget.id)) byId.set(budget.id, budget);
       return [...byId.values()];
     });
+    if (existingCustomBudgets.length) setMode("single");
   }, [existingCustomBudgets]);
 
   // Phase budgets are (re)built from the current plan the first time the phases view opens.
@@ -341,6 +344,7 @@ export function BudgetOptions({
           });
           const budget = result.budget as BudgetView;
           setCustom((current) => [...current, budget]);
+          setMode("single");
           onSelect(budget);
           setPickerOpen(false);
         }}
