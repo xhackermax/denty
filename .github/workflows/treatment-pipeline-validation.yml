@@ -8,6 +8,8 @@ on:
   pull_request:
     paths:
       - "src/shared/clinical/**"
+      - "src/features/dashboard/**"
+      - "src/features/parity/admin-page.tsx"
       - "package.json"
       - "package-lock.json"
       - "src/app/confirmar-cita/**"
@@ -45,6 +47,8 @@ jobs:
         run: node scripts/tests/clinical-consent-gate-regression.mjs
       - name: Focused tests
         run: npx vitest run src/shared/clinical/__tests__/clinical-workspace.test.tsx src/shared/clinical/__tests__/deferred-budget-follow-up.test.tsx src/server/denty-supabase/__tests__/scoped-budgets.test.ts src/shared/clinical/__tests__/budget-options.test.tsx
+      - name: Dashboard and admin navigation tests
+        run: npx vitest run src/features/dashboard/__tests__/dashboard-calendar.test.tsx src/features/parity/__tests__/admin-home-navigation.test.tsx
       - name: Confirmation security tests
         run: npx vitest run "src/app/confirmar-cita/[token]/confirmation-action.test.ts"
       - name: Contact permissions tests
