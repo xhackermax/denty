@@ -5,6 +5,7 @@ on:
       - pipeline-postmerge-hardening
       - feature/visual-personalization-palettes
       - fix/wallpapers-faithful-svg-assets
+      - feat/single-unified-odontogram-workbench
       - main
       - security-confirmation-explicit-click
   pull_request:
@@ -28,6 +29,7 @@ on:
       - "package-lock.json"
       - "src/app/confirmar-cita/**"
       - "src/features/odontogram/**"
+      - "scripts/tests/single-odontogram-workbench.mjs"
       - "src/features/patients/**"
       - "src/features/parity/modules/documents-module.tsx"
       - "src/server/denty-supabase/clinical-repository.ts"
@@ -71,6 +73,10 @@ jobs:
         run: npx vitest run src/domain/__tests__/visual-personalization.test.ts src/shared/ui/__tests__/visual-preferences-provider.test.tsx
       - name: Wallpaper fidelity and preview contracts
         run: node scripts/tests/wallpaper-artwork-regression.mjs
+      - name: Unified odontogram layers and focus tests
+        run: |
+          npx vitest run src/features/odontogram/odontogram-view-state.test.ts src/features/odontogram/odontogram-layer-controls.test.tsx
+          node scripts/tests/single-odontogram-workbench.mjs
       - name: Vercel architecture gate
         run: npm run -s architecture:check
       - name: Production build smoke test
