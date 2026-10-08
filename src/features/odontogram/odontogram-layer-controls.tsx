@@ -82,6 +82,8 @@ const PRESETS: readonly { id: OdontogramPresetId; label: string }[] = [
 
 interface OdontogramLayerControlsProps {
   state: OdontogramViewState;
+  focusedLayer: OdontogramLayerId | null;
+  onFocusLayer: (layerId: OdontogramLayerId) => void;
   onToggleLayer: (layerId: OdontogramLayerId) => void;
   onToggleSubfilter: (layerId: OdontogramLayerId, subfilterId: string) => void;
   onShowAll: () => void;
@@ -93,32 +95,53 @@ interface OdontogramLayerControlsProps {
 function LayerButton({
   layerId,
   state,
+  focused,
   onToggle,
+  onFocus,
 }: {
   layerId: OdontogramLayerId;
   state: OdontogramViewState;
+  focused: boolean;
   onToggle: (layerId: OdontogramLayerId) => void;
+  onFocus: (layerId: OdontogramLayerId) => void;
 }) {
   const active = state.visibleLayerIds.includes(layerId);
   const hasPartialFilters =
     state.subfiltersByLayer[layerId].length < Object.keys(SUBFILTER_LABELS[layerId]).length;
   return (
-    <button
-      type="button"
-      className={styles.layerToggle}
-      data-active={active}
-      data-filtered={active && hasPartialFilters}
-      aria-pressed={active}
-      onClick={() => onToggle(layerId)}
-    >
-      {ODONTOGRAM_LAYER_LABELS[layerId]}
-      {active && hasPartialFilters ? <span aria-label="Filtros activos"> ·</span> : null}
-    </button>
+    <span className={styles.layerButtonPair} data-focused={focused}>
+      <button
+        type="button"
+        className={styles.layerToggle}
+        data-active={active}
+        data-filtered={active && hasPartialFilters}
+        aria-pressed={active}
+        aria-label={`Mostrar capa ${ODONTOGRAM_LAYER_LABELS[layerId]}`}
+        onClick={() => onToggle(layerId)}
+      >
+        {ODONTOGRAM_LAYER_LABELS[layerId]}
+        {active && hasPartialFilters ? <span aria-label="Filtros activos"> ·</span> : null}
+      </button>
+      {active ? (
+        <button
+          type="button"
+          className={styles.layerFocusAction}
+          data-active={focused}
+          aria-pressed={focused}
+          aria-label={`Editar área ${ODONTOGRAM_LAYER_LABELS[layerId]}`}
+          onClick={() => onFocus(layerId)}
+        >
+          Editar
+        </button>
+      ) : null}
+    </span>
   );
 }
 
 export function OdontogramLayerControls({
   state,
+  focusedLayer,
+  onFocusLayer,
   onToggleLayer,
   onToggleSubfilter,
   onShowAll,
@@ -128,17 +151,20 @@ export function OdontogramLayerControls({
 }: OdontogramLayerControlsProps) {
   return (
     <nav className={styles.layerControls} aria-label="Capas del odontograma">
+      <p className={styles.layerHelp}>
+        Pulsa las áreas para superponer varias en el mismo dibujo. «Editar» abre sus herramientas sin crear otro odontograma.
+      </p>
       <div className={styles.layerToolbar}>
         <div className={styles.layerButtons} aria-label="Capas frecuentes">
           {FREQUENT_LAYERS.map((layerId) => (
-            <LayerButton key={layerId} layerId={layerId} state={state} onToggle={onToggleLayer} />
+            <LayerButton key={layerId} layerId={layerId} state={state} focused={focusedLayer === layerId} onToggle={onToggleLayer} onFocus={onFocusLayer} />
           ))}
         </div>
         <details className={styles.layerDisclosure}>
           <summary>Más capas</summary>
           <div className={styles.layerButtons} aria-label="Más capas">
             {MORE_LAYERS.map((layerId) => (
-              <LayerButton key={layerId} layerId={layerId} state={state} onToggle={onToggleLayer} />
+              <LayerButton key={layerId} layerId={layerId} state={state} focused={focusedLayer === layerId} onToggle={onToggleLayer} onFocus={onFocusLayer} />
             ))}
           </div>
         </details>

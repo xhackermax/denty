@@ -95,19 +95,25 @@ test("undo, redo and discard keep the saved chart in step", async ({ page }) => 
   expect(failures).toEqual([]);
 });
 
-test("switching layers and views never breaks the chart", async ({ page }) => {
+test("multi-area layers share one chart and switch the editing inspector", async ({ page }) => {
   const failures = await isolatePage(page);
   await openOdontogram(page);
-  for (const layer of ["Perio", "Orto", "Endo", "General"]) {
-    await page.getByRole("button", { name: layer, exact: true }).click();
-    await expect(page.getByRole("button", { name: "Diente 11", exact: true })).toBeVisible();
-  }
+  await expect(page.getByRole("button", { name: "Diente 11", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Mostrar capa Perio" }).click();
+  await page.getByRole("button", { name: "Mostrar capa Endo" }).click();
+  await expect(page.getByRole("button", { name: "Mostrar capa Perio" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByRole("button", { name: "Mostrar capa Endo" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.locator("section").filter({ hasText: "Maxilar" }).getByRole("button", { name: "Diente 11", exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Editar área Endo" }).click();
+  await expect(page.getByText("Diagnóstico endodóntico visual")).toBeVisible();
   await page.getByRole("button", { name: "Mostrar todo" }).click();
   await page.getByRole("button", { name: "Restablecer vista" }).click();
-  await page.getByText("Vista visual", { exact: true }).click();
-  await expect(page.getByText("Muestra lo guardado.", { exact: false })).toBeVisible();
-  await page.getByText("Editor", { exact: true }).click();
-  await expect(page.getByText("Se guarda automáticamente")).toBeVisible();
   expect(failures).toEqual([]);
 });
 

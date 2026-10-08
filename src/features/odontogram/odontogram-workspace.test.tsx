@@ -107,9 +107,11 @@ describe("clinical odontogram workspace", () => {
 
   it("muestra controles de odontograma ortodontico", () => {
     renderWithTheme(
-      <OrthodonticPanel patientId="patient-1" readOnly={false} onCommit={() => undefined} />,
+      <OrthodonticPanel patientId="patient-1" selectedTooth="11" onSelectTooth={vi.fn()} readOnly={false} onCommit={() => undefined} />,
     );
-    expect(screen.getByText("Odontograma ortodóntico")).toBeInTheDocument();
+    expect(screen.getByText("Ortodoncia · pieza 11")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Odontograma ortodóntico" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Marca ortodóntica del diente seleccionado")).toBeInTheDocument();
     expect(screen.getAllByLabelText("Clase molar derecha").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("Overjet").length).toBeGreaterThan(0);
     expect(screen.getByText("Alineadores")).toBeInTheDocument();
@@ -131,6 +133,8 @@ describe("clinical odontogram workspace", () => {
     renderWithTheme(
       <OrthodonticPanel
         patientId="patient-1"
+        selectedTooth="11"
+        onSelectTooth={vi.fn()}
         entities={[saved]}
         readOnly={false}
         onCommit={() => undefined}
@@ -146,12 +150,15 @@ describe("clinical odontogram workspace", () => {
     renderWithTheme(
       <PediatricPanel
         patientId="patient-1"
+        selectedTooth="55"
+        onSelectTooth={vi.fn()}
         birthDate="2020-09-22"
         readOnly={false}
         onCommit={() => undefined}
       />,
     );
-    expect(screen.getByText("Odontograma pediátrico")).toBeInTheDocument();
+    expect(screen.getByText("Dentición y recambio · pieza 55")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Odontograma pediátrico" })).not.toBeInTheDocument();
     expect(screen.getAllByText("Dentición mixta dinámica").length).toBeGreaterThan(0);
     expect(screen.getByText(/sucesor permanente/)).toBeInTheDocument();
   });

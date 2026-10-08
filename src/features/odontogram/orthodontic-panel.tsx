@@ -23,6 +23,8 @@ import {
 import styles from "./odontogram.module.css";
 interface OrthodonticPanelProps {
   patientId: string;
+  selectedTooth: string;
+  onSelectTooth: (tooth: string) => void;
   /** The chart's entities; the saved orthodontic record is read back from them. */
   entities?: readonly DentalEntity[];
   readOnly: boolean;
@@ -56,10 +58,6 @@ const ORTHO_MARK_LABELS: Record<OrthoMark, string> = {
   extract: "Extracción ortodóntica",
   space: "Espacio / ausencia",
 };
-function nextMark(mark: OrthoMark): OrthoMark {
-  const index = ORTHO_MARKS.indexOf(mark);
-  return ORTHO_MARKS[(index + 1) % ORTHO_MARKS.length] ?? "none";
-}
 interface OrthodonticDraft {
   molarClassRight: OrthodonticClass;
   molarClassLeft: OrthodonticClass;
@@ -118,47 +116,17 @@ export function orthodonticDraftFromEntity(
     ),
   };
 }
-function OrthoTooth({
-  tooth,
-  mark,
-  disabled,
-  onCycle,
-}: {
-  tooth: string;
-  mark: OrthoMark;
-  disabled: boolean;
-  onCycle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={styles.orthoTooth}
-      data-mark={mark}
-      disabled={disabled}
-      onClick={onCycle}
-      title={`${tooth} · ${ORTHO_MARK_LABELS[mark]}. Clic para cambiar.`}
-    >
-      <span>{tooth}</span>
-      <svg viewBox="0 0 44 58" aria-hidden="true">
-        <path d="M9 11 C12 4 32 4 35 11 L33 31 C31 38 13 38 11 31 Z" />
-        <path d="M16 31 C16 42 17 50 22 54 C27 49 28 42 28 31" />
-        {mark === "bracket" ? <rect x="17" y="15" width="10" height="8" rx="2" /> : null}
-        {mark === "band" ? <path d="M10 19 H34" /> : null}
-        {mark === "attachment" ? <circle cx="22" cy="19" r="4" /> : null}
-        {mark === "extract" ? <path d="M8 8 L36 39 M36 8 L8 39" /> : null}
-        {mark === "space" ? <path d="M8 22 H36" /> : null}
-      </svg>
-    </button>
-  );
-}
 export function OrthodonticPanel({
   patientId,
+  selectedTooth,
+  onSelectTooth,
   entities = [],
   readOnly,
   onCommit,
 }: OrthodonticPanelProps) {
   const mouth = useMouthState();
   const arches = useMemo(() => chartArches(mouth), [mouth]);
+  const availableTeeth = useMemo(() => [...arches.upper, ...arches.lower], [arches]);
   const [molarClassRight, setMolarClassRight] = useState<OrthodonticClass>("I");
   const [molarClassLeft, setMolarClassLeft] = useState<OrthodonticClass>("I");
   const [canineClassRight, setCanineClassRight] = useState<OrthodonticClass>("I");
@@ -212,14 +180,10 @@ export function OrthodonticPanel({
     () => Object.values(toothMarks).filter((mark) => mark && mark !== "none").length,
     [toothMarks],
   );
-  const cycleTooth = (tooth: string) => {
-    if (mouth.teeth[tooth]?.presence === "missing") return;
-    if (readOnly) return;
+  const updateMark = (mark: OrthoMark) => {
+    if (readOnly || mouth.teeth[selectedTooth]?.presence === "missing") return;
     setSaved(false);
-    setToothMarks((current) => ({
-      ...current,
-      [tooth]: nextMark(current[tooth] ?? "none"),
-    }));
+    setToothMarks((current) => ({ ...current, [selectedTooth]: mark }));
   };
   const save = () => {
     if (readOnly) return;
@@ -243,26 +207,13 @@ export function OrthodonticPanel({
     onCommit(createOrthodonticEntity(patientId, attributes));
     setSaved(true);
   };
-  const renderArch = (teeth: readonly string[]) => (
-    <div className={styles.orthoArch}>
-      {teeth.map((tooth) => (
-        <OrthoTooth
-          key={tooth}
-          tooth={tooth}
-          mark={toothMarks[tooth] ?? "none"}
-          disabled={readOnly}
-          onCycle={() => cycleTooth(tooth)}
-        />
-      ))}
-    </div>
-  );
   return (
-    <section className={styles.clinicalPanel} aria-label="Odontograma ortodóntico">
+    <section className={styles.clinicalPanel} aria-label="Herramientas de ortodoncia">
       <Group justify="space-between" align="flex-start">
         <div>
-          <Text fw={850}>Odontograma ortodóntico</Text>
+          <Text fw={850}>Ortodoncia · pieza {selectedTooth}</Text>
           <Text size="xs" c="dimmed">
-            Arcadas editables, oclusión, discrepancia, aparatos y marcas por diente.
+            Las marcas se superponen en el odontograma único. Selecciona una pieza en él o con el selector.
           </Text>
         </div>
         <Group gap="xs">
@@ -271,30 +222,27 @@ export function OrthodonticPanel({
         </Group>
       </Group>
 
-      <div className={styles.orthoLegend}>
-        {ORTHO_MARKS.slice(1).map((mark) => (
-          <span key={mark}>
-            <i data-mark={mark} />
-            {ORTHO_MARK_LABELS[mark]}
-          </span>
-        ))}
-      </div>
-
-      <Text fw={800} size="sm" mt="md">
-        Maxilar
-      </Text>
-      <Text size="sm">
-        Ausencias / agenesias:{" "}
-        {Object.entries(mouth.teeth)
-          .filter(([tooth, data]) => Number(tooth[0]) < 5 && data.presence === "missing")
-          .map(([tooth]) => tooth)
-          .join(", ") || "Ninguna"}
-      </Text>
-      {renderArch(arches.upper)}
-      <div className={styles.orthoOcclusalLine}>Plano oclusal</div>
-      {renderArch(arches.lower)}
-      <Text fw={800} size="sm">
-        Mandíbula
+      <Group align="end" gap="sm">
+        <Select
+          label="Pieza seleccionada"
+          searchable
+          data={availableTeeth}
+          value={selectedTooth}
+          onChange={(value) => { if (value) onSelectTooth(value); }}
+          aria-label="Seleccionar pieza para ortodoncia"
+        />
+        <Select
+          label="Marca de la pieza"
+          data={ORTHO_MARKS.map((value) => ({ value, label: ORTHO_MARK_LABELS[value] }))}
+          value={toothMarks[selectedTooth] ?? "none"}
+          disabled={readOnly || mouth.teeth[selectedTooth]?.presence === "missing"}
+          onChange={(value) => updateMark((value ?? "none") as OrthoMark)}
+          aria-label="Marca ortodóntica del diente seleccionado"
+        />
+      </Group>
+      <Text size="xs" c="dimmed">
+        Las marcas se conservan al cambiar de diente. Pulsa Guardar ortodoncia para registrar el
+        conjunto de cambios.
       </Text>
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} mt="lg">
@@ -413,7 +361,7 @@ export function OrthodonticPanel({
 
       <Group justify="flex-end" mt="md">
         <Button size="xs" disabled={readOnly} onClick={save}>
-          Guardar odontograma ortodóntico
+          Guardar ortodoncia
         </Button>
       </Group>
     </section>

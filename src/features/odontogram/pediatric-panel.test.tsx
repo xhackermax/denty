@@ -6,25 +6,30 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PediatricPanel } from "./pediatric-panel";
 
-describe("PediatricPanel", () => {
-  it("uses FDI temporary numbering by default and lets the dentist switch to mixed dentition", () => {
+describe("PediatricPanel in the shared odontogram", () => {
+  it("keeps temporal/mixed tools without mounting a second full-mouth chart", () => {
+    const onCommit = vi.fn();
+    const onSelectTooth = vi.fn();
     render(
-      <MantineProvider>
-        <PediatricPanel patientId="child-1" readOnly={false} onCommit={vi.fn()} />
+      <MantineProvider env="test">
+        <PediatricPanel
+          patientId="child-1"
+          selectedTooth="55"
+          onSelectTooth={onSelectTooth}
+          readOnly={false}
+          onCommit={onCommit}
+        />
       </MantineProvider>,
     );
 
     expect(screen.getByRole("radio", { name: "Temporal" })).toBeChecked();
-    for (const tooth of ["55", "54", "53", "52", "51", "61", "62", "63", "64", "65"]) {
-      expect(screen.getByTitle(new RegExp(`^${tooth} ·`))).toBeInTheDocument();
-    }
-    for (const tooth of ["85", "84", "83", "82", "81", "71", "72", "73", "74", "75"]) {
-      expect(screen.getByTitle(new RegExp(`^${tooth} ·`))).toBeInTheDocument();
-    }
-    expect(screen.queryByTitle(/^11 ·/)).not.toBeInTheDocument();
-
+    expect(screen.getByText("Dentición y recambio · pieza 55")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Aplicar al 55" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Odontograma pediátrico" })).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/^55 ·/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("radio", { name: "Mixta" }));
-    expect(screen.getByTitle(/^16 ·/)).toBeInTheDocument();
-    expect(screen.getByTitle(/^55 ·/)).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Mixta" })).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar al 55" }));
+    expect(onCommit).toHaveBeenCalledOnce();
   }, 15_000);
 });

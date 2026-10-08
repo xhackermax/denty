@@ -11,9 +11,12 @@ afterEach(cleanup);
 describe("odontogram layer controls", () => {
   it("keeps only the four frequent layers visible and exposes the rest in Más capas", () => {
     const onToggleLayer = vi.fn();
+    const onFocusLayer = vi.fn();
     render(
       <OdontogramLayerControls
         state={createInitialOdontogramViewState()}
+        focusedLayer="general"
+        onFocusLayer={onFocusLayer}
         onToggleLayer={onToggleLayer}
         onToggleSubfilter={vi.fn()}
         onShowAll={vi.fn()}
@@ -23,20 +26,22 @@ describe("odontogram layer controls", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "General" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Perio" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Endo" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Prótesis" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mostrar capa General" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Mostrar capa Perio" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Mostrar capa Endo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mostrar capa Prótesis" })).toBeInTheDocument();
     const frequentLayers = screen.getByLabelText("Capas frecuentes");
-    expect(within(frequentLayers).getAllByRole("button")).toHaveLength(4);
-    expect(within(frequentLayers).queryByRole("button", { name: "Orto" })).not.toBeInTheDocument();
+    expect(within(frequentLayers).getAllByRole("button", { name: /^Mostrar capa / })).toHaveLength(4);
+    expect(within(frequentLayers).queryByRole("button", { name: "Mostrar capa Orto" })).not.toBeInTheDocument();
 
     const moreLayers = screen.getByText("Más capas").closest("details");
     expect(moreLayers).not.toHaveAttribute("open");
     fireEvent.click(screen.getByText("Más capas"));
     expect(moreLayers).toHaveAttribute("open");
-    fireEvent.click(within(moreLayers!).getByRole("button", { name: "Cirugía" }));
+    fireEvent.click(within(moreLayers!).getByRole("button", { name: "Mostrar capa Cirugía" }));
     expect(onToggleLayer).toHaveBeenCalledWith("surgery");
+    fireEvent.click(screen.getByRole("button", { name: "Editar área General" }));
+    expect(onFocusLayer).toHaveBeenCalledWith("general");
   });
 
   it("offers visible subfilters without coupling them to the layer toggle", () => {
@@ -45,6 +50,8 @@ describe("odontogram layer controls", () => {
     render(
       <OdontogramLayerControls
         state={createInitialOdontogramViewState()}
+        focusedLayer="general"
+        onFocusLayer={vi.fn()}
         onToggleLayer={vi.fn()}
         onToggleSubfilter={onToggleSubfilter}
         onShowAll={onShowAll}

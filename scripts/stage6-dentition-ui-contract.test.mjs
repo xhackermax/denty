@@ -24,16 +24,21 @@ const wire = fs.readFileSync(
 
 for (const token of [
   "MIXED_DENTITION_SITES",
-  "pediatricReplacementSite",
-  "primary_first_molar",
-  "primary_second_molar",
   "initialEntities={entities}",
+  "selectedTooth={selectedTooth}",
+  "onSelectTooth={setSelectedTooth}",
 ]) {
   assert(
     pediatric.includes(token) || workspace.includes(token),
-    `Falta contrato pediátrico: ${token}`,
+    `Falta contrato pediátrico del odontograma único: ${token}`,
   );
 }
+assert(
+  workspace.includes("chartArches(mouthState)") &&
+    workspace.includes("<PediatricPanel") &&
+    !pediatric.includes("renderMixedArch("),
+  "Las dos denticiones deben compartir la única arcada odontológica, sin cuadros duplicados",
+);
 assert(
   !domain.includes('upper: ["16", "55", "54", "53", "12", "11"'),
   "No debe reaparecer la dentición mixta fija antigua",
