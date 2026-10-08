@@ -149,7 +149,7 @@ export function ClinicalWorkspace({
 }: {
   patientId: string;
   mode?: ClinicalWorkspaceMode;
-  onOpenGuidedFlow?: () => void;
+  onOpenGuidedFlow?: (budgetId?: string) => void;
 }) {
   const showPlan = mode !== "budget";
   const showBudget = mode !== "plan";
@@ -180,17 +180,28 @@ export function ClinicalWorkspace({
   const [alternativeOpen, setAlternativeOpen] = useState(false);
   const [alternativeTitle, setAlternativeTitle] = useState("");
   const [alternativeItems, setAlternativeItems] = useState<string[]>([]);
+  const [selectedPlanAlternativeId, setSelectedPlanAlternativeId] = useState<string | null>(null);
 
   const activeCatalog = (treatmentCatalog.data?.items ?? []).filter((item) => item.active);
   const selectedTreatment = activeCatalog.find((item) => item.id === treatmentCatalogId);
   const hasError =
     plan.isError ||
     (showPlan && (workflow.isError || sync.isError)) ||
-    (showBudget && budgetHistory.isError);
+    ((showPlan || showBudget) && budgetHistory.isError);
   const budgets = budgetHistory.data?.items ?? [];
   const planAlternativeBudgets = budgets.filter(
     (budget) => budget.status === "DRAFT" && budget.scope === "custom",
   );
+  const selectedPlanLetter =
+    selectedPlanAlternativeId === null
+      ? "A"
+      : String.fromCharCode(
+          66 +
+            Math.max(
+              0,
+              planAlternativeBudgets.findIndex((budget) => budget.id === selectedPlanAlternativeId),
+            ),
+        );
   const comparableBudgetKeys = new Set(
     budgets
       .filter(
@@ -359,8 +370,12 @@ export function ClinicalWorkspace({
                   Sincronizar
                 </Button>
                 {onOpenGuidedFlow && sequencedItems.length ? (
-                  <Button size="xs" color="teal" onClick={onOpenGuidedFlow}>
-                    Continuar a consentimientos
+                  <Button
+                    size="xs"
+                    color="teal"
+                    onClick={() => onOpenGuidedFlow(selectedPlanAlternativeId ?? undefined)}
+                  >
+                    Continuar con Plan {selectedPlanLetter} a consentimientos
                   </Button>
                 ) : null}
               </Group>
@@ -450,7 +465,21 @@ export function ClinicalWorkspace({
                     {sequencedItems.length} tratamientos · secuencia clínica completa
                   </span>
                 </div>
-                <Badge color="teal" variant="light">Base</Badge>
+                <Group gap="xs">
+                  {selectedPlanAlternativeId === null ? (
+                    <Badge color="teal">Elegido</Badge>
+                  ) : (
+                    <Badge color="teal" variant="light">Base</Badge>
+                  )}
+                  <Button
+                    size="xs"
+                    variant={selectedPlanAlternativeId === null ? "filled" : "light"}
+                    color="teal"
+                    onClick={() => setSelectedPlanAlternativeId(null)}
+                  >
+                    Elegir Plan A
+                  </Button>
+                </Group>
               </div>
               {planAlternativeBudgets.slice(0, 2).map((budget, index) => (
                 <div className={styles.row} key={budget.id}>
@@ -462,7 +491,21 @@ export function ClinicalWorkspace({
                       {budget.items.map((item) => item.description).join(" · ") || "Sin tratamientos"}
                     </span>
                   </div>
-                  <Badge variant="light">{budget.items.length} tratamientos</Badge>
+                  <Group gap="xs">
+                    {selectedPlanAlternativeId === budget.id ? (
+                      <Badge color="teal">Elegido</Badge>
+                    ) : (
+                      <Badge variant="light">{budget.items.length} tratamientos</Badge>
+                    )}
+                    <Button
+                      size="xs"
+                      variant={selectedPlanAlternativeId === budget.id ? "filled" : "light"}
+                      color="teal"
+                      onClick={() => setSelectedPlanAlternativeId(budget.id)}
+                    >
+                      Elegir Plan {String.fromCharCode(66 + index)}
+                    </Button>
+                  </Group>
                 </div>
               ))}
             </div>
