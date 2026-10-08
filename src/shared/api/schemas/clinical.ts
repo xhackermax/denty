@@ -72,6 +72,7 @@ export const clinicalBudgetSchema = z
     totalCents: z.number().int(),
     version: versionSchema.optional(),
     revision: versionSchema.optional(),
+    sourcePlanVersion: versionSchema.nullable().optional(),
     createdAt: z.coerce.string().optional(),
     signedFingerprint: z.string().nullable().optional(),
     currentPlanFingerprint: z.string().nullable().optional(),
@@ -360,6 +361,9 @@ export const clinicalSyncStateSchema = z.object({
       totalCents: z.number().int(),
       sourcePlanVersion: versionSchema.nullable(),
       version: versionSchema.optional(),
+      scope: z.enum(["plan", "primary", "secondary", "custom"]).default("plan"),
+      title: z.string().nullable().optional(),
+      selectedPlanItemIds: z.array(idSchema).default([]),
       outdated: z.boolean(),
     })
     .nullable(),

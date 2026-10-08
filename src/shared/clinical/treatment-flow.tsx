@@ -8,6 +8,7 @@ import {
   Loader,
   Modal,
   NumberInput,
+  Select,
   Stack,
   Stepper,
   Text,
@@ -31,7 +32,9 @@ import {
   useClinicalPlanQuery,
   useClinicalSyncQuery,
   useConsentRequirementsQuery,
+  useDeferBudgetDecisionMutation,
   useDocumentTemplatesQuery,
+  usePatientBudgetsQuery,
   useSetPlanItemPriceMutation,
   useSignBudgetMutation,
   useSignConsentMutation,
@@ -80,9 +83,17 @@ export interface TreatmentFlowModalProps {
   patientId: string;
   opened: boolean;
   onClose: () => void;
+  startAt?: "plan" | "consents" | "signature";
+  preferredBudgetId?: string;
 }
 
-export function TreatmentFlowModal({ patientId, opened, onClose }: TreatmentFlowModalProps) {
+export function TreatmentFlowModal({
+  patientId,
+  opened,
+  onClose,
+  startAt,
+  preferredBudgetId,
+}: TreatmentFlowModalProps) {
   const isMobile = useMediaQuery("(max-width: 48em)") ?? false;
   return (
     <Modal
@@ -93,14 +104,32 @@ export function TreatmentFlowModal({ patientId, opened, onClose }: TreatmentFlow
       fullScreen={isMobile}
     >
       {/* Remounted on every open: it always starts from the current clinical state. */}
-      {opened ? <TreatmentFlow patientId={patientId} onClose={onClose} /> : null}
+      {opened ? (
+        <TreatmentFlow
+          patientId={patientId}
+          onClose={onClose}
+          startAt={startAt}
+          preferredBudgetId={preferredBudgetId}
+        />
+      ) : null}
     </Modal>
   );
 }
 
-function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () => void }) {
+function TreatmentFlow({
+  patientId,
+  onClose,
+  startAt,
+  preferredBudgetId,
+}: {
+  patientId: string;
+  onClose: () => void;
+  startAt?: "plan" | "consents" | "signature";
+  preferredBudgetId?: string;
+}) {
   const syncQuery = useClinicalSyncQuery(patientId);
   const planQuery = useClinicalPlanQuery(patientId);
+  const budgetHistory = usePatientBudgetsQuery(patientId);
   const consentsQuery = useConsentRequirementsQuery(patientId);
   const patientQuery = usePatientQuery(patientId);
   const planSync = useSyncPlanFromOdontogramMutation(patientId);
@@ -112,20 +141,64 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
     () => (planQuery.data?.items ?? []).filter(isOpenPlanItem),
     [planQuery.data?.items],
   );
-  const pendingConsents = (consentsQuery.data?.items ?? []).filter(
-    (item) => item.status !== "SATISFIED",
-  );
   const syncBudget = syncQuery.data?.budget ?? null;
   const wholeBudget = (budgetSync.data?.budget ?? null) as BudgetView | null;
   // The budget the patient signs: the whole plan, a phase or a custom selection.
   // undefined: nothing chosen yet (the whole plan); null: the choice is being prepared.
   const [chosenBudget, setChosenBudget] = useState<BudgetView | null | undefined>(undefined);
   const budget = chosenBudget === undefined ? wholeBudget : chosenBudget;
+  const existingCustomBudgets = useMemo(
+    () =>
+      (budgetHistory.data?.items ?? [])
+        .filter(
+          (candidate) =>
+            candidate.scope === "custom" &&
+            candidate.status === "DRAFT" &&
+            (planQuery.data?.version === undefined ||
+              candidate.sourcePlanVersion === undefined ||
+              candidate.sourcePlanVersion === planQuery.data.version),
+        )
+        .sort((left, right) => (left.createdAt ?? "").localeCompare(right.createdAt ?? "")) as BudgetView[],
+    [budgetHistory.data?.items, planQuery.data?.version],
+  );
+  const preferredBudget = preferredBudgetId
+    ? ((budgetHistory.data?.items ?? []).find((candidate) => candidate.id === preferredBudgetId) as
+        | BudgetView
+        | undefined)
+    : undefined;
+  const signedBudget = syncBudget
+    ? ((budgetHistory.data?.items ?? []).find((candidate) => candidate.id === syncBudget.id) as
+        | BudgetView
+        | undefined)
+    : undefined;
+  const selectedBudget = budget ?? preferredBudget ?? signedBudget ?? null;
+  const selectedPlanItemIds = new Set(
+    (selectedBudget?.items ?? [])
+      .map((item) => item.clinicalPlanItemId)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const relevantConsentRequirements = (consentsQuery.data?.items ?? []).filter(
+    (requirement) =>
+      selectedPlanItemIds.size === 0 ||
+      !requirement.clinicalPlanItemId ||
+      selectedPlanItemIds.has(requirement.clinicalPlanItemId),
+  );
+  const pendingConsents = relevantConsentRequirements.filter(
+    (item) => item.status !== "SATISFIED",
+  );
+  const appointmentItems = selectedPlanItemIds.size
+    ? openItems.filter((item) => selectedPlanItemIds.has(item.id))
+    : openItems;
   const state: TreatmentFlowState = {
-    openItemCount: openItems.length,
+    openItemCount: appointmentItems.length,
     pendingConsentCount: pendingConsents.length,
     budget: syncBudget ? { status: syncBudget.status, outdated: syncBudget.outdated } : null,
   };
+
+  useEffect(() => {
+    if (!preferredBudget || chosenBudget !== undefined) return;
+    setChosenBudget(preferredBudget);
+  }, [chosenBudget, preferredBudget]);
 
   // Opening the flow derives the plan from the saved odontogram first, unless the
   // current budget is already signed. Re-syncing then can obsolete the signature
@@ -141,13 +214,40 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
     (!planPreparationNeeded || planSync.isSuccess) &&
     syncQuery.data &&
     consentsQuery.data &&
+    budgetHistory.data &&
     planQuery.isFetched &&
+    budgetHistory.isFetched &&
     !syncQuery.isFetching &&
     !planQuery.isFetching &&
-    !consentsQuery.isFetching;
+    !consentsQuery.isFetching &&
+    !budgetHistory.isFetching;
   useEffect(() => {
-    if (ready && step === null) setStep(initialTreatmentFlowStep(state));
-  }, [ready, step, state]);
+    if (!ready || step !== null) return;
+    if (startAt === "signature" && preferredBudget) {
+      const stillCurrent =
+        preferredBudget.sourcePlanVersion === undefined ||
+        preferredBudget.sourcePlanVersion === planQuery.data?.version;
+      if (stillCurrent && preferredBudget.status !== "SIGNED") {
+        setStep(pendingConsents.length ? "consents" : "signature");
+      } else {
+        setStep("plan");
+      }
+      return;
+    }
+    if (startAt === "consents" && state.openItemCount > 0) {
+      setStep("consents");
+      return;
+    }
+    setStep(initialTreatmentFlowStep(state));
+  }, [
+    ready,
+    startAt,
+    step,
+    state,
+    preferredBudget,
+    pendingConsents.length,
+    planQuery.data?.version,
+  ]);
 
   // Entering the budget step rebuilds the draft from the plan (never a signed one).
   const enterBudget = () => {
@@ -159,6 +259,31 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
     return (
       <Alert color="red" title="No se pudo preparar el plan">
         {errorText(planSync.error, "Revisa la conexión y vuelve a intentarlo.")}
+      </Alert>
+    );
+  }
+  if (budgetHistory.isError) {
+    return (
+      <Alert color="red" title="No se pudieron cargar las opciones del tratamiento">
+        {errorText(
+          budgetHistory.error,
+          "No se puede continuar sin saber qué Plan A/B/C está asociado al presupuesto.",
+        )}
+      </Alert>
+    );
+  }
+  if (preferredBudgetId && budgetHistory.isFetched && !preferredBudget) {
+    return (
+      <Alert color="red" title="No se encontró el presupuesto pendiente">
+        Puede haberse actualizado, archivado o eliminado. Vuelve a la ficha para revisar los
+        presupuestos actuales del paciente.
+      </Alert>
+    );
+  }
+  if (budgetHistory.isError) {
+    return (
+      <Alert color="red" title="No se pudo cargar el historial de presupuestos">
+        Revisa la conexión antes de continuar para evitar firmar otra alternativa por error.
       </Alert>
     );
   }
@@ -184,6 +309,14 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
         : state.budget,
   };
   const blocker = treatmentFlowBlocker(step, budgetState);
+  const nextButtonLabel =
+    step === "plan"
+      ? "Continuar a consentimientos"
+      : step === "consents"
+        ? "Continuar a presupuesto"
+        : step === "budget"
+          ? "Continuar a firma"
+          : "Siguiente";
   const goNext = () => {
     const next = TREATMENT_FLOW_STEPS[index + 1];
     if (!next) return onClose();
@@ -229,7 +362,7 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
           patientName={patientName}
           patient={patientQuery.data}
           items={openItems}
-          requirements={consentsQuery.data?.items ?? []}
+          requirements={relevantConsentRequirements}
         />
       </RetainedFlowStep>
       {step === "budget" && syncBudget?.status === "SIGNED" && !syncBudget.outdated && !budget ? (
@@ -248,6 +381,7 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
             onRetryWhole={() => budgetSync.mutate()}
             selectedId={budget?.id ?? null}
             onSelect={setChosenBudget}
+            existingCustomBudgets={existingCustomBudgets}
           />
         ) : null}
       </RetainedFlowStep>
@@ -262,7 +396,7 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
         </RetainedFlowStep>
       ) : null}
       {step === "appointments" ? (
-        <AppointmentsStep patientId={patientId} items={openItems} />
+        <AppointmentsStep patientId={patientId} items={appointmentItems} />
       ) : null}
 
       <Group justify="space-between">
@@ -289,7 +423,7 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
               disabled={!ready || Boolean(blocker)}
               onClick={goNext}
             >
-              Siguiente
+              {nextButtonLabel}
             </Button>
           )}
         </Group>
@@ -592,8 +726,36 @@ function SignatureStep({
   onSigned: () => void;
 }) {
   const signBudget = useSignBudgetMutation(patientId);
+  const deferBudget = useDeferBudgetDecisionMutation(patientId);
   const [signerName, setSignerName] = useState(patientName);
   const [signature, setSignature] = useState<string | null>(null);
+  const [deferred, setDeferred] = useState(false);
+  const [deferralReason, setDeferralReason] = useState<"THINKING" | "LATER">("THINKING");
+  const [followUpOn, setFollowUpOn] = useState("");
+
+  if (deferred) {
+    return (
+      <Stack gap="sm">
+        <Alert color="blue" title="Presupuesto pendiente de firma">
+          El presupuesto se ha guardado en Documentos y se ha creado una tarea para llamar al
+          paciente. No se crearán citas hasta que acepte y firme.
+        </Alert>
+        <Group>
+          <Button
+            component={Link}
+            href={`/app/documents?patientId=${encodeURIComponent(patientId)}`}
+            variant="light"
+          >
+            Ver en Documentos
+          </Button>
+          <Button component={Link} href="/app/tasks" variant="light">
+            Ver tarea de seguimiento
+          </Button>
+        </Group>
+      </Stack>
+    );
+  }
+
   return (
     <Stack gap="sm">
       <Text size="sm">
@@ -611,7 +773,57 @@ function SignatureStep({
           {errorText(signBudget.error, "No se pudo firmar el presupuesto.")}
         </Alert>
       ) : null}
-      <Group justify="flex-end">
+      {deferBudget.isError ? (
+        <Alert color="red">
+          {errorText(
+            deferBudget.error,
+            "No se pudo guardar el presupuesto pendiente o crear la tarea de seguimiento.",
+          )}
+        </Alert>
+      ) : null}
+      <Text size="xs" c="dimmed">
+        Si el paciente no lo acepta ahora, guarda la propuesta en Documentos y programa su
+        seguimiento sin crear citas todavía.
+      </Text>
+      <Group grow align="end">
+        <Select
+          label="Decisión del paciente"
+          data={[
+            { value: "THINKING", label: "Quiere pensárselo" },
+            { value: "LATER", label: "Quiere hacerlo más adelante" },
+          ]}
+          value={deferralReason}
+          allowDeselect={false}
+          onChange={(value) => setDeferralReason(value === "LATER" ? "LATER" : "THINKING")}
+        />
+        <TextInput
+          label="Fecha para llamar (opcional)"
+          type="date"
+          min={todayMadrid()}
+          value={followUpOn}
+          onChange={(event) => setFollowUpOn(event.currentTarget.value)}
+        />
+      </Group>
+      <Group justify="space-between">
+        <Button
+          variant="default"
+          loading={deferBudget.isPending}
+          onClick={() =>
+            deferBudget.mutate(
+              {
+                budgetId: budget.id,
+                budgetCode: budget.code,
+                totalCents: budget.totalCents,
+                patientName,
+                reason: deferralReason,
+                ...(followUpOn ? { followUpOn } : {}),
+              },
+              { onSuccess: () => setDeferred(true) },
+            )
+          }
+        >
+          Ahora no · dejar pendiente
+        </Button>
         <Button
           color="teal"
           loading={signBudget.isPending}

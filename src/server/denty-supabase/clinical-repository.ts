@@ -267,15 +267,34 @@ export class ClinicalRepository {
       currentOdontogramVersion(this.client, patientId),
     ]);
     const plan = plans[0];
-    // Plan and budget stay in step through the whole-plan budget; phase and custom budgets are
-    // snapshots of a selection and are regenerated on request.
-    const budget = budgets.find((row) => (row.scope ?? "plan") === "plan");
-    const planItems = plan
-      ? await this.client.select<{ id: string; status: string }>("clinical_plan_items", {
-          select: "id,status",
-          plan_id: `eq.${plan.id}`,
-        })
-      : [];
+    const signedCurrentBudget = plan
+      ? budgets
+          .filter(
+            (row) =>
+              row.status === "SIGNED" &&
+              row.clinical_plan_id === plan.id &&
+              row.source_plan_version === plan.version,
+          )
+          .sort((left, right) => right.created_at.localeCompare(left.created_at))[0]
+      : undefined;
+    const wholeBudget = budgets.find((row) => (row.scope ?? "plan") === "plan");
+    // A signed scoped/custom budget is the durable record of the option the patient accepted.
+    // Before any acceptance, the whole-plan draft remains the synchronization reference.
+    const budget = signedCurrentBudget ?? wholeBudget;
+    const [planItems, selectedBudgetItems] = await Promise.all([
+      plan
+        ? this.client.select<{ id: string; status: string }>("clinical_plan_items", {
+            select: "id,status",
+            plan_id: `eq.${plan.id}`,
+          })
+        : Promise.resolve([]),
+      budget
+        ? this.client.select<{ clinical_plan_item_id: string | null }>("budget_items", {
+            select: "clinical_plan_item_id",
+            budget_id: `eq.${budget.id}`,
+          })
+        : Promise.resolve([]),
+    ]);
     const planOutdated = !plan || plan.source_odontogram_version !== odontogramVersion;
     const budgetOutdated = planOutdated || !budget || budget.source_plan_version !== plan?.version;
     return {
@@ -302,6 +321,11 @@ export class ClinicalRepository {
             totalCents: budget.total_cents,
             sourcePlanVersion: budget.source_plan_version,
             version: budget.version,
+            scope: budget.scope ?? "plan",
+            title: budget.title ?? null,
+            selectedPlanItemIds: selectedBudgetItems
+              .map((item) => item.clinical_plan_item_id)
+              .filter((id): id is string => Boolean(id)),
             outdated: budgetOutdated,
           }
         : null,

@@ -36,11 +36,13 @@ export interface BudgetView {
   totalCents: number;
   version?: number | undefined;
   revision?: number | undefined;
+  sourcePlanVersion?: number | null | undefined;
   createdAt?: string | undefined;
   scope?: string | undefined;
   title?: string | null | undefined;
   items: Array<{
     id: string;
+    clinicalPlanItemId?: string | null | undefined;
     description: string;
     tooth?: string | null | undefined;
     unitPriceCents?: number | undefined;
@@ -49,6 +51,8 @@ export interface BudgetView {
     totalCents: number;
   }>;
 }
+
+const EMPTY_BUDGETS: readonly BudgetView[] = [];
 
 export interface BudgetPlanItem {
   id: string;
@@ -76,15 +80,22 @@ function BudgetCard({
   budget,
   summary,
   selectable,
+  planLabel,
 }: {
   budget: BudgetView;
   summary?: string | undefined;
   selectable: boolean;
+  planLabel?: string | undefined;
 }) {
   return (
     <div className={styles.section} data-budget-scope={budget.scope ?? "plan"}>
       <Group justify="space-between" align="flex-start" wrap="nowrap">
         <div>
+          {planLabel ? (
+            <Badge size="xs" variant="light" color="teal" mb={4}>
+              {planLabel}
+            </Badge>
+          ) : null}
           {selectable ? (
             <Radio
               value={budget.id}
@@ -142,6 +153,7 @@ export function BudgetOptions({
   onRetryWhole,
   selectedId,
   onSelect,
+  existingCustomBudgets = EMPTY_BUDGETS,
 }: {
   patientId: string;
   items: readonly BudgetPlanItem[];
@@ -151,12 +163,15 @@ export function BudgetOptions({
   onRetryWhole: () => void;
   selectedId: string | null;
   onSelect: (budget: BudgetView | null) => void;
+  existingCustomBudgets?: readonly BudgetView[];
 }) {
   const phases = useMemo(() => splitPlanByPhase(items), [items]);
   const bothPhases = phases.primary.length > 0 && phases.secondary.length > 0;
-  const [mode, setMode] = useState<BudgetMode>(bothPhases ? "phases" : "single");
+  const [mode, setMode] = useState<BudgetMode>(
+    existingCustomBudgets.length ? "single" : bothPhases ? "phases" : "single",
+  );
   const [phaseBudgets, setPhaseBudgets] = useState<Partial<Record<TreatmentPhase, BudgetView>>>({});
-  const [custom, setCustom] = useState<BudgetView[]>([]);
+  const [custom, setCustom] = useState<BudgetView[]>(() => [...existingCustomBudgets]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const create = useCreateScopedBudgetMutation(patientId);
   const [phaseError, setPhaseError] = useState<unknown>(null);
@@ -166,6 +181,12 @@ export function BudgetOptions({
   const preparedAttempt = useRef<number | null>(null);
   const latest = useRef({ phases, create, onSelect });
   latest.current = { phases, create, onSelect };
+
+  useEffect(() => {
+    // The server is authoritative. Do not retain stale/deleted alternatives across plan versions.
+    setCustom([...existingCustomBudgets]);
+    if (existingCustomBudgets.length) setMode("single");
+  }, [existingCustomBudgets]);
 
   // Phase budgets are (re)built from the current plan the first time the phases view opens.
   useEffect(() => {
@@ -207,16 +228,20 @@ export function BudgetOptions({
 
   const visible: BudgetView[] =
     mode === "single"
-      ? wholeBudget
-        ? [wholeBudget]
-        : []
+      ? [wholeBudget, ...custom].filter((budget): budget is BudgetView => Boolean(budget))
       : [phaseBudgets.primary, phaseBudgets.secondary].filter((budget): budget is BudgetView =>
           Boolean(budget),
         );
-  const all = [...visible, ...custom];
+  const all = visible;
 
   return (
     <Stack gap="sm">
+      {mode === "single" ? (
+        <Text size="sm" c="dimmed">
+          Elige el Plan A, B o C que el paciente va a aceptar. Aquí se muestra el importe de cada
+          alternativa sin mezclarlo con las fases clínicas.
+        </Text>
+      ) : null}
       <Group justify="space-between" wrap="wrap">
         <SegmentedControl
           size="xs"
@@ -252,7 +277,7 @@ export function BudgetOptions({
         </Group>
       ) : null}
 
-      {mode === "single" && !wholeLoading && (wholeError || !wholeBudget) ? (
+      {mode === "single" && !wholeLoading && (wholeError || !wholeBudget) && !custom.length ? (
         <Alert color="red" title="No se pudo preparar el presupuesto">
           <Stack gap="xs">
             <Text size="sm">{errorText(wholeError, "Inténtalo de nuevo.")}</Text>
@@ -284,15 +309,19 @@ export function BudgetOptions({
               key={budget.id}
               budget={budget}
               selectable={all.length > 1}
+              planLabel={
+                mode === "single"
+                  ? budget.scope === "plan"
+                    ? "Plan A"
+                    : `Plan ${String.fromCharCode(66 + custom.findIndex((item) => item.id === budget.id))}`
+                  : undefined
+              }
               summary={
                 budget.scope === "primary" || budget.scope === "secondary"
                   ? TREATMENT_PHASE_LABELS[budget.scope].summary
                   : undefined
               }
             />
-          ))}
-          {custom.map((budget) => (
-            <BudgetCard key={budget.id} budget={budget} selectable={all.length > 1} />
           ))}
         </Stack>
       </Radio.Group>
@@ -319,6 +348,7 @@ export function BudgetOptions({
           });
           const budget = result.budget as BudgetView;
           setCustom((current) => [...current, budget]);
+          setMode("single");
           onSelect(budget);
           setPickerOpen(false);
         }}

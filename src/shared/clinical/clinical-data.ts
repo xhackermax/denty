@@ -232,7 +232,110 @@ export function useSignBudgetMutation(patientId: string) {
         signerName: input.signerName,
         signatureData: input.signatureData,
       }),
-    onSuccess: () => invalidateClinicalPatient(queryClient, patientId),
+    onSuccess: (_result, input) => {
+      invalidateClinicalPatient(queryClient, patientId);
+      // A budget can be signed days after being deferred. Close only the matching
+      // open callback task; a failed cleanup never rolls back a valid signature.
+      void getBrowserApi()
+        .tasks.list()
+        .then(async ({ items }) => {
+          const followUps = items.filter(
+            (task) =>
+              task.patientId === patientId &&
+              task.sourceType === "budget_pending_signature" &&
+              task.sourceId === input.budgetId &&
+              (task.status === "OPEN" || task.status === "IN_PROGRESS"),
+          );
+          await Promise.all(
+            followUps.map((task) =>
+              getBrowserApi().tasks.update(task.id, {
+                status: "DONE",
+                expectedVersion: task.version,
+              }),
+            ),
+          );
+        })
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.tasks.root });
+        })
+        .catch(() => {
+          // Follow-up remains visible if the task service is unavailable.
+        });
+    },
+  });
+}
+
+/**
+ * Patient has not accepted the budget yet. Keep one durable pending-signature
+ * document and one open follow-up task linked to the same budget.
+ */
+export function useDeferBudgetDecisionMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      budgetId: string;
+      budgetCode: string;
+      totalCents: number;
+      patientName: string;
+      reason: "THINKING" | "LATER";
+      followUpOn?: string;
+    }) => {
+      const api = getBrowserApi();
+      const [documents, tasks] = await Promise.all([
+        api.documents.list(patientId),
+        api.tasks.list(),
+      ]);
+      const existingDocument = documents.items.find(
+        (document) =>
+          document.type === "BUDGET" &&
+          document.data?.budgetId === input.budgetId &&
+          document.data?.decision === "PENDING_SIGNATURE" &&
+          document.status !== "ARCHIVED",
+      );
+      const document =
+        existingDocument ??
+        (await api.documents.create({
+          patientId,
+          type: "BUDGET",
+          title: `Presupuesto ${input.budgetCode} · pendiente de firma`,
+          data: {
+            budgetId: input.budgetId,
+            budgetCode: input.budgetCode,
+            totalCents: input.totalCents,
+            decision: "PENDING_SIGNATURE",
+            decisionReason: input.reason,
+            followUpOn: input.followUpOn ?? null,
+          },
+        }));
+      const existingTask = tasks.items.find(
+        (task) =>
+          task.sourceType === "budget_pending_signature" &&
+          task.sourceId === input.budgetId &&
+          task.status !== "DONE" &&
+          task.status !== "CANCELLED",
+      );
+      const task =
+        existingTask ??
+        (await api.tasks.create({
+          title: `Llamar a ${input.patientName || "paciente"}: presupuesto pendiente`,
+          description:
+            input.reason === "THINKING"
+              ? `Seguimiento del presupuesto ${input.budgetCode}. El paciente está valorando si acepta el tratamiento.`
+              : `Seguimiento del presupuesto ${input.budgetCode}. El paciente prefiere realizar el tratamiento más adelante.`,
+          patientId,
+          taskType: "budget_follow_up",
+          priority: "NORMAL",
+          sourceType: "budget_pending_signature",
+          sourceId: input.budgetId,
+          ...(input.followUpOn ? { scheduledOn: input.followUpOn } : {}),
+        }));
+      return { document, task };
+    },
+    onSuccess: () => {
+      invalidateClinicalPatient(queryClient, patientId);
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.documents.root });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.tasks.root });
+    },
   });
 }
 

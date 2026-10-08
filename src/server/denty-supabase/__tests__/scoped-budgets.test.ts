@@ -119,6 +119,58 @@ describe("scoped budgets", () => {
     expect(sync.budget).toMatchObject({ id: "whole", outdated: false });
   });
 
+  it("remembers a signed custom Plan B as the accepted current budget", async () => {
+    const { repository } = repositoryWith({
+      dental_entities: [{ status: "caries_pending", created_at: "2026-10-05", version: 3 }],
+      odontogram_snapshots: [],
+      clinical_plans: [{ id: "plan-1", version: 4, source_odontogram_version: 3 }],
+      budgets: [
+        budgetRow({
+          id: "whole",
+          scope: "plan",
+          status: "DRAFT",
+          revision: 5,
+          source_plan_version: 4,
+          created_at: "2026-10-05T09:00:00.000Z",
+        }),
+        budgetRow({
+          id: "plan-b",
+          scope: "custom",
+          title: "Conservar el diente",
+          status: "SIGNED",
+          revision: 1,
+          source_plan_version: 4,
+          created_at: "2026-10-05T10:00:00.000Z",
+        }),
+      ],
+      budget_items: [
+        {
+          id: "bi-b",
+          budget_id: "plan-b",
+          clinical_plan_item_id: "item-b",
+          description: "Endodoncia",
+          tooth: "46",
+          billing_mode: "separate",
+          quantity: 1,
+          unit_price_cents: 25000,
+          total_cents: 25000,
+        },
+      ],
+      clinical_plan_items: [{ id: "item-b", status: "PLANNED" }],
+    });
+
+    const sync = await repository.getClinicalSync("patient-1");
+
+    expect(sync.budget).toMatchObject({
+      id: "plan-b",
+      status: "SIGNED",
+      scope: "custom",
+      title: "Conservar el diente",
+      selectedPlanItemIds: ["item-b"],
+      outdated: false,
+    });
+  });
+
   it("updates only the selected patient's draft with an optimistic version", async () => {
     const { repository, rpc } = repositoryWith({
       budgets: [budgetRow({ created_at: "2026-10-05T10:00:00.000Z" })],

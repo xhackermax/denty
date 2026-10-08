@@ -8,10 +8,10 @@ import { MouthStateProvider } from "./mouth-state-context";
 import { useUnsavedChangesGuard } from "@/shared/navigation/use-unsaved-changes-guard";
 import { useAutosave, type AutosaveStatus } from "./use-autosave";
 import { Alert, Badge, Button, Group, Modal, Select, SimpleGrid, Text } from "@mantine/core";
-import { IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-react";
+import { IconArrowBackUp, IconArrowForwardUp, IconArrowRight } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useOptionalAssistantContextPatch } from "@/features/assistant/assistant-context";
 import {
   ENDODONTIC_VISUAL_MARKS,
@@ -545,6 +545,9 @@ function OdontogramEditor({
   const [viewPreferenceLoaded, setViewPreferenceLoaded] = useState(false);
   const [viewPreferenceError, setViewPreferenceError] = useState(false);
   const encounterMutation = useCreateClinicalEncounterMutation(patientId);
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [openingTreatmentPlan, setOpeningTreatmentPlan] = useState(false);
   const patchAssistantContext = useOptionalAssistantContextPatch();
   const [clinicalRuleMessage, setClinicalRuleMessage] = useState<string | null>(null);
   const entities = useMemo(
@@ -603,6 +606,24 @@ function OdontogramEditor({
   });
   const dirty = autosave.dirty;
   const saveNow = () => autosave.flush().catch(() => undefined);
+  const continueToTreatmentPlan = async () => {
+    setOpeningTreatmentPlan(true);
+    setClinicalRuleMessage(null);
+    try {
+      await autosave.flush();
+      await getBrowserApi().clinical.sync.plan(patientId);
+      invalidateClinicalPatient(queryClient, patientId);
+      router.push(`/app/patients/${encodeURIComponent(patientId)}?view=plan`);
+    } catch (error) {
+      setClinicalRuleMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo preparar el plan de tratamiento. Revisa la conexión e inténtalo de nuevo.",
+      );
+    } finally {
+      setOpeningTreatmentPlan(false);
+    }
+  };
   const discardChanges = () => {
     const restored = createBoundedHistory(createOdontogramEntityState(initialEntities), 30);
     setHistory(restored);
@@ -987,6 +1008,17 @@ function OdontogramEditor({
             >
               Rehacer
             </Button>
+            {!historical ? (
+              <Button
+                size="xs"
+                color="teal"
+                loading={openingTreatmentPlan}
+                rightSection={<IconArrowRight size={15} />}
+                onClick={() => void continueToTreatmentPlan()}
+              >
+                Seguir a plan de tratamiento
+              </Button>
+            ) : null}
             {!historical ? (
               <Button
                 size="xs"

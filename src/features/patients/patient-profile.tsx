@@ -100,6 +100,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const searchParams = useSearchParams();
   const requestedView = searchParams.get("view");
   const requestedAction = searchParams.get("action");
+  const requestedBudgetId = searchParams.get("budgetId") ?? undefined;
   const initialTab =
     requestedView === "plan"
       ? "plan"
@@ -118,6 +119,12 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const [now] = useState(() => Date.now());
   const [activeTab, setActiveTab] = useState<string | null>(initialTab);
   const [treatmentFlowOpen, setTreatmentFlowOpen] = useState(false);
+  const [treatmentFlowStartAt, setTreatmentFlowStartAt] = useState<
+    "plan" | "consents" | undefined
+  >(undefined);
+  const [treatmentFlowBudgetId, setTreatmentFlowBudgetId] = useState<string | undefined>(
+    undefined,
+  );
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -131,9 +138,11 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
   useEffect(() => {
     if (initialTab === "budgets" && requestedAction === "sign") {
+      setTreatmentFlowStartAt(requestedBudgetId ? "signature" : undefined);
+      setTreatmentFlowBudgetId(requestedBudgetId);
       setTreatmentFlowOpen(true);
     }
-  }, [initialTab, requestedAction]);
+  }, [initialTab, requestedAction, requestedBudgetId]);
 
   if (patientQuery.isError) {
     return (
@@ -515,14 +524,26 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
 
         <Tabs.Panel value="plan" pt="lg">
-          <ClinicalWorkspace patientId={patientId} mode="plan" />
+          <ClinicalWorkspace
+            patientId={patientId}
+            mode="plan"
+            onOpenGuidedFlow={(budgetId) => {
+              setTreatmentFlowStartAt("consents");
+              setTreatmentFlowBudgetId(budgetId);
+              setTreatmentFlowOpen(true);
+            }}
+          />
         </Tabs.Panel>
 
         <Tabs.Panel value="budgets" pt="lg">
           <ClinicalWorkspace
             patientId={patientId}
             mode="budget"
-            onOpenGuidedFlow={() => setTreatmentFlowOpen(true)}
+            onOpenGuidedFlow={() => {
+              setTreatmentFlowStartAt(undefined);
+              setTreatmentFlowBudgetId(undefined);
+              setTreatmentFlowOpen(true);
+            }}
           />
         </Tabs.Panel>
 
@@ -575,7 +596,13 @@ export function PatientProfile({ patientId }: { patientId: string }) {
       <TreatmentFlowModal
         patientId={patientId}
         opened={treatmentFlowOpen}
-        onClose={() => setTreatmentFlowOpen(false)}
+        startAt={treatmentFlowStartAt}
+        preferredBudgetId={treatmentFlowBudgetId}
+        onClose={() => {
+          setTreatmentFlowOpen(false);
+          setTreatmentFlowStartAt(undefined);
+          setTreatmentFlowBudgetId(undefined);
+        }}
       />
     </div>
   );
