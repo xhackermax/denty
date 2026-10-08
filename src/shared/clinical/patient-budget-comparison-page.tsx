@@ -102,7 +102,7 @@ export function PatientBudgetComparisonPage({
                 )}
               </section>
               <div className={styles.horizontalScroll} role="region" aria-label="Comparación de presupuestos por columnas" tabIndex={0}>
-                <div className={styles.columns} style={{ gridTemplateColumns: `repeat(${selected.length}, minmax(270px, 1fr))` }}>
+                <div className={styles.columns}>
                   {selected.map((budget, index) => (
                     <article key={budget.id} className={styles.column}>
                       <div className={styles.columnHeader}>
