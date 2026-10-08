@@ -46,13 +46,13 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-function mount() {
+function mount(today = "2026-10-03") {
   render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <MantineProvider env="test">
-        <DashboardCalendar today="2026-10-03" patientName={(id) => names[id]} />
+        <DashboardCalendar today={today} patientName={(id) => names[id]} />
       </MantineProvider>
     </QueryClientProvider>,
   );
@@ -136,6 +136,35 @@ describe("DashboardCalendar", () => {
     mount();
     fireEvent.click(await screen.findByRole("link", { name: /20 de octubre, sin citas/i }));
     expect(await screen.findByText("Sin citas este día.")).toBeInTheDocument();
+  });
+
+  it("renders all 31 days of October without truncating any week", () => {
+    mount();
+    const grid = screen.getByRole("group", { name: "Días del mes" });
+    expect(grid.querySelectorAll('a[data-outside="false"]')).toHaveLength(31);
+    expect(grid.querySelectorAll('a[data-outside]')).toHaveLength(42);
+    expect(screen.getByRole("link", { name: /sábado, 31 de octubre, sin citas/i })).toHaveAttribute(
+      "href",
+      "/app/agenda?date=2026-10-31",
+    );
+  });
+
+  it("shows every day in a 30-day month after navigation", () => {
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "Mes siguiente" }));
+    const grid = screen.getByRole("group", { name: "Días del mes" });
+    expect(grid.querySelectorAll('a[data-outside="false"]')).toHaveLength(30);
+    expect(grid.querySelectorAll('a[data-outside]')).toHaveLength(42);
+  });
+
+  it("handles 28-day and leap-year 29-day Februaries", () => {
+    mount("2028-02-10");
+    const grid = screen.getByRole("group", { name: "Días del mes" });
+    expect(grid.querySelectorAll('a[data-outside="false"]')).toHaveLength(29);
+    expect(screen.getByRole("link", { name: /martes, 29 de febrero, sin citas/i })).toHaveAttribute(
+      "href",
+      "/app/agenda?date=2028-02-29",
+    );
   });
 
   it("moves between months and back to today", async () => {
