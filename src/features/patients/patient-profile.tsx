@@ -121,6 +121,9 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const [treatmentFlowStartAt, setTreatmentFlowStartAt] = useState<
     "plan" | "consents" | undefined
   >(undefined);
+  const [treatmentFlowBudgetId, setTreatmentFlowBudgetId] = useState<string | undefined>(
+    undefined,
+  );
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -135,6 +138,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   useEffect(() => {
     if (initialTab === "budgets" && requestedAction === "sign") {
       setTreatmentFlowStartAt(undefined);
+      setTreatmentFlowBudgetId(undefined);
       setTreatmentFlowOpen(true);
     }
   }, [initialTab, requestedAction]);
@@ -522,8 +526,9 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           <ClinicalWorkspace
             patientId={patientId}
             mode="plan"
-            onOpenGuidedFlow={() => {
+            onOpenGuidedFlow={(budgetId) => {
               setTreatmentFlowStartAt("consents");
+              setTreatmentFlowBudgetId(budgetId);
               setTreatmentFlowOpen(true);
             }}
           />
@@ -535,6 +540,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
             mode="budget"
             onOpenGuidedFlow={() => {
               setTreatmentFlowStartAt(undefined);
+              setTreatmentFlowBudgetId(undefined);
               setTreatmentFlowOpen(true);
             }}
           />
@@ -590,9 +596,11 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         patientId={patientId}
         opened={treatmentFlowOpen}
         startAt={treatmentFlowStartAt}
+        preferredBudgetId={treatmentFlowBudgetId}
         onClose={() => {
           setTreatmentFlowOpen(false);
           setTreatmentFlowStartAt(undefined);
+          setTreatmentFlowBudgetId(undefined);
         }}
       />
     </div>
