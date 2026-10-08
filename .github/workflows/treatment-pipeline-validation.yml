@@ -8,6 +8,8 @@ on:
   pull_request:
     paths:
       - "src/shared/clinical/**"
+      - "package.json"
+      - "package-lock.json"
       - "src/app/confirmar-cita/**"
       - "src/features/odontogram/**"
       - "src/features/patients/**"
@@ -35,6 +37,8 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=critical
       - name: Typecheck
         run: npm run -s typecheck
       - name: Pipeline regression
