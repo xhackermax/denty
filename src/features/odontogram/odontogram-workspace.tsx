@@ -1563,6 +1563,7 @@ function OdontogramEditor({
               readOnly={historical}
               readings={initialPeriodontal}
               selectedTooth={selectedTooth}
+              onSelectTooth={setSelectedTooth}
               visibleIndicators={viewState.subfiltersByLayer.perio}
               onReadingsChange={setCurrentPerioReadings}
               onSiteReadingsChange={setPerioSiteReadings}
