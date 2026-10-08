@@ -326,6 +326,7 @@
 }
 
 .cardSite {
+  max-width: 86px;
   color: var(--denty-blue-text);
   font-weight: 750;
 }
