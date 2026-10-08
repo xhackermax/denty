@@ -155,6 +155,26 @@ export const createScopedBudgetSchema = z.object({
   clinicalPlanItemIds: z.array(idSchema).min(1).max(200),
 });
 
+/** A treatment plan fork: shared clinical steps remain linked to the original plan. */
+export const createClinicalPlanBranchSchema = z.object({
+  expectedPlanVersion: z.number().int().positive(),
+  title: z.string().trim().min(1).max(120),
+  sharedPlanItemIds: z.array(idSchema).max(200).refine(
+    (items) => new Set(items).size === items.length, "Tratamientos compartidos repetidos.",
+  ),
+  exclusiveTreatments: z.array(z.object({
+    catalogId: idSchema,
+    tooth: z.string().trim().max(40).optional(),
+  })).max(50),
+  advantages: z.string().trim().max(2000).optional(),
+  disadvantages: z.string().trim().max(2000).optional(),
+}).refine((input) => input.sharedPlanItemIds.length + input.exclusiveTreatments.length > 0, {
+  message: "La alternativa debe incluir al menos un tratamiento.",
+});
+export const clinicalPlanBranchResultSchema = z.object({
+  budget: clinicalBudgetSchema,
+});
+
 export const budgetFromPlanSchema = z.object({
   clinicalPlanItemIds: z.array(idSchema).optional(),
 });
