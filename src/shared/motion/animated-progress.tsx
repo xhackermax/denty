@@ -4,6 +4,7 @@ import { Progress, type ProgressProps } from "@mantine/core";
 import { animate } from "motion";
 import { useInView, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { useVisualPreferences } from "@/shared/ui/visual-preferences-provider";
 
 export interface AnimatedProgressProps extends Omit<ProgressProps, "value"> {
   value: number;
@@ -21,11 +22,13 @@ export function AnimatedProgress({
 }: AnimatedProgressProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
+  const { animations } = useVisualPreferences();
+  const skipMotion = !animations || reducedMotion;
   const inView = useInView(rootRef, { amount: 0.45, once: true });
-  const [displayValue, setDisplayValue] = useState(reducedMotion ? value : 0);
+  const [displayValue, setDisplayValue] = useState(skipMotion ? value : 0);
 
   useEffect(() => {
-    if (reducedMotion) {
+    if (skipMotion) {
       setDisplayValue(value);
       return;
     }
@@ -37,7 +40,7 @@ export function AnimatedProgress({
       onUpdate: setDisplayValue,
     });
     return () => controls.stop();
-  }, [delay, duration, inView, reducedMotion, value]);
+  }, [delay, duration, inView, skipMotion, value]);
 
   return (
     <div ref={rootRef} aria-label={`${ariaLabel ?? "Progreso"}: ${value}%`}>
