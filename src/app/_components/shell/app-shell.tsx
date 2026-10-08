@@ -62,7 +62,7 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
           {active ? (
             <motion.span
               className={styles.navIndicator}
-              layoutId={animations ? "denty-desktop-nav-indicator" : undefined}
+              {...(animations ? { layoutId: "denty-desktop-nav-indicator" } : {})}
               transition={animations ? { type: "spring", stiffness: 420, damping: 38, mass: 0.68 } : { duration: 0 }}
               aria-hidden="true"
             />
@@ -70,7 +70,7 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
           <motion.span
             className={styles.navLinkContent}
             animate={animations ? (active ? { scale: 1.05, y: -1 } : { scale: 1, y: 0 }) : { scale: 1, y: 0 }}
-            whileTap={animations ? { scale: 0.965 } : undefined}
+            {...(animations ? { whileTap: { scale: 0.965 } } : {})}
             transition={animations ? { type: "spring", stiffness: 440, damping: 34 } : { duration: 0 }}
           >
             <Icon size={20} stroke={1.8} aria-hidden={true} />
@@ -186,7 +186,7 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
               {active ? (
                 <motion.span
                   className={styles.bottomIndicator}
-                  layoutId={animations ? "denty-mobile-nav-indicator" : undefined}
+                  {...(animations ? { layoutId: "denty-mobile-nav-indicator" } : {})}
                   transition={animations ? { type: "spring", stiffness: 420, damping: 38, mass: 0.68 } : { duration: 0 }}
                   aria-hidden="true"
                 />
@@ -194,7 +194,7 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
               <motion.span
                 className={styles.bottomLinkContent}
                 animate={animations ? (active ? { scale: 1.06, y: -1 } : { scale: 1, y: 0 }) : { scale: 1, y: 0 }}
-                whileTap={animations ? { scale: 0.94 } : undefined}
+                {...(animations ? { whileTap: { scale: 0.94 } } : {})}
                 transition={animations ? { type: "spring", stiffness: 440, damping: 34 } : { duration: 0 }}
               >
                 <Icon size={20} aria-hidden={true} />
