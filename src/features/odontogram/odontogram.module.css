@@ -285,6 +285,52 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Six small hexagonal PD values, one row per periodontal face.
+   Keep the numbers upright when the upper tooth anatomy is mirrored. */
+.perioHexGrid {
+  display: grid;
+  width: 54px;
+  grid-template-columns: repeat(3, 18px);
+  grid-template-rows: repeat(2, 18px);
+  gap: 0;
+  align-self: center;
+  order: 4;
+  flex: none;
+  pointer-events: none;
+}
+.perioHex {
+  width: 18px;
+  height: 18px;
+  overflow: visible;
+}
+.perioHex polygon {
+  fill: color-mix(in srgb, var(--denty-card-solid) 87%, var(--denty-teal) 13%);
+  stroke: var(--denty-green);
+  stroke-width: 1.1;
+}
+.perioHex text {
+  fill: var(--denty-text);
+  font-size: 10px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: none;
+}
+.perioHex[data-tier="moderate"] polygon {
+  fill: color-mix(in srgb, var(--denty-card-solid) 82%, var(--denty-warning) 18%);
+  stroke: var(--denty-warning);
+}
+.perioHex[data-tier="high"] polygon {
+  fill: color-mix(in srgb, var(--denty-card-solid) 78%, var(--denty-danger) 22%);
+  stroke: var(--denty-danger);
+}
+.perioHex[data-tier="empty"] polygon {
+  fill: transparent;
+  stroke: var(--denty-line-strong);
+  stroke-dasharray: 2 2;
+  opacity: 0.55;
+}
+
 .toothLayerMark[data-layer="replacement"] {
   color: var(--denty-clinical-violet);
 }
