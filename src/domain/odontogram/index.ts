@@ -122,7 +122,7 @@ export const PEDIATRIC_TOOTH_STATUSES = [
 export type PediatricToothStatus = (typeof PEDIATRIC_TOOTH_STATUSES)[number];
 export type OrthodonticClass = "I" | "II" | "III";
 export type OrthodonticAppliance =
-  "brackets" | "aligners" | "retainer" | "expander" | "lingual_arch" | "space_maintainer";
+  "brackets" | "aligners" | "retainer" | "expander" | "lingual_arch" | "space_maintainer" | "miniscrews";
 
 export interface OrthodonticAttributes {
   molarClassRight?: OrthodonticClass;
@@ -140,6 +140,7 @@ export interface OrthodonticAttributes {
   upperSpacingMm?: number;
   lowerSpacingMm?: number;
   appliances?: readonly OrthodonticAppliance[];
+  toothMarks?: Readonly<Record<string, string>>;
   notes?: string;
 }
 

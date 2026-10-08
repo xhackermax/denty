@@ -1,8 +1,10 @@
 import {
   PERIODONTAL_SITES,
   archApplianceOf,
+  archForTooth,
   type ArchAppliance,
   type OdontogramEntityState,
+  type OrthodonticAppliance,
   type PeriodontalReading,
   type PediatricToothStatus,
 } from "@/domain";
@@ -41,30 +43,90 @@ const REPLACEMENT_STATUS_LABELS: Partial<Record<PediatricToothStatus, string>> =
   space_maintainer: "Mantenedor",
 };
 
-type OrthodonticToothMark = "bracket" | "band" | "attachment" | "extract" | "space";
+export type OrthodonticToothMark =
+  | "bracket"
+  | "band"
+  | "attachment"
+  | "extract"
+  | "space"
+  | "miniscrew"
+  | "maintainer";
+export type OrthodonticVisualSymbol =
+  | OrthodonticToothMark
+  | "aligner"
+  | "retainer"
+  | "expander"
+  | "lingual_arch";
+export interface OrthodonticVisualDraft {
+  appliances: readonly OrthodonticAppliance[];
+  toothMarks: Readonly<Record<string, string>>;
+}
+
+const ORTHODONTIC_MARKS: readonly OrthodonticToothMark[] = [
+  "bracket", "band", "attachment", "extract", "space", "miniscrew", "maintainer",
+];
 
 function isOrthodonticToothMark(value: string): value is OrthodonticToothMark {
-  return ["bracket", "band", "attachment", "extract", "space"].includes(value);
+  return ORTHODONTIC_MARKS.some((mark) => mark === value);
+}
+
+function orthoRecord(state: OdontogramEntityState) {
+  return Object.values(state.entitiesById).find(
+    (candidate) =>
+      candidate.active &&
+      candidate.entityType === "ORTHODONTIC" &&
+      !candidate.attributes?.appliance,
+  );
+}
+
+function toothMark(marks: unknown, tooth: string): OrthodonticToothMark | null {
+  if (!marks || typeof marks !== "object" || Array.isArray(marks)) return null;
+  const mark = Reflect.get(marks, tooth);
+  return typeof mark === "string" && isOrthodonticToothMark(mark) ? mark : null;
+}
+
+function orthoSubfilterForMark(mark: OrthodonticToothMark): string {
+  return mark === "space" ? "espacios" : mark === "extract" ? "posicion" : "aparatos";
 }
 
 export function orthodonticMarkForTooth(
   state: OdontogramEntityState,
   tooth: string,
   viewState: OdontogramViewState,
+  preview?: OrthodonticVisualDraft | null,
 ): OrthodonticToothMark | null {
   if (!viewState.visibleLayerIds.includes("ortho")) return null;
-  const entity = Object.values(state.entitiesById).find(
-    (candidate) =>
-      candidate.active &&
-      candidate.entityType === "ORTHODONTIC" &&
-      !candidate.attributes?.appliance,
-  );
-  const marks = entity?.attributes?.toothMarks;
-  if (!marks || typeof marks !== "object" || Array.isArray(marks)) return null;
-  const mark = Reflect.get(marks, tooth);
-  if (typeof mark !== "string" || !isOrthodonticToothMark(mark)) return null;
-  const subfilter = mark === "space" ? "espacios" : mark === "extract" ? "posicion" : "aparatos";
-  return viewState.subfiltersByLayer.ortho.includes(subfilter) ? mark : null;
+  const mark = toothMark(preview?.toothMarks ?? orthoRecord(state)?.attributes?.toothMarks, tooth);
+  if (!mark) return null;
+  return viewState.subfiltersByLayer.ortho.includes(orthoSubfilterForMark(mark)) ? mark : null;
+}
+
+/** All visible orthodontic SVG symbols, from saved entities or the editor's live draft. */
+export function orthodonticSymbolsForTooth(
+  state: OdontogramEntityState,
+  tooth: string,
+  viewState: OdontogramViewState,
+  preview?: OrthodonticVisualDraft | null,
+): OrthodonticVisualSymbol[] {
+  if (!viewState.visibleLayerIds.includes("ortho")) return [];
+  const symbols = new Set<OrthodonticVisualSymbol>();
+  const record = orthoRecord(state);
+  const appliances = preview?.appliances ?? record?.attributes?.appliances;
+  const shown = viewState.subfiltersByLayer.ortho.includes("aparatos");
+  if (shown && Array.isArray(appliances)) {
+    const selected = new Set(appliances.filter((name): name is OrthodonticAppliance =>
+      typeof name === "string",
+    ));
+    if (selected.has("brackets")) symbols.add("bracket");
+    if (selected.has("aligners")) symbols.add("aligner");
+    if (selected.has("retainer")) symbols.add("retainer");
+    if (selected.has("expander") && archForTooth(tooth) === "upper") symbols.add("expander");
+    if (selected.has("lingual_arch") && archForTooth(tooth) === "lower") symbols.add("lingual_arch");
+    // Miniscrews and space maintainers are site-specific: only explicit tooth marks draw them.
+  }
+  const mark = orthodonticMarkForTooth(state, tooth, viewState, preview);
+  if (mark) symbols.add(mark);
+  return [...symbols];
 }
 
 export function pediatricReplacementForTooth(

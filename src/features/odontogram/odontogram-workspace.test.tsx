@@ -117,6 +117,35 @@ describe("clinical odontogram workspace", () => {
     expect(screen.getByText("Alineadores")).toBeInTheDocument();
   });
 
+  it("previsualiza el microtornillo al elegirlo y lo guarda como ORTHODONTIC", () => {
+    const onPreview = vi.fn();
+    const onCommit = vi.fn();
+    renderWithTheme(
+      <OrthodonticPanel
+        patientId="patient-1"
+        selectedTooth="11"
+        onSelectTooth={vi.fn()}
+        readOnly={false}
+        onPreview={onPreview}
+        onCommit={onCommit}
+      />,
+    );
+    const micro = screen.getByRole("checkbox", { name: "Microtornillos" });
+    fireEvent.click(micro);
+    expect(onPreview).toHaveBeenCalledWith(expect.objectContaining({
+      appliances: ["miniscrews"],
+      toothMarks: { "11": "miniscrew" },
+    }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar ortodoncia" }));
+    expect(onCommit).toHaveBeenCalledWith(expect.objectContaining({
+      entityType: "ORTHODONTIC",
+      attributes: expect.objectContaining({
+        appliances: ["miniscrews"],
+        toothMarks: { "11": "miniscrew" },
+      }),
+    }));
+  });
+
   it("rehidrata la ortodoncia guardada al volver a abrir la ficha", () => {
     const saved = {
       id: "orthodontic-patient-1",

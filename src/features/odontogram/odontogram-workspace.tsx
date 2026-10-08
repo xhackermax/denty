@@ -78,6 +78,7 @@ import {
 } from "@/shared/odontogram/tooth-geometry";
 import { TOOTH_STATE_LABELS as STATE_LABELS } from "@/shared/odontogram/tooth-state-labels";
 import { OrthodonticPanel } from "./orthodontic-panel";
+import { OrthodonticToothSymbols } from "./orthodontic-tooth-symbols";
 import { PediatricPanel } from "./pediatric-panel";
 import { SupernumeraryPanel } from "./supernumerary-panel";
 import { OdontogramLayerControls } from "./odontogram-layer-controls";
@@ -104,6 +105,8 @@ import {
 } from "./odontogram-view-state";
 import {
   orthodonticMarkForTooth,
+  orthodonticSymbolsForTooth,
+  type OrthodonticVisualDraft,
   appliancesForTooth,
   wholeToothParts,
   periodontalMarksForTooth,
@@ -203,6 +206,7 @@ interface ToothProps {
   tooth: string;
   state: OdontogramEntityState;
   viewState: OdontogramViewState;
+  orthodonticPreview?: OrthodonticVisualDraft | null;
   periodontalReadings: readonly PeriodontalReading[];
   selected: boolean;
   prosthesisRange: boolean;
@@ -228,6 +232,7 @@ function Tooth({
   tooth,
   state,
   viewState,
+  orthodonticPreview,
   periodontalReadings,
   selected,
   prosthesisRange,
@@ -302,7 +307,8 @@ function Tooth({
           viewState.subfiltersByLayer.surgery.includes(surgicalMarkFilter(mark.kind)),
         )
       : [];
-  const orthodonticMark = orthodonticMarkForTooth(state, tooth, viewState);
+  const orthodonticMark = orthodonticMarkForTooth(state, tooth, viewState, orthodonticPreview);
+  const orthodonticSymbols = orthodonticSymbolsForTooth(state, tooth, viewState, orthodonticPreview);
   const replacement = pediatricReplacementForTooth(state, tooth, viewState);
   const perioSummary = periodontalMarksForTooth(periodontalReadings, tooth, viewState);
   const layerDescription = [
@@ -405,6 +411,7 @@ function Tooth({
             <path d={visualMark.svgPath} />
           </g>
         ) : null}
+        <OrthodonticToothSymbols symbols={orthodonticSymbols} />
         {surgicalMarks.map((mark) => (
           <g
             key={mark.key}
@@ -552,6 +559,7 @@ function OdontogramEditor({
   // On compact viewports, both areas occupy one fixed-height workspace: no stacked pages.
   const [workspacePane, setWorkspacePane] = useState<"chart" | "tools">("chart");
   const [viewState, setViewState] = useState(createInitialOdontogramViewState);
+  const [orthodonticPreview, setOrthodonticPreview] = useState<OrthodonticVisualDraft | null>(null);
   const [viewPreferenceLoaded, setViewPreferenceLoaded] = useState(false);
   const [viewPreferenceError, setViewPreferenceError] = useState(false);
   const encounterMutation = useCreateClinicalEncounterMutation(patientId);
@@ -909,6 +917,7 @@ function OdontogramEditor({
           tooth={tooth}
           state={history.present}
           viewState={viewState}
+          orthodonticPreview={inspectorLayer === "ortho" ? orthodonticPreview : null}
           periodontalReadings={currentPerioReadings}
           selected={selectedTooth === tooth}
           prosthesisRange={
@@ -1564,7 +1573,11 @@ function OdontogramEditor({
               onSelectTooth={setSelectedTooth}
               entities={entities}
               readOnly={historical}
-              onCommit={commit}
+              onPreview={setOrthodonticPreview}
+              onCommit={(entity) => {
+                commit(entity);
+                setOrthodonticPreview(null);
+              }}
             />
           </details>
         </RetainedFlowStep>
