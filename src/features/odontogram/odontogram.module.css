@@ -1992,3 +1992,122 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   outline-style: solid;
   background: var(--mantine-color-orange-1);
 }
+
+
+/* Unified chart: one anatomical chart plus one bounded context inspector.
+   Selecting multiple layers never mounts another full-mouth diagram. */
+.unifiedWorkbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.unifiedChartColumn {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.unifiedInspector {
+  min-width: 0;
+  max-height: min(66dvh, 720px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-card);
+  background: var(--denty-card);
+  box-shadow: var(--denty-card-shadow);
+}
+
+.inspectorHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--denty-line);
+}
+
+.inspectorHeader strong {
+  font-size: 0.86rem;
+}
+
+.inspectorScroll {
+  min-width: 0;
+  min-height: 0;
+  padding: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.inspectorScroll > * + * {
+  margin-top: 12px;
+}
+
+.layerHelp {
+  margin: 0;
+  color: var(--denty-muted);
+  font-size: 0.76rem;
+}
+
+.layerButtonPair {
+  display: inline-flex;
+  max-width: 100%;
+  overflow: hidden;
+  align-items: stretch;
+  border: 1px solid var(--denty-line);
+  border-radius: 999px;
+  background: var(--denty-card-solid);
+}
+
+.layerButtonPair[data-focused="true"] {
+  border-color: var(--denty-blue);
+}
+
+.layerButtonPair .layerToggle {
+  border: 0;
+  border-radius: 0;
+}
+
+.layerFocusAction {
+  padding: 5px 9px;
+  border: 0;
+  border-left: 1px solid var(--denty-line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--denty-muted);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 720;
+}
+
+.layerFocusAction[data-active="true"] {
+  background: color-mix(in srgb, var(--denty-blue) 10%, transparent);
+  color: var(--denty-blue-text);
+}
+
+.layerFocusAction:focus-visible {
+  outline: 2px solid var(--denty-blue);
+  outline-offset: -2px;
+}
+
+@media (min-width: 1500px) {
+  .unifiedWorkbench {
+    grid-template-columns: minmax(0, 1.55fr) minmax(340px, 1fr);
+  }
+
+  .unifiedChartColumn {
+    position: sticky;
+    top: calc(var(--denty-shell-header) + 8px);
+  }
+
+  .unifiedInspector {
+    position: sticky;
+    top: calc(var(--denty-shell-header) + 8px);
+    max-height: calc(100dvh - var(--denty-shell-header) - 22px);
+  }
+}
