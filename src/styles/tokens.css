@@ -18,6 +18,7 @@
   --denty-green: #30a46c;
   --denty-amber: #b7791f;
   --denty-gold: #c58a10;
+  --denty-clinical-violet: #7c5cff;
   --denty-violet: #7c5cff;
   --denty-indigo: #5856d6;
   --denty-danger: #d93b3b;
@@ -63,6 +64,7 @@ html[data-mantine-color-scheme="dark"] {
   --denty-green: #30d158;
   --denty-amber: #ffd60a;
   --denty-gold: #ffd60a;
+  --denty-clinical-violet: #bf5af2;
   --denty-violet: #bf5af2;
   --denty-indigo: #5e5ce6;
   --denty-danger: #ff453a;
