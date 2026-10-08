@@ -2,24 +2,30 @@ import { PERIODONTAL_SITES, type PeriodontalReading } from "@/domain/periodontal
 
 import styles from "./odontogram.module.css";
 
-type SiteReading = Pick<PeriodontalReading, "tooth" | "site" | "probingDepth">;
+type RecordedDepth = Pick<PeriodontalReading, "tooth" | "site" | "probingDepth">;
 
 /**
- * The six PD measurements are independent of gingival margin (GM).
- * Never turn absent measurements into zeros or derive an unmeasured GM.
- * One small hexagon per site, ordered MV · V · DV / MP · P-L · DP.
+ * Six small numbers around the anatomical tooth, arranged at the vertices of
+ * an imaginary hexagon. No hexagon outlines, tiles or invented zero readings.
+ * Red from 4 mm; violet from 6 mm. BOP and suppuration are tooth-level indicators.
  */
 export function PerioHexReadings({
   tooth,
   readings,
+  showNumbers = true,
+  showBleeding = true,
+  showSuppuration = true,
 }: {
   tooth: string;
   readings: readonly Partial<PeriodontalReading>[];
+  showNumbers?: boolean;
+  showBleeding?: boolean;
+  showSuppuration?: boolean;
 }) {
+  const toothReadings = readings.filter((reading) => reading.tooth === tooth);
   const bySite = new Map(
-    readings
-      .filter((reading): reading is SiteReading =>
-        reading.tooth === tooth &&
+    toothReadings
+      .filter((reading): reading is RecordedDepth =>
         reading.site !== undefined &&
         typeof reading.probingDepth === "number" &&
         Number.isFinite(reading.probingDepth) &&
@@ -28,38 +34,49 @@ export function PerioHexReadings({
       )
       .map((reading) => [reading.site, reading.probingDepth] as const),
   );
-  if (!bySite.size) return null;
+  const bleeding = showBleeding && toothReadings.some((reading) => reading.bleeding === true);
+  const suppuration = showSuppuration &&
+    toothReadings.some((reading) => reading.suppuration === true);
+
+  if ((!showNumbers || bySite.size === 0) && !bleeding && !suppuration) return null;
+
+  const finding = bleeding && suppuration ? "both" : bleeding ? "bleeding" : "suppuration";
+  const findingLabel = bleeding && suppuration
+    ? "Sangrado y supuración"
+    : bleeding ? "Sangrado" : "Supuración";
 
   return (
     <div
-      className={styles.perioHexGrid}
+      className={styles.perioVertexOverlay}
       role="group"
-      aria-label={`Sondaje periodontal del diente ${tooth}, milímetros`}
+      aria-label={`Periodoncia del diente ${tooth}`}
     >
-      {PERIODONTAL_SITES.map((site) => {
+      {showNumbers ? PERIODONTAL_SITES.map((site) => {
         const depth = bySite.get(site);
-        const valid = depth !== undefined;
-        const tier = valid ? (depth >= 6 ? "high" : depth >= 4 ? "moderate" : "low") : "empty";
+        if (depth === undefined) return null;
+        const severity = depth >= 6 ? "purple" : depth >= 4 ? "red" : "normal";
         return (
-          <svg
+          <span
             key={site}
-            viewBox="0 0 20 20"
-            className={styles.perioHex}
+            className={styles.perioVertexNumber}
             data-site={site}
-            data-depth={valid ? depth : undefined}
-            data-tier={tier}
+            data-depth={depth}
+            data-severity={severity}
             role="img"
-            aria-label={valid ? `${site}: ${depth} milímetros` : `${site}: sin medir`}
+            aria-label={`${site}: ${depth} milímetros`}
           >
-            <polygon points="5,1 15,1 19,10 15,19 5,19 1,10" />
-            {valid ? (
-              <text x="10" y="10.5" textAnchor="middle" dominantBaseline="middle">
-                {depth}
-              </text>
-            ) : null}
-          </svg>
+            {depth}
+          </span>
         );
-      })}
+      }) : null}
+      {bleeding || suppuration ? (
+        <span
+          className={styles.perioFindingDot}
+          role="img"
+          aria-label={`${findingLabel} en el diente ${tooth}`}
+          data-finding={finding}
+        />
+      ) : null}
     </div>
   );
 }

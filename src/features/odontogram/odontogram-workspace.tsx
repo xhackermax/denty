@@ -313,10 +313,13 @@ function Tooth({
   const orthodonticMark = orthodonticMarkForTooth(state, tooth, viewState, orthodonticPreview);
   const orthodonticSymbols = orthodonticSymbolsForTooth(state, tooth, viewState, orthodonticPreview);
   const replacement = pediatricReplacementForTooth(state, tooth, viewState);
-  const showPerioHex = viewState.visibleLayerIds.includes("perio") &&
-    viewState.subfiltersByLayer.perio.includes("sondaje");
+  const perioVisible = viewState.visibleLayerIds.includes("perio");
+  const showPerioNumbers = perioVisible && viewState.subfiltersByLayer.perio.includes("sondaje");
+  const showPerioBleeding = perioVisible && viewState.subfiltersByLayer.perio.includes("sangrado");
+  const showPerioSuppuration = perioVisible && viewState.subfiltersByLayer.perio.includes("supuracion");
+  const showPerioMarkers = showPerioNumbers || showPerioBleeding || showPerioSuppuration;
   const perioSummary = periodontalMarksForTooth(periodontalReadings, tooth, viewState)
-    .filter((mark) => !mark.startsWith("PD "));
+    .filter((mark) => !mark.startsWith("PD ") && mark !== "Sangrado" && mark !== "Supuración");
   const layerDescription = [
     orthodonticMark ? `Ortodoncia: ${orthodonticMark}` : null,
     replacement?.label ? `Recambio: ${replacement.label}` : null,
@@ -362,6 +365,7 @@ function Tooth({
           {perioSummary.join(" · ")}
         </span>
       ) : null}
+      <div className={styles.toothVisualFrame}>
       <svg
         className={styles.toothSvg}
         data-state={displayStatus ?? "healthy"}
@@ -431,7 +435,16 @@ function Tooth({
           </g>
         ))}
       </svg>
-      {showPerioHex ? <PerioHexReadings tooth={tooth} readings={perioSiteReadings} /> : null}
+      {showPerioMarkers ? (
+        <PerioHexReadings
+          tooth={tooth}
+          readings={perioSiteReadings}
+          showNumbers={showPerioNumbers}
+          showBleeding={showPerioBleeding}
+          showSuppuration={showPerioSuppuration}
+        />
+      ) : null}
+      </div>
       <svg
         className={styles.surfaceMap}
         data-state={displayStatus ?? "healthy"}
@@ -1205,8 +1218,9 @@ function OdontogramEditor({
           {chartOpen && viewState.visibleLayerIds.includes("perio") &&
             viewState.subfiltersByLayer.perio.includes("sondaje") ? (
             <Text size="xs" c="dimmed">
-              Sondaje (mm) en hexágonos: fila vestibular MV · V · DV;
-              fila palatina/lingual MP · P/L · DP. Hexágono vacío = sin medir.
+              Seis números alrededor de cada diente: MV · V · DV por vestibular;
+              MP · P/L · DP por palatino/lingual. Rojo desde 4 mm, morado desde 6 mm.
+              Punto rojo: sangrado; amarillo: supuración; mitad y mitad: ambos.
             </Text>
           ) : null}
           {chartOpen && viewState.visibleLayerIds.includes("general") ? (

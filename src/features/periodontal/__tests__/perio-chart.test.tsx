@@ -115,6 +115,35 @@ test("manual six-site entry updates the main chart feed without requiring gingiv
   });
 }, 20000);
 
+test("sangrado y supuración llegan al odontograma principal sin sondaje ni margen", async () => {
+  const onSiteReadingsChange = vi.fn();
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MantineProvider>
+        <MouthStateProvider state={deriveMouthState([])}>
+          <PerioChart patientId="p" active readOnly={false}
+            selectedTooth="16" onSiteReadingsChange={onSiteReadingsChange} />
+        </MouthStateProvider>
+      </MantineProvider>
+    </QueryClientProvider>,
+  );
+  const bop = screen.getByLabelText("16 MV bop");
+  await waitFor(() => expect(bop).not.toBeDisabled());
+  fireEvent.click(bop);
+  fireEvent.click(screen.getByLabelText("16 DP suppuration"));
+  await waitFor(() => {
+    const readings = onSiteReadingsChange.mock.calls.at(-1)?.[0] as Partial<PeriodontalReading>[];
+    expect(readings.find(r => r.tooth === "16" && r.site === "MV")).toMatchObject({
+      bleeding: true, suppuration: false,
+    });
+    expect(readings.find(r => r.tooth === "16" && r.site === "DP")).toMatchObject({
+      bleeding: false, suppuration: true,
+    });
+    expect(readings.find(r => r.tooth === "16" && r.site === "MV"))
+      .not.toHaveProperty("probingDepth");
+  });
+}, 20000);
+
 test("failed finalization retains measurements and reports error", async () => {
   api.perioDrafts.finish.mockRejectedValueOnce(new Error("Servidor no disponible"));
   mount();

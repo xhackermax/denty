@@ -105,6 +105,32 @@ export function examToReadings(
         }),
   );
 }
+/**
+ * Main-odontogram overlay only: includes sites with BOP or suppuration even
+ * when PD/GM has not yet been measured. Does not change the finalized exam
+ * payload (examToSites), where the existing clinical validation still applies.
+ */
+export function examToVisualReadings(exam: PerioExam): Partial<PeriodontalReading>[] {
+  return Object.entries(exam.teeth).flatMap(([tooth, data]) =>
+    data.missing
+      ? []
+      : PERIODONTAL_SITES.flatMap((site) => {
+          const r = data.sites[site];
+          if (r.pd === null && r.gm === null && !r.bop && !r.suppuration && !r.plaque)
+            return [];
+          return [{
+            tooth,
+            site,
+            ...(r.pd === null ? {} : { probingDepth: r.pd }),
+            ...(r.gm === null ? {} : { recession: -r.gm }),
+            bleeding: r.bop,
+            suppuration: r.suppuration,
+            plaque: r.plaque,
+          }];
+        }),
+  );
+}
+
 export function examToSites(exam: PerioExam) {
   return examToReadings(exam).map((reading) => {
     const { recession, ...rest } = reading;
