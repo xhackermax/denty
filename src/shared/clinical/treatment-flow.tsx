@@ -83,7 +83,7 @@ export interface TreatmentFlowModalProps {
   patientId: string;
   opened: boolean;
   onClose: () => void;
-  startAt?: "plan" | "consents";
+  startAt?: "plan" | "consents" | "signature";
   preferredBudgetId?: string;
 }
 
@@ -124,7 +124,7 @@ function TreatmentFlow({
 }: {
   patientId: string;
   onClose: () => void;
-  startAt?: "plan" | "consents";
+  startAt?: "plan" | "consents" | "signature";
   preferredBudgetId?: string;
 }) {
   const syncQuery = useClinicalSyncQuery(patientId);
@@ -223,12 +223,31 @@ function TreatmentFlow({
     !budgetHistory.isFetching;
   useEffect(() => {
     if (!ready || step !== null) return;
+    if (startAt === "signature" && preferredBudget) {
+      const stillCurrent =
+        preferredBudget.sourcePlanVersion === undefined ||
+        preferredBudget.sourcePlanVersion === planQuery.data?.version;
+      if (stillCurrent && preferredBudget.status !== "SIGNED") {
+        setStep(pendingConsents.length ? "consents" : "signature");
+      } else {
+        setStep("plan");
+      }
+      return;
+    }
     if (startAt === "consents" && state.openItemCount > 0) {
       setStep("consents");
       return;
     }
     setStep(initialTreatmentFlowStep(state));
-  }, [ready, startAt, step, state]);
+  }, [
+    ready,
+    startAt,
+    step,
+    state,
+    preferredBudget,
+    pendingConsents.length,
+    planQuery.data?.version,
+  ]);
 
   // Entering the budget step rebuilds the draft from the plan (never a signed one).
   const enterBudget = () => {
@@ -250,6 +269,21 @@ function TreatmentFlow({
           budgetHistory.error,
           "No se puede continuar sin saber qué Plan A/B/C está asociado al presupuesto.",
         )}
+      </Alert>
+    );
+  }
+  if (preferredBudgetId && budgetHistory.isFetched && !preferredBudget) {
+    return (
+      <Alert color="red" title="No se encontró el presupuesto pendiente">
+        Puede haberse actualizado, archivado o eliminado. Vuelve a la ficha para revisar los
+        presupuestos actuales del paciente.
+      </Alert>
+    );
+  }
+  if (budgetHistory.isError) {
+    return (
+      <Alert color="red" title="No se pudo cargar el historial de presupuestos">
+        Revisa la conexión antes de continuar para evitar firmar otra alternativa por error.
       </Alert>
     );
   }
