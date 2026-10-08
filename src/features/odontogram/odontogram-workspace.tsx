@@ -79,6 +79,7 @@ import {
 import { TOOTH_STATE_LABELS as STATE_LABELS } from "@/shared/odontogram/tooth-state-labels";
 import { OrthodonticPanel } from "./orthodontic-panel";
 import { OrthodonticToothSymbols } from "./orthodontic-tooth-symbols";
+import { PerioHexReadings } from "./perio-hex-readings";
 import { PediatricPanel } from "./pediatric-panel";
 import { SupernumeraryPanel } from "./supernumerary-panel";
 import { OdontogramLayerControls } from "./odontogram-layer-controls";
@@ -208,6 +209,7 @@ interface ToothProps {
   viewState: OdontogramViewState;
   orthodonticPreview?: OrthodonticVisualDraft | null;
   periodontalReadings: readonly PeriodontalReading[];
+  perioSiteReadings: readonly Partial<PeriodontalReading>[];
   selected: boolean;
   prosthesisRange: boolean;
   prosthesisEndpoint: boolean;
@@ -234,6 +236,7 @@ function Tooth({
   viewState,
   orthodonticPreview,
   periodontalReadings,
+  perioSiteReadings,
   selected,
   prosthesisRange,
   prosthesisEndpoint,
@@ -310,7 +313,10 @@ function Tooth({
   const orthodonticMark = orthodonticMarkForTooth(state, tooth, viewState, orthodonticPreview);
   const orthodonticSymbols = orthodonticSymbolsForTooth(state, tooth, viewState, orthodonticPreview);
   const replacement = pediatricReplacementForTooth(state, tooth, viewState);
-  const perioSummary = periodontalMarksForTooth(periodontalReadings, tooth, viewState);
+  const showPerioHex = viewState.visibleLayerIds.includes("perio") &&
+    viewState.subfiltersByLayer.perio.includes("sondaje");
+  const perioSummary = periodontalMarksForTooth(periodontalReadings, tooth, viewState)
+    .filter((mark) => !mark.startsWith("PD "));
   const layerDescription = [
     orthodonticMark ? `Ortodoncia: ${orthodonticMark}` : null,
     replacement?.label ? `Recambio: ${replacement.label}` : null,
@@ -425,6 +431,7 @@ function Tooth({
           </g>
         ))}
       </svg>
+      {showPerioHex ? <PerioHexReadings tooth={tooth} readings={perioSiteReadings} /> : null}
       <svg
         className={styles.surfaceMap}
         data-state={displayStatus ?? "healthy"}
@@ -510,6 +517,7 @@ function OdontogramEditor({
   onSave,
   clinicalSync,
 }: OdontogramEditorProps) {
+  const [perioSiteReadings, setPerioSiteReadings] = useState<readonly Partial<PeriodontalReading>[]>(initialPeriodontal);
   const [currentPerioReadings, setCurrentPerioReadings] = useState<PeriodontalReading[]>(
     initialPeriodontal.filter(
       (r): r is PeriodontalReading =>
@@ -919,6 +927,7 @@ function OdontogramEditor({
           viewState={viewState}
           orthodonticPreview={inspectorLayer === "ortho" ? orthodonticPreview : null}
           periodontalReadings={currentPerioReadings}
+          perioSiteReadings={perioSiteReadings}
           selected={selectedTooth === tooth}
           prosthesisRange={
             viewState.visibleLayerIds.includes("prosthetics") &&
@@ -1193,6 +1202,13 @@ function OdontogramEditor({
               </Text>
             ) : null}
           </div>
+          {chartOpen && viewState.visibleLayerIds.includes("perio") &&
+            viewState.subfiltersByLayer.perio.includes("sondaje") ? (
+            <Text size="xs" c="dimmed">
+              Sondaje (mm) en hexágonos: fila vestibular MV · V · DV;
+              fila palatina/lingual MP · P/L · DP. Hexágono vacío = sin medir.
+            </Text>
+          ) : null}
           {chartOpen && viewState.visibleLayerIds.includes("general") ? (
             <>
               <OdontogramLegend
@@ -1553,8 +1569,11 @@ function OdontogramEditor({
               active={inspectorLayer === "perio" && viewState.visibleLayerIds.includes("perio")}
               readOnly={historical}
               readings={initialPeriodontal}
+              selectedTooth={selectedTooth}
+              onSelectTooth={setSelectedTooth}
               visibleIndicators={viewState.subfiltersByLayer.perio}
               onReadingsChange={setCurrentPerioReadings}
+              onSiteReadingsChange={setPerioSiteReadings}
               owner={perioOwner}
               onPresenceChange={changePresence}
               onPresenceRestore={restorePresence}
