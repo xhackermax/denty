@@ -108,8 +108,8 @@ export function TreatmentFlowModal({
         <TreatmentFlow
           patientId={patientId}
           onClose={onClose}
-          startAt={startAt}
-          preferredBudgetId={preferredBudgetId}
+          {...(startAt ? { startAt } : {})}
+          {...(preferredBudgetId ? { preferredBudgetId } : {})}
         />
       ) : null}
     </Modal>
@@ -158,18 +158,18 @@ function TreatmentFlow({
               candidate.sourcePlanVersion === undefined ||
               candidate.sourcePlanVersion === planQuery.data.version),
         )
-        .sort((left, right) => (left.createdAt ?? "").localeCompare(right.createdAt ?? "")) as BudgetView[],
+        .sort((left, right) =>
+          (left.createdAt ?? "").localeCompare(right.createdAt ?? ""),
+        ) as BudgetView[],
     [budgetHistory.data?.items, planQuery.data?.version],
   );
   const preferredBudget = preferredBudgetId
     ? ((budgetHistory.data?.items ?? []).find((candidate) => candidate.id === preferredBudgetId) as
-        | BudgetView
-        | undefined)
+        BudgetView | undefined)
     : undefined;
   const signedBudget = syncBudget
     ? ((budgetHistory.data?.items ?? []).find((candidate) => candidate.id === syncBudget.id) as
-        | BudgetView
-        | undefined)
+        BudgetView | undefined)
     : undefined;
   const selectedBudget = budget ?? preferredBudget ?? signedBudget ?? null;
   const selectedPlanItemIds = new Set(
@@ -183,9 +183,7 @@ function TreatmentFlow({
       !requirement.clinicalPlanItemId ||
       selectedPlanItemIds.has(requirement.clinicalPlanItemId),
   );
-  const pendingConsents = relevantConsentRequirements.filter(
-    (item) => item.status !== "SATISFIED",
-  );
+  const pendingConsents = relevantConsentRequirements.filter((item) => item.status !== "SATISFIED");
   const appointmentItems = selectedPlanItemIds.size
     ? openItems.filter((item) => selectedPlanItemIds.has(item.id))
     : openItems;

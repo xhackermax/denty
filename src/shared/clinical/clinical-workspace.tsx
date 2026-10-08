@@ -214,18 +214,13 @@ export function ClinicalWorkspace({
     budgets
       .filter(
         (budget) =>
-          budget.status === "DRAFT" &&
-          budget.scope !== "primary" &&
-          budget.scope !== "secondary",
+          budget.status === "DRAFT" && budget.scope !== "primary" && budget.scope !== "secondary",
       )
-      .map(
-        (budget) =>
-          `${budget.scope ?? "plan"}|${budget.title?.trim().toLowerCase() ?? ""}`,
-      ),
+      .map((budget) => `${budget.scope ?? "plan"}|${budget.title?.trim().toLowerCase() ?? ""}`),
   );
-  const serverSequencedItems = (plan.data?.route?.length
-    ? plan.data.route
-    : (plan.data?.items ?? [])) as PlanItemView[];
+  const serverSequencedItems = (
+    plan.data?.route?.length ? plan.data.route : (plan.data?.items ?? [])
+  ) as PlanItemView[];
 
   const sequencedItems = useMemo(() => {
     if (!optimisticOrder) return serverSequencedItems;
@@ -477,7 +472,9 @@ export function ClinicalWorkspace({
                   {selectedPlanAlternativeId === null ? (
                     <Badge color="teal">Elegido</Badge>
                   ) : (
-                    <Badge color="teal" variant="light">Base</Badge>
+                    <Badge color="teal" variant="light">
+                      Base
+                    </Badge>
                   )}
                   <Button
                     size="xs"
@@ -496,7 +493,8 @@ export function ClinicalWorkspace({
                       Plan {String.fromCharCode(66 + index)} · {budget.title || "Alternativa"}
                     </span>
                     <span className={styles.rowMeta}>
-                      {budget.items.map((item) => item.description).join(" · ") || "Sin tratamientos"}
+                      {budget.items.map((item) => item.description).join(" · ") ||
+                        "Sin tratamientos"}
                     </span>
                   </div>
                   <Group gap="xs">
@@ -663,7 +661,7 @@ export function ClinicalWorkspace({
                 </Button>
               ) : null}
               {onOpenGuidedFlow ? (
-                <Button size="xs" variant="subtle" onClick={onOpenGuidedFlow}>
+                <Button size="xs" variant="subtle" onClick={() => onOpenGuidedFlow()}>
                   Firma y citas
                 </Button>
               ) : null}
@@ -781,9 +779,7 @@ export function ClinicalWorkspace({
                 <Group justify="space-between">
                   <Text size="sm" c="dimmed">
                     {budgetDate(openBudget.createdAt)}
-                    {openBudget.revision === undefined
-                      ? ""
-                      : ` · Revisión ${openBudget.revision}`}
+                    {openBudget.revision === undefined ? "" : ` · Revisión ${openBudget.revision}`}
                   </Text>
                   <Badge variant="light">
                     {openBudget.status === "SIGNED" ? "Firmado" : "Borrador"}

@@ -120,17 +120,14 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const [activeTab, setActiveTab] = useState<string | null>(initialTab);
   const [treatmentFlowOpen, setTreatmentFlowOpen] = useState(false);
   const [treatmentFlowStartAt, setTreatmentFlowStartAt] = useState<
-    "plan" | "consents" | undefined
+    "plan" | "consents" | "signature" | undefined
   >(undefined);
-  const [treatmentFlowBudgetId, setTreatmentFlowBudgetId] = useState<string | undefined>(
-    undefined,
-  );
+  const [treatmentFlowBudgetId, setTreatmentFlowBudgetId] = useState<string | undefined>(undefined);
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [medicalProfileOverride, setMedicalProfileOverride] =
     useState<PatientMedicalProfile | null>(null);
-
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -522,7 +519,6 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           </div>
         </Tabs.Panel>
 
-
         <Tabs.Panel value="plan" pt="lg">
           <ClinicalWorkspace
             patientId={patientId}
@@ -596,8 +592,8 @@ export function PatientProfile({ patientId }: { patientId: string }) {
       <TreatmentFlowModal
         patientId={patientId}
         opened={treatmentFlowOpen}
-        startAt={treatmentFlowStartAt}
-        preferredBudgetId={treatmentFlowBudgetId}
+        {...(treatmentFlowStartAt ? { startAt: treatmentFlowStartAt } : {})}
+        {...(treatmentFlowBudgetId ? { preferredBudgetId: treatmentFlowBudgetId } : {})}
         onClose={() => {
           setTreatmentFlowOpen(false);
           setTreatmentFlowStartAt(undefined);
