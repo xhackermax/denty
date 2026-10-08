@@ -201,7 +201,7 @@ function TreatmentFlow({
   // Opening the flow derives the plan from the saved odontogram first, unless the
   // current budget is already signed. Re-syncing then can obsolete the signature
   // before the appointment step opens.
-  const planPreparationNeeded = shouldPrepareTreatmentFlowPlan(state);
+  const planPreparationNeeded = !preferredBudgetId && shouldPrepareTreatmentFlowPlan(state);
   useEffect(() => {
     if (started.current || !syncQuery.data) return;
     started.current = true;
@@ -232,6 +232,15 @@ function TreatmentFlow({
       }
       return;
     }
+    if (
+      startAt === "consents" &&
+      preferredBudget?.status === "SIGNED" &&
+      syncBudget?.id === preferredBudget.id &&
+      !syncBudget.outdated
+    ) {
+      setStep("appointments");
+      return;
+    }
     if (startAt === "consents" && state.openItemCount > 0) {
       setStep("consents");
       return;
@@ -245,6 +254,7 @@ function TreatmentFlow({
     preferredBudget,
     pendingConsents.length,
     planQuery.data?.version,
+    syncBudget,
   ]);
 
   // Entering the budget step rebuilds the draft from the plan (never a signed one).
@@ -359,7 +369,7 @@ function TreatmentFlow({
           patientId={patientId}
           patientName={patientName}
           patient={patientQuery.data}
-          items={openItems}
+          items={appointmentItems}
           requirements={relevantConsentRequirements}
         />
       </RetainedFlowStep>
