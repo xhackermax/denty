@@ -38,7 +38,29 @@ assert.match(
 for (const token of ["Personalizado", "Desde / hasta", "Histórico", "Trimestres", "Años"]) {
   assert.ok(analysis.includes(token), `analysis temporal UI missing ${token}`);
 }
-for (const label of ["Producción", "Cobrado", "Margen", "Conversión"])
+for (const token of [
+  'aria-label="Periodo anterior"',
+  'aria-label="Periodo siguiente"',
+  'label="Desde"',
+  'label="Hasta"',
+  'disabled={date > today}',
+  "canGoNext",
+  "activeSiteId",
+  "historyGranularity",
+]) {
+  assert.ok(analysis.includes(token), `analysis period-history regression missing ${token}`);
+}
+assert.match(
+  analysis,
+  /shortDate\(range\.startDate\).*shortDate\(range\.endDate\)/s,
+  "analysis must visibly expose the exact selected date range",
+);
+assert.match(
+  analysis,
+  /analytics\.periods\(historyScope\)/,
+  "analysis historical buckets must come from the server RPC",
+);
+for (const label of ["Producción", "Facturado", "Cobrado", "Margen", "Conversión"])
   assert.ok(analysis.includes(label));
 const financeData = fs.readFileSync("src/features/parity/modules/finance-data.ts", "utf8");
 assert.match(financeData, /analytics\.summary\(/, "finance must consume canonical summary");
