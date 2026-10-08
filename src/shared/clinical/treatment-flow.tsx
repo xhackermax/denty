@@ -31,7 +31,9 @@ import {
   useClinicalPlanQuery,
   useClinicalSyncQuery,
   useConsentRequirementsQuery,
+  useDeferBudgetDecisionMutation,
   useDocumentTemplatesQuery,
+  usePatientBudgetsQuery,
   useSetPlanItemPriceMutation,
   useSignBudgetMutation,
   useSignConsentMutation,
@@ -80,9 +82,15 @@ export interface TreatmentFlowModalProps {
   patientId: string;
   opened: boolean;
   onClose: () => void;
+  startAt?: "plan" | "consents";
 }
 
-export function TreatmentFlowModal({ patientId, opened, onClose }: TreatmentFlowModalProps) {
+export function TreatmentFlowModal({
+  patientId,
+  opened,
+  onClose,
+  startAt,
+}: TreatmentFlowModalProps) {
   const isMobile = useMediaQuery("(max-width: 48em)") ?? false;
   return (
     <Modal
@@ -93,14 +101,25 @@ export function TreatmentFlowModal({ patientId, opened, onClose }: TreatmentFlow
       fullScreen={isMobile}
     >
       {/* Remounted on every open: it always starts from the current clinical state. */}
-      {opened ? <TreatmentFlow patientId={patientId} onClose={onClose} /> : null}
+      {opened ? (
+        <TreatmentFlow patientId={patientId} onClose={onClose} startAt={startAt} />
+      ) : null}
     </Modal>
   );
 }
 
-function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () => void }) {
+function TreatmentFlow({
+  patientId,
+  onClose,
+  startAt,
+}: {
+  patientId: string;
+  onClose: () => void;
+  startAt?: "plan" | "consents";
+}) {
   const syncQuery = useClinicalSyncQuery(patientId);
   const planQuery = useClinicalPlanQuery(patientId);
+  const budgetHistory = usePatientBudgetsQuery(patientId);
   const consentsQuery = useConsentRequirementsQuery(patientId);
   const patientQuery = usePatientQuery(patientId);
   const planSync = useSyncPlanFromOdontogramMutation(patientId);
@@ -121,6 +140,23 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
   // undefined: nothing chosen yet (the whole plan); null: the choice is being prepared.
   const [chosenBudget, setChosenBudget] = useState<BudgetView | null | undefined>(undefined);
   const budget = chosenBudget === undefined ? wholeBudget : chosenBudget;
+  const existingCustomBudgets = (budgetHistory.data?.items ?? []).filter(
+    (candidate) => candidate.scope === "custom" && candidate.status === "DRAFT",
+  ) as BudgetView[];
+  const signedBudget = syncBudget
+    ? ((budgetHistory.data?.items ?? []).find((candidate) => candidate.id === syncBudget.id) as
+        | BudgetView
+        | undefined)
+    : undefined;
+  const selectedBudget = budget ?? signedBudget ?? null;
+  const selectedPlanItemIds = new Set(
+    (selectedBudget?.items ?? [])
+      .map((item) => item.clinicalPlanItemId)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const appointmentItems = selectedPlanItemIds.size
+    ? openItems.filter((item) => selectedPlanItemIds.has(item.id))
+    : openItems;
   const state: TreatmentFlowState = {
     openItemCount: openItems.length,
     pendingConsentCount: pendingConsents.length,
@@ -146,8 +182,13 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
     !planQuery.isFetching &&
     !consentsQuery.isFetching;
   useEffect(() => {
-    if (ready && step === null) setStep(initialTreatmentFlowStep(state));
-  }, [ready, step, state]);
+    if (!ready || step !== null) return;
+    if (startAt === "consents" && state.openItemCount > 0) {
+      setStep("consents");
+      return;
+    }
+    setStep(initialTreatmentFlowStep(state));
+  }, [ready, startAt, step, state]);
 
   // Entering the budget step rebuilds the draft from the plan (never a signed one).
   const enterBudget = () => {
@@ -248,6 +289,7 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
             onRetryWhole={() => budgetSync.mutate()}
             selectedId={budget?.id ?? null}
             onSelect={setChosenBudget}
+            existingCustomBudgets={existingCustomBudgets}
           />
         ) : null}
       </RetainedFlowStep>
@@ -262,7 +304,7 @@ function TreatmentFlow({ patientId, onClose }: { patientId: string; onClose: () 
         </RetainedFlowStep>
       ) : null}
       {step === "appointments" ? (
-        <AppointmentsStep patientId={patientId} items={openItems} />
+        <AppointmentsStep patientId={patientId} items={appointmentItems} />
       ) : null}
 
       <Group justify="space-between">
@@ -592,8 +634,34 @@ function SignatureStep({
   onSigned: () => void;
 }) {
   const signBudget = useSignBudgetMutation(patientId);
+  const deferBudget = useDeferBudgetDecisionMutation(patientId);
   const [signerName, setSignerName] = useState(patientName);
   const [signature, setSignature] = useState<string | null>(null);
+  const [deferred, setDeferred] = useState(false);
+
+  if (deferred) {
+    return (
+      <Stack gap="sm">
+        <Alert color="blue" title="Presupuesto pendiente de firma">
+          El presupuesto se ha guardado en Documentos y se ha creado una tarea para llamar al
+          paciente. No se crearán citas hasta que acepte y firme.
+        </Alert>
+        <Group>
+          <Button
+            component={Link}
+            href={`/app/documents?patientId=${encodeURIComponent(patientId)}`}
+            variant="light"
+          >
+            Ver en Documentos
+          </Button>
+          <Button component={Link} href="/app/tasks" variant="light">
+            Ver tarea de seguimiento
+          </Button>
+        </Group>
+      </Stack>
+    );
+  }
+
   return (
     <Stack gap="sm">
       <Text size="sm">
@@ -611,7 +679,36 @@ function SignatureStep({
           {errorText(signBudget.error, "No se pudo firmar el presupuesto.")}
         </Alert>
       ) : null}
-      <Group justify="flex-end">
+      {deferBudget.isError ? (
+        <Alert color="red">
+          {errorText(
+            deferBudget.error,
+            "No se pudo guardar el presupuesto pendiente o crear la tarea de seguimiento.",
+          )}
+        </Alert>
+      ) : null}
+      <Text size="xs" c="dimmed">
+        Si el paciente prefiere pensárselo o hacerlo más adelante, déjalo pendiente. Denty lo
+        guardará en Documentos y creará una tarea de llamada sin planificar citas todavía.
+      </Text>
+      <Group justify="space-between">
+        <Button
+          variant="default"
+          loading={deferBudget.isPending}
+          onClick={() =>
+            deferBudget.mutate(
+              {
+                budgetId: budget.id,
+                budgetCode: budget.code,
+                totalCents: budget.totalCents,
+                patientName,
+              },
+              { onSuccess: () => setDeferred(true) },
+            )
+          }
+        >
+          Ahora no · dejar pendiente
+        </Button>
         <Button
           color="teal"
           loading={signBudget.isPending}
