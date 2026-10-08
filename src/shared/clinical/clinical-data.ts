@@ -277,6 +277,8 @@ export function useDeferBudgetDecisionMutation(patientId: string) {
       budgetCode: string;
       totalCents: number;
       patientName: string;
+      reason: "THINKING" | "LATER";
+      followUpOn?: string;
     }) => {
       const api = getBrowserApi();
       const [documents, tasks] = await Promise.all([
@@ -301,6 +303,8 @@ export function useDeferBudgetDecisionMutation(patientId: string) {
             budgetCode: input.budgetCode,
             totalCents: input.totalCents,
             decision: "PENDING_SIGNATURE",
+            decisionReason: input.reason,
+            followUpOn: input.followUpOn ?? null,
           },
         }));
       const existingTask = tasks.items.find(
@@ -314,12 +318,16 @@ export function useDeferBudgetDecisionMutation(patientId: string) {
         existingTask ??
         (await api.tasks.create({
           title: `Llamar a ${input.patientName || "paciente"}: presupuesto pendiente`,
-          description: `Seguimiento del presupuesto ${input.budgetCode}. El paciente ha decidido pensárselo o realizar el tratamiento más adelante.`,
+          description:
+            input.reason === "THINKING"
+              ? `Seguimiento del presupuesto ${input.budgetCode}. El paciente está valorando si acepta el tratamiento.`
+              : `Seguimiento del presupuesto ${input.budgetCode}. El paciente prefiere realizar el tratamiento más adelante.`,
           patientId,
           taskType: "budget_follow_up",
           priority: "NORMAL",
           sourceType: "budget_pending_signature",
           sourceId: input.budgetId,
+          ...(input.followUpOn ? { scheduledOn: input.followUpOn } : {}),
         }));
       return { document, task };
     },
