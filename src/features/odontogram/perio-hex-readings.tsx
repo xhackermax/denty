@@ -2,8 +2,7 @@ import { PERIODONTAL_SITES, type PeriodontalReading } from "@/domain/periodontal
 
 import styles from "./odontogram.module.css";
 
-type SiteReading = Pick<PeriodontalReading, "tooth" | "site"> &
-  Partial<Pick<PeriodontalReading, "probingDepth">>;
+type SiteReading = Pick<PeriodontalReading, "tooth" | "site" | "probingDepth">;
 
 /**
  * The six PD measurements are independent of gingival margin (GM).
