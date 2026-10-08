@@ -15,6 +15,9 @@ on:
       - ".github/workflows/treatment-pipeline-validation.yml"
 permissions:
   contents: read
+concurrency:
+  group: treatment-pipeline-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   treatment-pipeline:
     name: TypeScript and clinical flow tests
