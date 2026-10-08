@@ -8,11 +8,15 @@ on:
       - feat/single-unified-odontogram-workbench
       - feat/odontogram-single-canvas-workspace
       - feat/sidebar-mini-week-agenda
+      - fix/agenda-toothbrush-prophylaxis-icon
       - main
       - security-confirmation-explicit-click
   pull_request:
     paths:
       - "src/shared/clinical/**"
+      - "src/shared/odontogram/**"
+      - "src/features/agenda/**"
+      - "src/domain/agenda/**"
       - "public/wallpapers/**"
       - "scripts/tests/wallpaper-artwork-regression.mjs"
       - "src/domain/visual-personalization.ts"
@@ -82,6 +86,8 @@ jobs:
           npx vitest run src/features/odontogram/odontogram-view-state.test.ts src/features/odontogram/odontogram-layer-controls.test.tsx src/features/odontogram/odontogram-workspace.test.tsx
           node scripts/tests/single-odontogram-workbench.mjs
           node scripts/stage6-dentition-ui-contract.test.mjs
+      - name: Agenda dental hygiene brush icon tests
+        run: npx vitest run src/features/agenda/__tests__/agenda-appointment-card.test.tsx src/domain/__tests__/agenda-clinical-icons.test.ts
       - name: Vercel architecture gate
         run: npm run -s architecture:check
       - name: Production build smoke test
