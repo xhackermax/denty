@@ -75,7 +75,7 @@ jobs:
         run: node scripts/tests/wallpaper-artwork-regression.mjs
       - name: Unified odontogram layers and focus tests
         run: |
-          npx vitest run src/features/odontogram/odontogram-view-state.test.ts src/features/odontogram/odontogram-layer-controls.test.tsx
+          npx vitest run src/features/odontogram/odontogram-view-state.test.ts src/features/odontogram/odontogram-layer-controls.test.tsx src/features/odontogram/odontogram-workspace.test.tsx
           node scripts/tests/single-odontogram-workbench.mjs
       - name: Vercel architecture gate
         run: npm run -s architecture:check
