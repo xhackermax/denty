@@ -66,10 +66,12 @@ jobs:
         run: npx vitest run src/app/api/clinic-contacts/route.test.ts src/features/admin/clinic-contacts/__tests__/clinic-contacts-list.test.tsx
       - name: Visual preferences and palette contract
         run: npx vitest run src/domain/__tests__/visual-personalization.test.ts src/shared/ui/__tests__/visual-preferences-provider.test.tsx
+      - name: Vercel architecture gate
+        run: npm run -s architecture:check
       - name: Production build smoke test
         env:
           SUPABASE_URL: http://127.0.0.1:54399
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54399
           SUPABASE_PUBLISHABLE_KEY: e2e-publishable
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: e2e-publishable
-        run: npm run -s build
+        run: node scripts/pipeline/run.mjs vercel-build
