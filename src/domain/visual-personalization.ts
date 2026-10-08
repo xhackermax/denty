@@ -83,9 +83,9 @@ export const VISUAL_PALETTES = [
 
 export const VISUAL_WALLPAPERS = [
   { id: "none", name: "Liso", description: "El fondo original de Denty." },
-  { id: "aurora", name: "Aurora", description: "Degradado suave de luz y color." },
-  { id: "silk", name: "Seda 3D", description: "Ondas abstractas y profundidad." },
-  { id: "mesh", name: "Malla digital", description: "Red tecnológica de líneas sutiles." },
+  { id: "aurora", name: "Degradado de lujo", description: "Fondo nacarado con curvas luminosas." },
+  { id: "silk", name: "Seda 3D", description: "Capas curvas, reflejos y volumen tridimensional." },
+  { id: "mesh", name: "Malla digital", description: "Red tridimensional en perspectiva con puntos luminosos." },
 ] as const;
 
 export type VisualPaletteId = (typeof VISUAL_PALETTES)[number]["id"];
