@@ -1,0 +1,260 @@
+.root {
+  --calendar-accent: var(--denty-green);
+  min-width: 0;
+  border-radius: 18px;
+}
+
+.rail {
+  display: block;
+}
+
+.railButton {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 48px;
+  place-items: center;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--denty-muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.railButton[data-active="true"] {
+  background: color-mix(in srgb, var(--calendar-accent) 16%, transparent);
+  color: var(--denty-text);
+}
+
+.railDate {
+  position: absolute;
+  top: 21px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--calendar-accent);
+  font-size: 0.55rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.railDot {
+  position: absolute;
+  top: 8px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--calendar-accent);
+}
+
+.expanded {
+  display: none;
+}
+
+.calendar {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+}
+
+.monthHeader {
+  display: flex;
+  min-height: 35px;
+  gap: 5px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.monthTitle {
+  min-width: 0;
+  color: var(--denty-text);
+  font-size: 0.89rem;
+  font-weight: 770;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.monthActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.monthButton,
+.todayButton,
+.openAgenda {
+  display: grid;
+  min-width: 32px;
+  min-height: 32px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--denty-muted);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: none;
+}
+
+.weekdays,
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.weekday {
+  display: grid;
+  min-height: 25px;
+  place-items: center;
+  color: var(--denty-muted);
+  font-size: 0.67rem;
+  font-weight: 730;
+}
+
+.day {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 37px;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--denty-text);
+  text-decoration: none;
+}
+
+.day[data-outside="true"] {
+  color: var(--denty-muted);
+  opacity: 0.42;
+}
+
+.day[data-today="true"] {
+  border-color: color-mix(in srgb, var(--calendar-accent) 45%, var(--denty-line));
+  background: color-mix(in srgb, var(--calendar-accent) 14%, transparent);
+  color: var(--denty-text);
+}
+
+.day[data-selected="true"] .dayNumber {
+  font-weight: 860;
+}
+
+.day[data-selected="true"]:not([data-today="true"]) {
+  background: color-mix(in srgb, var(--denty-blue) 12%, transparent);
+}
+
+.dayNumber {
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 680;
+  line-height: 1.1;
+}
+
+.busyIndicator {
+  display: grid;
+  min-height: 4px;
+  place-items: center;
+}
+
+.busyIndicator > span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--calendar-accent);
+}
+
+.busyIndicator[data-heavy="true"] > span {
+  width: 6px;
+  height: 6px;
+}
+
+.footer {
+  display: flex;
+  min-width: 0;
+  min-height: 36px;
+  gap: 5px;
+  align-items: center;
+  border-top: 1px solid var(--denty-line);
+  padding-top: 7px;
+}
+
+.monthSummary {
+  overflow: hidden;
+  flex: 1 1 auto;
+  color: var(--denty-muted);
+  font-size: 0.69rem;
+  font-weight: 660;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todayButton {
+  min-width: 34px;
+  color: var(--denty-blue-text);
+  font-size: 0.7rem;
+  font-weight: 760;
+}
+
+.openAgenda {
+  min-width: 32px;
+  color: var(--denty-blue-text);
+}
+
+.popover {
+  width: 302px;
+  max-width: calc(100vw - 88px);
+  padding: 16px;
+  border: 1px solid var(--denty-line);
+  border-radius: 20px;
+  background: var(--denty-card-solid);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .railButton:hover,
+  .monthButton:hover,
+  .todayButton:hover,
+  .openAgenda:hover {
+    background: color-mix(in srgb, var(--calendar-accent) 12%, transparent);
+  }
+
+  .day:hover {
+    background: color-mix(in srgb, var(--calendar-accent) 16%, transparent);
+    opacity: 1;
+  }
+}
+
+.root :is(a, button):focus-visible,
+.popover :is(a, button):focus-visible {
+  outline: 2px solid var(--denty-blue);
+  outline-offset: 2px;
+}
+
+@media (width >= 75em) {
+  .root {
+    padding: 12px;
+    border: 1px solid var(--denty-line);
+    background: color-mix(in srgb, var(--denty-card-solid) 72%, transparent);
+  }
+
+  .root[data-active="true"] {
+    border-color: color-mix(in srgb, var(--calendar-accent) 40%, var(--denty-line));
+    background: color-mix(in srgb, var(--calendar-accent) 6%, var(--denty-card-solid));
+  }
+
+  .rail {
+    display: none;
+  }
+
+  .expanded {
+    display: block;
+    min-width: 0;
+  }
+}
