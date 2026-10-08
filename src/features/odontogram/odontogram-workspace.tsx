@@ -80,6 +80,7 @@ import { TOOTH_STATE_LABELS as STATE_LABELS } from "@/shared/odontogram/tooth-st
 import { OrthodonticPanel } from "./orthodontic-panel";
 import { OrthodonticToothSymbols } from "./orthodontic-tooth-symbols";
 import { PerioHexReadings } from "./perio-hex-readings";
+import { FittedMouthCanvas } from "./fitted-mouth-canvas";
 import { PediatricPanel } from "./pediatric-panel";
 import { SupernumeraryPanel } from "./supernumerary-panel";
 import { OdontogramLayerControls } from "./odontogram-layer-controls";
@@ -931,7 +932,7 @@ function OdontogramEditor({
     }
   };
   const renderArch = (teeth: readonly string[]) => (
-    <div className={styles.arch}>
+    <div className={styles.arch} data-tooth-count={teeth.length}>
       {teeth.map((tooth) => (
         <Tooth
           key={tooth}
@@ -1163,41 +1164,6 @@ function OdontogramEditor({
             </button>
           </div>
           <div className={styles.unifiedChartColumn}>
-        <OdontogramLayerControls
-          state={viewState}
-          focusedLayer={inspectorLayer}
-          onFocusLayer={(layerId) => {
-            setInspectorLayer(layerId);
-            setWorkspacePane("tools");
-          }}
-          onToggleLayer={(layerId) => {
-            const wasVisible = viewState.visibleLayerIds.includes(layerId);
-            setViewState((current) => toggleOdontogramLayer(current, layerId));
-            // Preserve any other overlays while the dentist adds/removes one area.
-            if (wasVisible) {
-              if (inspectorLayer === layerId)
-                setInspectorLayer(viewState.visibleLayerIds.find((id) => id !== layerId) ?? null);
-            } else {
-              setInspectorLayer(layerId);
-            }
-          }}
-          onToggleSubfilter={(layerId, subfilterId) =>
-            setViewState((current) => toggleOdontogramSubfilter(current, layerId, subfilterId))
-          }
-          onShowAll={() => {
-            setViewState((current) => toggleShowAllLayers(current));
-            setInspectorLayer(null);
-          }}
-          onApplyPreset={(presetId) => {
-            setViewState((current) => applyViewPreset(current, presetId));
-            setInspectorLayer(null);
-          }}
-          onReset={() => {
-            setViewState((current) => resetOdontogramView(current));
-            setInspectorLayer("general");
-          }}
-          onOpenHistory={() => setActiveTab("history")}
-        />
         <section className={`${styles.chartPanel} ${parityStyles.bluePerimeterRunner}`}>
           <div className={styles.chartHeader}>
             <button
@@ -1225,11 +1191,6 @@ function OdontogramEditor({
           ) : null}
           {chartOpen && viewState.visibleLayerIds.includes("general") ? (
             <>
-              <OdontogramLegend
-                selection={legendSelection}
-                disabled={historical}
-                onSelect={(selection) => selectTool(selection.state, selection.placement)}
-              />
               {placementMode === "bridge" ? (
                 <div className={styles.bridgeSelectionBanner}>
                   <strong>
@@ -1288,6 +1249,7 @@ function OdontogramEditor({
                   </Text>
                 ) : null}
               </Group>
+              <FittedMouthCanvas>
               <div className={styles.archBlock}>
                 <Text className={styles.archLabel} fw={800}>
                   Maxilar
@@ -1303,6 +1265,7 @@ function OdontogramEditor({
                   Mandíbula
                 </Text>
               </div>
+              </FittedMouthCanvas>
             </>
           ) : null}
         </section>
@@ -1351,6 +1314,52 @@ function OdontogramEditor({
               </button>
             </div>
             <div className={styles.inspectorScroll}>
+
+              <OdontogramLayerControls
+          state={viewState}
+          focusedLayer={inspectorLayer}
+          onFocusLayer={(layerId) => {
+            setInspectorLayer(layerId);
+            setWorkspacePane("tools");
+          }}
+          onToggleLayer={(layerId) => {
+            const wasVisible = viewState.visibleLayerIds.includes(layerId);
+            setViewState((current) => toggleOdontogramLayer(current, layerId));
+            // Preserve any other overlays while the dentist adds/removes one area.
+            if (wasVisible) {
+              if (inspectorLayer === layerId)
+                setInspectorLayer(viewState.visibleLayerIds.find((id) => id !== layerId) ?? null);
+            } else {
+              setInspectorLayer(layerId);
+            }
+          }}
+          onToggleSubfilter={(layerId, subfilterId) =>
+            setViewState((current) => toggleOdontogramSubfilter(current, layerId, subfilterId))
+          }
+          onShowAll={() => {
+            setViewState((current) => toggleShowAllLayers(current));
+            setInspectorLayer(null);
+          }}
+          onApplyPreset={(presetId) => {
+            setViewState((current) => applyViewPreset(current, presetId));
+            setInspectorLayer(null);
+          }}
+          onReset={() => {
+            setViewState((current) => resetOdontogramView(current));
+            setInspectorLayer("general");
+          }}
+          onOpenHistory={() => setActiveTab("history")}
+        />
+
+              {inspectorLayer === "general" && viewState.visibleLayerIds.includes("general") ? (
+                <div className={styles.inspectorLegend}>
+<OdontogramLegend
+                selection={legendSelection}
+                disabled={historical}
+                onSelect={(selection) => selectTool(selection.state, selection.placement)}
+              />
+                </div>
+              ) : null}
               {inspectorLayer === null ? (
                 <Text size="sm" c="dimmed">
                   Selecciona varias capas y pulsa «Editar» en el área de interés. Todas se proyectan sobre los mismos dientes.
