@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   deleteBudget: vi.fn(),
   reorderPlan: vi.fn(),
   recordPreference: vi.fn(),
+  createAlternative: vi.fn(),
 }));
 
 vi.mock("../clinical-data", () => ({
@@ -141,6 +142,12 @@ vi.mock("../clinical-data", () => ({
   useClinicalSyncQuery: () => ({ data: null, isError: false }),
   useSyncPlanFromOdontogramMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useSyncBudgetFromPlanMutation: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateScopedBudgetMutation: () => ({
+    mutate: mocks.createAlternative,
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
   useTreatmentCatalogQuery: () => ({ data: { items: [] } }),
   useAddClinicalPlanItemMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useReorderClinicalPlanMutation: () => ({ mutate: mocks.reorderPlan, isPending: false }),
@@ -173,6 +180,7 @@ beforeEach(() => {
   mocks.deleteBudget.mockResolvedValue({});
   mocks.reorderPlan.mockReset();
   mocks.recordPreference.mockResolvedValue({});
+  mocks.createAlternative.mockReset();
 });
 
 function renderWorkspace() {
@@ -222,6 +230,20 @@ describe("patient budget history", () => {
     );
     expect(screen.queryByRole("list", { name: "Tratamientos a realizar" })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Presupuestos" })).toBeInTheDocument();
+  });
+
+  it("shows Plan A/B/C alternatives in the treatment plan surface", () => {
+    render(
+      <MantineProvider>
+        <ClinicalWorkspace patientId="patient-1" mode="plan" onOpenGuidedFlow={vi.fn()} />
+      </MantineProvider>,
+    );
+    expect(screen.getByText("Plan A · Plan completo")).toBeInTheDocument();
+    expect(screen.getByText(/Plan B · Conservar el diente/)).toBeInTheDocument();
+    expect(screen.getByText(/Plan C · Implante/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Continuar a consentimientos" }),
+    ).toBeInTheDocument();
   });
 
   it("no muestra la tarjeta de estado de sincronización", () => {
