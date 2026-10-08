@@ -118,6 +118,9 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const [now] = useState(() => Date.now());
   const [activeTab, setActiveTab] = useState<string | null>(initialTab);
   const [treatmentFlowOpen, setTreatmentFlowOpen] = useState(false);
+  const [treatmentFlowStartAt, setTreatmentFlowStartAt] = useState<
+    "plan" | "consents" | undefined
+  >(undefined);
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -131,6 +134,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
   useEffect(() => {
     if (initialTab === "budgets" && requestedAction === "sign") {
+      setTreatmentFlowStartAt(undefined);
       setTreatmentFlowOpen(true);
     }
   }, [initialTab, requestedAction]);
@@ -515,14 +519,24 @@ export function PatientProfile({ patientId }: { patientId: string }) {
 
 
         <Tabs.Panel value="plan" pt="lg">
-          <ClinicalWorkspace patientId={patientId} mode="plan" />
+          <ClinicalWorkspace
+            patientId={patientId}
+            mode="plan"
+            onOpenGuidedFlow={() => {
+              setTreatmentFlowStartAt("consents");
+              setTreatmentFlowOpen(true);
+            }}
+          />
         </Tabs.Panel>
 
         <Tabs.Panel value="budgets" pt="lg">
           <ClinicalWorkspace
             patientId={patientId}
             mode="budget"
-            onOpenGuidedFlow={() => setTreatmentFlowOpen(true)}
+            onOpenGuidedFlow={() => {
+              setTreatmentFlowStartAt(undefined);
+              setTreatmentFlowOpen(true);
+            }}
           />
         </Tabs.Panel>
 
@@ -575,7 +589,11 @@ export function PatientProfile({ patientId }: { patientId: string }) {
       <TreatmentFlowModal
         patientId={patientId}
         opened={treatmentFlowOpen}
-        onClose={() => setTreatmentFlowOpen(false)}
+        startAt={treatmentFlowStartAt}
+        onClose={() => {
+          setTreatmentFlowOpen(false);
+          setTreatmentFlowStartAt(undefined);
+        }}
       />
     </div>
   );
