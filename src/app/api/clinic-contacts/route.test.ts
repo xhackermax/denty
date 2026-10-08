@@ -51,3 +51,30 @@ test("authenticated contacts use the user's token and selected clinic", async ()
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual([{ id: "contact" }]);
 });
+
+test("reception cannot create a contact, even by calling the API directly", async () => {
+  vi.stubGlobal(
+    "fetch",
+    withAuthenticatedStaff(
+      async () => {
+        throw new Error("An unauthorized write reached Supabase");
+      },
+      { clinicId: "clinic", role: "RECEPTION" },
+    ),
+  );
+  const response = await POST(
+    new Request("https://denty.test/api/clinic-contacts", {
+      method: "POST",
+      headers: {
+        origin: "https://denty.test",
+        "content-type": "application/json",
+        ...authenticatedHeaders(),
+      },
+      body: JSON.stringify({
+        operation: "create_clinic_contact",
+        parameters: { p_clinic_id: "clinic", p_name: "Proveedor", p_category: "Servicios" },
+      }),
+    }),
+  );
+  expect(response.status).toBe(403);
+});
