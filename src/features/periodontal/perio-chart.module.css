@@ -59,3 +59,60 @@
   white-space: nowrap;
   font-size: 11px;
 }
+
+/* A focused manual entry panel complements the full table and dictation.
+   Six site cards fit in the inspector; numeric values update the shared chart immediately. */
+.manualEntry {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--denty-card-solid) 92%, var(--denty-teal) 8%);
+}
+.manualGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.manualSite {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid var(--denty-line);
+  border-radius: 9px;
+  background: var(--denty-card);
+}
+.manualField {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3px;
+  color: var(--denty-muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+.manualField input {
+  width: min(100%, 52px);
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 5px;
+  border: 1px solid var(--denty-line-strong);
+  border-radius: 6px;
+  background: var(--denty-card-solid);
+  color: var(--denty-text);
+  font: inherit;
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.manualField input:focus-visible {
+  outline: 2px solid var(--denty-blue);
+  outline-offset: 1px;
+}
+@media (width < 26em) {
+  .manualGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
