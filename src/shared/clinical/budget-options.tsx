@@ -41,6 +41,7 @@ export interface BudgetView {
   title?: string | null | undefined;
   items: Array<{
     id: string;
+    clinicalPlanItemId?: string | null | undefined;
     description: string;
     tooth?: string | null | undefined;
     unitPriceCents?: number | undefined;
@@ -76,15 +77,22 @@ function BudgetCard({
   budget,
   summary,
   selectable,
+  planLabel,
 }: {
   budget: BudgetView;
   summary?: string | undefined;
   selectable: boolean;
+  planLabel?: string | undefined;
 }) {
   return (
     <div className={styles.section} data-budget-scope={budget.scope ?? "plan"}>
       <Group justify="space-between" align="flex-start" wrap="nowrap">
         <div>
+          {planLabel ? (
+            <Badge size="xs" variant="light" color="teal" mb={4}>
+              {planLabel}
+            </Badge>
+          ) : null}
           {selectable ? (
             <Radio
               value={budget.id}
@@ -142,6 +150,7 @@ export function BudgetOptions({
   onRetryWhole,
   selectedId,
   onSelect,
+  existingCustomBudgets = [],
 }: {
   patientId: string;
   items: readonly BudgetPlanItem[];
@@ -151,12 +160,13 @@ export function BudgetOptions({
   onRetryWhole: () => void;
   selectedId: string | null;
   onSelect: (budget: BudgetView | null) => void;
+  existingCustomBudgets?: readonly BudgetView[];
 }) {
   const phases = useMemo(() => splitPlanByPhase(items), [items]);
   const bothPhases = phases.primary.length > 0 && phases.secondary.length > 0;
   const [mode, setMode] = useState<BudgetMode>(bothPhases ? "phases" : "single");
   const [phaseBudgets, setPhaseBudgets] = useState<Partial<Record<TreatmentPhase, BudgetView>>>({});
-  const [custom, setCustom] = useState<BudgetView[]>([]);
+  const [custom, setCustom] = useState<BudgetView[]>(() => [...existingCustomBudgets]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const create = useCreateScopedBudgetMutation(patientId);
   const [phaseError, setPhaseError] = useState<unknown>(null);
@@ -166,6 +176,14 @@ export function BudgetOptions({
   const preparedAttempt = useRef<number | null>(null);
   const latest = useRef({ phases, create, onSelect });
   latest.current = { phases, create, onSelect };
+
+  useEffect(() => {
+    setCustom((current) => {
+      const byId = new Map(existingCustomBudgets.map((budget) => [budget.id, budget]));
+      for (const budget of current) if (!byId.has(budget.id)) byId.set(budget.id, budget);
+      return [...byId.values()];
+    });
+  }, [existingCustomBudgets]);
 
   // Phase budgets are (re)built from the current plan the first time the phases view opens.
   useEffect(() => {
@@ -207,16 +225,20 @@ export function BudgetOptions({
 
   const visible: BudgetView[] =
     mode === "single"
-      ? wholeBudget
-        ? [wholeBudget]
-        : []
+      ? [wholeBudget, ...custom].filter((budget): budget is BudgetView => Boolean(budget))
       : [phaseBudgets.primary, phaseBudgets.secondary].filter((budget): budget is BudgetView =>
           Boolean(budget),
         );
-  const all = [...visible, ...custom];
+  const all = visible;
 
   return (
     <Stack gap="sm">
+      {mode === "single" ? (
+        <Text size="sm" c="dimmed">
+          Elige el Plan A, B o C que el paciente va a aceptar. Aquí se muestra el importe de cada
+          alternativa sin mezclarlo con las fases clínicas.
+        </Text>
+      ) : null}
       <Group justify="space-between" wrap="wrap">
         <SegmentedControl
           size="xs"
@@ -279,20 +301,20 @@ export function BudgetOptions({
         aria-label="Presupuesto que firma el paciente"
       >
         <Stack gap="sm">
-          {visible.map((budget) => (
+          {visible.map((budget, index) => (
             <BudgetCard
               key={budget.id}
               budget={budget}
               selectable={all.length > 1}
+              planLabel={
+                mode === "single" ? `Plan ${String.fromCharCode(65 + index)}` : undefined
+              }
               summary={
                 budget.scope === "primary" || budget.scope === "secondary"
                   ? TREATMENT_PHASE_LABELS[budget.scope].summary
                   : undefined
               }
             />
-          ))}
-          {custom.map((budget) => (
-            <BudgetCard key={budget.id} budget={budget} selectable={all.length > 1} />
           ))}
         </Stack>
       </Radio.Group>
