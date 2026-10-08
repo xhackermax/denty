@@ -84,7 +84,7 @@ export interface TreatmentFlowModalProps {
   opened: boolean;
   onClose: () => void;
   startAt?: "plan" | "consents" | "signature" | undefined;
-  preferredBudgetId?: string;
+  preferredBudgetId?: string | undefined;
 }
 
 export function TreatmentFlowModal({
@@ -125,7 +125,7 @@ function TreatmentFlow({
   patientId: string;
   onClose: () => void;
   startAt?: "plan" | "consents" | "signature" | undefined;
-  preferredBudgetId?: string;
+  preferredBudgetId?: string | undefined;
 }) {
   const syncQuery = useClinicalSyncQuery(patientId);
   const planQuery = useClinicalPlanQuery(patientId);
