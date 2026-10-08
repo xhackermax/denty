@@ -21,6 +21,8 @@ function repositoryWith(tables: Record<string, Record<string, unknown>[]>) {
   const rpc = vi.fn(async (functionName: string) => {
     if (functionName === "update_draft_budget") return { status: "updated" };
     if (functionName === "delete_draft_budget") return { status: "deleted" };
+    if (functionName === "create_clinical_plan_branch")
+      return { id: "branch-1", budget_id: "b-phase-1" };
     return budgetRow();
   });
   const select = vi.fn(async (table: string, query: Record<string, unknown> = {}) => {
@@ -210,6 +212,42 @@ describe("scoped budgets", () => {
         createdAt: "2026-10-05T10:00:00.000Z",
         items: [{ id: "bi-1", quantity: 1, unitPriceCents: 9000 }],
       },
+    });
+  });
+
+  it("creates an isolated branch with shared procedures and one exclusive prosthesis", async () => {
+    const { repository, rpc } = repositoryWith({
+      budgets: [budgetRow({ id: "b-phase-1", scope: "custom", title: "Removible" })],
+      budget_items: [{
+        id: "bi-perio", budget_id: "b-phase-1", clinical_plan_item_id: "perio",
+        description: "Raspado y alisado", tooth: null, unit_price_cents: 12000, total_cents: 12000,
+      }],
+      clinical_plan_branches: [{
+        id: "branch-1", budget_id: "b-phase-1",
+        shared_item_ids: ["perio"], advantages: "Sin cirugía implantológica",
+        disadvantages: "Requiere retirar y limpiar", source_plan_version: 3,
+      }],
+    });
+    const result = await repository.createClinicalPlanBranch("patient-1", {
+      expectedPlanVersion: 3,
+      title: "Removible",
+      sharedPlanItemIds: ["perio"],
+      exclusiveTreatments: [{ catalogId: "removable", tooth: "arcada inferior" }],
+      advantages: "Sin cirugía implantológica",
+      disadvantages: "Requiere retirar y limpiar",
+    });
+    expect(rpc).toHaveBeenCalledWith("create_clinical_plan_branch", {
+      p_patient_id: "patient-1",
+      p_expected_plan_version: 3,
+      p_title: "Removible",
+      p_shared_item_ids: ["perio"],
+      p_exclusive_items: [{ catalog_id: "removable", tooth: "arcada inferior" }],
+      p_advantages: "Sin cirugía implantológica",
+      p_disadvantages: "Requiere retirar y limpiar",
+    });
+    expect(result.budget).toMatchObject({
+      id: "b-phase-1",
+      branch: { sharedPlanItemIds: ["perio"], advantages: "Sin cirugía implantológica" },
     });
   });
 
