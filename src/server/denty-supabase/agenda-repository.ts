@@ -40,6 +40,12 @@ interface AppointmentRpcResult extends Partial<AppointmentRow> {
   currentVersion?: number;
 }
 
+interface AppointmentPatientRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+}
+
 interface PlanItemClinicalRow {
   id: string;
   status: string;
@@ -168,7 +174,33 @@ export class AgendaRepository {
       query.and = `(starts_at.lt.${toMadridISO(end)})`;
     }
     const rows = await this.client.select<AppointmentRow>("appointments", query);
-    return this.attachClinicalContext(rows.map(mapAppointment));
+    const withPatients = await this.attachPatientContext(rows.map(mapAppointment));
+    return this.attachClinicalContext(withPatients);
+  }
+
+  /** Resolve names independently from the paginated patient directory used by the UI. */
+  private async attachPatientContext(appointments: Appointment[]): Promise<Appointment[]> {
+    const patientIds = [...new Set(appointments.map((appointment) => appointment.patientId))];
+    if (patientIds.length === 0) return appointments;
+    const rows = await this.client.select<AppointmentPatientRow>("patients", {
+      select: "id,first_name,last_name",
+      clinic_id: `eq.${this.clinicId}`,
+      id: `in.(${patientIds.join(",")})`,
+    });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return appointments.map((appointment) => {
+      const patient = byId.get(appointment.patientId);
+      return patient
+        ? {
+            ...appointment,
+            patient: {
+              id: patient.id,
+              firstName: patient.first_name,
+              lastName: patient.last_name,
+            },
+          }
+        : appointment;
+    });
   }
 
   /** Counts per day for a month; reads three columns instead of whole appointments. */
@@ -284,6 +316,7 @@ export class AgendaRepository {
       p_starts_at: payload.startsAt,
       p_ends_at: payload.endsAt,
       p_title: payload.title,
+      ...(payload.allowOverlap ? { p_allow_overlap: true } : {}),
       p_reason: payload.reason ?? null,
       p_rescheduled_from_id: payload.rescheduledFromId ?? null,
     });
@@ -297,6 +330,7 @@ export class AgendaRepository {
     const result = await this.client.rpc<AppointmentRpcResult>("update_appointment", {
       p_appointment_id: id,
       p_expected_version: payload.expectedVersion,
+      ...(payload.allowOverlap ? { p_allow_overlap: true } : {}),
       p_patient_id: payload.patientId ?? null,
       p_staff_id: payload.staffId ?? null,
       p_site_id: payload.siteId ?? null,

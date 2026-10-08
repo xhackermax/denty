@@ -68,9 +68,11 @@ export const agendaAppointmentRequestsSchema = z.object({
   items: z.array(agendaAppointmentRequestSchema),
 });
 
-export const scheduleAppointmentRequestSchema = createAppointmentSchema.partial({
-  patientId: true,
-});
+export const scheduleAppointmentRequestSchema = createAppointmentSchema
+  .omit({ allowOverlap: true })
+  .partial({
+    patientId: true,
+  });
 
 export const agendaContextSchema = z.object({
   staff: z.array(agendaStaffSchema),

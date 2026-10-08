@@ -3,7 +3,7 @@ import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
 import { dropMinute } from "@/shared/drag/drop-minute";
 import { AgendaDropColumn } from "./agenda-drop-column";
 
-import { agendaTreatmentOptions } from "@/domain";
+import { agendaTreatmentOptions, shortPatientName } from "@/domain";
 import {
   ActionIcon,
   Alert,
@@ -82,6 +82,7 @@ import {
   shiftRange,
   staffForSiteDay,
   visibleDates,
+  weekdayOfDate,
   type AgendaBlock,
   type AgendaDayCount,
   type AgendaZoom,
@@ -112,7 +113,7 @@ import { NextSlotFinder } from "./next-slot-finder";
 import { AGENDA_STATUS_META } from "./agenda-status";
 import styles from "./agenda.module.css";
 import parityStyles from "@/shared/ui/parity.module.css";
-import { DentyApiError, type UpdateAppointment } from "@/shared/api";
+import { DentyApiError, type CreateAppointment, type UpdateAppointment } from "@/shared/api";
 import { useClinicalPlanQuery, useTreatmentCatalogQuery } from "@/shared/clinical/clinical-data";
 import { ClinicalGlyph, ClinicalGlyphs } from "@/shared/odontogram/clinical-glyph";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
@@ -122,7 +123,7 @@ import { slotMinuteFromOffset } from "@/domain/agenda/slot-selection";
 
 const PIPELINE = [
   { key: "planned", title: "Llegarán", statuses: ["PLANNED", "CONFIRMED"] },
-  { key: "waiting", title: "En sala", statuses: ["ARRIVED", "WAITING"] },
+  { key: "waiting", title: "Llegados", statuses: ["ARRIVED", "WAITING"] },
   { key: "chair", title: "En gabinete", statuses: ["IN_CHAIR"] },
   { key: "done", title: "Finalizadas", statuses: ["COMPLETED"] },
 ] as const;
@@ -162,9 +163,10 @@ interface AgendaColumn {
 }
 
 interface PendingChange {
-  kind: "move" | "create";
+  kind: "move" | "create" | "paste";
   appointment?: AgendaAppointmentView;
   patch?: UpdateAppointment;
+  createPayload?: CreateAppointment;
   date: string;
   staffId: string;
   durationMinutes: number;
@@ -173,8 +175,7 @@ interface PendingChange {
 
 function nextStatus(status: AgendaStatus): AgendaStatus | null {
   if (status === "PLANNED" || status === "CONFIRMED" || status === "RUNNING_LATE") return "ARRIVED";
-  if (status === "ARRIVED") return "WAITING";
-  if (status === "WAITING") return "IN_CHAIR";
+  if (status === "ARRIVED" || status === "WAITING") return "IN_CHAIR";
   if (status === "IN_CHAIR") return "COMPLETED";
   return null;
 }
@@ -271,6 +272,7 @@ export function AgendaPage() {
   const [zoom, setZoom] = useState<AgendaZoom>("normal");
   const [showCompleted, setShowCompleted] = useState(true);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [showNoShows, setShowNoShows] = useState(true);
   const [showBlocks, setShowBlocks] = useState(true);
   const [search, setSearch] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -289,6 +291,7 @@ export function AgendaPage() {
   const [patientId, setPatientId] = useState(requestedPatientId);
   const [staffId, setStaffId] = useState("");
   const [cabinetId, setCabinetId] = useState<string | null>(null);
+  const [appointmentSiteId, setAppointmentSiteId] = useState<string | null>(null);
   const [appointmentTime, setAppointmentTime] = useState("15:00");
   const [appointmentDuration, setAppointmentDuration] = useState(30);
   const [reason, setReason] = useState("Revisión");
@@ -318,6 +321,8 @@ export function AgendaPage() {
   const [resizePreview, setResizePreview] = useState<{ id: string; duration: number } | null>(null);
   const resizingRef = useRef<{ id: string; startY: number; initialDuration: number } | null>(null);
   const touchRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressRef = useRef<{ timer: number; x: number; y: number } | null>(null);
+  const suppressSlotClickRef = useRef(false);
 
   const effectiveDayCount: AgendaDayCount = isMobile ? 1 : dayCount;
   const rangeStart = rangeStartFor(anchor, effectiveDayCount);
@@ -393,6 +398,7 @@ export function AgendaPage() {
   );
   const patientOptions = useMemo(() => projectApiPatients(patients), [patients]);
   const staffNames = useMemo(() => new Map(staff.map((m) => [m.id, m.displayName])), [staff]);
+  const siteNames = useMemo(() => new Map(sites.map((site) => [site.id, site.name])), [sites]);
   // Doctors of the selected site: those whose rota puts them there on the visible
   // days (a doctor can rotate between sites), plus anyone already booked there.
   const siteStaff = useMemo(() => {
@@ -407,7 +413,43 @@ export function AgendaPage() {
   const actorStaffId = contextQuery.data?.actor.staffId ?? null;
   const effectivePatientId = patientId || patientOptions[0]?.id || "";
   const effectiveStaffId = staffId || actorStaffId || staff[0]?.id || "";
-  const effectiveSiteId = activeSiteId || sites[0]?.id || "";
+  const effectiveSiteId = appointmentSiteId || activeSiteId || sites[0]?.id || "";
+  const formCabinets = useMemo(
+    () => cabinets.filter((cabinet) => !effectiveSiteId || cabinet.siteId === effectiveSiteId),
+    [cabinets, effectiveSiteId],
+  );
+  const sitesForStaffDay = useCallback(
+    (targetStaffId: string, targetDate: string): string | undefined => {
+      const member = staff.find((candidate) => candidate.id === targetStaffId);
+      if (!member) return undefined;
+      const weekday = weekdayOfDate(targetDate);
+      const labels = [
+        ...new Set(
+          member.schedules
+            .filter((shift) => shift.weekday === weekday)
+            .map((shift) => siteNames.get(shift.siteId) ?? shift.siteId),
+        ),
+      ];
+      return labels.length ? labels.join(" / ") : undefined;
+    },
+    [siteNames, staff],
+  );
+
+  const siteForStaffSlot = useCallback(
+    (targetStaffId: string, targetDate: string, targetTime: string): string | null => {
+      const member = staff.find((candidate) => candidate.id === targetStaffId);
+      if (!member) return null;
+      const weekday = weekdayOfDate(targetDate);
+      const shifts = member.schedules.filter((shift) => shift.weekday === weekday);
+      const exact = shifts.find((shift) => {
+        const startsAt = shift.startsAt.slice(0, 5);
+        const endsAt = shift.endsAt.slice(0, 5);
+        return startsAt <= targetTime && targetTime < endsAt;
+      });
+      return exact?.siteId ?? shifts[0]?.siteId ?? null;
+    },
+    [staff],
+  );
 
   const implantSurgeryReminders = useMemo(
     () =>
@@ -425,14 +467,11 @@ export function AgendaPage() {
     () =>
       appointments.filter((appointment) => {
         if (!showCompleted && appointment.status === "COMPLETED") return false;
-        if (
-          !showCancelled &&
-          (appointment.status === "CANCELLED" || appointment.status === "NO_SHOW")
-        )
-          return false;
+        if (!showCancelled && appointment.status === "CANCELLED") return false;
+        if (!showNoShows && appointment.status === "NO_SHOW") return false;
         return true;
       }),
-    [appointments, showCancelled, showCompleted],
+    [appointments, showCancelled, showCompleted, showNoShows],
   );
   const searchTerm = search.trim().toLowerCase();
   const matchesSearch = (appointment: AgendaAppointmentView) =>
@@ -505,11 +544,13 @@ export function AgendaPage() {
             dates.length > 1
               ? resources.length > 1
                 ? resource.label
-                : undefined
+                : resource.staffId && !activeSiteId
+                  ? sitesForStaffDay(resource.staffId, columnDate)
+                  : undefined
               : resource.sublabel,
         })),
       ),
-    [dates, resources],
+    [activeSiteId, dates, resources, sitesForStaffDay],
   );
   const columnById = useMemo(
     () => new Map(columns.map((column) => [column.id, column])),
@@ -602,7 +643,7 @@ export function AgendaPage() {
     appointment: AgendaAppointmentView,
     patch: UpdateAppointment,
     targetDate: string,
-    options: { skipConflictCheck?: boolean } = {},
+    options: { skipConflictCheck?: boolean; allowOverlap?: boolean } = {},
   ) => {
     setAgendaNotice(null);
     const candidate = {
@@ -628,7 +669,11 @@ export function AgendaPage() {
       return;
     }
     try {
-      await moveMutation.mutateAsync({ id: appointment.id, payload: patch, targetDate });
+      await moveMutation.mutateAsync({
+        id: appointment.id,
+        payload: options.allowOverlap ? { ...patch, allowOverlap: true } : patch,
+        targetDate,
+      });
     } catch (error) {
       setAgendaNotice(errorMessage(error));
     }
@@ -648,18 +693,54 @@ export function AgendaPage() {
     }
   };
 
+  const markNoShow = async (appointment: AgendaAppointmentView) => {
+    try {
+      await transitions.noShow.mutateAsync({
+        id: appointment.id,
+        expectedVersion: appointment.version,
+      });
+      setQuickViewId(null);
+      setAgendaNotice(`${appointment.patientName} registrado como no presentado.`);
+    } catch (error) {
+      setAgendaNotice(errorMessage(error));
+    }
+  };
+
+  const copyAppointment = useCallback((appointment: AgendaAppointmentView) => {
+    setCopied(appointment);
+    setSelectedId(appointment.id);
+    setAgendaNotice(`Cita de ${appointment.patientName} copiada. Haz clic derecho en un hueco, o mantenlo pulsado en móvil, para pegarla.`);
+  }, []);
+
+  const clearLongPress = () => {
+    if (longPressRef.current) window.clearTimeout(longPressRef.current.timer);
+    longPressRef.current = null;
+  };
+
   const openCreate = (input: {
     date: string;
     minute: number;
     staffId?: string | null;
     cabinetId?: string | null;
+    siteId?: string | null;
     reason?: string;
     columnId?: string;
   }) => {
+    const slotTime = timeForMinute(input.minute);
     setDate(input.date);
     if (input.staffId) setStaffId(input.staffId);
-    setCabinetId(input.cabinetId ?? null);
-    setAppointmentTime(timeForMinute(input.minute));
+    const resolvedSite =
+      input.siteId ??
+      (input.staffId ? siteForStaffSlot(input.staffId, input.date, slotTime) : null) ??
+      activeSiteId ??
+      null;
+    setAppointmentSiteId(resolvedSite);
+    const requestedCabinet = input.cabinetId ?? null;
+    const requestedCabinetSite = requestedCabinet
+      ? cabinets.find((candidate) => candidate.id === requestedCabinet)?.siteId
+      : null;
+    setCabinetId(requestedCabinet && (!resolvedSite || requestedCabinetSite === resolvedSite) ? requestedCabinet : null);
+    setAppointmentTime(slotTime);
     setAppointmentDuration(30);
     setReason(input.reason ?? "Revisión");
     setPlanItemId(null);
@@ -688,7 +769,9 @@ export function AgendaPage() {
     setAppointmentTime(timeForMinute(minute));
   };
 
-  const create = async (options: { skipConflictCheck?: boolean } = {}) => {
+  const create = async (
+    options: { skipConflictCheck?: boolean; allowOverlap?: boolean } = {},
+  ) => {
     if (!effectivePatientId || !effectiveStaffId || !appointmentTime || !effectiveSiteId) return;
     const visitDates = planVisitDates(date, Math.max(1, visitCount), planVisitGapDays);
     if (!options.skipConflictCheck) {
@@ -726,6 +809,7 @@ export function AgendaPage() {
           endsAt: toMadridISO(addMinutes(startsAt, appointmentDuration)),
           title: reason.trim() || "Cita",
           ...(reason.trim() ? { reason: reason.trim() } : {}),
+          ...(options.allowOverlap ? { allowOverlap: true } : {}),
         });
       }
       setAgendaNotice(
@@ -759,6 +843,76 @@ export function AgendaPage() {
       });
       setBlockOpened(false);
       setAgendaNotice("Bloqueo creado.");
+    } catch (error) {
+      setAgendaNotice(errorMessage(error));
+    }
+  };
+
+  const pasteAppointmentAt = async (
+    source: AgendaAppointmentView,
+    column: AgendaColumn,
+    targetMinute: number,
+    options: { skipConflictCheck?: boolean; allowOverlap?: boolean } = {},
+  ) => {
+    const minute = snapMinutes(targetMinute);
+    const time = timeForMinute(minute);
+    const startsAt = madridLocalDateTime(column.date, time);
+    const duration = durationMinutes(source);
+    const targetStaffId = column.staffId ?? source.staffId;
+    const columnCabinetSite = column.cabinetId
+      ? cabinets.find((candidate) => candidate.id === column.cabinetId)?.siteId
+      : null;
+    const resolvedSite =
+      columnCabinetSite ??
+      siteForStaffSlot(targetStaffId, column.date, time) ??
+      source.siteId ??
+      activeSiteId ??
+      sites[0]?.id;
+    if (!resolvedSite) {
+      setAgendaNotice("No se pudo determinar la sede de la cita copiada.");
+      return;
+    }
+    const sourceCabinetSite = source.cabinetId
+      ? cabinets.find((candidate) => candidate.id === source.cabinetId)?.siteId
+      : null;
+    const targetCabinetId =
+      column.cabinetId ?? (sourceCabinetSite === resolvedSite ? source.cabinetId : undefined);
+    const payload: CreateAppointment = {
+      patientId: source.patientId,
+      staffId: targetStaffId,
+      siteId: resolvedSite,
+      ...(targetCabinetId ? { cabinetId: targetCabinetId } : {}),
+      startsAt: toMadridISO(startsAt),
+      endsAt: toMadridISO(addMinutes(startsAt, duration)),
+      title: source.reason,
+      reason: source.reason,
+      ...(source.status === "NO_SHOW" ? { rescheduledFromId: source.id } : {}),
+      ...(options.allowOverlap ? { allowOverlap: true } : {}),
+    };
+    const conflicts = options.skipConflictCheck
+      ? []
+      : conflictsFor({
+          id: "paste",
+          staffId: targetStaffId,
+          cabinetId: targetCabinetId,
+          startsAt: payload.startsAt,
+          endsAt: payload.endsAt,
+        });
+    if (conflicts.length) {
+      setPending({
+        kind: "paste",
+        appointment: source,
+        createPayload: payload,
+        date: column.date,
+        staffId: targetStaffId,
+        durationMinutes: duration,
+        conflicts,
+      });
+      return;
+    }
+    try {
+      await createMutation.mutateAsync(payload);
+      setAgendaNotice(`Cita de ${source.patientName} pegada a las ${time}.`);
     } catch (error) {
       setAgendaNotice(errorMessage(error));
     }
@@ -870,8 +1024,7 @@ export function AgendaPage() {
       const selected = appointments.find((item) => item.id === selectedId);
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && selected) {
         event.preventDefault();
-        setCopied(selected);
-        setAgendaNotice(`Cita de ${selected.patientName} copiada.`);
+        copyAppointment(selected);
         return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v" && copied) {
@@ -913,6 +1066,7 @@ export function AgendaPage() {
     opened,
     pending,
     selectedId,
+    copyAppointment,
   ]);
 
   // Resize with live preview; committed (with conflict check) on release.
@@ -1009,11 +1163,7 @@ export function AgendaPage() {
       <Menu.Dropdown onClick={(event) => event.stopPropagation()}>
         <Menu.Item
           leftSection={<IconCopy size={15} />}
-          onClick={() => {
-            setCopied(appointment);
-            setSelectedId(appointment.id);
-            setAgendaNotice(`Cita de ${appointment.patientName} copiada.`);
-          }}
+          onClick={() => copyAppointment(appointment)}
         >
           Copiar cita
         </Menu.Item>
@@ -1041,16 +1191,10 @@ export function AgendaPage() {
             {AGENDA_STATUS_META[appointment.status].nextLabel}
           </Menu.Item>
         ) : null}
-        {appointment.status !== "COMPLETED" &&
-        appointment.status !== "NO_SHOW" &&
-        appointment.status !== "CANCELLED" ? (
+        {["PLANNED", "CONFIRMED", "RUNNING_LATE"].includes(appointment.status) ? (
           <Menu.Item
             color="gray"
-            onClick={() =>
-              void transitions.noShow
-                .mutateAsync({ id: appointment.id, expectedVersion: appointment.version })
-                .catch((error: unknown) => setAgendaNotice(errorMessage(error)))
-            }
+            onClick={() => void markNoShow(appointment)}
           >
             No presentado
           </Menu.Item>
@@ -1131,11 +1275,15 @@ export function AgendaPage() {
                 leftSection={<IconMapPin size={14} />}
                 rightSection={<IconChevronDown size={14} />}
               >
-                {sites.find((site) => site.id === activeSiteId)?.name ?? "Sede"}
+                {sites.find((site) => site.id === activeSiteId)?.name ?? "Todas las sedes"}
               </Button>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Label>Sede</Menu.Label>
+              <Menu.Label>Vista de sedes</Menu.Label>
+              <Menu.Item fw={!activeSiteId ? 700 : undefined} onClick={() => setActiveSiteId(null)}>
+                Todas las sedes
+              </Menu.Item>
+              <Menu.Divider />
               {sites.map((site) => (
                 <Menu.Item
                   key={site.id}
@@ -1260,7 +1408,13 @@ export function AgendaPage() {
               />
               <Checkbox
                 size="xs"
-                label="Canceladas y no presentados"
+                label="No presentados"
+                checked={showNoShows}
+                onChange={(event) => setShowNoShows(event.currentTarget.checked)}
+              />
+              <Checkbox
+                size="xs"
+                label="Canceladas"
                 checked={showCancelled}
                 onChange={(event) => setShowCancelled(event.currentTarget.checked)}
               />
@@ -1381,7 +1535,9 @@ export function AgendaPage() {
         }}
       >
         <div className={styles.header} style={gridStyle(columns.length, minColumn)}>
-          <div className={styles.corner}>{copied ? <Badge size="xs">Copiada</Badge> : null}</div>
+          <div className={styles.corner}>
+            {copied ? <Badge size="xs">Copiada · {shortPatientName(copied.patientName)}</Badge> : null}
+          </div>
           {columns.map((column) => (
             <div key={column.id} className={styles.columnHeader} data-today={column.date === today}>
               <span>{column.label}</span>
@@ -1418,7 +1574,51 @@ export function AgendaPage() {
                 key={member.id}
                 className={styles.column}
                 style={heightStyle(dayHeight)}
+                onContextMenu={(event) => {
+                  if (!copied || event.target !== event.currentTarget) return;
+                  event.preventDefault();
+                  clearLongPress();
+                  suppressSlotClickRef.current = true;
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  void pasteAppointmentAt(
+                    copied,
+                    member,
+                    (event.clientY - rect.top) / pxPerMinute,
+                  );
+                }}
+                onPointerDown={(event) => {
+                  if (!copied || event.pointerType !== "touch" || event.target !== event.currentTarget)
+                    return;
+                  clearLongPress();
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  longPressRef.current = {
+                    x: event.clientX,
+                    y: event.clientY,
+                    timer: window.setTimeout(() => {
+                      touchRef.current = null;
+                      longPressRef.current = null;
+                      suppressSlotClickRef.current = true;
+                      void pasteAppointmentAt(
+                        copied,
+                        member,
+                        (event.clientY - rect.top) / pxPerMinute,
+                      );
+                    }, 550),
+                  };
+                }}
+                onPointerMove={(event) => {
+                  const press = longPressRef.current;
+                  if (!press) return;
+                  if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > 12)
+                    clearLongPress();
+                }}
+                onPointerUp={clearLongPress}
+                onPointerCancel={clearLongPress}
                 onClick={(event) => {
+                  if (suppressSlotClickRef.current) {
+                    suppressSlotClickRef.current = false;
+                    return;
+                  }
                   if (event.target !== event.currentTarget) return;
                   const rect = event.currentTarget.getBoundingClientRect();
                   openAppointmentAtSlot(member.id, event.clientY, rect.top);
@@ -1502,7 +1702,9 @@ export function AgendaPage() {
                             : undefined
                           : staffNames.get(appointment.staffId)
                       }
+                      siteLabel={appointment.siteId ? siteNames.get(appointment.siteId) : undefined}
                       menu={renderAppointmentMenu(appointment)}
+                      onCopy={() => copyAppointment(appointment)}
                       onOpen={() => {
                         setSelectedId(appointment.id);
                         setQuickViewId(appointment.id);
@@ -1551,7 +1753,14 @@ export function AgendaPage() {
             <Text size="xs">{appointment.reason}</Text>
           )}
         </Group>
-        <span className={parityStyles.rowMeta}>{AGENDA_STATUS_META[appointment.status].label}</span>
+        <span className={parityStyles.rowMeta}>
+          {[
+            AGENDA_STATUS_META[appointment.status].label,
+            appointment.siteId ? siteNames.get(appointment.siteId) : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
       </UnstyledButton>
       <div className={parityStyles.rowActions}>
         {withAdvance && nextStatus(appointment.status) ? (
@@ -1604,7 +1813,10 @@ export function AgendaPage() {
       }}
     >
       <div className={parityStyles.grid}>
-        <PageHeader title="Agenda" description="Arrastra para mover. ··· para más." />
+        <PageHeader
+          title="Agenda"
+          description="Arrastra para mover. Clic derecho o pulsación larga para copiar y pegar citas."
+        />
 
         {renderToolbar()}
 
@@ -1691,15 +1903,12 @@ export function AgendaPage() {
           patient={quickView ? patientsById.get(quickView.patientId) : undefined}
           staffName={quickView ? staffNames.get(quickView.staffId) : undefined}
           cabinetName={quickView?.cabinetId ? cabinetNames.get(quickView.cabinetId) : undefined}
+          siteName={quickView?.siteId ? siteNames.get(quickView.siteId) : undefined}
           staffOptions={staff.map((member) => ({ value: member.id, label: member.displayName }))}
           busy={transitionPending || moveMutation.isPending}
           onClose={() => setQuickViewId(null)}
           onAdvance={(appointment) => void advance(appointment)}
-          onNoShow={(appointment) =>
-            void transitions.noShow
-              .mutateAsync({ id: appointment.id, expectedVersion: appointment.version })
-              .catch((error: unknown) => setAgendaNotice(errorMessage(error)))
-          }
+          onNoShow={(appointment) => void markNoShow(appointment)}
           onReschedule={(appointment) => void duplicate(appointment, 30)}
           onCancel={(appointment, cancelReason) =>
             void transitions.cancel
@@ -1736,7 +1945,11 @@ export function AgendaPage() {
             setPending(null);
             setSlotSearchOpened(false);
           }}
-          title="Ese hueco no está libre"
+          title={
+            pending?.conflicts.every((conflict) => conflict.startsWith("appointment:"))
+              ? "¿Seguro que quieres superponer las citas?"
+              : "Ese hueco no está libre"
+          }
         >
           {pending ? (
             <Stack gap="sm">
@@ -1749,7 +1962,8 @@ export function AgendaPage() {
                 ))}
               </Stack>
               <Text size="xs" c="dimmed">
-                Denty no permite dobles reservas del mismo profesional o gabinete.
+                Los bloqueos y ausencias no se pueden saltar. Si el conflicto es únicamente con otra
+                cita, puedes superponerla tras confirmarlo.
               </Text>
               {slotSearchOpened ? (
                 <NextSlotFinder
@@ -1773,7 +1987,44 @@ export function AgendaPage() {
                   Cancelar
                 </Button>
                 {slotSearchOpened ? null : (
-                  <Button onClick={() => setSlotSearchOpened(true)}>Buscar otro hueco</Button>
+                  <>
+                    <Button onClick={() => setSlotSearchOpened(true)}>Buscar otro hueco</Button>
+                    {pending.conflicts.every((conflict) => conflict.startsWith("appointment:")) ? (
+                      <Button
+                        color="orange"
+                        onClick={() => {
+                          const current = pending;
+                          setPending(null);
+                          setSlotSearchOpened(false);
+                          if (current.kind === "move" && current.appointment && current.patch) {
+                            void commitMove(
+                              current.appointment,
+                              current.patch,
+                              current.date,
+                              { skipConflictCheck: true, allowOverlap: true },
+                            );
+                            return;
+                          }
+                          if (current.kind === "paste" && current.createPayload) {
+                            void createMutation
+                              .mutateAsync({ ...current.createPayload, allowOverlap: true })
+                              .then(() =>
+                                setAgendaNotice(
+                                  `Cita de ${current.appointment?.patientName ?? "paciente"} superpuesta.`,
+                                ),
+                              )
+                              .catch((error: unknown) => setAgendaNotice(errorMessage(error)));
+                            return;
+                          }
+                          if (current.kind === "create") {
+                            void create({ skipConflictCheck: true, allowOverlap: true });
+                          }
+                        }}
+                      >
+                        Sí, superponer citas
+                      </Button>
+                    ) : null}
+                  </>
                 )}
               </Group>
             </Stack>
@@ -1884,7 +2135,14 @@ export function AgendaPage() {
                 <Select
                   label="Profesional"
                   value={effectiveStaffId || null}
-                  onChange={(value) => setStaffId(value ?? "")}
+                  onChange={(value) => {
+                    const nextStaffId = value ?? "";
+                    setStaffId(nextStaffId);
+                    const nextSite = nextStaffId
+                      ? siteForStaffSlot(nextStaffId, date, appointmentTime)
+                      : null;
+                    if (nextSite) setAppointmentSiteId(nextSite);
+                  }}
                   data={staff.map((member) => ({ value: member.id, label: member.displayName }))}
                 />
                 <Group grow>
@@ -1893,12 +2151,19 @@ export function AgendaPage() {
                     clearable
                     value={cabinetId}
                     onChange={setCabinetId}
-                    data={cabinets.map((cabinet) => ({ value: cabinet.id, label: cabinet.name }))}
+                    data={formCabinets.map((cabinet) => ({ value: cabinet.id, label: cabinet.name }))}
                   />
                   <Select
                     label="Sede"
                     value={effectiveSiteId || null}
-                    onChange={(value) => setActiveSiteId(value ?? null)}
+                    onChange={(value) => {
+                      const nextSiteId = value ?? null;
+                      setAppointmentSiteId(nextSiteId);
+                      const selectedCabinet = cabinetId
+                        ? cabinets.find((candidate) => candidate.id === cabinetId)
+                        : null;
+                      if (selectedCabinet && selectedCabinet.siteId !== nextSiteId) setCabinetId(null);
+                    }}
                     data={sites.map((site) => ({ value: site.id, label: site.name }))}
                   />
                 </Group>

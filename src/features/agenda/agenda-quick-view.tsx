@@ -73,6 +73,7 @@ export interface AgendaQuickViewProps {
   patient: Patient | undefined;
   staffName: string | undefined;
   cabinetName: string | undefined;
+  siteName: string | undefined;
   staffOptions: ReadonlyArray<{ value: string; label: string }>;
   busy: boolean;
   onClose: () => void;
@@ -88,6 +89,7 @@ export function AgendaQuickView({
   patient,
   staffName,
   cabinetName,
+  siteName,
   staffOptions,
   busy,
   onClose,
@@ -123,6 +125,9 @@ export function AgendaQuickView({
     appointment.status !== "COMPLETED" &&
     appointment.status !== "NO_SHOW" &&
     appointment.status !== "CANCELLED";
+  const canMarkNoShow =
+    appointment !== null &&
+    ["PLANNED", "CONFIRMED", "RUNNING_LATE"].includes(appointment.status);
   const alerts = patientAlerts(patient);
   const age = ageFrom(patient?.birthDate);
 
@@ -207,7 +212,7 @@ export function AgendaQuickView({
                 </Menu.Item>
                 <Menu.Item
                   leftSection={<IconUserOff size={14} />}
-                  disabled={!active}
+                  disabled={!canMarkNoShow}
                   onClick={() => onNoShow(appointment)}
                 >
                   No presentado
@@ -307,6 +312,12 @@ export function AgendaQuickView({
               <>
                 <dt>Profesional</dt>
                 <dd>{staffName}</dd>
+              </>
+            ) : null}
+            {siteName ? (
+              <>
+                <dt>Sede</dt>
+                <dd>{siteName}</dd>
               </>
             ) : null}
             {cabinetName ? (

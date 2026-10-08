@@ -306,7 +306,8 @@
 }
 
 .cardReason,
-.cardMeta {
+.cardMeta,
+.cardSite {
   min-width: 0;
   overflow: hidden;
   color: var(--denty-muted);
@@ -319,8 +320,15 @@
   flex: 1;
 }
 
-.cardMeta {
+.cardMeta,
+.cardSite {
   flex: none;
+}
+
+.cardSite {
+  max-width: 86px;
+  color: var(--denty-blue-text);
+  font-weight: 750;
 }
 
 .resizeHandle {
