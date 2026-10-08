@@ -17,7 +17,7 @@ export async function confirmAppointmentAction(
 ): Promise<ConfirmationState> {
   const token = formData.get("token");
   if (typeof token !== "string" || token.length < 10 || token.length > 512) {
-    return { status: "error", message: errors.TOKEN_NOT_FOUND };
+    return { status: "error", message: errors.TOKEN_NOT_FOUND ?? "El enlace no es válido." };
   }
   try {
     const result = await confirmAppointmentByToken(token);
