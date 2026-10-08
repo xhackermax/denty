@@ -6,6 +6,7 @@ on:
       - feature/visual-personalization-palettes
       - fix/wallpapers-faithful-svg-assets
       - feat/single-unified-odontogram-workbench
+      - feat/odontogram-single-canvas-workspace
       - main
       - security-confirmation-explicit-click
   pull_request:

@@ -1994,37 +1994,81 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 
-/* Unified chart: one anatomical chart plus one bounded context inspector.
-   Selecting multiple layers never mounts another full-mouth diagram. */
+/* The odontogram is a single finite viewport, not stacked full-mouth pages.
+   On compact screens the clinician switches canvas/tools within this location.
+   On large screens both panes share one workspace and scroll independently. */
 .unifiedWorkbench {
   display: grid;
+  height: clamp(480px, calc(100dvh - var(--denty-shell-header) - 32px), 840px);
+  min-height: 0;
   grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-  gap: 12px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--denty-line);
+  border-radius: var(--denty-radius-board);
+  background: color-mix(in srgb, var(--denty-card-solid) 60%, transparent);
+}
+
+.workspaceMobileTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--denty-line);
+}
+
+.workspaceMobileTabs button {
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--denty-text);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.workspaceMobileTabs button[data-active="true"] {
+  border-color: color-mix(in srgb, var(--denty-blue) 26%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-blue) 12%, var(--denty-card-solid));
+  color: var(--denty-blue-text);
+}
+
+.workspaceMobileTabs button:focus-visible,
+.inspectorBack:focus-visible {
+  outline: 2px solid var(--denty-blue);
+  outline-offset: -2px;
 }
 
 .unifiedChartColumn {
   display: grid;
   gap: 10px;
   min-width: 0;
+  min-height: 0;
+  align-content: start;
+  padding: 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .unifiedInspector {
-  min-width: 0;
-  max-height: min(66dvh, 720px);
   display: grid;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  border: 1px solid var(--denty-line);
-  border-radius: var(--denty-radius-card);
+  border: 0;
   background: var(--denty-card);
-  box-shadow: var(--denty-card-shadow);
 }
 
 .inspectorHeader {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 12px 16px;
@@ -2033,6 +2077,18 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 .inspectorHeader strong {
   font-size: 0.86rem;
+}
+
+.inspectorBack {
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid var(--denty-line);
+  border-radius: 999px;
+  background: var(--denty-card-solid);
+  color: var(--denty-blue-text);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 750;
 }
 
 .inspectorScroll {
@@ -2046,6 +2102,37 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 .inspectorScroll > * + * {
   margin-top: 12px;
+}
+
+.unifiedWorkbench[data-mobile-pane="chart"] > .unifiedInspector {
+  display: none;
+}
+
+.unifiedWorkbench[data-mobile-pane="tools"] > .unifiedChartColumn {
+  display: none;
+}
+
+.visitSummaryDisclosure {
+  overflow: hidden;
+  border: 1px solid var(--denty-line);
+  border-radius: 14px;
+  background: var(--denty-card);
+}
+
+.visitSummaryDisclosure > summary {
+  padding: 13px 17px;
+  color: var(--denty-text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.visitSummaryDisclosure[open] > summary {
+  border-bottom: 1px solid var(--denty-line);
+}
+
+.visitSummaryDisclosure > :not(summary) {
+  margin: 12px;
 }
 
 .layerHelp {
@@ -2097,17 +2184,31 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 @media (min-width: 1500px) {
   .unifiedWorkbench {
-    grid-template-columns: minmax(0, 1.55fr) minmax(340px, 1fr);
+    grid-template-columns: minmax(0, 1.65fr) minmax(350px, 0.9fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
-  .unifiedChartColumn {
-    position: sticky;
-    top: calc(var(--denty-shell-header) + 8px);
+  .workspaceMobileTabs,
+  .inspectorBack {
+    display: none;
+  }
+
+  .unifiedWorkbench[data-mobile-pane="chart"] > .unifiedInspector,
+  .unifiedWorkbench[data-mobile-pane="tools"] > .unifiedChartColumn {
+    display: grid;
   }
 
   .unifiedInspector {
-    position: sticky;
-    top: calc(var(--denty-shell-header) + 8px);
-    max-height: calc(100dvh - var(--denty-shell-header) - 22px);
+    border-left: 1px solid var(--denty-line);
+  }
+
+  /* Fit sixteen teeth in the larger canvas instead of forcing a 1030px scroller. */
+  .unifiedChartColumn .arch {
+    min-width: 800px;
+    grid-template-columns: repeat(16, minmax(46px, 1fr));
+  }
+
+  .unifiedChartColumn .toothButton {
+    min-width: 46px;
   }
 }

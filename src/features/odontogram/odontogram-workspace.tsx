@@ -549,6 +549,8 @@ function OdontogramEditor({
   const [advancedToolsOpen, setAdvancedToolsOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [inspectorLayer, setInspectorLayer] = useState<OdontogramLayerId | null>("general");
+  // On compact viewports, both areas occupy one fixed-height workspace: no stacked pages.
+  const [workspacePane, setWorkspacePane] = useState<"chart" | "tools">("chart");
   const [viewState, setViewState] = useState(createInitialOdontogramViewState);
   const [viewPreferenceLoaded, setViewPreferenceLoaded] = useState(false);
   const [viewPreferenceError, setViewPreferenceError] = useState(false);
@@ -1109,26 +1111,44 @@ function OdontogramEditor({
         </div>
       ) : null}
 
-      <OdontogramVisitSummaryPanel
-        entities={entities}
-        suggestedNextVisit={nextVisitSuggestion}
-        readOnly={historical}
-        saving={encounterMutation.isPending}
-        saveError={encounterMutation.isError}
-        onSaveEncounter={(input) => encounterMutation.mutateAsync(input)}
-      />
-
       <MouthStateProvider state={mouthState}>
-        <div className={styles.unifiedWorkbench}>
+        <div className={styles.unifiedWorkbench} data-mobile-pane={workspacePane}>
+          <div className={styles.workspaceMobileTabs} role="group" aria-label="Área de trabajo del odontograma">
+            <button
+              type="button"
+              data-active={workspacePane === "chart"}
+              aria-pressed={workspacePane === "chart"}
+              onClick={() => setWorkspacePane("chart")}
+            >
+              Ver odontograma
+            </button>
+            <button
+              type="button"
+              data-active={workspacePane === "tools"}
+              aria-pressed={workspacePane === "tools"}
+              onClick={() => setWorkspacePane("tools")}
+            >
+              Herramientas {inspectorLayer ? ODONTOGRAM_LAYER_LABELS[inspectorLayer] : ""}
+            </button>
+          </div>
           <div className={styles.unifiedChartColumn}>
         <OdontogramLayerControls
           state={viewState}
           focusedLayer={inspectorLayer}
-          onFocusLayer={(layerId) => setInspectorLayer(layerId)}
+          onFocusLayer={(layerId) => {
+            setInspectorLayer(layerId);
+            setWorkspacePane("tools");
+          }}
           onToggleLayer={(layerId) => {
             const wasVisible = viewState.visibleLayerIds.includes(layerId);
             setViewState((current) => toggleOdontogramLayer(current, layerId));
-            setInspectorLayer(wasVisible ? null : layerId);
+            // Preserve any other overlays while the dentist adds/removes one area.
+            if (wasVisible) {
+              if (inspectorLayer === layerId)
+                setInspectorLayer(viewState.visibleLayerIds.find((id) => id !== layerId) ?? null);
+            } else {
+              setInspectorLayer(layerId);
+            }
           }}
           onToggleSubfilter={(layerId, subfilterId) =>
             setViewState((current) => toggleOdontogramSubfilter(current, layerId, subfilterId))
@@ -1155,8 +1175,8 @@ function OdontogramEditor({
               aria-expanded={chartOpen}
               onClick={() => setChartOpen((open) => !open)}
             >
-              <Text fw={850}>Odontograma</Text>
-              <span aria-hidden="true">{chartOpen ? "?" : "?"}</span>
+              <Text fw={850}>Odontograma único</Text>
+              <span aria-hidden="true">{chartOpen ? "▾" : "▸"}</span>
             </button>
             {!viewState.visibleLayerIds.includes("general") ? (
               <Text size="xs" c="dimmed">
@@ -1207,6 +1227,8 @@ function OdontogramEditor({
               ) : null}
             </>
           ) : null}
+          {/* The anatomical chart is never hidden when General is switched off.
+              Perio, ortho, surgery, endo and all other layers share this same mouth. */}
           {chartOpen ? (
             <>
               <Group gap="xs" className={styles.nextVisitBar}>
@@ -1281,6 +1303,13 @@ function OdontogramEditor({
               <Text size="xs" c="dimmed">
                 {viewState.visibleLayerIds.length} {viewState.visibleLayerIds.length === 1 ? "capa visible" : "capas visibles"} · pieza {selectedTooth}
               </Text>
+              <button
+                className={styles.inspectorBack}
+                type="button"
+                onClick={() => setWorkspacePane("chart")}
+              >
+                Volver a los dientes
+              </button>
             </div>
             <div className={styles.inspectorScroll}>
               {inspectorLayer === null ? (
@@ -1597,6 +1626,17 @@ function OdontogramEditor({
           </section>
         </div>
       </MouthStateProvider>
+      <details className={styles.visitSummaryDisclosure}>
+        <summary>Resumen de visita y próxima cita</summary>
+        <OdontogramVisitSummaryPanel
+          entities={entities}
+          suggestedNextVisit={nextVisitSuggestion}
+          readOnly={historical}
+          saving={encounterMutation.isPending}
+          saveError={encounterMutation.isError}
+          onSaveEncounter={(input) => encounterMutation.mutateAsync(input)}
+        />
+      </details>
       <details className={parityStyles.disclosure}>
         <summary>
           <span>
