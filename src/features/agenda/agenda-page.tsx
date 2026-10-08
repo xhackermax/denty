@@ -418,6 +418,23 @@ export function AgendaPage() {
     () => cabinets.filter((cabinet) => !effectiveSiteId || cabinet.siteId === effectiveSiteId),
     [cabinets, effectiveSiteId],
   );
+  const sitesForStaffDay = useCallback(
+    (targetStaffId: string, targetDate: string): string | undefined => {
+      const member = staff.find((candidate) => candidate.id === targetStaffId);
+      if (!member) return undefined;
+      const weekday = weekdayOfDate(targetDate);
+      const labels = [
+        ...new Set(
+          member.schedules
+            .filter((shift) => shift.weekday === weekday)
+            .map((shift) => siteNames.get(shift.siteId) ?? shift.siteId),
+        ),
+      ];
+      return labels.length ? labels.join(" / ") : undefined;
+    },
+    [siteNames, staff],
+  );
+
   const siteForStaffSlot = useCallback(
     (targetStaffId: string, targetDate: string, targetTime: string): string | null => {
       const member = staff.find((candidate) => candidate.id === targetStaffId);
@@ -527,11 +544,13 @@ export function AgendaPage() {
             dates.length > 1
               ? resources.length > 1
                 ? resource.label
-                : undefined
+                : resource.staffId && !activeSiteId
+                  ? sitesForStaffDay(resource.staffId, columnDate)
+                  : undefined
               : resource.sublabel,
         })),
       ),
-    [dates, resources],
+    [activeSiteId, dates, resources, sitesForStaffDay],
   );
   const columnById = useMemo(
     () => new Map(columns.map((column) => [column.id, column])),
