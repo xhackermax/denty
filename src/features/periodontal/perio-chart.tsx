@@ -372,7 +372,7 @@ export function PerioChart({
   const manualData = session.exam.teeth[manualTooth];
   const applyManual = (tooth: string, site: (typeof PERIODONTAL_SITES)[number],
     field: "pd" | "gm", raw: string) => {
-    if (raw !== "" && !/^-?\\d{1,2}$/.test(raw)) return;
+    if (raw !== "" && !/^-?[0-9]{1,2}$/.test(raw)) return;
     if (raw === "-" && field === "gm") return;
     run({
       type: "site",
