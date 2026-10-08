@@ -24,12 +24,14 @@ interface ClinicContactsListProps {
   clinicId: string;
   initialContacts: ClinicContact[];
   initialTotalCount: number;
+  canManage?: boolean;
 }
 
 export function ClinicContactsList({
   clinicId,
   initialContacts,
   initialTotalCount,
+  canManage = true,
 }: ClinicContactsListProps) {
   const {
     create,
@@ -106,7 +108,7 @@ export function ClinicContactsList({
     <Stack gap="lg">
       <Group justify="space-between">
         <Title order={1}>Contactos especiales</Title>
-        <Button
+        {canManage ? <Button
           leftSection={<IconPlus size={17} />}
           onClick={() => {
             setEditingContact(null);
@@ -114,7 +116,7 @@ export function ClinicContactsList({
           }}
         >
           Añadir contacto
-        </Button>
+        </Button> : null}
       </Group>
       {toast ? (
         <Alert
@@ -149,7 +151,7 @@ export function ClinicContactsList({
       {!filteredContacts.length ? (
         <Stack align="center" py="xl">
           <Text c="dimmed">No hay contactos que coincidan</Text>
-          <Button
+          {canManage ? <Button
             variant="light"
             onClick={() => {
               setEditingContact(null);
@@ -157,7 +159,7 @@ export function ClinicContactsList({
             }}
           >
             Añadir contacto
-          </Button>
+          </Button> : null}
         </Stack>
       ) : (
         Object.entries(groups).map(([category, items]) => (
@@ -170,6 +172,7 @@ export function ClinicContactsList({
                 <ContactCard
                   key={contact.id}
                   contact={contact}
+                  canManage={canManage}
                   onEdit={() => handleEdit(contact)}
                   onDelete={() => void handleDelete(contact.id)}
                   onMessage={(message, error = false) =>
@@ -193,7 +196,7 @@ export function ClinicContactsList({
         title={editingContact ? "Editar contacto" : "Añadir contacto"}
         size="lg"
       >
-        {showForm ? (
+        {showForm && canManage ? (
           <ClinicContactForm
             clinicId={clinicId}
             editingContact={editingContact}

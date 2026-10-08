@@ -116,3 +116,21 @@ test.each(["constructor", "toString", "__proto__"])("renders persisted category 
   );
   expect(screen.getByRole("heading", { name: category })).toBeInTheDocument();
 });
+
+test("reception can read contact cards but cannot add, edit or delete", () => {
+  render(
+    <MantineProvider>
+      <ClinicContactsList
+        clinicId="clinic"
+        initialContacts={[contact("a", "Laboratorio Ana", "Laboratorio")]}
+        initialTotalCount={1}
+        canManage={false}
+      />
+    </MantineProvider>,
+  );
+  expect(screen.getByRole("heading", { name: "Laboratorio Ana" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Llamar a Laboratorio Ana" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Añadir contacto" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Editar Laboratorio Ana" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Eliminar Laboratorio Ana" })).not.toBeInTheDocument();
+});
