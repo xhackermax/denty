@@ -1172,9 +1172,7 @@ export function AgendaPage() {
             {AGENDA_STATUS_META[appointment.status].nextLabel}
           </Menu.Item>
         ) : null}
-        {appointment.status !== "COMPLETED" &&
-        appointment.status !== "NO_SHOW" &&
-        appointment.status !== "CANCELLED" ? (
+        {["PLANNED", "CONFIRMED", "RUNNING_LATE"].includes(appointment.status) ? (
           <Menu.Item
             color="gray"
             onClick={() => void markNoShow(appointment)}
@@ -1928,7 +1926,11 @@ export function AgendaPage() {
             setPending(null);
             setSlotSearchOpened(false);
           }}
-          title="Ese hueco no está libre"
+          title={
+            pending?.conflicts.every((conflict) => conflict.startsWith("appointment:"))
+              ? "¿Seguro que quieres superponer las citas?"
+              : "Ese hueco no está libre"
+          }
         >
           {pending ? (
             <Stack gap="sm">
