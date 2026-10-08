@@ -24,5 +24,11 @@ assert.ok(workspace.includes('inspectorLayer === "ortho"'), "Orthodontic editor 
 assert.ok(workspace.includes("styles.inspectorScroll"), "Tools must live in bounded scrollable panel");
 assert.ok(controls.includes("onToggle(layerId)"), "Buttons must toggle overlays");
 assert.ok(controls.includes("onFocus(layerId)"), "Editing a layer must not remove other layers");
-assert.ok(styles.includes("max-height: min(66dvh, 720px)"), "Inspector must stay bounded");
+assert.ok(styles.includes("height: clamp(480px"), "The unified workspace must have a finite viewport height");
+assert.ok(styles.includes('data-mobile-pane="chart"'), "Small screens must switch panes, not stack editors");
+assert.ok(workspace.includes('data-mobile-pane={workspacePane}'), "The workspace must expose the active compact pane");
+assert.ok(workspace.includes('styles.workspaceMobileTabs'), "The chart and tools must share one location");
+assert.ok(workspace.indexOf("<OdontogramVisitSummaryPanel") > workspace.indexOf("styles.unifiedWorkbench"), "Visit summary must not push the chart down the page");
+assert.ok(controls.includes("ODONTOGRAM_LAYER_IDS.map"), "All eight layers must be immediately available");
+assert.ok(styles.includes("max-height: 100%"), "Inspector must remain confined to the shared viewport");
 console.log("Unified odontogram contract OK: one chart, multi-layer overlays, focused clinical editors");
