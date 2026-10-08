@@ -21,6 +21,7 @@ import {
   type OrthodonticClass,
 } from "@/domain";
 import styles from "./odontogram.module.css";
+import type { OrthodonticVisualDraft } from "./odontogram-layer-projection";
 interface OrthodonticPanelProps {
   patientId: string;
   selectedTooth: string;
@@ -29,6 +30,7 @@ interface OrthodonticPanelProps {
   entities?: readonly DentalEntity[];
   readOnly: boolean;
   onCommit: (entity: DentalEntity) => void;
+  onPreview?: (draft: OrthodonticVisualDraft | null) => void;
 }
 const APPLIANCES: readonly {
   value: OrthodonticAppliance;
@@ -40,8 +42,9 @@ const APPLIANCES: readonly {
   { value: "expander", label: "Disyuntor" },
   { value: "lingual_arch", label: "Arco lingual" },
   { value: "space_maintainer", label: "Mantenedor" },
+  { value: "miniscrews", label: "Microtornillos" },
 ];
-type OrthoMark = "none" | "bracket" | "band" | "attachment" | "extract" | "space";
+type OrthoMark = "none" | "bracket" | "band" | "attachment" | "extract" | "space" | "miniscrew" | "maintainer";
 const ORTHO_MARKS: readonly OrthoMark[] = [
   "none",
   "bracket",
@@ -49,6 +52,8 @@ const ORTHO_MARKS: readonly OrthoMark[] = [
   "attachment",
   "extract",
   "space",
+  "miniscrew",
+  "maintainer",
 ];
 const ORTHO_MARK_LABELS: Record<OrthoMark, string> = {
   none: "Sin marca",
@@ -57,6 +62,8 @@ const ORTHO_MARK_LABELS: Record<OrthoMark, string> = {
   attachment: "Atache",
   extract: "Extracción ortodóntica",
   space: "Espacio / ausencia",
+  miniscrew: "Microtornillo ortodóntico",
+  maintainer: "Mantenedor de espacio",
 };
 interface OrthodonticDraft {
   molarClassRight: OrthodonticClass;
@@ -123,6 +130,7 @@ export function OrthodonticPanel({
   entities = [],
   readOnly,
   onCommit,
+  onPreview,
 }: OrthodonticPanelProps) {
   const mouth = useMouthState();
   const arches = useMemo(() => chartArches(mouth), [mouth]);
@@ -140,7 +148,7 @@ export function OrthodonticPanel({
   const [openBite, setOpenBite] = useState(false);
   const [deepBite, setDeepBite] = useState(false);
   const [notes, setNotes] = useState("");
-  const [appliances, setAppliances] = useState<OrthodonticAppliance[]>(["aligners"]);
+  const [appliances, setAppliances] = useState<OrthodonticAppliance[]>([]);
   const [toothMarks, setToothMarks] = useState<Record<string, OrthoMark>>({});
   const [saved, setSaved] = useState(false);
   const persisted = entities.find(
@@ -154,6 +162,7 @@ export function OrthodonticPanel({
   useEffect(() => {
     const draft = orthodonticDraftFromEntity(persisted);
     if (!draft) {
+      setAppliances([]);
       setToothMarks({});
       setNotes("");
       setSaved(false);
@@ -183,7 +192,32 @@ export function OrthodonticPanel({
   const updateMark = (mark: OrthoMark) => {
     if (readOnly || mouth.teeth[selectedTooth]?.presence === "missing") return;
     setSaved(false);
-    setToothMarks((current) => ({ ...current, [selectedTooth]: mark }));
+    const next = { ...toothMarks, [selectedTooth]: mark };
+    setToothMarks(next);
+    onPreview?.({ appliances, toothMarks: next });
+  };
+  const updateAppliance = (value: OrthodonticAppliance, checked: boolean) => {
+    if (readOnly) return;
+    const nextAppliances = checked
+      ? [...new Set([...appliances, value])]
+      : appliances.filter((item) => item !== value);
+    let nextMarks = toothMarks;
+    // Site-dependent devices are placed on the currently selected tooth, not on every tooth.
+    const siteMark = value === "miniscrews" ? "miniscrew"
+      : value === "space_maintainer" ? "maintainer" : null;
+    if (siteMark) {
+      if (checked && mouth.teeth[selectedTooth]?.presence !== "missing") {
+        nextMarks = { ...toothMarks, [selectedTooth]: siteMark };
+      } else if (!checked) {
+        nextMarks = Object.fromEntries(
+          Object.entries(toothMarks).filter(([, mark]) => mark !== siteMark),
+        );
+      }
+    }
+    setSaved(false);
+    setAppliances(nextAppliances);
+    setToothMarks(nextMarks);
+    onPreview?.({ appliances: nextAppliances, toothMarks: nextMarks });
   };
   const save = () => {
     if (readOnly) return;
@@ -241,8 +275,9 @@ export function OrthodonticPanel({
         />
       </Group>
       <Text size="xs" c="dimmed">
-        Las marcas se conservan al cambiar de diente. Pulsa Guardar ortodoncia para registrar el
-        conjunto de cambios.
+        Los símbolos se previsualizan sobre el diente inmediatamente. Guarda ortodoncia para
+        registrarlos. Los microtornillos y mantenedores se asignan a la pieza seleccionada
+        como referencia, no a toda la arcada.
       </Text>
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} mt="lg">
@@ -338,14 +373,11 @@ export function OrthodonticPanel({
             key={appliance.value}
             label={appliance.label}
             checked={appliances.includes(appliance.value)}
-            disabled={readOnly}
-            onChange={(event) =>
-              setAppliances((current) =>
-                event.currentTarget.checked
-                  ? [...current, appliance.value]
-                  : current.filter((value) => value !== appliance.value),
-              )
-            }
+            disabled={readOnly || (
+              (appliance.value === "miniscrews" || appliance.value === "space_maintainer") &&
+              mouth.teeth[selectedTooth]?.presence === "missing"
+            )}
+            onChange={(event) => updateAppliance(appliance.value, event.currentTarget.checked)}
           />
         ))}
       </Group>
