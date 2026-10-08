@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { VISUAL_PREFERENCES_KEY } from "@/domain/visual-personalization";
+import { readBrowserStorageItem, writeBrowserStorageItem } from "@/shared/browser/browser-storage";
 import { VisualPersonalizationPanel } from "@/features/parity/modules/visual-personalization-panel";
 import { VisualPreferencesProvider } from "../visual-preferences-provider";
 
@@ -19,7 +20,7 @@ function mount() {
 
 describe("visual personalization UI", () => {
   beforeEach(() => {
-    localStorage.clear();
+    writeBrowserStorageItem(VISUAL_PREFERENCES_KEY, "");
     document.documentElement.removeAttribute("data-denty-palette");
     document.documentElement.removeAttribute("data-denty-wallpaper");
     document.documentElement.removeAttribute("data-denty-animations");
@@ -38,7 +39,9 @@ describe("visual personalization UI", () => {
     fireEvent.click(mesh);
     expect(mesh).toHaveAttribute("aria-pressed", "true");
     await waitFor(() => expect(document.documentElement.dataset.dentyWallpaper).toBe("mesh"));
-    expect(JSON.parse(localStorage.getItem(VISUAL_PREFERENCES_KEY) ?? "{}")).toMatchObject({
+    const stored = readBrowserStorageItem(VISUAL_PREFERENCES_KEY);
+    expect(stored.ok).toBe(true);
+    expect(JSON.parse(stored.ok ? (stored.value ?? "{}") : "{}")).toMatchObject({
       palette: "19",
       wallpaper: "mesh",
       animations: true,

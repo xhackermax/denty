@@ -132,7 +132,7 @@ html[data-denty-animations="off"],
 html[data-denty-animations="off"] *,
 html[data-denty-animations="off"] *::before,
 html[data-denty-animations="off"] *::after {
-  animation: none !important;
-  transition: none !important;
-  scroll-behavior: auto !important;
+  animation: none;
+  transition: none;
+  scroll-behavior: auto;
 }
