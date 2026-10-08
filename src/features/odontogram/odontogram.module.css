@@ -272,7 +272,7 @@
 
 .toothLayerMark {
   max-width: 76px;
-  color: var(--denty-blue-text);
+  color: var(--denty-clinical-blue-text);
   font-size: 0.49rem;
   font-weight: 700;
   line-height: 1.15;
@@ -307,7 +307,7 @@
 }
 
 .rootShape {
-  fill: color-mix(in srgb, var(--denty-card-solid) 93%, var(--denty-blue) 7%);
+  fill: color-mix(in srgb, var(--denty-card-solid) 93%, var(--denty-clinical-blue) 7%);
   stroke: color-mix(in srgb, var(--denty-muted) 55%, var(--denty-line));
   stroke-width: 1.6;
   stroke-linecap: round;
@@ -315,7 +315,7 @@
 }
 
 .crownBase {
-  fill: color-mix(in srgb, var(--denty-card-solid) 96%, var(--denty-blue) 4%);
+  fill: color-mix(in srgb, var(--denty-card-solid) 96%, var(--denty-clinical-blue) 4%);
   stroke: none;
 }
 
@@ -328,7 +328,7 @@
 }
 
 .surface {
-  fill: color-mix(in srgb, var(--denty-card-solid) 95%, var(--denty-blue) 5%);
+  fill: color-mix(in srgb, var(--denty-card-solid) 95%, var(--denty-clinical-blue) 5%);
   stroke: color-mix(in srgb, var(--denty-line-strong) 82%, transparent);
   stroke-width: 1.05;
   cursor: crosshair;
@@ -402,8 +402,8 @@
 .surface[data-state="crown"],
 .surface[data-state="endo"],
 .surface[data-state="post"] {
-  fill: color-mix(in srgb, var(--denty-blue) 45%, var(--denty-card-solid));
-  stroke: var(--denty-blue);
+  fill: color-mix(in srgb, var(--denty-clinical-blue) 45%, var(--denty-card-solid));
+  stroke: var(--denty-clinical-blue);
 }
 
 .surface[data-state="filling_bad"],
@@ -413,7 +413,7 @@
 .surface[data-state="implant_review"],
 .surface[data-state="prosthesis_bad"],
 .surface[data-state="removable_bad"] {
-  fill: color-mix(in srgb, var(--denty-blue) 35%, var(--denty-card-solid));
+  fill: color-mix(in srgb, var(--denty-clinical-blue) 35%, var(--denty-card-solid));
   stroke: var(--denty-danger);
   stroke-width: 2;
 }
@@ -455,8 +455,8 @@
 }
 
 .crownCapMark {
-  fill: color-mix(in srgb, var(--denty-blue) 14%, transparent);
-  stroke: var(--denty-blue);
+  fill: color-mix(in srgb, var(--denty-clinical-blue) 14%, transparent);
+  stroke: var(--denty-clinical-blue);
   stroke-width: 2;
   stroke-linejoin: round;
   pointer-events: none;
@@ -482,8 +482,8 @@
 }
 
 .splintMark {
-  fill: color-mix(in srgb, var(--denty-blue) 12%, transparent);
-  stroke: var(--denty-blue);
+  fill: color-mix(in srgb, var(--denty-clinical-blue) 12%, transparent);
+  stroke: var(--denty-clinical-blue);
   stroke-width: 1.4;
   stroke-dasharray: 3 2;
   pointer-events: none;
@@ -511,7 +511,7 @@
 }
 
 .postMark {
-  stroke: var(--denty-blue);
+  stroke: var(--denty-clinical-blue);
   stroke-width: 3.2;
   stroke-linecap: round;
 }
@@ -597,7 +597,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--denty-blue);
+  background: var(--denty-clinical-blue);
 }
 
 .legendDot[data-tone="red"] {
@@ -733,7 +733,7 @@
 }
 
 .endoVisualMark[data-severity="info"] {
-  stroke: var(--denty-blue);
+  stroke: var(--denty-clinical-blue);
 }
 
 .endoVisualMark[data-severity="warning"] {
@@ -826,7 +826,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   padding: 14px;
   border: 1px solid var(--denty-line);
   border-radius: 16px;
-  background: color-mix(in srgb, var(--denty-card-solid) 95%, var(--denty-blue) 5%);
+  background: color-mix(in srgb, var(--denty-card-solid) 95%, var(--denty-clinical-blue) 5%);
 }
 
 .legendHeading {
@@ -935,20 +935,20 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 .legendSwatch[data-state="filling"] {
-  border-color: var(--denty-blue);
-  background: color-mix(in srgb, var(--denty-blue) 45%, var(--denty-card-solid));
+  border-color: var(--denty-clinical-blue);
+  background: color-mix(in srgb, var(--denty-clinical-blue) 45%, var(--denty-card-solid));
 }
 
 .legendSwatch[data-state="crown"],
 .legendSwatch[data-state="endo"],
 .legendSwatch[data-state="post"] {
-  border-color: var(--denty-blue);
-  background: color-mix(in srgb, var(--denty-blue) 45%, var(--denty-card-solid));
+  border-color: var(--denty-clinical-blue);
+  background: color-mix(in srgb, var(--denty-clinical-blue) 45%, var(--denty-card-solid));
 }
 
 .legendSwatch[data-state="filling_bad"] {
   border: 2px solid var(--denty-danger);
-  background: color-mix(in srgb, var(--denty-blue) 35%, var(--denty-card-solid));
+  background: color-mix(in srgb, var(--denty-clinical-blue) 35%, var(--denty-card-solid));
 }
 
 .legendSwatch[data-state="crown_bad"],
@@ -958,7 +958,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 .legendSwatch[data-state="prosthesis_bad"],
 .legendSwatch[data-state="removable_bad"] {
   border: 2px solid var(--denty-danger);
-  background: color-mix(in srgb, var(--denty-blue) 30%, var(--denty-card-solid));
+  background: color-mix(in srgb, var(--denty-clinical-blue) 30%, var(--denty-card-solid));
 }
 
 .legendSwatch[data-state="filling_pending"] {
@@ -1126,7 +1126,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   padding: 8px 10px;
   border: 1px solid var(--denty-line);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--denty-card-solid) 97%, var(--denty-blue) 3%);
+  background: color-mix(in srgb, var(--denty-card-solid) 97%, var(--denty-clinical-blue) 3%);
 }
 
 .perioToothHeader {
@@ -1248,15 +1248,15 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   width: 42px;
   height: 58px;
   overflow: visible;
-  fill: color-mix(in srgb, var(--denty-card-solid) 92%, var(--denty-blue) 8%);
+  fill: color-mix(in srgb, var(--denty-card-solid) 92%, var(--denty-clinical-blue) 8%);
   stroke: var(--denty-line-strong);
   stroke-width: 1.4;
 }
 
 .orthoTooth[data-mark="bracket"] svg rect,
 .orthoTooth[data-mark="attachment"] svg circle {
-  fill: color-mix(in srgb, var(--denty-blue) 65%, var(--denty-card-solid));
-  stroke: var(--denty-blue);
+  fill: color-mix(in srgb, var(--denty-clinical-blue) 65%, var(--denty-card-solid));
+  stroke: var(--denty-clinical-blue);
 }
 
 .orthoTooth[data-mark="band"] svg path:last-child {
@@ -1306,7 +1306,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 .orthoLegend i[data-mark="bracket"] {
-  border-color: var(--denty-blue);
+  border-color: var(--denty-clinical-blue);
 }
 
 .orthoLegend i[data-mark="band"] {
@@ -1315,7 +1315,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 .orthoLegend i[data-mark="attachment"] {
   border-radius: 50%;
-  background: var(--denty-blue);
+  background: var(--denty-clinical-blue);
 }
 
 .orthoLegend i[data-mark="extract"] {
@@ -1340,7 +1340,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 .pediatricToothButton[data-status="sealant"] svg {
-  stroke: var(--denty-blue);
+  stroke: var(--denty-clinical-blue);
 }
 
 .pediatricToothButton[data-status="pulpotomy"] svg,
@@ -1349,7 +1349,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 .pediatricToothButton[data-status="pediatric_crown"] svg {
-  stroke: var(--denty-blue);
+  stroke: var(--denty-clinical-blue);
 }
 
 .pediatricToothButton[data-status="exfoliated"] svg {
@@ -1366,7 +1366,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 .pediatricCrown,
 .pediatricRoot {
-  fill: color-mix(in srgb, var(--denty-card-solid) 94%, var(--denty-blue) 6%);
+  fill: color-mix(in srgb, var(--denty-card-solid) 94%, var(--denty-clinical-blue) 6%);
 }
 
 .pediatricRoot,
@@ -1384,7 +1384,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--denty-blue);
+  background: var(--denty-clinical-blue);
   content: "";
 }
 
@@ -1463,7 +1463,7 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 .endoDiagnosisPreview[data-severity="info"] .endoPreviewMark,
 .endoVisualLibrary [data-severity="info"] .endoPreviewMark {
-  stroke: var(--denty-blue);
+  stroke: var(--denty-clinical-blue);
 }
 
 .endoDiagnosisPreview[data-severity="neutral"] .endoPreviewMark,
@@ -1733,14 +1733,14 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 
 @media (hover: hover) and (pointer: fine) {
   .legendEntry:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--denty-blue) 5%, var(--denty-card));
+    background: color-mix(in srgb, var(--denty-clinical-blue) 5%, var(--denty-card));
     transform: none;
   }
 }
 
 .legendEntry[data-selected="true"] {
-  border-color: color-mix(in srgb, var(--denty-blue) 35%, var(--denty-line));
-  background: color-mix(in srgb, var(--denty-blue) 8%, var(--denty-card));
+  border-color: color-mix(in srgb, var(--denty-clinical-blue) 35%, var(--denty-line));
+  background: color-mix(in srgb, var(--denty-clinical-blue) 8%, var(--denty-card));
   box-shadow: none;
 }
 
@@ -1923,8 +1923,8 @@ html[data-mantine-color-scheme="dark"] .crownBase {
 }
 
 .supernumeraryCard[data-selected="true"] {
-  border-color: var(--denty-blue);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--denty-blue) 18%, transparent);
+  border-color: var(--denty-clinical-blue);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--denty-clinical-blue) 18%, transparent);
 }
 
 .layerDisclosure > summary:focus-visible {
