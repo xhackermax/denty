@@ -316,7 +316,7 @@ export class AgendaRepository {
       p_starts_at: payload.startsAt,
       p_ends_at: payload.endsAt,
       p_title: payload.title,
-      ...(payload.allowOverlap ? { p_allow_overlap: true } : {}),
+      p_allow_overlap: Boolean(payload.allowOverlap),
       p_reason: payload.reason ?? null,
       p_rescheduled_from_id: payload.rescheduledFromId ?? null,
     });
@@ -330,7 +330,7 @@ export class AgendaRepository {
     const result = await this.client.rpc<AppointmentRpcResult>("update_appointment", {
       p_appointment_id: id,
       p_expected_version: payload.expectedVersion,
-      ...(payload.allowOverlap ? { p_allow_overlap: true } : {}),
+      p_allow_overlap: Boolean(payload.allowOverlap),
       p_patient_id: payload.patientId ?? null,
       p_staff_id: payload.staffId ?? null,
       p_site_id: payload.siteId ?? null,

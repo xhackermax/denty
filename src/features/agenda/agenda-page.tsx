@@ -175,7 +175,8 @@ interface PendingChange {
 
 function nextStatus(status: AgendaStatus): AgendaStatus | null {
   if (status === "PLANNED" || status === "CONFIRMED" || status === "RUNNING_LATE") return "ARRIVED";
-  if (status === "ARRIVED" || status === "WAITING") return "IN_CHAIR";
+  if (status === "ARRIVED") return "WAITING";
+  if (status === "WAITING") return "IN_CHAIR";
   if (status === "IN_CHAIR") return "COMPLETED";
   return null;
 }
