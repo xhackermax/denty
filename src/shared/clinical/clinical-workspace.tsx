@@ -205,6 +205,10 @@ export function ClinicalWorkspace({
     (budget) => budget.id === selectedPlanAlternativeId,
   );
   const selectedIsSigned = selectedPlanBudget?.status === "SIGNED";
+  // Alternative-only catalogue items have no canonical plan item yet. The signature
+  // RPC intentionally blocks them until clinically formalized and consented.
+  const selectedNeedsFormalization = Boolean(selectedPlanBudget?.branch &&
+    selectedPlanBudget.items.some((item) => item.clinicalPlanItemId == null));
   const selectedPlanLetter =
     selectedPlanAlternativeId === null
       ? "A"
@@ -373,15 +377,26 @@ export function ClinicalWorkspace({
                   <Button
                     size="xs"
                     color="teal"
+                    disabled={selectedNeedsFormalization}
                     onClick={() => onOpenGuidedFlow(selectedPlanAlternativeId ?? undefined)}
                   >
-                    {selectedIsSigned
-                      ? `Ver citas del Plan ${selectedPlanLetter}`
-                      : `Continuar con Plan ${selectedPlanLetter} a consentimientos`}
+                    {selectedNeedsFormalization
+                      ? `Formalizar Plan ${selectedPlanLetter} antes de firmar`
+                      : selectedIsSigned
+                        ? `Ver citas del Plan ${selectedPlanLetter}`
+                        : `Continuar con Plan ${selectedPlanLetter} a consentimientos`}
                   </Button>
                 ) : null}
               </Group>
             </div>
+
+            {selectedNeedsFormalization ? (
+              <Alert color="blue" mb="sm">
+                Esta rama contiene tratamientos exclusivos que todavía no pertenecen
+                al plan clínico activo. Puede compararse y presupuestarse, pero no firmarse
+                hasta formalizar dichos tratamientos y sus consentimientos clínicos.
+              </Alert>
+            ) : null}
 
             {sequencedItems.length ? (
               <ClinicalDragContext
