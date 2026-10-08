@@ -213,10 +213,13 @@ function TreatmentFlow({
     (!planPreparationNeeded || planSync.isSuccess) &&
     syncQuery.data &&
     consentsQuery.data &&
+    budgetHistory.data &&
     planQuery.isFetched &&
+    budgetHistory.isFetched &&
     !syncQuery.isFetching &&
     !planQuery.isFetching &&
-    !consentsQuery.isFetching;
+    !consentsQuery.isFetching &&
+    !budgetHistory.isFetching;
   useEffect(() => {
     if (!ready || step !== null) return;
     if (startAt === "consents" && state.openItemCount > 0) {
@@ -236,6 +239,16 @@ function TreatmentFlow({
     return (
       <Alert color="red" title="No se pudo preparar el plan">
         {errorText(planSync.error, "Revisa la conexión y vuelve a intentarlo.")}
+      </Alert>
+    );
+  }
+  if (budgetHistory.isError) {
+    return (
+      <Alert color="red" title="No se pudieron cargar las opciones del tratamiento">
+        {errorText(
+          budgetHistory.error,
+          "No se puede continuar sin saber qué Plan A/B/C está asociado al presupuesto.",
+        )}
       </Alert>
     );
   }
