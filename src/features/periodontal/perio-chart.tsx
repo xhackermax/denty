@@ -8,7 +8,7 @@ import {
   normalizePeriodontalSite,
   type PeriodontalReading,
 } from "@/domain/periodontal";
-import { createPerioExam, examToReadings, examToSites, perioSummary } from "@/domain/periodontal/exam";
+import { createPerioExam, examToReadings, examToVisualReadings, perioSummary } from "@/domain/periodontal/exam";
 import {
   applyPerioCommand,
   createPerioSession,
@@ -170,7 +170,7 @@ export function PerioChart({
   useEffect(() => {
     if (!ready) return;
     onReadingsChange?.(examToReadings(session.exam, { requireMargin: true }));
-    onSiteReadingsChange?.(examToSites(session.exam));
+    onSiteReadingsChange?.(examToVisualReadings(session.exam));
   }, [session.exam, ready, onReadingsChange, onSiteReadingsChange]);
   useUnsavedChangesGuard({
     dirty: dirty && !readOnly && !closed,
