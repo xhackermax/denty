@@ -158,6 +158,7 @@ describe("tarjeta de agenda sencilla", () => {
     expect(glyph).not.toBeNull();
     const { container } = render(<ClinicalGlyph glyph={glyph!} />);
     expect(container.querySelector("svg")).not.toBeNull();
+    expect(container.querySelector('[data-icon="toothbrush"]')).not.toBeNull();
     expect(screen.getByRole("img")).toHaveAccessibleName(/Higiene.*Q1–Q4.*Pendiente/);
   });
   it("no marca cinco superficies afectadas cuando el plan no especifica ninguna", () => {
