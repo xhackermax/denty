@@ -136,12 +136,11 @@ begin
     billing_mode,quantity,unit_price_cents,total_cents
   )
   select v_clinic_id,v_budget.id,null,c.category,c.name,
-    nullif(btrim(request.tooth),''),
+    nullif(btrim(request.payload->>'tooth'),''),
     'separate',1,c.default_price_cents,c.default_price_cents
-  from jsonb_to_recordset(v_exclusive) with ordinality
-    as request(catalog_id uuid,tooth text,sequence bigint)
+  from jsonb_array_elements(v_exclusive) with ordinality as request(payload,sequence)
   join public.treatment_catalog c
-    on c.id=request.catalog_id and c.clinic_id=v_clinic_id and c.active
+    on c.id=(request.payload->>'catalog_id')::uuid and c.clinic_id=v_clinic_id and c.active
   order by request.sequence;
 
   select coalesce(sum(total_cents),0) into v_total
