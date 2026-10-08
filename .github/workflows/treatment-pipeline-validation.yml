@@ -1,0 +1,47 @@
+name: Denty treatment pipeline validation
+on:
+  push:
+    branches:
+      - pipeline-postmerge-hardening
+      - main
+  pull_request:
+    paths:
+      - "src/shared/clinical/**"
+      - "src/features/odontogram/**"
+      - "src/features/patients/**"
+      - "src/features/parity/modules/documents-module.tsx"
+      - "src/server/denty-supabase/clinical-repository.ts"
+      - "supabase/migrations/*budget*.sql"
+      - "scripts/tests/clinical-consent-gate-regression.mjs"
+      - ".github/workflows/treatment-pipeline-validation.yml"
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  treatment-pipeline:
+    name: TypeScript and clinical flow tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Typecheck
+        run: npm run -s typecheck
+      - name: Pipeline regression
+        run: node scripts/tests/clinical-consent-gate-regression.mjs
+      - name: Focused tests
+        run: npx vitest run src/shared/clinical/__tests__/clinical-workspace.test.tsx src/shared/clinical/__tests__/deferred-budget-follow-up.test.tsx src/server/denty-supabase/__tests__/scoped-budgets.test.ts src/shared/clinical/__tests__/budget-options.test.tsx
+      - name: Production build smoke test
+        env:
+          SUPABASE_URL: http://127.0.0.1:54399
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54399
+          SUPABASE_PUBLISHABLE_KEY: e2e-publishable
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: e2e-publishable
+        run: npm run -s build
