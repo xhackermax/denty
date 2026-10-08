@@ -25,7 +25,7 @@ export const AGENDA_STATUS_META: Readonly<Record<AgendaStatus, AgendaStatusMeta>
   CONFIRMED: { label: "Confirmada", nextLabel: "Ha llegado", icon: IconUserCheck },
   RUNNING_LATE: { label: "Con retraso", nextLabel: "Ha llegado", icon: IconHourglass },
   ARRIVED: { label: "Ha llegado", nextLabel: "A gabinete", icon: IconDoorEnter },
-  WAITING: { label: "En espera", nextLabel: "A gabinete", icon: IconDoorEnter },
+  WAITING: { label: "Ha llegado", nextLabel: "A gabinete", icon: IconDoorEnter },
   IN_CHAIR: { label: "En gabinete", nextLabel: "Finalizar", icon: IconArmchair },
   COMPLETED: { label: "Finalizada", nextLabel: null, icon: IconCircleCheck },
   NO_SHOW: { label: "No presentado", nextLabel: null, icon: IconUserOff },

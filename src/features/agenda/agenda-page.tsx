@@ -633,7 +633,6 @@ export function AgendaPage() {
 
   const transitionPending =
     transitions.arrive.isPending ||
-    transitions.waiting.isPending ||
     transitions.chair.isPending ||
     transitions.noShow.isPending ||
     transitions.complete.isPending ||
@@ -685,7 +684,6 @@ export function AgendaPage() {
     const input = { id: appointment.id, expectedVersion: appointment.version };
     try {
       if (status === "ARRIVED") await transitions.arrive.mutateAsync(input);
-      if (status === "WAITING") await transitions.waiting.mutateAsync(input);
       if (status === "IN_CHAIR") await transitions.chair.mutateAsync(input);
       if (status === "COMPLETED") await transitions.complete.mutateAsync(input);
     } catch (error) {

@@ -97,10 +97,11 @@ export function ClinicalIconPaths({
       );
     case "periodontal_hygiene":
       return (
-        <>
-          <path d="M5 3H11V9H5ZM5 5H11M5 7H11M8 9V19Q8 21 10 21Q12 21 12 19V15" />
-          <path className="clinical-accent" d="M17 4V10M14 7H20M17 15V19M15 17H19" />
-        </>
+        <g data-icon="toothbrush">
+          <path d="M4 19L14.5 8.5Q15.5 7.5 16.9 8.9L18.1 10.1Q19.5 11.5 18.5 12.5L8 23H4Z" />
+          <path className="clinical-accent" d="M13.5 7.5L16.5 4.5M15.5 9.5L19 6M17.5 11.5L21 8" />
+          <path d="M5.5 19.5L8.5 22.5M8 16L11 19" />
+        </g>
       );
     case "sealant":
       return (

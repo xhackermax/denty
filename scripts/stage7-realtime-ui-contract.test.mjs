@@ -19,22 +19,15 @@ for (const table of [
 ]) {
   assert.match(realtime, new RegExp(`${table}:`), `Realtime invalidation missing ${table}`);
 }
-assert.match(core, /waiting:\s*\(id:/, "Browser API must expose waiting transition");
-assert.match(data, /waiting:\s*useMutation/, "Agenda data must expose waiting mutation");
 assert.match(
   page,
   /statuses:\s*\["ARRIVED",\s*"WAITING"\]/,
-  "Reception pipeline must include explicit WAITING state",
+  "Reception pipeline must keep legacy WAITING rows grouped with arrived patients",
 );
 assert.match(
   page,
-  /status\s*===\s*"ARRIVED"\)\s*return\s*"WAITING"/,
-  "ARRIVED must advance to WAITING",
-);
-assert.match(
-  page,
-  /status\s*===\s*"WAITING"\)\s*return\s*"IN_CHAIR"/,
-  "WAITING must advance to chair",
+  /status\s*===\s*"ARRIVED"\s*\|\|\s*status\s*===\s*"WAITING"\)\s*return\s*"IN_CHAIR"/,
+  "Arrived and legacy waiting patients must advance directly to chair",
 );
 assert.match(
   page,
