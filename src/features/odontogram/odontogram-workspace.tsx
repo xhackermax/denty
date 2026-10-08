@@ -262,12 +262,22 @@ function Tooth({
   });
   const parts = wholeToothParts(state, tooth);
   const appliances = appliancesForTooth(state, tooth);
-  const implant = status?.startsWith("implant") || parts.has("IMPLANT");
-  const prosthesis = status?.startsWith("prosthesis");
-  const endo = status?.startsWith("endo") || parts.has("ENDO");
-  const post = status?.startsWith("post") || parts.has("POST");
-  const crownCap = parts.has("CROWN");
-  const abutment = parts.has("ABUTMENT");
+  const showSurgery =
+    viewState.visibleLayerIds.includes("surgery") &&
+    viewState.subfiltersByLayer.surgery.includes("implantes");
+  const showProsthetics = viewState.visibleLayerIds.includes("prosthetics");
+  const showEndo =
+    viewState.visibleLayerIds.includes("endo") &&
+    viewState.subfiltersByLayer.endo.includes("tratamientos");
+  const showOrtho =
+    viewState.visibleLayerIds.includes("ortho") &&
+    viewState.subfiltersByLayer.ortho.includes("aparatos");
+  const implant = showSurgery && (status?.startsWith("implant") || parts.has("IMPLANT"));
+  const prosthesis = showProsthetics && Boolean(status?.startsWith("prosthesis"));
+  const endo = showEndo && (status?.startsWith("endo") || parts.has("ENDO"));
+  const post = showEndo && (status?.startsWith("post") || parts.has("POST"));
+  const crownCap = showProsthetics && parts.has("CROWN");
+  const abutment = showProsthetics && parts.has("ABUTMENT");
   const extraction = status === "extraction";
   const missing = status === "missing";
   const endodonticDiagnosis = Object.values(state.entitiesById).find(
@@ -370,17 +380,17 @@ function Tooth({
         {prosthesis ? (
           <path className={styles.prosthesisMark} d={TOOTH_MARK_PATHS.prosthesis} />
         ) : null}
-        {appliances.includes("occlusal_splint") ? (
+        {showProsthetics && appliances.includes("occlusal_splint") ? (
           <path className={styles.splintMark} d={TOOTH_MARK_PATHS.splint} />
         ) : null}
-        {appliances.includes("complete_denture") || appliances.includes("implant_overdenture") ? (
+        {showProsthetics && (appliances.includes("complete_denture") || appliances.includes("implant_overdenture")) ? (
           <path
             className={styles.dentureMark}
             data-implants={appliances.includes("implant_overdenture") || undefined}
             d={TOOTH_MARK_PATHS.denture}
           />
         ) : null}
-        {appliances.includes("orthodontic_appliance") ? (
+        {showOrtho && appliances.includes("orthodontic_appliance") ? (
           <g className={styles.orthoApplianceMark}>
             <path d={TOOTH_MARK_PATHS.orthoWire} />
             <path d={TOOTH_MARK_PATHS.bracket} />
