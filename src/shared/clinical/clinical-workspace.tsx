@@ -11,6 +11,7 @@ import {
   Alert,
   Badge,
   Button,
+  Checkbox,
   Group,
   Modal,
   NumberInput,
@@ -28,6 +29,7 @@ import {
   useClinicalPlanQuery,
   useCreateClinicalEncounterMutation,
   useClinicalSyncQuery,
+  useCreateScopedBudgetMutation,
   useReorderClinicalPlanMutation,
   useClinicalWorkflowQuery,
   usePatientBudgetsQuery,
@@ -153,10 +155,11 @@ export function ClinicalWorkspace({
   const showBudget = mode !== "plan";
   const workflow = useClinicalWorkflowQuery(patientId, showPlan);
   const plan = useClinicalPlanQuery(patientId);
-  const budgetHistory = usePatientBudgetsQuery(patientId, showBudget);
+  const budgetHistory = usePatientBudgetsQuery(patientId, showBudget || showPlan);
   const sync = useClinicalSyncQuery(patientId, showPlan);
   const syncPlan = useSyncPlanFromOdontogramMutation(patientId);
   const syncBudget = useSyncBudgetFromPlanMutation(patientId);
+  const createPlanAlternative = useCreateScopedBudgetMutation(patientId);
   const updateDraftBudget = useUpdateDraftBudgetMutation(patientId);
   const deleteDraftBudget = useDeleteDraftBudgetMutation(patientId);
   const reorderPlan = useReorderClinicalPlanMutation(patientId);
@@ -174,6 +177,9 @@ export function ClinicalWorkspace({
   const [budgetPrices, setBudgetPrices] = useState<Record<string, number | string>>({});
   const [budgetFormError, setBudgetFormError] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [alternativeOpen, setAlternativeOpen] = useState(false);
+  const [alternativeTitle, setAlternativeTitle] = useState("");
+  const [alternativeItems, setAlternativeItems] = useState<string[]>([]);
 
   const activeCatalog = (treatmentCatalog.data?.items ?? []).filter((item) => item.active);
   const selectedTreatment = activeCatalog.find((item) => item.id === treatmentCatalogId);
@@ -182,6 +188,9 @@ export function ClinicalWorkspace({
     (showPlan && (workflow.isError || sync.isError)) ||
     (showBudget && budgetHistory.isError);
   const budgets = budgetHistory.data?.items ?? [];
+  const planAlternativeBudgets = budgets.filter(
+    (budget) => budget.status === "DRAFT" && budget.scope === "custom",
+  );
   const comparableBudgetKeys = new Set(
     budgets
       .filter(
@@ -349,6 +358,11 @@ export function ClinicalWorkspace({
                 >
                   Sincronizar
                 </Button>
+                {onOpenGuidedFlow && sequencedItems.length ? (
+                  <Button size="xs" color="teal" onClick={onOpenGuidedFlow}>
+                    Continuar a consentimientos
+                  </Button>
+                ) : null}
               </Group>
             </div>
 
@@ -405,6 +419,123 @@ export function ClinicalWorkspace({
               </Alert>
             ) : null}
           </section>
+
+          <section className={styles.section} aria-label="Opciones del plan de tratamiento">
+            <div className={styles.sectionHeader}>
+              <div>
+                <h3 className={styles.sectionTitle}>Opciones del plan</h3>
+                <p className={styles.sectionDescription}>
+                  Plan A es el plan completo. Crea Plan B o Plan C cuando quieras presentar una
+                  alternativa clínica distinta al paciente.
+                </p>
+              </div>
+              <Button
+                size="xs"
+                variant="light"
+                disabled={!sequencedItems.length || planAlternativeBudgets.length >= 2}
+                onClick={() => {
+                  setAlternativeTitle("");
+                  setAlternativeItems([]);
+                  setAlternativeOpen(true);
+                }}
+              >
+                Crear {planAlternativeBudgets.length === 0 ? "Plan B" : "Plan C"}
+              </Button>
+            </div>
+            <div className={styles.rowList}>
+              <div className={styles.row}>
+                <div className={styles.rowMain}>
+                  <span className={styles.rowTitle}>Plan A · Plan completo</span>
+                  <span className={styles.rowMeta}>
+                    {sequencedItems.length} tratamientos · secuencia clínica completa
+                  </span>
+                </div>
+                <Badge color="teal" variant="light">Base</Badge>
+              </div>
+              {planAlternativeBudgets.slice(0, 2).map((budget, index) => (
+                <div className={styles.row} key={budget.id}>
+                  <div className={styles.rowMain}>
+                    <span className={styles.rowTitle}>
+                      Plan {String.fromCharCode(66 + index)} · {budget.title || "Alternativa"}
+                    </span>
+                    <span className={styles.rowMeta}>
+                      {budget.items.map((item) => item.description).join(" · ") || "Sin tratamientos"}
+                    </span>
+                  </div>
+                  <Badge variant="light">{budget.items.length} tratamientos</Badge>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <Modal
+            opened={alternativeOpen}
+            onClose={() => setAlternativeOpen(false)}
+            title={`Crear ${planAlternativeBudgets.length === 0 ? "Plan B" : "Plan C"}`}
+            centered
+          >
+            <Stack gap="sm">
+              <Text size="sm" c="dimmed">
+                Selecciona únicamente los tratamientos que forman esta alternativa. El precio se
+                revisará después, en Presupuesto.
+              </Text>
+              <TextInput
+                label="Nombre de la alternativa"
+                placeholder="Por ejemplo: conservar el diente / alternativa removible"
+                value={alternativeTitle}
+                onChange={(event) => setAlternativeTitle(event.currentTarget.value)}
+              />
+              <Checkbox.Group
+                label="Tratamientos"
+                value={alternativeItems}
+                onChange={setAlternativeItems}
+              >
+                <Stack gap={6} mt={6}>
+                  {sequencedItems.map((item) => (
+                    <Checkbox
+                      key={item.id}
+                      value={item.id}
+                      label={`${item.tooth ? `Diente ${item.tooth} · ` : ""}${item.label}`}
+                    />
+                  ))}
+                </Stack>
+              </Checkbox.Group>
+              {createPlanAlternative.isError ? (
+                <Alert color="red">
+                  {readableError(createPlanAlternative.error, "No se pudo crear la alternativa.")}
+                </Alert>
+              ) : null}
+              <Group justify="flex-end">
+                <Button variant="default" onClick={() => setAlternativeOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  color="teal"
+                  loading={createPlanAlternative.isPending}
+                  disabled={!alternativeItems.length}
+                  onClick={() => {
+                    const planLetter = planAlternativeBudgets.length === 0 ? "B" : "C";
+                    createPlanAlternative.mutate(
+                      {
+                        scope: "custom",
+                        title: alternativeTitle.trim() || `Plan ${planLetter}`,
+                        clinicalPlanItemIds: alternativeItems,
+                      },
+                      {
+                        onSuccess: () => {
+                          setAlternativeOpen(false);
+                          setAlternativeItems([]);
+                          setAlternativeTitle("");
+                        },
+                      },
+                    );
+                  }}
+                >
+                  Guardar alternativa
+                </Button>
+              </Group>
+            </Stack>
+          </Modal>
 
           <details className={styles.disclosure}>
             <summary>
