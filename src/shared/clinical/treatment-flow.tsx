@@ -235,6 +235,15 @@ function TreatmentFlow({
       }
       return;
     }
+    if (
+      startAt === "consents" &&
+      preferredBudget?.status === "SIGNED" &&
+      syncBudget?.id === preferredBudget.id &&
+      !syncBudget.outdated
+    ) {
+      setStep("appointments");
+      return;
+    }
     if (startAt === "consents" && state.openItemCount > 0) {
       setStep("consents");
       return;
@@ -248,6 +257,7 @@ function TreatmentFlow({
     preferredBudget,
     pendingConsents.length,
     planQuery.data?.version,
+    syncBudget,
   ]);
 
   // Entering the budget step rebuilds the draft from the plan (never a signed one).
