@@ -254,6 +254,14 @@ function TreatmentFlow({
         : state.budget,
   };
   const blocker = treatmentFlowBlocker(step, budgetState);
+  const nextButtonLabel =
+    step === "plan"
+      ? "Continuar a consentimientos"
+      : step === "consents"
+        ? "Continuar a presupuesto"
+        : step === "budget"
+          ? "Continuar a firma"
+          : "Siguiente";
   const goNext = () => {
     const next = TREATMENT_FLOW_STEPS[index + 1];
     if (!next) return onClose();
@@ -360,7 +368,7 @@ function TreatmentFlow({
               disabled={!ready || Boolean(blocker)}
               onClick={goNext}
             >
-              Siguiente
+              {nextButtonLabel}
             </Button>
           )}
         </Group>
