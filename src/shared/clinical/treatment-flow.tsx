@@ -8,6 +8,7 @@ import {
   Loader,
   Modal,
   NumberInput,
+  Select,
   Stack,
   Stepper,
   Text,
@@ -695,6 +696,8 @@ function SignatureStep({
   const [signerName, setSignerName] = useState(patientName);
   const [signature, setSignature] = useState<string | null>(null);
   const [deferred, setDeferred] = useState(false);
+  const [deferralReason, setDeferralReason] = useState<"THINKING" | "LATER">("THINKING");
+  const [followUpOn, setFollowUpOn] = useState("");
 
   if (deferred) {
     return (
@@ -745,9 +748,28 @@ function SignatureStep({
         </Alert>
       ) : null}
       <Text size="xs" c="dimmed">
-        Si el paciente prefiere pensárselo o hacerlo más adelante, déjalo pendiente. Denty lo
-        guardará en Documentos y creará una tarea de llamada sin planificar citas todavía.
+        Si el paciente no lo acepta ahora, guarda la propuesta en Documentos y programa su
+        seguimiento sin crear citas todavía.
       </Text>
+      <Group grow align="end">
+        <Select
+          label="Decisión del paciente"
+          data={[
+            { value: "THINKING", label: "Quiere pensárselo" },
+            { value: "LATER", label: "Quiere hacerlo más adelante" },
+          ]}
+          value={deferralReason}
+          allowDeselect={false}
+          onChange={(value) => setDeferralReason(value === "LATER" ? "LATER" : "THINKING")}
+        />
+        <TextInput
+          label="Fecha para llamar (opcional)"
+          type="date"
+          min={todayMadrid()}
+          value={followUpOn}
+          onChange={(event) => setFollowUpOn(event.currentTarget.value)}
+        />
+      </Group>
       <Group justify="space-between">
         <Button
           variant="default"
@@ -759,6 +781,8 @@ function SignatureStep({
                 budgetCode: budget.code,
                 totalCents: budget.totalCents,
                 patientName,
+                reason: deferralReason,
+                ...(followUpOn ? { followUpOn } : {}),
               },
               { onSuccess: () => setDeferred(true) },
             )
