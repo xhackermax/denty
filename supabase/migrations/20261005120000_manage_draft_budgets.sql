@@ -145,8 +145,8 @@ begin
 end;
 $$;
 
-revoke all on function public.update_draft_budget(uuid,uuid,integer,text,jsonb) from public;
-revoke all on function public.delete_draft_budget(uuid,uuid,integer) from public;
+revoke all on function public.update_draft_budget(uuid,uuid,integer,text,jsonb) from public, anon;
+revoke all on function public.delete_draft_budget(uuid,uuid,integer) from public, anon;
 grant execute on function public.update_draft_budget(uuid,uuid,integer,text,jsonb) to authenticated;
 grant execute on function public.delete_draft_budget(uuid,uuid,integer) to authenticated;
 
