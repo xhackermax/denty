@@ -9,7 +9,7 @@ import { createInitialOdontogramViewState } from "./odontogram-view-state";
 afterEach(cleanup);
 
 describe("odontogram layer controls", () => {
-  it("keeps only the four frequent layers visible and exposes the rest in Más capas", () => {
+  it("keeps all eight clinical areas available in the same toolbar", () => {
     const onToggleLayer = vi.fn();
     const onFocusLayer = vi.fn();
     render(
@@ -26,21 +26,15 @@ describe("odontogram layer controls", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Mostrar capa General" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Mostrar capa Perio" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Mostrar capa Endo" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Mostrar capa Prótesis" })).toBeInTheDocument();
-    const frequentLayers = screen.getByLabelText("Capas frecuentes");
-    expect(within(frequentLayers).getAllByRole("button", { name: /^Mostrar capa / })).toHaveLength(4);
-    expect(within(frequentLayers).queryByRole("button", { name: "Mostrar capa Orto" })).not.toBeInTheDocument();
-
-    const moreLayers = screen.getByText("Más capas").closest("details");
-    expect(moreLayers).not.toHaveAttribute("open");
-    fireEvent.click(screen.getByText("Más capas"));
-    expect(moreLayers).toHaveAttribute("open");
-    fireEvent.click(within(moreLayers!).getByRole("button", { name: "Mostrar capa Cirugía" }));
-    expect(onToggleLayer).toHaveBeenCalledWith("surgery");
-    fireEvent.click(screen.getByRole("button", { name: "Editar área General" }));
+    const areas = screen.getByRole("group", { name: "Áreas clínicas del odontograma" });
+    expect(within(areas).getAllByRole("button", { name: /^Mostrar capa / })).toHaveLength(8);
+    expect(within(areas).getByRole("button", { name: "Mostrar capa General" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(areas).getByRole("button", { name: "Mostrar capa Perio" })).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(within(areas).getByRole("button", { name: "Mostrar capa Cirugía" }));
+    fireEvent.click(within(areas).getByRole("button", { name: "Mostrar capa Orto" }));
+    expect(onToggleLayer).toHaveBeenNthCalledWith(1, "surgery");
+    expect(onToggleLayer).toHaveBeenNthCalledWith(2, "ortho");
+    fireEvent.click(within(areas).getByRole("button", { name: "Editar área General" }));
     expect(onFocusLayer).toHaveBeenCalledWith("general");
   });
 
