@@ -13,6 +13,7 @@ import { createNavigationResource } from "./resources/navigation";
 import { createPrescriptionsResource } from "./resources/prescriptions";
 import { createSecurityResource } from "./resources/security";
 import { createVoiceResource } from "./resources/voice";
+import { createStaffDocumentsResource } from "./resources/staff-documents";
 
 export function createDentyApi(client: ApiClient) {
   return {
@@ -30,6 +31,7 @@ export function createDentyApi(client: ApiClient) {
     prescriptions: createPrescriptionsResource(client),
     security: createSecurityResource(client),
     voice: createVoiceResource(client),
+    staffDocuments: createStaffDocumentsResource(client),
   } as const;
 }
 
