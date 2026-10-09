@@ -46,9 +46,11 @@ export function DoctorAnalysisPage() {
       if (dateYMDMadrid(first) !== startDate ||
           dateYMDMadrid(last) !== endDate) return null;
       const dayAfter = dateYMDMadrid(addDaysMadrid(last, 1));
+      const upper = madridLocalDateTime(dayAfter, "00:00");
+      if (upper.getTime() - first.getTime() >= 367 * 86_400_000) return null;
       return {
         start: toMadridISO(first),
-        end: toMadridISO(madridLocalDateTime(dayAfter, "00:00")),
+        end: toMadridISO(upper),
         ...(activeSiteId ? { siteId: activeSiteId } : {}),
       };
     } catch {
@@ -93,7 +95,7 @@ export function DoctorAnalysisPage() {
     {!permissions.includes("finance.read") &&
       <Alert color="orange">Necesitas permiso de lectura financiera para evaluar indicadores de los doctores.</Alert>}
     {!range && <Alert color="orange">
-      Selecciona fechas válidas y dentro de los últimos 12 meses para consultar los indicadores.
+      Selecciona fechas válidas y un periodo máximo de 12 meses.
     </Alert>}
     {query.isLoading && <Loader aria-label="Cargando estadísticas de doctores"/>}
     {query.isError && <Alert color="red">No se pudieron cargar los indicadores desde Supabase.
@@ -101,7 +103,7 @@ export function DoctorAnalysisPage() {
     {query.data && <>
       <Alert color="blue" title="Criterio de contabilización">
         {query.data.warning} Las horas se calculan solo con pares de fichajes válidos.
-        El ticket medio corresponde a ingresos atribuidos por cita, no a cobros sin asignar.
+        El ticket medio procede de facturas emitidas vinculadas a tratamientos realizados, no de cobros sin asignar.
       </Alert>
       <SimpleGrid cols={{base:2,md:4}}>
         <section><Text size="xs" c="dimmed">Citas terminadas</Text><Text size="xl" fw={800}>{visits}</Text></section>
@@ -115,7 +117,7 @@ export function DoctorAnalysisPage() {
             <Table.Thead><Table.Tr>
               <Table.Th>Doctor</Table.Th><Table.Th>Citas</Table.Th>
               <Table.Th>Pacientes</Table.Th><Table.Th>Tratamientos</Table.Th>
-              <Table.Th>Ticket atribuido</Table.Th><Table.Th>Horas fichadas</Table.Th>
+              <Table.Th>Ticket medio facturado</Table.Th><Table.Th>Horas fichadas</Table.Th>
               <Table.Th>Implantes</Table.Th><Table.Th>Incidencias</Table.Th>
             </Table.Tr></Table.Thead>
             <Table.Tbody>{shown.map(d=><Table.Tr key={d.doctorId}>
