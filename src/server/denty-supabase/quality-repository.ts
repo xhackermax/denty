@@ -132,7 +132,7 @@ export class QualityRepository {
     });
   }
 
-  async scorecards(start: string, end: string, siteId?: string) {
+  async scorecards(start: string, end: string, siteId?: string, canReadAttendance = false) {
     const [staff, appointments, executions, incidents, implants, punches] = await Promise.all([
       this.doctors(),
       this.db.selectAll<Row>("appointments", {
@@ -152,18 +152,47 @@ export class QualityRepository {
         select: "doctor_id,appointment_id,outcome,failure_kind,recorded_at",
         ...this.where(), and: `(recorded_at.gte.${start},recorded_at.lt.${end})`,
       }),
-      this.db.selectAll<Row>("attendance_punches", {
-        select: "id,staff_member_id,punch_type,occurred_at,corrects_punch_id,created_at",
-        ...this.where(), and: `(occurred_at.gte.${start},occurred_at.lt.${end})`, order: "occurred_at.asc",
-      }),
+      canReadAttendance && !siteId
+        ? this.db.selectAll<Row>("attendance_punches", {
+            select: "id,staff_member_id,punch_type,occurred_at,corrects_punch_id,created_at",
+            ...this.where(), order: "occurred_at.asc",
+          })
+        : Promise.resolve([] as Row[]),
     ]);
+
+    // Executions and adverse outcomes are dated by their clinical event,
+    // not necessarily by the date of the originating appointment.
+    const recentIds = new Set(appointments.map(a => id(a, "id")));
+    const historicalIds = [...new Set([
+      ...executions.map(e => id(e, "appointment_id")),
+      ...incidents.map(i => id(i, "appointment_id")),
+      ...implants.map(i => id(i, "appointment_id")),
+    ].filter(Boolean))].filter(appointmentId => !recentIds.has(appointmentId));
+    const historicalGroups: string[][] = [];
+    for (let offset = 0; offset < historicalIds.length; offset += 100) {
+      historicalGroups.push(historicalIds.slice(offset, offset + 100));
+    }
+    const historical = (await Promise.all(historicalGroups.map(ids =>
+      this.db.select<Row>("appointments", {
+        select: "id,patient_id,staff_id,status,site_id,starts_at",
+        ...this.where(), id: `in.(${ids.join(",")})`,
+      })))).flat();
+    const originatingVisits = new Map(
+      [...appointments, ...historical].map(a => [id(a, "id"), a]),
+    );
+    const siteMatches = (appointmentId: string) => !siteId ||
+      id(originatingVisits.get(appointmentId) ?? {}, "site_id") === siteId;
+    const completedOrigins = new Set(
+      [...originatingVisits.values()]
+        .filter(a => a.status === "COMPLETED").map(a => id(a, "id")),
+    );
     const beforeEnd = (r: Row, key: string) => Date.parse(id(r, key)) < Date.parse(end);
     const visits = appointments.filter(a => beforeEnd(a, "starts_at") && (!siteId || id(a, "site_id") === siteId));
     const completed = visits.filter(a => a.status === "COMPLETED");
-    const completedIds = new Set(completed.map(a => id(a, "id")));
-    const visitIds = new Set(visits.map(a => id(a, "id")));
-    const performed = executions.filter(e =>
-      beforeEnd(e, "executed_at") && completedIds.has(id(e, "appointment_id")));
+        const performed = executions.filter(e =>
+      beforeEnd(e, "executed_at") &&
+      completedOrigins.has(id(e, "appointment_id")) &&
+      siteMatches(id(e, "appointment_id")));
     const executedItemIds = [...new Set(performed.map(e => id(e, "clinical_plan_item_id")).filter(Boolean))];
     const chunks = <T,>(values: readonly T[], size = 120): T[][] =>
       Array.from({ length: Math.ceil(values.length / size) },
@@ -190,9 +219,11 @@ export class QualityRepository {
       })),
     );
     const incidentRows = incidents.filter(r => beforeEnd(r, "occurred_at")
-      && (!siteId || (r.appointment_id !== null && visitIds.has(id(r, "appointment_id")))));
+      && (!siteId || (r.appointment_id !== null && siteMatches(id(r, "appointment_id")) &&
+        originatingVisits.has(id(r, "appointment_id")))));
     const implantRows = implants.filter(r =>
-      beforeEnd(r, "recorded_at") && completedIds.has(id(r, "appointment_id")));
+       beforeEnd(r, "recorded_at") && completedOrigins.has(id(r, "appointment_id")) &&
+      siteMatches(id(r, "appointment_id")));
     const items = staff.filter(s => /DENTIST|DOCTOR|ODONTO|CLINICIAN/i.test(id(s, "role"))).map(s => {
       const doctorId = id(s, "id");
       const card = doctorScorecard(doctorId,
@@ -222,9 +253,14 @@ export class QualityRepository {
           punch_type: id(p, "punch_type"), occurred_at: id(p, "occurred_at"),
           corrects_punch_id: p.corrects_punch_id ? id(p, "corrects_punch_id") : null,
         } satisfies AttendancePunch));
-      const attendance = siteId
-        ? {hours: null, note: "El fichaje no identifica sede; selecciona toda la clínica"}
-        : verifiedAttendanceHours(doctorPunches, end);
+      const attendance = canReadAttendance && !siteId
+        ? verifiedAttendanceHours(doctorPunches, end, start)
+        : {
+            hours: null,
+            note: siteId
+              ? "Los fichajes no identifican sede"
+              : "Acceso a fichajes restringido",
+          };
       return { ...card, doctorName: `${id(s, "display_name")}${s.active === false ? " (inactivo)" : ""}`,
         attendanceHours: attendance.hours,
         attendanceNote: attendance.note,
