@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
-  "routeCount": 277,
+  "routeCount": 280,
   "routes": [
     {
       "method": "GET",
@@ -710,6 +710,24 @@
       "method": "POST",
       "path": "/api/clinical-plans/:planId/dependencies",
       "source": "apps/api/src/modules/clinical/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/cv-archive",
+      "source": "src/app/api/cv-archive/route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cv-archive",
+      "source": "src/app/api/cv-archive/route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cv-archive",
+      "source": "src/app/api/cv-archive/route.ts",
       "kind": "browser"
     },
     {

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { DocumentsBreadcrumb } from "@/features/documents/documents-navigation";
+import { CurriculumCards, DocumentsBreadcrumb } from "@/features/documents/documents-navigation";
 import { StaffDocuments } from "@/features/documents/staff-documents";
 import { PageHeader } from "@/shared/ui";
 
@@ -16,10 +16,10 @@ export default async function StaffDocumentPage({ params }: PageProps) {
       <PageHeader
         title={isCV ? "Currículums" : "Contratos"}
         description={isCV
-          ? "CV del personal, conservados en un archivo privado de la clínica."
+          ? "Currículums de empleados y archivo de candidaturas en PDF."
           : "Contratos de todos los integrantes del equipo, vinculados a su ficha de personal."}
       />
-      <StaffDocuments kind={isCV ? "CV" : "CONTRACT"} />
+      {isCV ? <CurriculumCards /> : <StaffDocuments kind="CONTRACT" />}
     </>
   );
 }

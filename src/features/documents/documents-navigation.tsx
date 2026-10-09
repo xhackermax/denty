@@ -20,9 +20,33 @@ const categories = [
 ] as const;
 
 const personnel = [
-  { href: "/app/documents/personal/curriculums", title: "Currículums", description: "CV de profesionales activos e inactivos.", icon: IconFileText },
+  { href: "/app/documents/personal/curriculums", title: "Currículums", description: "CV de empleados y archivo de candidatos.", icon: IconFileText },
   { href: "/app/documents/personal/contratos", title: "Contratos", description: "Contratos del equipo, asociados a cada empleado.", icon: IconFileCertificate },
 ] as const;
+
+const curriculums = [
+  { href: "/app/documents/personal/curriculums/personal", title: "Currículums del personal", description: "CV de los integrantes del equipo.", icon: IconUsers },
+  { href: "/app/documents/personal/curriculums/archivo", title: "Archivo de currículums", description: "PDF de candidatos guardados de forma privada en Supabase.", icon: IconFileText },
+] as const;
+
+export function CurriculumCards() {
+  return (
+    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+      {curriculums.map((item) => (
+        <Link className={styles.cardLink} href={item.href} key={item.href}>
+          <Group justify="space-between" mb="sm">
+            <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+              <item.icon size={21} aria-hidden="true" />
+            </ThemeIcon>
+            <IconArrowRight size={18} aria-hidden="true" />
+          </Group>
+          <span className={styles.cardLinkTitle}>{item.title}</span>
+          <span className={styles.cardLinkDescription}>{item.description}</span>
+        </Link>
+      ))}
+    </SimpleGrid>
+  );
+}
 
 export function DocumentCards({ personnelOnly = false }: { personnelOnly?: boolean }) {
   const session = useQuery({
