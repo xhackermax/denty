@@ -269,7 +269,7 @@ function load(){
     s.custom=s.custom||[]; return s;}}catch(e){}
   return fresh(true);
 }
-function save(){window.parent.postMessage({type:'denty:ceph:changed',state},window.location.origin);}
+function save(){if(state.example)return;window.parent.postMessage({type:'denty:ceph:changed',state},window.location.origin);}
 
 const num=s=>{if(s==null)return NaN;const t=String(s).trim().replace(',','.');return t===''?NaN:Number(t);};
 const fmt=n=>(Math.round(n*10)/10).toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:1});
