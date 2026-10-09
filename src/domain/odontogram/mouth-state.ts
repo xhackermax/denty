@@ -122,8 +122,8 @@ export function isSurgicalSite(state: MouthState, tooth: string, procedure: stri
   const presence = state.teeth[tooth]?.presence;
   if (!presence) return false;
   // An impacted or retained tooth is exactly what a surgical extraction removes.
-  if (procedure === "extraction_surgical" && presence === "unerupted") return true;
-  if (/implant|bone|graft|mesh|alveoloplasty|sinus|splint/.test(procedure))
+  if (["extraction_surgical", "coronectomy"].includes(procedure) && presence === "unerupted") return true;
+  if (/implant|bone|graft|rog|mesh|alveoloplasty|sinus|splint/.test(procedure))
     return presence !== "unerupted";
   return natural.has(presence);
 }
