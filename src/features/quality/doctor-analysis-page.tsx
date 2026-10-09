@@ -37,8 +37,8 @@ export function DoctorAnalysisPage() {
   const range = useMemo(() => {
     // Date inputs can be temporarily empty while users edit the selected period.
     // Never throw from render or query Supabase with an invalid calendar date.
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(startDate) ||
-        !/^\\d{4}-\\d{2}-\\d{2}$/.test(endDate) ||
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(endDate) ||
         startDate > endDate || endDate > today) return null;
     try {
       const first = madridLocalDateTime(startDate, "00:00");
