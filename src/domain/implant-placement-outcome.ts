@@ -1,3 +1,5 @@
+import { toMadridISO } from "./dates";
+
 export type ImplantOutcome="PLACED"|"FAILED"|"DEFERRED";
 export type ImplantFailureKind="PLACEMENT_ATTEMPT"|"PREVIOUSLY_PLACED";
 export interface ImplantOutcomeForm {
@@ -41,9 +43,9 @@ export function implantOutcomePayload(form:ImplantOutcomeForm){
  diameter_mm:form.outcome==="PLACED"?form.diameterMm:null,
  length_mm:form.outcome==="PLACED"?form.lengthMm:null,
  lot_number:form.outcome==="PLACED"?form.lotNumber.trim()||null:null,
- placed_at:form.outcome==="PLACED"?new Date().toISOString():null,
+ placed_at:form.outcome==="PLACED"?toMadridISO(Date.now()):null,
  failure_kind:form.outcome==="FAILED"?form.failureKind:null,
- failure_at:form.outcome==="FAILED"?new Date().toISOString():null,
+ failure_at:form.outcome==="FAILED"?toMadridISO(Date.now()):null,
  reason:form.outcome!=="PLACED"?form.reason.trim():null,
  reassessment_date:form.outcome==="DEFERRED"?form.reassessmentDate||null:null,
  notes:form.notes.trim()||null
