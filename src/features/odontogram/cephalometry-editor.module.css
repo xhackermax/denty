@@ -1,0 +1,7 @@
+.frame {
+  width: 100%;
+  height: min(1100px, 80vh);
+  min-height: 650px;
+  border: 0;
+  border-radius: 12px;
+}
