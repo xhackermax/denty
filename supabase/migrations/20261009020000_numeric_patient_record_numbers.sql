@@ -57,13 +57,8 @@ insert into private.patient_record_number_renumber_audit (
 select patient_id, clinic_id, old_record_number, new_record_number
 from denty_patient_renumber;
 
--- The old identifiers are temporarily replaced first to avoid a unique-index
--- collision in databases containing both DNT-000001 and older patient "1".
-update public.patients p
-set record_number = '__denty_renumber__' || p.id::text
-from denty_patient_renumber n
-where p.id = n.patient_id;
-
+-- One atomic update is sufficient: generated values are above the highest
+-- existing numeric code in each clinic, and the conflict check ran above.
 update public.patients p
 set record_number = n.new_record_number
 from denty_patient_renumber n
