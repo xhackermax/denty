@@ -239,7 +239,8 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
             durationMin: values.durationMin,
             scheduledOn,
             dueAt,
-            ...(values.assigneeStaffId ? { assigneeStaffId: values.assigneeStaffId } : {}),
+            ...(values.assigneeStaffId && values.assigneeStaffId !== editing.assigneeStaffId
+              ? { assigneeStaffId: values.assigneeStaffId } : {}),
           },
         },
         { onSuccess: () => setEditing(null) },
