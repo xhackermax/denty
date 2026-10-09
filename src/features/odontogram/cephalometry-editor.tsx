@@ -114,7 +114,7 @@ export function CephalometryEditor({patientId,entities,readOnly,onCommit}:Cephal
     if(readOnly)return;
     const next={
       ...(state.example?blankCephalometry():state),
-      rows:state.example?blankCephalometry().rows:{...state.rows},
+      rows:state.example?blankCephalometry().rows:Object.fromEntries(Object.entries(state.rows).map(([id,row])=>[id,{...row}])),
       custom:state.custom.map(r=>({...r})),
       example:false,
     };
