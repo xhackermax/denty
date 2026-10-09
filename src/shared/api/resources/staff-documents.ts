@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { ApiClient } from "../client";
+import { withQuery } from "./shared";
 
 export const staffDocumentKindSchema = z.enum(["CV", "CONTRACT"]);
 
@@ -24,7 +25,7 @@ export type StaffDocument = z.infer<typeof staffDocumentSchema>;
 export function createStaffDocumentsResource(client: ApiClient) {
   return {
     list: (kind: StaffDocumentKind) =>
-      client.request("/api/staff-documents?type=" + kind, staffDocumentsSchema),
+      client.request(withQuery("/api/staff-documents", { type: kind }), staffDocumentsSchema),
     upload: (input: { staffMemberId: string; type: StaffDocumentKind; title: string; file: File }) => {
       const form = new FormData();
       form.set("staffMemberId", input.staffMemberId);
