@@ -246,6 +246,28 @@ describe("Supabase-backed patient API", () => {
     });
   });
 
+  test("removes the DNT prefix when importing an old numeric patient code", async () => {
+    const response = await POST(
+      new Request("https://denty.test/api/denty/api/patients", {
+        method: "POST",
+        headers: {
+          ...authenticatedHeaders(),
+          "content-type": "application/json",
+          origin: "https://denty.test",
+        },
+        body: JSON.stringify({
+          firstName: "Ana",
+          lastName: "Lopez",
+          recordNumber: "DNT-000123",
+        }),
+      }),
+      { params: Promise.resolve({ path: ["api", "patients"] }) },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({ recordNumber: "00123" });
+  });
+
   test("lists patients with a stable latest-first order", async () => {
     const fetchMock = vi.fn(
       withAuthenticatedStaff(createSupabaseFetch(), { clinicId: "clinic-1" }),
