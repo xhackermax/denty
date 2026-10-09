@@ -75,6 +75,7 @@ function orthoRecord(state: OdontogramEntityState) {
     (candidate) =>
       candidate.active &&
       candidate.entityType === "ORTHODONTIC" &&
+      candidate.status !== "cephalometry" &&
       !candidate.attributes?.appliance,
   );
 }
