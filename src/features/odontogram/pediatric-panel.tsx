@@ -135,7 +135,9 @@ export function PediatricPanel({
     )
       return;
     setToothStates((current) => ({ ...current, [tooth]: nextStatus }));
-    onCommit(createPediatricEntity(tooth, nextStatus));
+    const existing = initialEntities.find((entry) => entry.active && entry.entityType === "PEDIATRIC" && entry.tooth === tooth);
+    const next = createPediatricEntity(tooth, nextStatus);
+    onCommit(existing ? { ...next, id: existing.id } : next);
     setSaved(false);
   };
 
