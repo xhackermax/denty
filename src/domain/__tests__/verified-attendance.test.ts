@@ -31,6 +31,24 @@ describe("verified attendance", () => {
       punch("3","OUT","17:00"),
     ],end).hours).toBeNull();
   });
+  it("clips a verified overnight shift to the selected report period", () => {
+    const rows: AttendancePunch[] = [
+      {...punch("a","IN","23:00"),occurred_at:"2026-10-08T23:00:00+02:00"},
+      {...punch("b","OUT","02:00"),occurred_at:"2026-10-09T02:00:00+02:00"},
+    ];
+    expect(verifiedAttendanceHours(rows, "2026-10-10T00:00:00+02:00",
+      "2026-10-09T00:00:00+02:00").hours).toBe(2);
+  });
+  it("does not include completed shifts from previous dates", () => {
+    const rows: AttendancePunch[] = [
+      {...punch("a","IN","09:00"),occurred_at:"2026-10-08T09:00:00+02:00"},
+      {...punch("b","OUT","17:00"),occurred_at:"2026-10-08T17:00:00+02:00"},
+    ];
+    expect(verifiedAttendanceHours(rows,"2026-10-10T00:00:00+02:00",
+      "2026-10-09T00:00:00+02:00")).toMatchObject({
+      hours:null,note:"Sin fichajes en este periodo",
+    });
+  });
   it("refuses a 27-hour phantom shift and ignores future events", () => {
     const future: AttendancePunch = {
       ...punch("3","IN","08:00"), occurred_at:"2026-10-11T08:00:00+02:00",
