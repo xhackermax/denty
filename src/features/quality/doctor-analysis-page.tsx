@@ -43,7 +43,7 @@ export function DoctorAnalysisPage() {
   const query = useQuery({
     queryKey: [...dentyQueryKeys.analytics.root, "doctor-quality", range],
     queryFn: () => qualityApi.doctors(range),
-    enabled: Boolean(activeClinicId) && permissions.includes("finance.read") &&
+    enabled: Boolean(activeClinicId) && permissions.includes("analysis.read") &&
       startDate <= endDate,
   });
   const all = query.data?.items ?? [];
@@ -72,8 +72,8 @@ export function DoctorAnalysisPage() {
           data={all.map(d=>({value:d.doctorId,label:d.doctorName}))} />
       </Group>
     </section>
-    {!permissions.includes("finance.read") &&
-      <Alert color="orange">Necesitas permiso de lectura financiera para evaluar indicadores de los doctores.</Alert>}
+    {!permissions.includes("analysis.read") &&
+      <Alert color="orange">Necesitas permiso de análisis para consultar los indicadores de los doctores.</Alert>}
     {query.isLoading && <Loader aria-label="Cargando estadísticas de doctores"/>}
     {query.isError && <Alert color="red">No se pudieron cargar los indicadores desde Supabase.
       Comprueba los permisos y la conexión de la clínica.</Alert>}
