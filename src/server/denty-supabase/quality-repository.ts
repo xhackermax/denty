@@ -257,9 +257,9 @@ export class QualityRepository {
         ? verifiedAttendanceHours(doctorPunches, end, start)
         : {
             hours: null,
-            note: !canReadAttendance
-              ? "Acceso a fichajes restringido"
-              : "Los fichajes no identifican sede",
+            note: siteId
+              ? "Los fichajes no identifican sede"
+              : "Acceso a fichajes restringido",
           };
       return { ...card, doctorName: `${id(s, "display_name")}${s.active === false ? " (inactivo)" : ""}`,
         attendanceHours: attendance.hours,
