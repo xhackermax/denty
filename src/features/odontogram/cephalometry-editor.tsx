@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DentalEntity } from "@/domain";
 import { CephalometryDiagram, EXAMPLE_VALUES, MEASURES } from "./cephalometry-diagram";
 import styles from "./cephalometry-editor.module.css";
+import { printOrthodonticReport } from "./orthodontic-print-report";
 
 interface CephalometryEditorProps {
   patientId: string;
@@ -153,6 +154,7 @@ export function CephalometryEditor({patientId,entities,readOnly,onCommit}:Cephal
       </div>
       <Group gap="xs" wrap="wrap">
         <Button size="xs" variant="light" disabled={readOnly} onClick={()=>commit(blankCephalometry())}>Empezar en blanco</Button>
+        <Button size="xs" variant="light" onClick={()=>printOrthodonticReport({patientId,entities,svg:document.querySelector('[aria-label="Plantilla cefalométrica reactiva"] svg')})}>Imprimir informe / PDF</Button>
         <Button size="xs" variant="light" onClick={()=>void copy()}>{copied?"Copiado":"Copiar resultados"}</Button>
       </Group>
     </Group>
