@@ -115,6 +115,7 @@ export const ROUTE_PERMISSIONS: Readonly<Record<string, RoutePermission>> = {
   "/app/documents": "documents.read",
   "/app/communications": "communications.read",
   "/app/analysis": "analysis.read",
+  "/app/incidents": "clinical.read",
   "/app/campaigns": "marketing.read",
   "/app/alerts": "alerts.read",
   "/app/settings": "settings.manage",

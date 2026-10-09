@@ -55,6 +55,7 @@ export const MANAGEMENT_NAV: readonly NavigationItem[] = [
   { href: "/app/clinic-contacts", key: "clinic-contacts", tone: "teal", icon: IconPhone },
   { href: "/app/tasks", key: "tasks", tone: "amber", icon: IconChecklist },
   { href: "/app/analysis", key: "analysis", tone: "blue", icon: IconChartBar },
+  { href: "/app/incidents", key: "incidents", tone: "amber", icon: IconClipboardText },
   { href: "/app/campaigns", key: "campaigns", tone: "violet", icon: IconSpeakerphone },
   { href: "/app/alerts", key: "alerts", tone: "amber", icon: IconBell },
   { href: "/app/attendance", key: "attendance", tone: "cyan", icon: IconClipboardText },

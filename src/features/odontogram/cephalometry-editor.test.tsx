@@ -16,6 +16,17 @@ describe("native lateral cephalometry",()=>{
     expect(screen.getByRole("img",{name:/Trazado cefalométrico/})).toBeInTheDocument();
     expect(MEASURES.map(m=>m.name)).toEqual(["SNA","SNB","ANB","SN.PP","SN.Gn","Eje facial","SN.Ploc","PP.GoGn","SN.GoGn"]);
   });
+  it("extends PR66 metrics with Wits and avoids invented population norms",()=>{
+    const saved=blankCephalometry();
+    expect(saved.rows.WITS).toMatchObject({value:"",norm:"",sd:""});
+    expect(saved.rows.CVM).toMatchObject({value:"",norm:"",sd:""});
+    const commit=vi.fn();
+    render(<MantineProvider><CephalometryEditor patientId="patient-a"
+      entities={[]} readOnly={false} onCommit={commit}/></MantineProvider>);
+    expect(screen.getByRole("textbox",{name:"Valor Wits"})).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox",{name:"Valor Wits"}),{target:{value:"-2.4"}});
+    expect(commit.mock.lastCall?.[0].attributes.cephalometry.rows.WITS.value).toBe("-2.4");
+  });
   it("does not save unedited sample measurements as real clinical values",()=>{
     const commit=vi.fn();
     render(<MantineProvider><CephalometryEditor patientId="patient-a" entities={[]} readOnly={false} onCommit={commit}/></MantineProvider>);

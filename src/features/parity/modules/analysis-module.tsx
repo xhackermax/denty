@@ -20,6 +20,7 @@ import {
 } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import Link from "next/link";
 
 import { buildMonthGrid, monthOf, shiftMonth } from "@/domain/agenda";
 import {
@@ -303,6 +304,10 @@ export function AnalysisModule() {
 
   return (
     <div className={styles.grid}>
+      <Group gap="sm" wrap="wrap">
+        <Button component={Link} href="/app/analysis/doctors">Evaluación de doctores</Button>
+        <Button component={Link} href="/app/incidents" variant="light">Incidencias clínicas</Button>
+      </Group>
       <section className={`${styles.section} ${styles.bluePerimeterRunner}`}>
         <div className={styles.analysisPeriodBar}>
           <div>

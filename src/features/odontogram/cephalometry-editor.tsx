@@ -4,6 +4,7 @@ import { Button, Checkbox, Group, Text } from "@mantine/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DentalEntity } from "@/domain";
 import { CephalometryDiagram, EXAMPLE_VALUES, MEASURES } from "./cephalometry-diagram";
+import { ORTHO_METRICS } from "./ortho-diagnostic-engine";
 import styles from "./cephalometry-editor.module.css";
 import { printOrthodonticReport } from "./orthodontic-print-report";
 
@@ -16,23 +17,47 @@ interface CephalometryEditorProps {
 type Row = { value: string; norm: string; sd: string; interp: string; manual: boolean };
 type CustomRow = Row & { id:string; name:string };
 type RecordState = { example:boolean; rows:Record<string,Row>; custom:CustomRow[] };
+// The diagram visualises the original nine angles. Additional clinically
+// relevant measurements share the same persisted dental entity and PDF report.
+const METRIC_ALIAS: Record<string, string> = {
+  SN_GOGN: "SNGoGn", FACIAL_AXIS: "EF",
+};
+const ADDITIONAL_MEASURES = ORTHO_METRICS
+  .filter(metric => !MEASURES.some(m => m.id === (METRIC_ALIAS[metric.id] ?? metric.id)))
+  .map(metric => ({
+    id: metric.id, name: metric.label,
+    description: `${metric.author} · ${metric.meaning}`,
+    norm: "", sd: "", unit: metric.unit,
+    interpretations: {
+      ok: "Dentro de la referencia indicada",
+      hi: metric.high,
+      lo: metric.low,
+    },
+  }));
+const ALL_MEASURES = [
+  ...MEASURES.map(m => ({ ...m, unit: "°" })),
+  ...ADDITIONAL_MEASURES,
+] as const;
+function unitFor(id: string): string {
+  return ALL_MEASURES.find(m => m.id === id)?.unit ?? "°";
+}
 const defaultRow=(norm="",sd="",value=""):Row=>({value,norm,sd,interp:"",manual:false});
 export const blankCephalometry=():RecordState=>({
   example:false,
-  rows:Object.fromEntries(MEASURES.map(m=>[m.id,defaultRow(String(m.norm),String(m.sd))])),
+  rows:Object.fromEntries(ALL_MEASURES.map(m=>[m.id,defaultRow(String(m.norm),String(m.sd))])),
   custom:[],
 });
 export const exampleCephalometry=():RecordState=>({
   ...blankCephalometry(),
   example:true,
-  rows:Object.fromEntries(MEASURES.map(m=>[m.id,defaultRow(String(m.norm),String(m.sd),EXAMPLE_VALUES[m.id]??"")])),
+  rows:Object.fromEntries(ALL_MEASURES.map(m=>[m.id,defaultRow(String(m.norm),String(m.sd),EXAMPLE_VALUES[m.id]??"")])),
 });
 const asRecord=(value:unknown):value is Record<string,unknown>=>Boolean(value)&&typeof value==="object"&&!Array.isArray(value);
 const textField=(value:unknown,max=500)=>typeof value==="string"?value.slice(0,max):"";
 export function parseCephalometry(value:unknown):RecordState|null {
   if(!asRecord(value)||!asRecord(value.rows))return null;
   const base=blankCephalometry();
-  for(const m of MEASURES){
+  for(const m of ALL_MEASURES){
     const source=value.rows[m.id];
     if(!asRecord(source))continue;
     base.rows[m.id]={
@@ -64,11 +89,11 @@ export function evaluateCephalometry(row:Row,id:string):Evaluation {
   if(v===null||n===null)return {deviation:null,status:null,auto:""};
   const deviation=v-n;
   const status=sd!==null&&sd>=0?(Math.abs(deviation)<=sd?"ok":deviation>0?"hi":"lo"):null;
-  const measure=MEASURES.find(m=>m.id===id);
+  const measure=ALL_MEASURES.find(m=>m.id===id);
   return {deviation,status,auto:status?measure?.interpretations[status]??"":""};
 }
 const label={ok:"Normal",hi:"▲ Aumentado",lo:"▼ Disminuido"} as const;
-const formatDeviation=(value:number|null)=>value===null?"—":`${value>0?"+":""}${Number(value.toFixed(2))}°`;
+const formatDeviation=(value:number|null,unit:string)=>value===null?"—":`${value>0?"+":""}${Number(value.toFixed(2))} ${unit}`;
 const getRow=(state:RecordState,id:string)=>state.rows[id]??state.custom.find(r=>r.id===id);
 
 export function CephalometryEditor({patientId,entities,readOnly,onCommit}:CephalometryEditorProps){
@@ -129,8 +154,8 @@ export function CephalometryEditor({patientId,entities,readOnly,onCommit}:Cephal
     commit(next);
   };
   const evaluate=(id:string)=>evaluateCephalometry(getRow(state,id)??defaultRow(),id);
-  const values=Object.fromEntries(MEASURES.map(m=>[m.id,state.rows[m.id]?.value??""]));
-  const statuses=Object.fromEntries(MEASURES.map(m=>[m.id,evaluate(m.id).status]));
+  const values=Object.fromEntries(ALL_MEASURES.map(m=>[m.id,state.rows[m.id]?.value??""]));
+  const statuses=Object.fromEntries(ALL_MEASURES.map(m=>[m.id,evaluate(m.id).status]));
   const select=(id:string)=>{
     setActive(id);
     ids.current[id]?.focus();
@@ -138,7 +163,7 @@ export function CephalometryEditor({patientId,entities,readOnly,onCommit}:Cephal
   };
   const copy=async()=>{
     const rows=[["Medida","Valor","Norma","DE","Desviación","Interpretación"].join("\t")];
-    for(const entry of [...MEASURES.map(m=>({id:m.id,name:m.name})),...state.custom]){
+    for(const entry of [...ALL_MEASURES.map(m=>({id:m.id,name:m.name})),...state.custom]){
       const row=getRow(state,entry.id);
       if(!row)continue;
       const e=evaluate(entry.id);
@@ -165,7 +190,7 @@ export function CephalometryEditor({patientId,entities,readOnly,onCommit}:Cephal
           <table className={styles.table}>
             <thead><tr><th>Medida</th><th>Valor</th><th>Norma ± DE</th><th>Desviación</th><th>Interpretación</th></tr></thead>
             <tbody>
-              {[...MEASURES.map(m=>({id:m.id,name:m.name,description:m.description})),...state.custom.map(m=>({id:m.id,name:m.name,description:"Medida adicional"}))].map(entry=>{
+              {[...ALL_MEASURES.map(m=>({id:m.id,name:m.name,description:m.description})),...state.custom.map(m=>({id:m.id,name:m.name,description:"Medida personalizada"}))].map(entry=>{
                 const row=getRow(state,entry.id)??defaultRow();
                 const e=evaluate(entry.id);
                 const custom=state.custom.some(item=>item.id===entry.id);
@@ -178,13 +203,13 @@ export function CephalometryEditor({patientId,entities,readOnly,onCommit}:Cephal
                     }}/>:<><strong>{entry.name}</strong><small>{entry.description}</small></>}
                     {custom?<button type="button" disabled={readOnly} onClick={()=>commit({...state,custom:state.custom.filter(item=>item.id!==entry.id)})}>Quitar</button>:null}
                   </th>
-                  <td><input ref={element=>{ids.current[entry.id]=element}} aria-label={`Valor ${entry.name}`} className={styles.numberInput} inputMode="decimal" disabled={readOnly} value={row.value} onChange={event=>update(entry.id,"value",event.target.value)}/>°</td>
+                  <td><input ref={element=>{ids.current[entry.id]=element}} aria-label={`Valor ${entry.name}`} className={styles.numberInput} inputMode="decimal" disabled={readOnly} value={row.value} onChange={event=>update(entry.id,"value",event.target.value)}/>{unitFor(entry.id)}</td>
                   <td><div className={styles.normGroup}>
                     <input aria-label={`Norma ${entry.name}`} className={styles.numberInput} inputMode="decimal" disabled={readOnly} value={row.norm} onChange={event=>update(entry.id,"norm",event.target.value)}/>
                     ±
                     <input aria-label={`DE ${entry.name}`} className={styles.numberInput} inputMode="decimal" disabled={readOnly} value={row.sd} onChange={event=>update(entry.id,"sd",event.target.value)}/>
                   </div></td>
-                  <td className={styles.deviation}>{formatDeviation(e.deviation)} {e.status?<span className={e.status==="ok"?styles.ok:styles.warn}>{label[e.status]}</span>:null}</td>
+                  <td className={styles.deviation}>{formatDeviation(e.deviation,unitFor(entry.id))} {e.status?<span className={e.status==="ok"?styles.ok:styles.warn}>{label[e.status]}</span>:null}</td>
                   <td><input aria-label={`Interpretación ${entry.name}`} className={styles.interpretation} disabled={readOnly} placeholder="Interpretación" value={row.manual?row.interp:e.auto} onChange={event=>update(entry.id,"interp",event.target.value)}/></td>
                 </tr>;
               })}
