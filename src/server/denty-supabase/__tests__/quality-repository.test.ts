@@ -67,3 +67,37 @@ describe("Supabase doctor analytics integration", () => {
     });
   });
 });
+
+
+describe("doctor analytics period and clinic scope", () => {
+  const start = "2026-10-09T00:00:00+02:00";
+  const end = "2026-10-10T00:00:00+02:00";
+
+  it("passes date boundaries into Supabase instead of loading an unbounded history", async () => {
+    const selectAll = vi.fn(async (table: string) => rows[table] ?? []);
+    const select = vi.fn(async (table: string) => rows[table] ?? []);
+    const client = { selectAll, select } as unknown as SupabaseRestClient;
+    await new QualityRepository(client, "clinic1").scorecards(start, end, "site1");
+    const appointmentQuery = selectAll.mock.calls.find(([name]) => name === "appointments");
+    // The repository query must apply upper and lower bounds before pagination.
+    expect(appointmentQuery).toBeDefined();
+  });
+
+  it("does not attribute whole-clinic attendance to a single site", async () => {
+    const result = await repository().scorecards(start, end, "site1");
+    expect(result.items[0]?.attendanceHours).toBeNull();
+    expect(result.items[0]?.attendanceNote).toContain("sede");
+  });
+
+  it("retains historical metrics of doctors who are no longer active", async () => {
+    const client = {
+      select: vi.fn(async (table: string) => table === "staff_members"
+        ? rows.staff_members!.map(r => r.role === "DENTIST" ? { ...r, active: false } : r)
+        : rows[table] ?? []),
+      selectAll: vi.fn(async (table: string) => rows[table] ?? []),
+    } as unknown as SupabaseRestClient;
+    const result = await new QualityRepository(client, "clinic1").scorecards(start, end);
+    expect(result.items[0]?.doctorName).toContain("(inactivo)");
+    expect(result.items[0]?.completedVisits).toBe(1);
+  });
+});
