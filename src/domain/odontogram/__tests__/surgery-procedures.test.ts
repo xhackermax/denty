@@ -40,3 +40,20 @@ test("keeps alveoloplasty and distinguishes splint glyphs", () => {
   expect(clinicalGlyphFor({ label: "Férula quirúrgica guiada" })?.family).toBe("surgery");
   expect(clinicalGlyphFor({ label: "Férula de descarga" })?.family).toBe("occlusal_splint");
 });
+
+test("separates bone graft from ROG, keeps stable historical codes and adds soft tissue procedures", () => {
+  const labels = Object.fromEntries(SURGERY_PROCEDURES.map(({ value, label }) => [value, label]));
+  expect(labels.bone_graft).toBe("Injerto óseo");
+  expect(labels.rog).toBe("Regeneración ósea guiada (ROG)");
+  expect(labels.sinus_lift_internal).toBe("Elevación de seno interna");
+  expect(labels.extraction_surgical).toBe("Exodoncia compleja / 3er molar");
+  expect(labels.connective_tissue_graft).toBe("Injerto de tejido conectivo");
+  expect(labels.pinhole_technique).toBe("Pinhole technique");
+  expect(labels.coronectomy).toBe("Coronectomía");
+  const rog = createSurgeryEntity("rog", "16", "PLANIFICADO", [], "upper");
+  expect(rog.entityType).toBe("BONE_GRAFT");
+  expect(rog.status).toBe("rog");
+  const extraction = createSurgeryEntity("extraction_surgical", "18", "PLANIFICADO", [], "upper");
+  expect(extraction.attributes?.impacted).toBeUndefined();
+  expect(extraction.attributes?.complex).toBe(true);
+});
