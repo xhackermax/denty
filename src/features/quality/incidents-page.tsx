@@ -59,6 +59,12 @@ function IncidentItem({ item, doctors, editable, onSave, busy }: {
 }) {
   const [status, setStatus] = useState(item.status);
   const [action, setAction] = useState(item.corrective_action ?? "");
+  const [showHistory, setShowHistory] = useState(false);
+  const history = useQuery({
+    queryKey: [...dentyQueryKeys.quality.root, "history", item.id],
+    queryFn: () => qualityApi.incidentHistory(item.id),
+    enabled: showHistory,
+  });
   const doctor = doctors.find(d => d.id === item.responsible_doctor_id);
   return <Paper key={item.id} withBorder p="md" radius="md">
     <Stack gap="sm">
@@ -95,6 +101,27 @@ function IncidentItem({ item, doctors, editable, onSave, busy }: {
           { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Madrid" })
           .format(new Date(item.occurred_at))}</Text>
       </Group>
+      <Button size="xs" variant="subtle" onClick={() => setShowHistory(value => !value)}>
+        {showHistory ? "Ocultar historial" : "Ver historial y seguimiento"}
+      </Button>
+      {showHistory && <Stack gap="xs">
+        {history.isPending && <Loader size="xs"/>}
+        {history.isError && <Alert color="red">No se pudo recuperar el historial.</Alert>}
+        {(history.data?.items ?? []).map(event => (
+          <Group key={event.id} gap="sm" align="start">
+            <Badge variant="outline">
+              {event.event_kind === "CREATED" ? "Alta" : "Seguimiento"}
+            </Badge>
+            <Text size="xs">
+              {new Intl.DateTimeFormat("es-ES", {
+                dateStyle:"short",timeStyle:"short",timeZone:"Europe/Madrid",
+              }).format(new Date(event.occurred_at))}
+              {" · "}{labelOf(statuses,event.new_status)}
+              {event.corrective_action ? ` · ${event.corrective_action}` : ""}
+            </Text>
+          </Group>
+        ))}
+      </Stack>}
       {editable && <Group gap="sm" align="end" wrap="wrap">
         <Select label="Estado" value={status} onChange={v=>setStatus(v ?? status)} data={statuses}/>
         <Textarea label="Acción correctiva / seguimiento" autosize minRows={1}
@@ -149,7 +176,7 @@ export function IncidentsPage({ initialPatientId, initialDoctorId }: {
     enabled: Boolean(activeClinicId) && canRead && patientSearch.trim().length >= 2,
   });
   const invalidate = () => {
-    void queryClient.invalidateQueries({queryKey:dentyQueryKeys.quality.incidents});
+    void queryClient.invalidateQueries({queryKey:dentyQueryKeys.quality.root});
     void queryClient.invalidateQueries({queryKey:dentyQueryKeys.analytics.root});
   };
   const create = useMutation({
