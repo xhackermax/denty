@@ -98,6 +98,8 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
   const query = useQuery({
     queryKey: dentyQueryKeys.tasks.all,
     queryFn: () => resolvedApi.list(),
+    // Assigned tasks can arrive from another user's session while this page is open.
+    refetchInterval: 30_000,
   });
   const teamQuery = useQuery({
     queryKey: dentyQueryKeys.tasks.team,
