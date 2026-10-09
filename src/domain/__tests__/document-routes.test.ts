@@ -28,6 +28,10 @@ describe("Documentos por categorías", () => {
     expect(requiredPermissionForRoute("/app/documents/personal/contratos")).toBe("users.manage");
     expect(decideStaffRouteAccess(dentist, "/app/documents/personal/contratos").kind).toBe("forbidden");
     expect(decideStaffRouteAccess(admin, "/app/documents/personal/contratos").kind).toBe("allow");
+    expect(requiredPermissionForRoute("/app/documents/personal/curriculums/archivo")).toBe("users.manage");
+    expect(requiredPermissionForRoute("/app/documents/personal/curriculums/personal")).toBe("users.manage");
+    expect(decideStaffRouteAccess(dentist, "/app/documents/personal/curriculums/archivo").kind).toBe("forbidden");
+    expect(decideStaffRouteAccess(admin, "/app/documents/personal/curriculums/archivo").kind).toBe("allow");
   });
 
   it("aplica permisos de finanzas y prescripción a sus archivos", () => {
