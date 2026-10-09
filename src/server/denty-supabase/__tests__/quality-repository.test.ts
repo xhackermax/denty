@@ -55,7 +55,7 @@ function repository() {
 describe("Supabase doctor analytics integration", () => {
   it("counts only completed original appointments and posted invoice lines", async () => {
     const result = await repository().scorecards(
-      "2026-10-09T00:00:00+02:00", "2026-10-10T00:00:00+02:00");
+      "2026-10-09T00:00:00+02:00", "2026-10-10T00:00:00+02:00", undefined, true);
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({
       completedVisits:1,uniquePatients:1,recordedExecutions:1,
