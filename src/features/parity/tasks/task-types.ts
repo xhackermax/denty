@@ -58,6 +58,7 @@ export interface TaskTeamMember {
 export interface TaskTeam {
   items: TaskTeamMember[];
   currentStaffId: string | null;
+  assignableStaffIds?: string[];
 }
 export interface TaskTeamLoader {
   assignees?(): Promise<TaskTeam>;
