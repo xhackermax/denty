@@ -3,6 +3,7 @@
 import { Button, Group, Text } from "@mantine/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DentalEntity } from "@/domain";
+import styles from "./cephalometry-editor.module.css";
 
 interface CephalometryEditorProps {
   patientId: string;
@@ -96,7 +97,7 @@ export function CephalometryEditor({
         title="Tabla editable y plantilla cefalométrica lateral"
         sandbox="allow-scripts allow-same-origin"
         loading="lazy"
-        style={{ width: "100%", height: "min(1100px, 80vh)", minHeight: 650, border: 0, borderRadius: 12 }}
+        className={styles.frame}
       />
       {readOnly ? (
         <Text c="orange" size="xs">
