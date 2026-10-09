@@ -26,6 +26,7 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   IconAdjustmentsHorizontal,
   IconCalendarEvent,
@@ -75,6 +76,7 @@ import {
   currentTimeOffset,
   findConflicts,
   implantSurgeryReminderForAppointment,
+  isImplantSurgeryReason,
   layoutDay,
   normalizePlanVisitGapDays,
   planVisitDates,
@@ -107,6 +109,10 @@ import {
   type AgendaStatus,
 } from "./agenda-projection";
 import { AgendaAppointmentCard } from "./agenda-appointment-card";
+import { ImplantPlacementOutcomeForm } from "./implant-placement-outcome-form";
+import type { implantOutcomePayload } from "@/domain/implant-placement-outcome";
+import { qualityApi } from "@/features/quality/quality-api";
+import { dentyQueryKeys } from "@/shared/query";
 import { AgendaMiniCalendar } from "./agenda-mini-calendar";
 import { AgendaQuickView, type QuickViewEdit } from "./agenda-quick-view";
 import { NextSlotFinder } from "./next-slot-finder";
@@ -259,7 +265,8 @@ export function AgendaPage() {
   const requestedPlanItemId = searchParams.get("planItemId") ?? "";
   const requestedPlanItemHandled = useRef(false);
   const isMobile = useMediaQuery("(max-width: 48em)") ?? false;
-  const { activeSiteId, setActiveSiteId } = useActiveTenant();
+  const { activeClinicId, activeSiteId, setActiveSiteId } = useActiveTenant();
+  const queryClient = useQueryClient();
 
   // Navigation & presentation.
   const [anchor, setAnchor] = useState(
@@ -316,6 +323,11 @@ export function AgendaPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
   const [agendaNotice, setAgendaNotice] = useState<string | null>(null);
+  const [implantAppointment, setImplantAppointment] = useState<AgendaAppointmentView | null>(null);
+  const [implantRows, setImplantRows] = useState<ReturnType<typeof implantOutcomePayload>[]>([]);
+  const [implantEntryIndex, setImplantEntryIndex] = useState(0);
+  const [implantCompleting, setImplantCompleting] = useState(false);
+  const [implantError, setImplantError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingChange | null>(null);
   const [slotSearchOpened, setSlotSearchOpened] = useState(false);
   const [resizePreview, setResizePreview] = useState<{ id: string; duration: number } | null>(null);
@@ -684,6 +696,13 @@ export function AgendaPage() {
   const advance = async (appointment: AgendaAppointmentView) => {
     const status = nextStatus(appointment.status);
     if (!status) return;
+    if (status === "COMPLETED" && isImplantSurgeryReason(appointment.reason)) {
+      setImplantAppointment(appointment);
+      setImplantRows([]);
+      setImplantError(null);
+      setImplantEntryIndex(0);
+      return;
+    }
     const input = { id: appointment.id, expectedVersion: appointment.version };
     try {
       if (status === "ARRIVED") await transitions.arrive.mutateAsync(input);
@@ -2065,6 +2084,92 @@ export function AgendaPage() {
               </Group>
             </Stack>
           ) : null}
+        </Modal>
+
+        <Modal
+          opened={implantAppointment !== null}
+          onClose={() => {
+            if (implantCompleting) return;
+            setImplantAppointment(null);
+            setImplantRows([]);
+            setImplantError(null);
+          }}
+          title="Cierre obligatorio de cirugía de implantes"
+          size="lg"
+        >
+          <Stack gap="sm">
+            <Alert color="blue">
+              Registra cada implante o intento, indicando si se colocó, fracasó o quedó diferido.
+              Los datos se guardarán en Supabase conjuntamente con el cierre de la cita.
+            </Alert>
+            {implantAppointment && (
+              <Text fw={700}>{implantAppointment.patientName} · {implantAppointment.reason}</Text>
+            )}
+            {implantRows.map((item, index) => (
+              <Group key={item.tooth_position} justify="space-between">
+                <Badge variant="light">
+                  {item.tooth_position} · {item.outcome === "PLACED" ? "Colocado" :
+                    item.outcome === "FAILED" ? "Fracaso" : "Diferido"}
+                </Badge>
+                <Button size="xs" color="red" variant="subtle" disabled={implantCompleting}
+                  onClick={() => setImplantRows(rows => rows.filter((_, i) => i !== index))}>
+                  Quitar
+                </Button>
+              </Group>
+            ))}
+            {implantAppointment && activeClinicId ? (
+              <ImplantPlacementOutcomeForm
+                key={`${implantAppointment.id}-${implantEntryIndex}`}
+                appointmentId={implantAppointment.id}
+                patientId={implantAppointment.patientId}
+                doctorId={implantAppointment.staffId}
+                clinicId={activeClinicId}
+                readOnly={implantCompleting}
+                onSave={async (payload) => {
+                  const position = payload.tooth_position.trim().toUpperCase();
+                  if (implantRows.some(item => item.tooth_position.trim().toUpperCase() === position))
+                    throw new Error("Ya se ha registrado esa posición. No se admiten duplicados.");
+                  setImplantRows(rows => [...rows, payload]);
+                  setImplantEntryIndex(index => index + 1);
+                  setImplantError(null);
+                }}
+              />
+            ) : (
+              <Alert color="orange">La clínica activa es necesaria para guardar los implantes.</Alert>
+            )}
+            {implantError ? <Alert color="red">{implantError}</Alert> : null}
+            <Group justify="flex-end">
+              <Button variant="default" disabled={implantCompleting}
+                onClick={() => { setImplantAppointment(null); setImplantRows([]); }}>
+                Cancelar cierre
+              </Button>
+              <Button loading={implantCompleting} disabled={!implantRows.length || !activeClinicId}
+                onClick={async () => {
+                  if (!implantAppointment || !implantRows.length) return;
+                  setImplantCompleting(true);
+                  setImplantError(null);
+                  try {
+                    await qualityApi.completeImplantAppointment(
+                      implantAppointment.id, implantAppointment.version, implantRows);
+                    setAgendaNotice(
+                      `Cirugía de ${implantAppointment.patientName} finalizada: ${implantRows.length} resultado(s) registrado(s).`);
+                    setImplantAppointment(null);
+                    setImplantRows([]);
+                    setQuickViewId(null);
+                    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.appointments.root });
+                    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.analytics.root });
+                  } catch (error) {
+                    setImplantError(error instanceof Error ? error.message :
+                      "No se pudo cerrar la cirugía. No se han guardado resultados parciales.");
+                  } finally {
+                    setImplantCompleting(false);
+                  }
+                }}
+              >
+                Confirmar y finalizar cita ({implantRows.length})
+              </Button>
+            </Group>
+          </Stack>
         </Modal>
 
         <Modal
