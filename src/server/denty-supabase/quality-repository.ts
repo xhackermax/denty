@@ -143,7 +143,7 @@ export class QualityRepository {
         ...this.where(), and: `(starts_at.gte.${start},starts_at.lt.${end})`,
       }),
       this.db.selectAll<Row>("clinical_treatment_executions", {
-        select: "id,doctor_id,patient_id,appointment_id,treatment_category,attributed_revenue_cents,executed_at",
+        select: "id,doctor_id,patient_id,appointment_id,clinical_plan_item_id,treatment_category,attributed_revenue_cents,executed_at",
         ...this.where(), and: `(executed_at.gte.${start},executed_at.lt.${end})`,
       }),
       this.db.selectAll<Row>("clinical_incidents", {
@@ -189,6 +189,41 @@ export class QualityRepository {
       return byAppointment.get(originalId)?.status === "COMPLETED" &&
         matchesSite(originalId);
     });
+    // A plan price or an unallocated payment is not a doctor's realized
+    // ticket. Only invoice lines from issued non-rectifying invoices are used.
+    const planItemIds = [...new Set(performed.map(e =>
+      id(e, "clinical_plan_item_id")).filter(Boolean))];
+    const billBatches: string[][] = [];
+    for (let index = 0; index < planItemIds.length; index += 75) {
+      billBatches.push(planItemIds.slice(index, index + 75));
+    }
+    const invoiceLines = (await Promise.all(billBatches.map(ids =>
+      this.db.select<Row>("invoice_lines", {
+        select: "id,invoice_id,clinical_plan_item_id,line_subtotal_cents",
+        ...this.where(), clinical_plan_item_id: `in.(${ids.join(",")})`,
+      })))).flat();
+    const invoiceIds = [...new Set(invoiceLines.map(line =>
+      id(line, "invoice_id")).filter(Boolean))];
+    const invoiceBatches: string[][] = [];
+    for (let index = 0; index < invoiceIds.length; index += 75) {
+      invoiceBatches.push(invoiceIds.slice(index, index + 75));
+    }
+    const invoiceHeaders = (await Promise.all(invoiceBatches.map(ids =>
+      this.db.select<Row>("invoices", {
+        select: "id,status,type", ...this.where(), id: `in.(${ids.join(",")})`,
+      })))).flat();
+    const validInvoices = new Set(invoiceHeaders.filter(invoice =>
+      invoice.status === "ISSUED" &&
+      ["STANDARD", "SIMPLIFIED"].includes(id(invoice, "type")))
+      .map(invoice => id(invoice, "id")));
+    const billedCents = new Map<string, number>();
+    for (const line of invoiceLines) {
+      if (!validInvoices.has(id(line, "invoice_id"))) continue;
+      const amount = number(line, "line_subtotal_cents");
+      if (amount === null || !Number.isSafeInteger(amount)) continue;
+      const planItemId = id(line, "clinical_plan_item_id");
+      billedCents.set(planItemId, (billedCents.get(planItemId) ?? 0) + amount);
+    }
     const relevantIncidents = incidents.filter(i =>
       !siteId || (i.appointment_id !== null && matchesSite(id(i, "appointment_id")) &&
         byAppointment.has(id(i, "appointment_id"))));
@@ -204,7 +239,8 @@ export class QualityRepository {
           doctorId: id(e, "doctor_id"), patientId: id(e, "patient_id"),
           appointmentId: id(e, "appointment_id"),
           treatmentCategory: id(e, "treatment_category"),
-          attributedRevenueCents: number(e, "attributed_revenue_cents"),
+          attributedRevenueCents: billedCents.get(id(e, "clinical_plan_item_id"))
+            ?? number(e, "attributed_revenue_cents"),
         })),
         completedVisits.map(a => ({
           doctorId: id(a, "staff_id"), patientId: id(a, "patient_id"),
@@ -248,7 +284,7 @@ export class QualityRepository {
     });
     return {
       items,
-      warning: "Las ejecuciones se agrupan por fecha real de finalización; las citas se cuentan por fecha de visita. Los importes sin atribución no se estiman y los fichajes solo se muestran con autorización.",
+      warning: "Las ejecuciones se agrupan por fecha real de finalización y las citas por fecha de visita. El ticket se calcula solo desde líneas de facturas emitidas asociadas a tratamientos, no desde presupuestos ni cobros sin asignar; las rectificaciones se excluyen. Los fichajes requieren permiso de administración.",
     };
   }
 }
