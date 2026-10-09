@@ -87,9 +87,12 @@ function IncidentItem({ item, doctors, editable, onSave, busy }: {
       <SimpleGrid cols={{base:1,sm:3}}>
         <Text size="xs" c="dimmed">Tipo: {labelOf(categories, item.category)}</Text>
         <Text size="xs" c="dimmed">Causa: {labelOf(causes, item.cause)}</Text>
-        <Text size="xs" c="dimmed">Doctor: {doctor?.display_name ?? "Sin asignar"}</Text>
+        <Text size="xs" c="dimmed">Profesional vinculado: {doctor?.display_name ?? "Sin asignar"}</Text>
       </SimpleGrid>
       {item.repeat_treatment && <Badge variant="light" color="red">Repetición de tratamiento</Badge>}
+      {item.implant_outcome_id && <Badge variant="light" color="orange">
+        Incidencia vinculada a un resultado de implante
+      </Badge>}
       <Group gap="xs">
         <Button component={Link} size="xs" variant="subtle"
           href={`/app/patients/${item.patient_id}`}>Abrir ficha del paciente</Button>
