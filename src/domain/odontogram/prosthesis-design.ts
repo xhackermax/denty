@@ -68,9 +68,6 @@ export function createProsthesisPlan(input: ProsthesisPlanInput): DentalEntity {
   if (input.support === "implants") {
     const implantCount = positiveCount(input.implantCount, "Número de implantes");
     const attachmentCount = positiveCount(input.attachmentCount, "Número de aditamentos");
-    if (attachmentCount > implantCount) {
-      throw new RangeError("Los aditamentos no pueden superar el número de implantes.");
-    }
     if (!IMPLANT_ATTACHMENT_TYPES.some(({ value }) => value === input.attachmentType)) {
       throw new RangeError("Selecciona el tipo de aditamento.");
     }
