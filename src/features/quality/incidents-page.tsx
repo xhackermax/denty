@@ -118,8 +118,8 @@ export function IncidentsPage({ initialPatientId, initialDoctorId }: {
   const [savingId, setSavingId] = useState("");
   const canRead = permissions.includes("clinical.read");
   const canWrite = permissions.includes("clinical.write");
-  const filters = { patientId: patientId || undefined,
-    doctorId: doctorId || undefined, status: status || undefined };
+  const filters = { ...(patientId ? {patientId} : {}),
+    ...(doctorId ? {doctorId} : {}), ...(status ? {status} : {}) };
   const incidents = useQuery({
     queryKey: ["denty", "quality", "incidents", filters],
     queryFn: () => qualityApi.incidents(filters),
