@@ -35,16 +35,36 @@ export function DoctorAnalysisPage() {
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const { activeClinicId, activeSiteId, permissions } = useActiveTenant();
   const range = useMemo(() => {
-    const from = toMadridISO(madridLocalDateTime(startDate, "00:00"));
-    const dayAfter = dateYMDMadrid(addDaysMadrid(madridLocalDateTime(endDate, "12:00"), 1));
-    return { start: from, end: toMadridISO(madridLocalDateTime(dayAfter, "00:00")),
-      ...(activeSiteId ? { siteId: activeSiteId } : {}) };
-  }, [startDate, endDate, activeSiteId]);
+    // Date inputs can be temporarily empty while users edit the selected period.
+    // Never throw from render or query Supabase with an invalid calendar date.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(endDate) ||
+        startDate > endDate || endDate > today) return null;
+    try {
+      const first = madridLocalDateTime(startDate, "00:00");
+      const last = madridLocalDateTime(endDate, "12:00");
+      if (dateYMDMadrid(first) !== startDate ||
+          dateYMDMadrid(last) !== endDate) return null;
+      const dayAfter = dateYMDMadrid(addDaysMadrid(last, 1));
+      const upper = madridLocalDateTime(dayAfter, "00:00");
+      if (upper.getTime() - first.getTime() >= 367 * 86_400_000) return null;
+      return {
+        start: toMadridISO(first),
+        end: toMadridISO(upper),
+        ...(activeSiteId ? { siteId: activeSiteId } : {}),
+      };
+    } catch {
+      return null;
+    }
+  }, [startDate, endDate, activeSiteId, today]);
   const query = useQuery({
     queryKey: [...dentyQueryKeys.analytics.root, "doctor-quality", range],
-    queryFn: () => qualityApi.doctors(range),
+    queryFn: () => {
+      if (!range) throw new Error("Selecciona un periodo de fechas válido.");
+      return qualityApi.doctors(range);
+    },
     enabled: Boolean(activeClinicId) && permissions.includes("finance.read") &&
-      startDate <= endDate,
+      range !== null,
   });
   const all = query.data?.items ?? [];
   const shown = doctorId ? all.filter(d => d.doctorId === doctorId) : all;
@@ -74,13 +94,16 @@ export function DoctorAnalysisPage() {
     </section>
     {!permissions.includes("finance.read") &&
       <Alert color="orange">Necesitas permiso de lectura financiera para evaluar indicadores de los doctores.</Alert>}
+    {!range && <Alert color="orange">
+      Selecciona fechas válidas y un periodo máximo de 12 meses.
+    </Alert>}
     {query.isLoading && <Loader aria-label="Cargando estadísticas de doctores"/>}
     {query.isError && <Alert color="red">No se pudieron cargar los indicadores desde Supabase.
       Comprueba los permisos y la conexión de la clínica.</Alert>}
     {query.data && <>
       <Alert color="blue" title="Criterio de contabilización">
         {query.data.warning} Las horas se calculan solo con pares de fichajes válidos.
-        El ticket medio corresponde a ingresos atribuidos por cita, no a cobros sin asignar.
+        El ticket medio procede de facturas emitidas vinculadas a tratamientos realizados, no de cobros sin asignar.
       </Alert>
       <SimpleGrid cols={{base:2,md:4}}>
         <section><Text size="xs" c="dimmed">Citas terminadas</Text><Text size="xl" fw={800}>{visits}</Text></section>
@@ -94,7 +117,7 @@ export function DoctorAnalysisPage() {
             <Table.Thead><Table.Tr>
               <Table.Th>Doctor</Table.Th><Table.Th>Citas</Table.Th>
               <Table.Th>Pacientes</Table.Th><Table.Th>Tratamientos</Table.Th>
-              <Table.Th>Ticket atribuido</Table.Th><Table.Th>Horas fichadas</Table.Th>
+              <Table.Th>Ticket medio facturado</Table.Th><Table.Th>Horas fichadas</Table.Th>
               <Table.Th>Implantes</Table.Th><Table.Th>Incidencias</Table.Th>
             </Table.Tr></Table.Thead>
             <Table.Tbody>{shown.map(d=><Table.Tr key={d.doctorId}>
