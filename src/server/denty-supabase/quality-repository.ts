@@ -1,4 +1,5 @@
 import { doctorScorecard } from "@/domain/doctor-performance";
+import { attributedInvoicedCents } from "@/domain/doctor-invoice-attribution";
 import type { SupabaseRestClient } from "@/server/supabase/rest-client";
 
 type Row = Record<string, unknown>;
@@ -138,7 +139,7 @@ export class QualityRepository {
         ...this.where(), starts_at: `gte.${start}`,
       }),
       this.db.selectAll<Row>("clinical_treatment_executions", {
-        select: "id,doctor_id,patient_id,appointment_id,treatment_category,attributed_revenue_cents,executed_at",
+        select: "id,doctor_id,patient_id,appointment_id,clinical_plan_item_id,treatment_category,attributed_revenue_cents,executed_at",
         ...this.where(), executed_at: `gte.${start}`,
       }),
       this.db.selectAll<Row>("clinical_incidents", {
@@ -161,10 +162,35 @@ export class QualityRepository {
     const visitIds = new Set(visits.map(a => id(a, "id")));
     const performed = executions.filter(e =>
       beforeEnd(e, "executed_at") && completedIds.has(id(e, "appointment_id")));
+    const executedItemIds = [...new Set(performed.map(e => id(e, "clinical_plan_item_id")).filter(Boolean))];
+    const chunks = <T,>(values: readonly T[], size = 120): T[][] =>
+      Array.from({ length: Math.ceil(values.length / size) },
+        (_, index) => values.slice(index * size, (index + 1) * size));
+    const invoiceLineChunks = await Promise.all(chunks(executedItemIds).map(ids =>
+      this.db.selectAll<Row>("invoice_lines", {
+        select: "invoice_id,clinical_plan_item_id,line_subtotal_cents",
+        ...this.where(), clinical_plan_item_id: `in.(${ids.join(",")})`,
+      })));
+    const invoiceLines = invoiceLineChunks.flat();
+    const invoiceIds = [...new Set(invoiceLines.map(line => id(line, "invoice_id")).filter(Boolean))];
+    const invoiceChunks = await Promise.all(chunks(invoiceIds).map(ids =>
+      this.db.selectAll<Row>("invoices", {
+        select: "id,status,type", ...this.where(), id: `in.(${ids.join(",")})`,
+      })));
+    const invoicedAmounts = attributedInvoicedCents(
+      invoiceChunks.flat().map(row => ({
+        id: id(row, "id"), status: id(row, "status"), type: id(row, "type"),
+      })),
+      invoiceLines.map(row => ({
+        invoiceId: id(row, "invoice_id"),
+        planItemId: row.clinical_plan_item_id ? id(row, "clinical_plan_item_id") : null,
+        subtotalCents: number(row, "line_subtotal_cents"),
+      })),
+    );
     const incidentRows = incidents.filter(r => beforeEnd(r, "occurred_at")
       && (!siteId || (r.appointment_id !== null && visitIds.has(id(r, "appointment_id")))));
     const implantRows = implants.filter(r =>
-      beforeEnd(r, "recorded_at") && (!siteId || visitIds.has(id(r, "appointment_id"))));
+      beforeEnd(r, "recorded_at") && completedIds.has(id(r, "appointment_id")));
     const items = staff.filter(s => s.active !== false && /DENTIST|DOCTOR|ODONTO|CLINICIAN/i.test(id(s, "role"))).map(s => {
       const doctorId = id(s, "id");
       const card = doctorScorecard(doctorId,
@@ -172,7 +198,8 @@ export class QualityRepository {
           doctorId: id(e, "doctor_id"), patientId: id(e, "patient_id"),
           appointmentId: id(e, "appointment_id"),
           treatmentCategory: id(e, "treatment_category"),
-          attributedRevenueCents: number(e, "attributed_revenue_cents"),
+          attributedRevenueCents: invoicedAmounts.get(id(e, "clinical_plan_item_id"))
+            ?? number(e, "attributed_revenue_cents"),
         })),
         completed.map(a => ({
           doctorId: id(a, "staff_id"), patientId: id(a, "patient_id"),
@@ -212,6 +239,6 @@ export class QualityRepository {
           : anomaly ? "Fichajes incompletos: horas no calculables" : null,
       };
     });
-    return { items, warning: "Los tratamientos proceden solo de ejecuciones confirmadas, nunca de planes pendientes. Los importes no atribuidos no se estiman. Las horas de fichaje corresponden a toda la clínica, ya que el fichaje no identifica sede; con filtros de sede no se desglosan." };
+    return { items, warning: "Los tratamientos proceden solo de ejecuciones confirmadas, nunca de planes pendientes. El ticket refleja facturación emitida vinculada al tratamiento (no cobros); los importes sin vínculo verificable no se estiman. Las horas de fichaje corresponden a toda la clínica, ya que el fichaje no identifica sede; con filtros de sede no se desglosan." };
   }
 }
