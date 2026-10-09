@@ -487,6 +487,12 @@ export function PatientProfile({ patientId }: { patientId: string }) {
               description="Odontograma y especialidades"
             />
             <PatientRouteCard
+              href={`/app/patients/${patientId}?view=clinical`}
+              icon={IconFileText}
+              title="Seguimiento clínico"
+              description="Diagnóstico, plan, consentimientos, firma y citas"
+            />
+            <PatientRouteCard
               href={`/app/patients/${patientId}?view=plan`}
               icon={IconFileText}
               title="Plan de tratamiento"

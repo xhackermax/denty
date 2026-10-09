@@ -17,7 +17,6 @@ import { todayMadrid } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
 import { useAppointmentsQuery } from "@/features/agenda/agenda-data";
 import { getBrowserApi } from "@/shared/api/browser";
-import { ClinicalPipelineCard } from "@/shared/clinical/clinical-pipeline-card";
 import { MotionPressable, MotionScrollReveal } from "@/shared/motion";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { dentyQueryKeys } from "@/shared/query";
@@ -224,17 +223,16 @@ export function Dashboard() {
         </aside>
       </div>
 
-      <details className={styles.disclosure}>
-        <summary>
-          <span>
-            <strong>Gestión y seguimiento</strong>
-            <small>Pipeline y economía</small>
-          </span>
-          <IconChevronRight size={18} />
-        </summary>
-        <div className={styles.disclosureBody}>
-          <ClinicalPipelineCard />
-          {canReadFinance ? (
+      {canReadFinance ? (
+        <details className={styles.disclosure}>
+          <summary>
+            <span>
+              <strong>Economía de la clínica</strong>
+              <small>Producción, cobros y margen</small>
+            </span>
+            <IconChevronRight size={18} />
+          </summary>
+          <div className={styles.disclosureBody}>
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
                 <div>
@@ -264,9 +262,9 @@ export function Dashboard() {
                 </div>
               </div>
             </section>
-          ) : null}
-        </div>
-      </details>
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }
