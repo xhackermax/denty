@@ -90,7 +90,7 @@ async function handle(request: Request) {
       return fail(403, "Sin permiso para modificar incidencias.", headers);
     if (request.method === "POST" && kind === "incidents") {
       const input = createIncident.parse(await request.json());
-      return response(201, await quality.createIncident(input), headers);
+      return response(201, await quality.createIncident({ ...input, ...(input.appointmentId ? { appointmentId: input.appointmentId } : {}), ...(input.doctorId ? { doctorId: input.doctorId } : {}) }), headers);
     }
     if (request.method === "PATCH" && kind === "incidents") {
       const input = editIncident.parse(await request.json());
