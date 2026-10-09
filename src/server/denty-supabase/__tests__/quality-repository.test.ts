@@ -52,6 +52,46 @@ function repository() {
   return new QualityRepository(client, "clinic1");
 }
 
+describe("production tied to a historical appointment", () => {
+  it("counts an execution in its own period even if the original visit is older", async () => {
+    const older = {
+      id:"older",staff_id:"dr1",patient_id:"p1",site_id:"site1",
+      status:"COMPLETED",starts_at:"2026-09-04T09:00:00+02:00",
+    };
+    const recentExecution = {
+      id:"executed-now",appointment_id:"older",clinical_plan_item_id:"plan-old",
+      doctor_id:"dr1",patient_id:"p1",treatment_category:"ENDODONTICS",
+      attributed_revenue_cents:null,executed_at:"2026-10-09T09:00:00+02:00",
+    };
+    const selects = {
+      staff_members: rows.staff_members ?? [],
+      appointments: [],
+      clinical_treatment_executions: [recentExecution],
+      clinical_incidents: [],
+      implant_placement_outcomes: [],
+      attendance_punches: [],
+      invoice_lines: [],
+      invoices: [],
+    } as Record<string, Row[]>;
+    const db = {
+      select: vi.fn(async (table: string) =>
+        table === "appointments" ? [older] : (selects[table] ?? [])),
+      selectAll: vi.fn(async (table: string) => selects[table] ?? []),
+    } as unknown as SupabaseRestClient;
+    const quality = new QualityRepository(db, "clinic1");
+    const start = "2026-10-09T00:00:00+02:00";
+    const end = "2026-10-10T00:00:00+02:00";
+    const all = await quality.scorecards(start, end);
+    expect(all.items[0]).toMatchObject({
+      completedVisits:0, recordedExecutions:1,
+      treatmentCounts:{ENDODONTICS:1},
+      averageTicketCents:null,
+    });
+    const outsideSite = await quality.scorecards(start, end, "another-site");
+    expect(outsideSite.items[0]?.recordedExecutions).toBe(0);
+  });
+});
+
 describe("Supabase doctor analytics integration", () => {
   it("counts only completed original appointments and posted invoice lines", async () => {
     const result = await repository().scorecards(
