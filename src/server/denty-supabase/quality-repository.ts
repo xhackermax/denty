@@ -25,6 +25,22 @@ export class QualityRepository {
     });
   }
 
+  async patientAppointments(patientId: string) {
+    const found = await this.db.select<Row>("patients", {
+      select: "id", ...this.where(), id: `eq.${patientId}`,
+    });
+    if (!found.length) throw new Error("Paciente no encontrado en esta clínica.");
+    const rows = await this.db.select<Row>("appointments", {
+      select: "id,starts_at,title,status,staff_id",
+      ...this.where(), patient_id: `eq.${patientId}`,
+      order: "starts_at.desc", limit: 100,
+    });
+    return { items: rows.map(r => ({
+      id: id(r, "id"), startsAt: id(r, "starts_at"),
+      title: id(r, "title"), status: id(r, "status"),
+    })) };
+  }
+
   async incidents(patientId?: string, doctorId?: string, status?: string) {
     const query: Record<string, string | number> = {
       select: "*", ...this.where(), order: "occurred_at.desc", limit: 300,
@@ -39,6 +55,11 @@ export class QualityRepository {
           id: `in.(${[...new Set(items.map(i => id(i, "patient_id")))].join(",")})`,
         })
       : [];
+    const linkedIds = [...new Set(items.map(i => id(i, "appointment_id")).filter(Boolean))];
+    const linked = linkedIds.length ? await this.db.select<Row>("appointments", {
+      select: "id,starts_at", ...this.where(), id: `in.(${linkedIds.join(",")})`,
+    }) : [];
+    const appointmentDates = new Map(linked.map(a => [id(a, "id"), id(a, "starts_at")]));
     const byId = new Map(patients.map(p => [id(p, "id"), p]));
     return {
       items: items.map(item => {
@@ -47,6 +68,7 @@ export class QualityRepository {
           ...item, patientName: patient
             ? `${id(patient, "first_name")} ${id(patient, "last_name")}`.trim() : "Paciente",
           recordNumber: patient?.record_number ?? null,
+          appointmentStart: appointmentDates.get(id(item, "appointment_id")) ?? null,
         };
       }),
       truncated: items.length >= 300,
