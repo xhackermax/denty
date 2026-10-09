@@ -125,7 +125,7 @@ export function IncidentsPage({ initialPatientId, initialDoctorId }: {
   const filters = { ...(patientId ? {patientId} : {}),
     ...(doctorId ? {doctorId} : {}), ...(status ? {status} : {}) };
   const incidents = useQuery({
-    queryKey: ["denty", "quality", "incidents", filters],
+    queryKey: [...dentyQueryKeys.quality.incidents, filters],
     queryFn: () => qualityApi.incidents(filters),
     enabled: Boolean(activeClinicId) && canRead,
   });
@@ -149,7 +149,7 @@ export function IncidentsPage({ initialPatientId, initialDoctorId }: {
     enabled: Boolean(activeClinicId) && canRead && patientSearch.trim().length >= 2,
   });
   const invalidate = () => {
-    void queryClient.invalidateQueries({queryKey:["denty","quality","incidents"]});
+    void queryClient.invalidateQueries({queryKey:dentyQueryKeys.quality.incidents});
     void queryClient.invalidateQueries({queryKey:dentyQueryKeys.analytics.root});
   };
   const create = useMutation({
