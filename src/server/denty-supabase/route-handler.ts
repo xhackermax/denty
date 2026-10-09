@@ -969,7 +969,10 @@ export async function handleSupabaseDentyRoute(
       const team = await tasks.assignees();
       const currentStaffId = identity.actor.staffId ?? null;
       return json(200, {
-        items: taskAssignmentChoices(identity.actor.role, currentStaffId, team.items),
+        // Show colleagues' names on the team board, but only permit authorised recipients.
+        items: team.items,
+        assignableStaffIds: taskAssignmentChoices(identity.actor.role, currentStaffId, team.items)
+          .map((member) => member.id),
         currentStaffId,
       }, headers);
     }
