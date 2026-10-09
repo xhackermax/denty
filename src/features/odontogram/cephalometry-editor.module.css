@@ -1,7 +1,25 @@
-.frame {
-  width: 100%;
-  height: min(1100px, 80vh);
-  min-height: 650px;
-  border: 0;
-  border-radius: 12px;
-}
+.wrapper{display:grid;gap:12px;min-width:0;padding:12px 0}
+.layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:14px;align-items:start;min-width:0}
+.tablePanel,.diagramPanel{min-width:0;padding:12px;border:1px solid var(--mantine-color-default-border);border-radius:12px;background:var(--mantine-color-body)}
+.tablePanel{display:grid;gap:10px}
+.tableScroll{width:100%;overflow-x:auto}
+.table{border-collapse:collapse;width:100%;min-width:730px;font-size:12px}
+.table th,.table td{text-align:left;border-bottom:1px solid var(--mantine-color-default-border);padding:7px 5px;vertical-align:middle}
+.table th[scope=row]{min-width:120px;font-weight:500}
+.table th strong,.table th small{display:block}
+.table th small{font-weight:400;color:var(--mantine-color-dimmed);font-size:11px}
+.table tbody tr.focused{background:var(--mantine-primary-color-light)}
+.numberInput,.nameInput,.interpretation{font:inherit;border:1px solid var(--mantine-color-default-border);background:var(--mantine-color-body);color:var(--mantine-color-text);border-radius:5px;padding:5px;min-width:0}
+.numberInput{width:51px;text-align:right;font-variant-numeric:tabular-nums}
+.nameInput{width:100px}
+.interpretation{min-width:160px;width:100%}
+.normGroup{display:flex;align-items:center;gap:3px}
+.deviation{white-space:nowrap;font-variant-numeric:tabular-nums}
+.ok,.warn{display:inline-block;border-radius:12px;padding:2px 5px;font-size:10px;white-space:nowrap}
+.ok{background:#e2f4e8;color:#116337}
+.warn{background:#fff0df;color:#93410a}
+.diagramPanel{display:grid;gap:8px;overflow-x:auto}
+.diagramSvg{display:block;width:100%;height:auto;min-width:340px}
+.angleAction{cursor:pointer;outline-offset:2px}
+@media(max-width:1100px){.layout{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){.wrapper *{scroll-behavior:auto}}
