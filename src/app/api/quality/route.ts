@@ -23,6 +23,46 @@ const editIncident = z.object({
   status: z.enum(["OPEN", "INVESTIGATING", "RESOLVED", "CLOSED"]),
   correctiveAction: z.string().max(5000),
 }).strict();
+const implantOutcome = z.object({
+  tooth_position: z.string().trim().min(1).max(32),
+  outcome: z.enum(["PLACED", "FAILED", "DEFERRED"]),
+  system: z.string().max(120).nullish(),
+  implant_model: z.string().max(120).nullish(),
+  platform: z.string().max(120).nullish(),
+  diameter_mm: z.number().positive().max(20).nullish(),
+  length_mm: z.number().positive().max(40).nullish(),
+  lot_number: z.string().max(100).nullish(),
+  failure_kind: z.enum(["PLACEMENT_ATTEMPT", "PREVIOUSLY_PLACED"]).nullish(),
+  reason: z.string().max(2000).nullish(),
+  reassessment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  notes: z.string().max(2000).nullish(),
+}).strict();
+const finishImplants = z.object({
+  appointmentId: uuid,
+  expectedVersion: z.number().int().nonnegative(),
+  outcomes: z.array(implantOutcome).min(1).max(20),
+}).strict().superRefine((input, ctx) => {
+  const teeth = input.outcomes.map(item => item.tooth_position.trim().toUpperCase());
+  if (new Set(teeth).size !== teeth.length) {
+    ctx.addIssue({ code: "custom", message: "Hay posiciones repetidas." });
+  }
+  for (const [index, item] of input.outcomes.entries()) {
+    if (item.outcome === "PLACED" &&
+        (!item.system?.trim() || !item.implant_model?.trim() ||
+         !item.platform?.trim() || !item.diameter_mm || !item.length_mm)) {
+      ctx.addIssue({ code: "custom", path: ["outcomes", index],
+        message: "Faltan sistema, modelo, plataforma o dimensiones." });
+    }
+    if (item.outcome !== "PLACED" && !item.reason?.trim()) {
+      ctx.addIssue({ code: "custom", path: ["outcomes", index],
+        message: "Debe indicarse el motivo clínico." });
+    }
+    if (item.outcome === "FAILED" && !item.failure_kind) {
+      ctx.addIssue({ code: "custom", path: ["outcomes", index],
+        message: "Falta distinguir el tipo de fracaso." });
+    }
+  }
+});
 const dateQuery = z.object({
   start: z.string().datetime({ offset: true }),
   end: z.string().datetime({ offset: true }),
@@ -85,6 +125,17 @@ async function handle(request: Request) {
         return response(200, { items: await quality.patients(url.searchParams.get("search") ?? "") }, headers);
       if (kind === "staff") return response(200, { items: await quality.doctors() }, headers);
       return fail(404, "Recurso no encontrado.", headers);
+    }
+    if (request.method === "POST" && kind === "implant-finalize") {
+      const payload = finishImplants.parse(await request.json());
+      const appointment = await identity.restClient.rpc<Record<string, unknown>>(
+        "denty_complete_implant_appointment", {
+          p_appointment_id: payload.appointmentId,
+          p_expected_version: payload.expectedVersion,
+          p_outcomes: payload.outcomes,
+        });
+      if (appointment.conflict === true) return fail(409, "La cita ha cambiado. Actualiza la agenda.", headers);
+      return response(200, { appointment }, headers);
     }
     if (!permissions.includes("clinical.write"))
       return fail(403, "Sin permiso para modificar incidencias.", headers);
