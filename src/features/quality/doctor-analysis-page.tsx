@@ -35,16 +35,34 @@ export function DoctorAnalysisPage() {
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const { activeClinicId, activeSiteId, permissions } = useActiveTenant();
   const range = useMemo(() => {
-    const from = toMadridISO(madridLocalDateTime(startDate, "00:00"));
-    const dayAfter = dateYMDMadrid(addDaysMadrid(madridLocalDateTime(endDate, "12:00"), 1));
-    return { start: from, end: toMadridISO(madridLocalDateTime(dayAfter, "00:00")),
-      ...(activeSiteId ? { siteId: activeSiteId } : {}) };
-  }, [startDate, endDate, activeSiteId]);
+    // Date inputs can be temporarily empty while users edit the selected period.
+    // Never throw from render or query Supabase with an invalid calendar date.
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(startDate) ||
+        !/^\\d{4}-\\d{2}-\\d{2}$/.test(endDate) ||
+        startDate > endDate || endDate > today) return null;
+    try {
+      const first = madridLocalDateTime(startDate, "00:00");
+      const last = madridLocalDateTime(endDate, "12:00");
+      if (dateYMDMadrid(first) !== startDate ||
+          dateYMDMadrid(last) !== endDate) return null;
+      const dayAfter = dateYMDMadrid(addDaysMadrid(last, 1));
+      return {
+        start: toMadridISO(first),
+        end: toMadridISO(madridLocalDateTime(dayAfter, "00:00")),
+        ...(activeSiteId ? { siteId: activeSiteId } : {}),
+      };
+    } catch {
+      return null;
+    }
+  }, [startDate, endDate, activeSiteId, today]);
   const query = useQuery({
     queryKey: [...dentyQueryKeys.analytics.root, "doctor-quality", range],
-    queryFn: () => qualityApi.doctors(range),
+    queryFn: () => {
+      if (!range) throw new Error("Selecciona un periodo de fechas válido.");
+      return qualityApi.doctors(range);
+    },
     enabled: Boolean(activeClinicId) && permissions.includes("finance.read") &&
-      startDate <= endDate,
+      range !== null,
   });
   const all = query.data?.items ?? [];
   const shown = doctorId ? all.filter(d => d.doctorId === doctorId) : all;
@@ -74,6 +92,9 @@ export function DoctorAnalysisPage() {
     </section>
     {!permissions.includes("finance.read") &&
       <Alert color="orange">Necesitas permiso de lectura financiera para evaluar indicadores de los doctores.</Alert>}
+    {!range && <Alert color="orange">
+      Selecciona fechas válidas y dentro de los últimos 12 meses para consultar los indicadores.
+    </Alert>}
     {query.isLoading && <Loader aria-label="Cargando estadísticas de doctores"/>}
     {query.isError && <Alert color="red">No se pudieron cargar los indicadores desde Supabase.
       Comprueba los permisos y la conexión de la clínica.</Alert>}
