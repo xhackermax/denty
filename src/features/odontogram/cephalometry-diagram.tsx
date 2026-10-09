@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import styles from "./cephalometry-editor.module.css";
 
 export type Point = readonly [number, number];
 export const POINTS: Record<string, Point> = {
@@ -50,7 +50,7 @@ function Angle({measurement:m,active,hasValue,status,onSelect,value}:{
     {m.ghost?<line x1={cx} y1={cy} x2={cx+ghost[0]*(r+90)} y2={cy+ghost[1]*(r+90)} stroke="#8fa0b3" strokeDasharray="5 5" />:null}
     <path d={`M${sx},${sy} A${r},${r} 0 0 ${delta>0?1:0} ${ex},${ey}`} stroke={active?"#2064c7":stroke} strokeWidth={active?3.5:2} fill="none"/>
     <line x1={bx+(m.side==="R"?0:152)} y1={by+30} x2={mx} y2={my} stroke={stroke} strokeWidth="1.4" markerEnd="url(#ceph-arrow)"/>
-    <g role="button" tabIndex={0} aria-label={`Editar ${m.name}`} onClick={()=>onSelect(m.id)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onSelect(m.id)}}} style={{cursor:"pointer"}}>
+    <g role="button" tabIndex={0} aria-label={`Editar ${m.name}`} onClick={()=>onSelect(m.id)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onSelect(m.id)}}} className={styles.angleAction}>
       <rect x={bx} y={by} width="152" height="60" rx="8" fill="var(--mantine-color-body)" stroke={stroke} strokeWidth={active?3:1.5}/>
       <text x={bx+12} y={by+20} fontSize="15" fontWeight="600" fill="currentColor">{m.name}</text>
       <text x={bx+12} y={by+47} fontSize="23" fontWeight="600" fill="currentColor">{hasValue?`${value}°`:"— °"}</text>
@@ -65,7 +65,7 @@ export function CephalometryDiagram({values,active,solo,onSelect,statuses}:{
   const visible=(m:CephMeasurement)=>!solo||m.id===active;
   const referencedLines=new Set(selected?.lines??[]);
   const referencedPoints=new Set(selected?.points??[]);
-  return <svg viewBox="-178 -6 994 760" role="img" aria-label="Trazado cefalométrico lateral con ángulos y puntos anatómicos" style={{width:"100%",height:"auto",minWidth:340}}>
+  return <svg viewBox="-178 -6 994 760" role="img" aria-label="Trazado cefalométrico lateral con ángulos y puntos anatómicos" className={styles.diagramSvg}>
     <defs><marker id="ceph-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#7c94b6"/></marker></defs>
     <g stroke="#7e8b97" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="35" cy="300" r="21"/>
