@@ -310,6 +310,13 @@ export function PatientProfile({ patientId }: { patientId: string }) {
                 >
                   Denty Games
                 </Menu.Item>
+                <Menu.Item
+                  component={Link}
+                  href={`/app/incidents?patientId=${patientId}`}
+                  leftSection={<IconFileText size={16} />}
+                >
+                  Incidencias clínicas
+                </Menu.Item>
                 <Menu.Divider />
                 {patient.archivedAt ? (
                   <Menu.Item
