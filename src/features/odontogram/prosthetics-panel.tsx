@@ -17,6 +17,7 @@ import styles from "./odontogram.module.css";
 
 interface ProstheticsPanelProps {
   selectedTooth: string;
+  entities?: readonly DentalEntity[];
   readOnly: boolean;
   onCommit: (entity: DentalEntity) => void;
   onWarning: (message: string) => void;
@@ -24,6 +25,7 @@ interface ProstheticsPanelProps {
 
 export function ProstheticsPanel({
   selectedTooth,
+  entities = [],
   readOnly,
   onCommit,
   onWarning,
@@ -58,7 +60,8 @@ export function ProstheticsPanel({
             }
           : {}),
       });
-      onCommit(plan);
+      const existing = entities.find((entity) => entity.active && entity.tooth === selectedTooth && entity.attributes?.support === support && entity.attributes?.prosthesisType === selectedType);
+      onCommit(existing ? { ...plan, id: existing.id } : plan);
     } catch (error) {
       onWarning(error instanceof Error ? error.message : "No se pudo registrar la prótesis.");
     }
