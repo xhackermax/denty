@@ -102,6 +102,8 @@ jobs:
         run: npx vitest run src/features/agenda/__tests__/agenda-appointment-card.test.tsx src/domain/__tests__/agenda-clinical-icons.test.ts
       - name: Supabase odontogram clinical persistence regression
         run: npx vitest run src/server/denty-supabase/__tests__/odontogram-persistence-torture.test.ts src/shared/odontogram/odontogram-wire.test.ts
+      - name: Full Supabase repository regression suite
+        run: npx vitest run src/server/denty-supabase/__tests__ src/app/api/denty
       - name: Vercel architecture gate
         run: npm run -s architecture:check
       - name: Production build smoke test
