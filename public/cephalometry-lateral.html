@@ -258,7 +258,7 @@ const MEASURES=[
 const EXAMPLE={SNA:84,SNB:78,ANB:6,SNPP:7,SNGn:70,EF:86,SNPloc:17,PPGoGn:28,SNGoGn:37};
 const BYID=Object.fromEntries(MEASURES.map(m=>[m.id,m]));
 
-let state=fresh(false); // Patient-scoped data is supplied by Denty, never browser-local records.
+let state=fresh(true); // Demo values are explicitly marked as examples, not persisted as patient observations.
 function fresh(example){
   return {example:!!example, custom:[],
     rows:Object.fromEntries(MEASURES.map(m=>[m.id,{value:example?String(EXAMPLE[m.id]):'',norm:String(m.norm),sd:String(m.sd),interp:'',manual:false}]))};
@@ -443,7 +443,7 @@ window.addEventListener('message',event=>{
         norm:String(r.norm??'').slice(0,30),sd:String(r.sd??'').slice(0,30),
         interp:String(r.interp??'').slice(0,2000),manual:r.manual===true,
       })):[];
-    }else{state=fresh(false);}
+    }else{state=fresh(true);}
     renderTable();paintLines();
   }
 });
