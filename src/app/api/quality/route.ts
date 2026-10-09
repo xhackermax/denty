@@ -126,6 +126,10 @@ async function handle(request: Request) {
         if (status) z.enum(["OPEN", "INVESTIGATING", "RESOLVED", "CLOSED"]).parse(status);
         return response(200, await quality.incidents(patientId, doctorId, status), headers);
       }
+      if (kind === "patient-appointments") {
+        const patientId = uuid.parse(url.searchParams.get("patientId"));
+        return response(200, await quality.patientAppointments(patientId), headers);
+      }
       if (kind === "patients")
         return response(200, { items: await quality.patients(url.searchParams.get("search") ?? "") }, headers);
       if (kind === "staff") return response(200, { items: await quality.doctors() }, headers);
