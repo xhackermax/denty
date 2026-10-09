@@ -44,6 +44,8 @@ on:
       - "supabase/migrations/*numeric_patient_record_numbers.sql"
       - "src/features/parity/modules/documents-module.tsx"
       - "src/server/denty-supabase/clinical-repository.ts"
+      - "src/server/denty-supabase/__tests__/**"
+      - "scripts/tests/supabase-persistence-coverage.mjs"
       - "supabase/migrations/*budget*.sql"
       - "supabase/migrations/*clinic_contact*.sql"
       - "scripts/tests/clinical-consent-gate-regression.mjs"
