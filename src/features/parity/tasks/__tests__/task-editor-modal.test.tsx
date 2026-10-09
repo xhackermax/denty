@@ -45,6 +45,18 @@ describe("task editor assignment", () => {
     expect(await screen.findByRole("combobox", { name: "Asignar a" })).toBeVisible();
   });
 
+  it("incluye las instrucciones para el destinatario en la tarea creada", async () => {
+    const onSubmit = open(team);
+    fireEvent.change(screen.getByRole("textbox", { name: "Instrucciones para el destinatario" }), {
+      target: { value: "Llamar al paciente y confirmar la cita del jueves." },
+    });
+    submitWithTitle("Confirmar cita");
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      description: "Llamar al paciente y confirmar la cita del jueves.",
+    }));
+  });
+
   it("permite autoasignarse con un botón", async () => {
     const onSubmit = open(team);
     fireEvent.click(await screen.findByRole("button", { name: "Asignármela a mí" }));
