@@ -7,6 +7,7 @@ export const CLINICAL_DOCUMENTS_BUCKET = "clinical-documents";
 export const LAB_ATTACHMENTS_BUCKET = "lab-attachments";
 export const PRESCRIPTION_EVIDENCE_BUCKET = "prescription-evidence";
 export const STAFF_DOCUMENTS_BUCKET = "staff-documents";
+export const CV_ARCHIVE_BUCKET = "cv-archive";
 
 const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const DOCUMENT_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
@@ -98,6 +99,13 @@ export class StorageRepository {
     if (file.size <= 0 || file.size > 10 * 1024 * 1024)
       throw new Error("El archivo debe ocupar entre 1 byte y 10 MB.");
     return this.upload(STAFF_DOCUMENTS_BUCKET, clinicId, staffMemberId, file);
+  }
+
+  async uploadCandidateCv(clinicId: string, file: File): Promise<StoredObject> {
+    if (file.type !== "application/pdf") throw new Error("El currículum debe ser un PDF.");
+    if (file.size < 1 || file.size > 4 * 1024 * 1024)
+      throw new Error("El PDF debe ocupar entre 1 byte y 4 MB.");
+    return this.upload(CV_ARCHIVE_BUCKET, clinicId, "archive", file);
   }
 
   async uploadPrescriptionSignature(
