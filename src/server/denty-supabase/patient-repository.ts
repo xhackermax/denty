@@ -13,7 +13,7 @@ import type {
   PersistedPeriodontalMeasurement,
 } from "@/shared/api/schemas/clinical";
 
-import { nextRecordNumber } from "./record-number";
+import { nextRecordNumber, normalizeImportedRecordNumber } from "./record-number";
 import { SupabaseRestError, type SupabaseRestClient } from "../supabase/rest-client";
 import { currentOdontogramVersion } from "./odontogram-version";
 
@@ -251,15 +251,23 @@ export class PatientRepository {
         medical_profile: payload.medicalProfile ?? {},
       });
     let row: PatientRow;
-    if (payload.recordNumber) {
-      row = await insertPatient(payload.recordNumber);
+    if (payload.recordNumber?.trim()) {
+      const supplied = payload.recordNumber.trim();
+      if (/^DNT-/i.test(supplied) && !/^DNT-[0-9]{1,12}$/i.test(supplied)) {
+        throw new SupabaseRestError(
+          "Las fichas nuevas deben usar números sin el prefijo DNT-. Revisa el número importado.",
+          400,
+          { code: "INVALID_RECORD_NUMBER" },
+        );
+      }
+      row = await insertPatient(normalizeImportedRecordNumber(supplied));
     } else {
       // Two concurrent creations can pick the same number; the unique index rejects one, so retry.
       for (let attempt = 0; ; attempt++) {
         const existing = await this.client.selectAll<{ record_number: string }>("patients", {
           select: "record_number",
           clinic_id: `eq.${clinicId}`,
-          record_number: "match.^(DNT-)?[0-9]{1,9}$",
+          record_number: "match.^(DNT-)?[0-9]{1,12}$",
         });
         try {
           row = await insertPatient(nextRecordNumber(existing.map((p) => p.record_number)));
@@ -576,7 +584,7 @@ function rowToPatient(row: PatientRow): Patient {
     id: row.id,
     clinicId: row.clinic_id,
     legacyId: row.legacy_id,
-    recordNumber: nullableText(row.record_number) ?? `DNT-${row.id.slice(0, 8).toUpperCase()}`,
+    recordNumber: nullableText(row.record_number) ?? "Sin número",
     firstName: nullableText(row.first_name) ?? "Paciente",
     lastName: nullableText(row.last_name) ?? "Sin nombre",
     dni: nullableText(row.dni),
