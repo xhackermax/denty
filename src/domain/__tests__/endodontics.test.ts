@@ -70,7 +70,7 @@ it("shows only one accented entry per endodontic diagnosis", () => {
   expect(APICAL_DIAGNOSES).toContain("Periodontitis apical asintomática");
   expect(APICAL_DIAGNOSES).toContain("Osteítis condensante");
   expect(APICAL_DIAGNOSES).toContain("Absceso apical crónico");
-  const canonical = (label: string) => label.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+  const canonical = (label: string) => label.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   expect(new Set(APICAL_DIAGNOSES.map(canonical)).size).toBe(APICAL_DIAGNOSES.length);
   expect(new Set(PULPAL_DIAGNOSES.map(canonical)).size).toBe(PULPAL_DIAGNOSES.length);
 });
