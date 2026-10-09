@@ -64,6 +64,13 @@ function implantForServer(item: ImplantPayload) {
   };
 }
 export const qualityApi = {
+  completeClinicalVisit: (appointmentId: string, expectedVersion: number,
+    markTreatmentCompleted: boolean) =>
+    request<{ appointment: { id: string; status: string; version: number } }>(qs("visit-finalize"), {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ appointmentId, expectedVersion, markTreatmentCompleted }),
+    }),
+
   completeImplantAppointment: (appointmentId: string, expectedVersion: number,
     outcomes: readonly ImplantPayload[]) =>
     request<{ appointment: { id: string; status: string; version: number } }>(qs("implant-finalize"), {
