@@ -43,7 +43,7 @@ export function DoctorAnalysisPage() {
   const query = useQuery({
     queryKey: [...dentyQueryKeys.analytics.root, "doctor-quality", range],
     queryFn: () => qualityApi.doctors(range),
-    enabled: Boolean(activeClinicId) && permissions.includes("finance.read") &&
+    enabled: Boolean(activeClinicId) && permissions.includes("analysis.read") &&
       startDate <= endDate,
   });
   const all = query.data?.items ?? [];
@@ -72,15 +72,15 @@ export function DoctorAnalysisPage() {
           data={all.map(d=>({value:d.doctorId,label:d.doctorName}))} />
       </Group>
     </section>
-    {!permissions.includes("finance.read") &&
-      <Alert color="orange">Necesitas permiso de lectura financiera para evaluar indicadores de los doctores.</Alert>}
+    {!permissions.includes("analysis.read") &&
+      <Alert color="orange">Necesitas permiso de análisis para consultar los indicadores de los doctores.</Alert>}
     {query.isLoading && <Loader aria-label="Cargando estadísticas de doctores"/>}
     {query.isError && <Alert color="red">No se pudieron cargar los indicadores desde Supabase.
       Comprueba los permisos y la conexión de la clínica.</Alert>}
     {query.data && <>
       <Alert color="blue" title="Criterio de contabilización">
         {query.data.warning} Las horas se calculan solo con pares de fichajes válidos.
-        El ticket medio corresponde a ingresos atribuidos por cita, no a cobros sin asignar.
+        El ticket medio procede de facturas emitidas vinculadas al tratamiento. No equivale al dinero cobrado.
       </Alert>
       <SimpleGrid cols={{base:2,md:4}}>
         <section><Text size="xs" c="dimmed">Citas terminadas</Text><Text size="xl" fw={800}>{visits}</Text></section>
@@ -94,7 +94,7 @@ export function DoctorAnalysisPage() {
             <Table.Thead><Table.Tr>
               <Table.Th>Doctor</Table.Th><Table.Th>Citas</Table.Th>
               <Table.Th>Pacientes</Table.Th><Table.Th>Tratamientos</Table.Th>
-              <Table.Th>Ticket atribuido</Table.Th><Table.Th>Horas fichadas</Table.Th>
+              <Table.Th>Ticket medio facturado</Table.Th><Table.Th>Horas fichadas</Table.Th>
               <Table.Th>Implantes</Table.Th><Table.Th>Incidencias</Table.Th>
             </Table.Tr></Table.Thead>
             <Table.Tbody>{shown.map(d=><Table.Tr key={d.doctorId}>
