@@ -75,6 +75,20 @@ export class QualityRepository {
     };
   }
 
+  async incidentHistory(incidentId: string) {
+    const found = await this.db.select<Row>("clinical_incidents", {
+      select: "id", ...this.where(), id: `eq.${incidentId}`,
+    });
+    if (!found.length) throw new Error("Incidencia no encontrada.");
+    return {
+      items: await this.db.select<Row>("clinical_incident_events", {
+        select: "id,event_kind,previous_status,new_status,corrective_action,occurred_at",
+        ...this.where(), incident_id: `eq.${incidentId}`,
+        order: "occurred_at.desc", limit: 100,
+      }),
+    };
+  }
+
   async createIncident(data: {
     patientId: string; appointmentId?: string | null; doctorId?: string | null;
     title: string; description: string; category: string; cause: string;
