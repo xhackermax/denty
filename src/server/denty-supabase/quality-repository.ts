@@ -1,5 +1,6 @@
 import { doctorScorecard } from "@/domain/doctor-performance";
 import { attributedInvoicedCents } from "@/domain/doctor-invoice-attribution";
+import { verifiedAttendanceHours, type AttendancePunch } from "@/domain/verified-attendance";
 import type { SupabaseRestClient } from "@/server/supabase/rest-client";
 
 type Row = Record<string, unknown>;
@@ -214,29 +215,16 @@ export class QualityRepository {
           doctorId: id(i, "doctor_id"), outcome: id(i, "outcome") as "PLACED" | "FAILED" | "DEFERRED",
           failureKind: i.failure_kind ? id(i, "failure_kind") : null,
         })));
-      const doctorPunches = punches.filter(p => id(p, "staff_member_id") === doctorId);
-      const punchInPeriod = doctorPunches.filter(p => beforeEnd(p, "occurred_at"));
-      const replaced = new Set(doctorPunches.map(p => id(p, "corrects_punch_id")).filter(Boolean));
-      const effective = punchInPeriod.filter(p => !replaced.has(id(p, "id")))
-        .sort((a, b) => id(a, "occurred_at").localeCompare(id(b, "occurred_at")));
-      let started: number | null = null;
-      let totalMs = 0;
-      let anomaly = false;
-      for (const punch of effective) {
-        const at = Date.parse(id(punch, "occurred_at"));
-        if (punch.punch_type === "IN") {
-          if (started !== null) anomaly = true;
-          started = at;
-        } else if (started !== null && at > started) {
-          totalMs += at - started; started = null;
-        } else { anomaly = true; }
-      }
-      if (started !== null) anomaly = true;
+      const doctorPunches = punches.filter(p => id(p, "staff_member_id") === doctorId)
+        .map(p => ({
+          id: id(p, "id"), staff_member_id: id(p, "staff_member_id"),
+          punch_type: id(p, "punch_type"), occurred_at: id(p, "occurred_at"),
+          corrects_punch_id: p.corrects_punch_id ? id(p, "corrects_punch_id") : null,
+        } satisfies AttendancePunch));
+      const attendance = verifiedAttendanceHours(doctorPunches, end);
       return { ...card, doctorName: id(s, "display_name"),
-        attendanceHours: effective.length && !anomaly
-          ? Math.round(totalMs / 36000) / 100 : null,
-        attendanceNote: !effective.length ? "Sin fichajes"
-          : anomaly ? "Fichajes incompletos: horas no calculables" : null,
+        attendanceHours: attendance.hours,
+        attendanceNote: attendance.note,
       };
     });
     return { items, warning: "Los tratamientos proceden solo de ejecuciones confirmadas, nunca de planes pendientes. El ticket refleja facturación emitida vinculada al tratamiento (no cobros); los importes sin vínculo verificable no se estiman. Las horas de fichaje corresponden a toda la clínica, ya que el fichaje no identifica sede; con filtros de sede no se desglosan." };
