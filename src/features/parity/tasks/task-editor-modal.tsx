@@ -60,7 +60,9 @@ function TaskForm({
   const [assigneeStaffId, setAssigneeStaffId] = useState<string | null>(
     task?.assigneeStaffId ?? null,
   );
-  const members = team?.items ?? [];
+  const members = (team?.items ?? []).filter((member) =>
+    !team?.assignableStaffIds || team.assignableStaffIds.includes(member.id),
+  );
   const durationMin = typeof duration === "number" ? duration : Number(duration);
   const valid = title.trim().length > 0 && Number.isFinite(durationMin) && durationMin >= 1;
 
