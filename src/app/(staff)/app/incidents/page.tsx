@@ -6,5 +6,5 @@ interface PageProps {
 
 export default async function IncidentsRoute({ searchParams }: PageProps) {
   const { patientId, doctorId } = await searchParams;
-  return <IncidentsPage initialPatientId={patientId} initialDoctorId={doctorId} />;
+  return <IncidentsPage {...(patientId ? { initialPatientId: patientId } : {})} {...(doctorId ? { initialDoctorId: doctorId } : {})} />;
 }
