@@ -50,7 +50,7 @@ function createSupabaseFetch() {
       const patient: StoredPatient = {
         id: "patient-1",
         clinic_id: clinicId,
-        record_number: body.record_number ?? "DNT-000001",
+        record_number: body.record_number ?? "00001",
         first_name: body.first_name ?? "",
         last_name: body.last_name ?? "",
         dni: body.dni ?? null,
@@ -221,7 +221,7 @@ describe("Supabase-backed patient API", () => {
       clinicId: "clinic-1",
       firstName: "Lucia",
       lastName: "Perez",
-      recordNumber: expect.any(String),
+      recordNumber: "00001",
       version: 1,
       medicalProfile: {
         dentitionStage: "mixed",
@@ -312,7 +312,7 @@ describe("Supabase-backed patient API", () => {
       items: [
         {
           id: "patient-imported",
-          recordNumber: "DNT-PATIENT-",
+          recordNumber: "Sin número",
           firstName: "Paciente",
           lastName: "Sin nombre",
           dni: null,
