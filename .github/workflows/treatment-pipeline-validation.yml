@@ -10,7 +10,6 @@ on:
       - feat/sidebar-mini-week-agenda
       - fix/agenda-toothbrush-prophylaxis-icon
       - main
-      - fix/patient-record-numbers-numeric
       - security-confirmation-explicit-click
   pull_request:
     paths:
