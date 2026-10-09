@@ -1,18 +1,16 @@
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
-const config = readFileSync(resolve("next.config.ts"), "utf8");
-const worksheet = readFileSync(resolve("public/cephalometry-lateral.html"), "utf8");
-const embed = readFileSync(resolve("src/features/odontogram/cephalometry-editor.tsx"), "utf8");
+const workspace = readFileSync("src/features/odontogram/odontogram-workspace.tsx","utf8");
+const editor = readFileSync("src/features/odontogram/cephalometry-editor.tsx","utf8");
+const diagram = readFileSync("src/features/odontogram/cephalometry-diagram.tsx","utf8");
 
-assert.match(worksheet, /<svg id="ceph"/);
-assert.match(worksheet, /denty:ceph:ready/);
-assert.match(worksheet, /denty:ceph:hydrate/);
-assert.match(embed, /src="\/cephalometry-lateral\.html"/);
-assert.match(config, /source: "\/cephalometry-lateral\.html"/);
-assert.match(config, /CEPHALOMETRY_CONTENT_SECURITY_POLICY/);
-assert.match(config, /"frame-ancestors 'self'"/);
-assert.match(config, /"X-Frame-Options", value: "SAMEORIGIN"/);
-assert.match(config, /"X-Frame-Options", value: "DENY"/);
-console.log("PASS: the worksheet exists, is embedded correctly and has a same-origin-only frame policy.");
+assert.match(workspace, /<CephalometryEditor/);
+assert.match(editor, /<CephalometryDiagram/);
+assert.match(editor, /<table/);
+assert.match(editor, /assessmentType:"LATERAL_CEPHALOMETRY"/);
+assert.match(diagram, /<svg viewBox=/);
+assert.match(diagram, /SNA/);
+assert.match(diagram, /SNGoGn/);
+assert.doesNotMatch(editor, /<iframe|window\\.parent|postMessage|cephalometry-lateral\\.html/);
+console.log("PASS: native cephalometry renders inside the odontogram and preserves structured patient persistence.");
