@@ -132,6 +132,49 @@ describe("SQL persistence torture: isolated original migration functions", () =>
     );
     expect(saved.entities[0]?.id).not.toBe(implantId);
   });
+  it("persists and restores all new clinical attributes through actual SQL JSONB", async () => {
+    const records = [
+      { id: "surgery-16-rog", tooth: "16", entityType: "BONE_GRAFT", status: "rog", active: true,
+        attributes: { procedure: "rog", lifecycle: "PLANIFICADO", label: "Regeneración ósea guiada (ROG)" } },
+      { id: "orthodontic-patient", entityType: "ORTHODONTIC", status: "active", active: true,
+        attributes: { facialProfile: "convexo", facialBiotype: "dolicofacial",
+          appliances: ["expander", "distalizer", "facial_mask", "habit_corrector"],
+          toothMarks: { "16": "bracket" } } },
+      { id: "prosthesis-plan", tooth: "16", arch: "upper", entityType: "PROSTHESIS",
+        status: "prosthesis_pending", active: true,
+        attributes: { support: "implants", prosthesisType: "fixed_hybrid", teethToRestore: 12,
+          implantCount: 6, attachmentCount: 6, attachmentType: "MULTIUNIT" } },
+      { id: "cephalometry", entityType: "ORTHODONTIC", status: "cephalometry", active: true,
+        attributes: { assessmentType: "LATERAL_CEPHALOMETRY",
+          cephalometry: { example: false,
+            rows: { SNA: { value: "83", norm: "82", sd: "2", interp: "", manual: false },
+                    ANB: { value: "6", norm: "2", sd: "2", interp: "Clase II esquelética", manual: true } },
+            custom: [{ id: "cnew", name: "Wits", value: "3", norm: "0", sd: "2",
+              interp: "", manual: false }] } } },
+      { id: "endo-16", tooth: "16", entityType: "ENDO", status: "diagnosis", active: true,
+        attributes: { pulpalDiagnosis: "Necrosis pulpar",
+          apicalDiagnosis: "Periodontitis apical sintomática",
+          visualCode: "symptomatic_apical_periodontitis" } },
+    ];
+    expect(odontogramBatchSchema.safeParse({ expectedVersion: 1, entities: records }).success).toBe(true);
+    const first = await save(1, records);
+    expect(first.entities).toHaveLength(records.length);
+    const persisted = await db.query<{
+      entity_type: string; status: string; attributes_json: Record<string, unknown>;
+    }>("select entity_type,status,attributes_json from dental_entities where patient_id=$1 and active order by status", [patient]);
+    for (const record of records) {
+      const row = persisted.rows.find((entry) =>
+        entry.entity_type === record.entityType && entry.status === record.status);
+      expect(row?.attributes_json).toEqual(record.attributes);
+    }
+    // Re-saving a fully hydrated chart must not strip non-tooth-scoped information.
+    const second = await save(first.version, records);
+    expect(second.entities).toHaveLength(records.length);
+    const savedCeph = await db.query<{ attributes_json: Record<string, unknown> }>(
+      "select attributes_json from dental_entities where patient_id=$1 and active and status='cephalometry'", [patient]);
+    expect(savedCeph.rows[0]?.attributes_json).toEqual(records[3]!.attributes);
+  });
+
   it("RG014 SQL preserves implant-component parent relationship", async () => {
     const saved = await save(1, [
       implant,

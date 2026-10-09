@@ -28,10 +28,11 @@ export const ENDODONTIC_TREATMENTS = [
 ] as const;
 interface EndodonticPanelProps {
   selectedTooth: string;
+  entities?: readonly DentalEntity[];
   readOnly: boolean;
   onCommit: (entity: DentalEntity) => void;
 }
-export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: EndodonticPanelProps) {
+export function EndodonticPanel({ selectedTooth, entities = [], readOnly, onCommit }: EndodonticPanelProps) {
   const mouth = useMouthState();
   const blocked = readOnly || !isEndoCandidate(mouth, selectedTooth);
   const [pulpalDiagnosis, setPulpalDiagnosis] = useState<PulpalDiagnosis>("Necrosis pulpar");
@@ -93,7 +94,7 @@ export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: Endodonti
           disabled={blocked}
           onClick={() =>
             onCommit({
-              id: `endo-diagnosis-${selectedTooth}`,
+              id: entities.find((e) => e.active && e.tooth === selectedTooth && e.entityType === "ENDO" && e.status === "diagnosis")?.id ?? `endo-diagnosis-${selectedTooth}`,
               tooth: selectedTooth,
               entityType: "ENDO",
               status: "diagnosis",
@@ -123,7 +124,7 @@ export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: Endodonti
           disabled={blocked}
           onClick={() =>
             onCommit({
-              id: `endo-treatment-${selectedTooth}`,
+              id: entities.find((e) => e.active && e.tooth === selectedTooth && e.entityType === "ENDO" && e.status === treatment && e.attributes?.treatment !== undefined)?.id ?? `endo-treatment-${selectedTooth}`,
               tooth: selectedTooth,
               entityType: "ENDO",
               status: treatment,

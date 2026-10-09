@@ -122,9 +122,11 @@ export const PEDIATRIC_TOOTH_STATUSES = [
 export type PediatricToothStatus = (typeof PEDIATRIC_TOOTH_STATUSES)[number];
 export type OrthodonticClass = "I" | "II" | "III";
 export type OrthodonticAppliance =
-  "brackets" | "aligners" | "retainer" | "expander" | "lingual_arch" | "space_maintainer" | "miniscrews";
+  "brackets" | "aligners" | "retainer" | "expander" | "lingual_arch" | "space_maintainer" | "miniscrews" | "distalizer" | "facial_mask" | "habit_corrector";
 
 export interface OrthodonticAttributes {
+  facialProfile?: "convexo" | "recto" | "concavo";
+  facialBiotype?: "mesofacial" | "dolicofacial" | "braquifacial";
   molarClassRight?: OrthodonticClass;
   molarClassLeft?: OrthodonticClass;
   canineClassRight?: OrthodonticClass;

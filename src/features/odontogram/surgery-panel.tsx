@@ -63,7 +63,11 @@ export function SurgeryPanel({
       onCommitBatch(
         procedures
           .filter((item) => item !== "implant_planned")
-          .map((item) => createSurgeryEntity(item, selectedTooth, state, entities, arch)),
+          .map((item) => {
+            const created = createSurgeryEntity(item, selectedTooth, state, entities, arch);
+            const current = entities.find((entity) => entity.active && entity.entityType === created.entityType && entity.status === item && entity.tooth === created.tooth && entity.arch === created.arch);
+            return current ? { ...created, id: current.id } : created;
+          }),
       );
     } catch (error) {
       onWarning(error instanceof Error ? error.message : "No se pudo registrar el procedimiento");

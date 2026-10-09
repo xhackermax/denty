@@ -78,6 +78,7 @@ import {
 } from "@/shared/odontogram/tooth-geometry";
 import { TOOTH_STATE_LABELS as STATE_LABELS } from "@/shared/odontogram/tooth-state-labels";
 import { OrthodonticPanel } from "./orthodontic-panel";
+import { CephalometryEditor } from "./cephalometry-editor";
 import { OrthodonticToothSymbols } from "./orthodontic-tooth-symbols";
 import { PerioHexReadings } from "./perio-hex-readings";
 import { FittedMouthCanvas } from "./fitted-mouth-canvas";
@@ -1645,10 +1646,22 @@ function OdontogramEditor({
             )}
           </details>
         </RetainedFlowStep>
+        <RetainedFlowStep active={inspectorLayer === "ortho" && viewState.visibleLayerIds.includes("ortho")}>
+          <details className={styles.layerEditor}>
+            <summary>Cefalometría lateral · tabla y plantilla interactiva</summary>
+            <CephalometryEditor
+              patientId={patientId}
+              entities={entities}
+              readOnly={historical}
+              onCommit={commit}
+            />
+          </details>
+        </RetainedFlowStep>
         <RetainedFlowStep active={inspectorLayer === "endo" && viewState.visibleLayerIds.includes("endo")}>
           <details className={styles.layerEditor} open>
             <summary>Editar endodoncia</summary>
             <EndodonticPanel
+              entities={entities}
               selectedTooth={selectedTooth}
               readOnly={historical}
               onCommit={commit}
@@ -1677,6 +1690,7 @@ function OdontogramEditor({
                 <details className={styles.layerEditor} open>
                   <summary>Editar prótesis sobre dientes / implantes</summary>
                   <ProstheticsPanel
+                    entities={entities}
                     selectedTooth={selectedTooth}
                     readOnly={historical}
                     onCommit={commit}

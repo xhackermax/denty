@@ -1,0 +1,455 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Cefalometría lateral</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: herramienta de dos zonas — tabla de medidas a la izquierda, calco cefalométrico (negatoscopio) a la derecha; en móvil se apilan */
+:root{
+  --bg:#f2f4f6; --surface:#ffffff; --plate:#eaf0f6; --ink:#17202a; --muted:#5a6672; --rule:#d5dce3;
+  --accent:#1c58b0; --accent-soft:#e2ebf8; --anat:#2a323c; --trace:#8a96a3;
+  --ok:#1d7548; --ok-soft:#e1f2e8; --warn:#b2500b; --warn-soft:#fbeadb;
+  --f-body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-num:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1116; --surface:#151b22; --plate:#101820; --ink:#e5eaf0; --muted:#95a1ae; --rule:#29323c;
+  --accent:#78a8ff; --accent-soft:#1a2940; --anat:#c6cfd9; --trace:#6b7784;
+  --ok:#62cf93; --ok-soft:#14301f; --warn:#f3a062; --warn-soft:#3a2414; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0d1116; --surface:#151b22; --plate:#101820; --ink:#e5eaf0; --muted:#95a1ae; --rule:#29323c;
+  --accent:#78a8ff; --accent-soft:#1a2940; --anat:#c6cfd9; --trace:#6b7784;
+  --ok:#62cf93; --ok-soft:#14301f; --warn:#f3a062; --warn-soft:#3a2414; color-scheme:dark;}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:1380px;margin:0 auto;padding-inline:20px;padding-block:24px 40px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:18px}
+h1{font-size:1.75rem;line-height:1.15;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.sub{margin:4px 0 0;color:var(--muted);max-width:62ch}
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;font-size:.9rem;border:1px solid var(--rule);background:var(--surface);color:var(--ink);padding:7px 12px;border-radius:7px;cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button:focus-visible,input:focus-visible,.callout:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+button.primary:hover{color:var(--surface);filter:brightness(1.08)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:1040px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:10px;min-width:0}
+.panel-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;padding:14px 16px 10px;border-bottom:1px solid var(--rule)}
+.panel-head h2{margin:0;font-size:1rem;letter-spacing:.02em}
+.zone{font-family:var(--f-num);font-size:.75rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+
+.banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:12px 16px 0;padding:9px 12px;background:var(--accent-soft);border-radius:7px;font-size:.9rem}
+.banner button{padding:4px 10px}
+
+.tablewrap{overflow-x:auto;padding:4px 0 6px}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{text-align:left;vertical-align:middle;padding:8px 10px;border-bottom:1px solid var(--rule)}
+thead th{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;padding-top:12px}
+tbody tr{transition:background .15s}
+tbody tr.active{background:var(--accent-soft)}
+th[scope=row]{font-weight:400;min-width:150px}
+.mname{display:block;font-family:var(--f-num);font-weight:600;font-size:.98rem}
+.mdesc{display:block;color:var(--muted);font-size:.78rem;line-height:1.3}
+.nodiagram{display:inline-block;margin-top:2px;font-size:.72rem;color:var(--muted);font-style:italic}
+input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--rule);border-radius:6px;padding:6px 8px;min-width:0}
+input.num{font-family:var(--f-num);width:72px;text-align:right;font-variant-numeric:tabular-nums}
+input.sd{width:52px}
+input.val{width:80px;font-weight:600;background:var(--surface);border-color:var(--trace)}
+input.name{font-family:var(--f-num);font-weight:600;width:130px}
+input.interp{width:100%;min-width:210px}
+input.interp.auto{color:var(--muted)}
+.unit{color:var(--muted);margin-left:3px;font-family:var(--f-num)}
+.pm{color:var(--muted);margin:0 3px}
+.dev{white-space:nowrap;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.devnum{display:inline-block;min-width:3.6em;text-align:right}
+.chip{display:inline-block;margin-left:8px;font-family:var(--f-body);font-size:.74rem;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:.02em}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.hi,.chip.lo{background:var(--warn-soft);color:var(--warn)}
+.del{padding:3px 8px;font-size:.8rem;margin-left:6px}
+.tablefoot{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:12px 16px 16px}
+.note{color:var(--muted);font-size:.8rem;max-width:60ch;margin:0}
+
+.diagram-panel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+@media (max-width:1040px){.diagram-panel{position:static}}
+.plate{background:var(--plate);border-radius:0 0 10px 10px;overflow-x:auto}
+.plate svg{display:block;width:100%;height:auto;min-width:340px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.8rem;color:var(--muted);align-items:center}
+.legend label{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--ink)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+
+/* SVG */
+.anat path,.anat circle{fill:none;stroke:var(--anat);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ref{stroke:var(--trace);stroke-width:1.4;stroke-dasharray:6 5;fill:none}
+.tline{stroke:var(--trace);stroke-width:1.3;stroke-dasharray:5 6;fill:none;opacity:.55;transition:opacity .15s,stroke .15s}
+.tline.on{stroke:var(--accent);opacity:.85;stroke-dasharray:none;stroke-width:1.8}
+.tline.active{stroke:var(--accent);opacity:1;stroke-dasharray:none;stroke-width:3}
+.lp circle{fill:var(--surface);stroke:var(--anat);stroke-width:1.6;transition:fill .15s}
+.lp circle.solid{fill:var(--anat)}
+.lp.active circle{fill:var(--accent);stroke:var(--accent);r:7}
+.lp text{fill:var(--ink);font-family:var(--f-num);font-size:19px;font-weight:500}
+.lp.active text{fill:var(--accent);font-weight:600}
+.lp .halo{stroke:var(--plate);stroke-width:5;paint-order:stroke}
+.meas{transition:opacity .15s}
+.meas .arc{fill:none;stroke:var(--trace);stroke-width:1.6}
+.meas .ghost{stroke:var(--trace);stroke-width:1.3;stroke-dasharray:3 5;fill:none;opacity:0}
+.meas .leader{stroke:var(--trace);stroke-width:1.1;fill:none}
+.meas.has .arc{stroke:var(--accent);stroke-width:2.2}
+.meas.has .leader{stroke:var(--accent);opacity:.7}
+.meas.active .arc{stroke-width:3.6}
+.meas.active .ghost{opacity:1;stroke:var(--accent)}
+.meas.active .leader{opacity:1;stroke-width:2}
+.callout{cursor:pointer}
+.callout rect{fill:var(--surface);stroke:var(--rule);stroke-width:1.4}
+.meas.has .callout rect{stroke:var(--accent)}
+.meas.has.st-hi .callout rect,.meas.has.st-lo .callout rect{stroke:var(--warn)}
+.meas.has.st-ok .callout rect{stroke:var(--ok)}
+.meas.active .callout rect{stroke-width:3}
+.callout .cn{font-family:var(--f-num);font-size:15px;font-weight:600;fill:var(--muted)}
+.callout .cv{font-family:var(--f-num);font-size:25px;font-weight:600;fill:var(--ink)}
+.meas:not(.has) .callout .cv{fill:var(--trace)}
+.callout .cd{font-family:var(--f-num);font-size:14px;fill:var(--muted)}
+.meas.st-hi .callout .cd,.meas.st-lo .callout .cd{fill:var(--warn)}
+.meas.st-ok .callout .cd{fill:var(--ok)}
+svg.solo .meas:not(.active){opacity:.12}
+svg.solo .tline:not(.active){opacity:.15}
+.arrowA{fill:var(--accent)} .arrowM{fill:var(--trace)}
+.copyfb{width:100%;margin:0 16px 12px;font-family:var(--f-num);font-size:.8rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:560px){.wrap{padding-inline:16px} h1{font-size:1.45rem}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Cefalometría lateral</h1>
+      <p class="sub">Escribe los valores medidos en la tabla. La plantilla los muestra junto a cada ángulo, marca los puntos que intervienen y calcula la desviación respecto a la norma.</p>
+    </div>
+    <div class="tools">
+      <button id="btn-copy" type="button">Copiar resultados</button>
+      <button id="btn-clear" type="button">Vaciar valores</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- A. Tabla -->
+    <section class="panel" aria-labelledby="h-tabla">
+      <div class="panel-head"><h2 id="h-tabla">Medidas cefalométricas</h2><span class="zone">A · Tabla editable</span></div>
+      <div class="banner" id="banner" hidden>
+        <span>Se muestran <strong>valores de ejemplo</strong>. Sustitúyelos por los del paciente.</span>
+        <button id="btn-clear2" type="button">Empezar en blanco</button>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Medida</th><th>Valor</th><th>Norma ± DE</th><th>Desviación</th><th>Interpretación</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <textarea id="copyfb" class="copyfb" rows="6" hidden aria-label="Resultados para copiar"></textarea>
+      <div class="tablefoot">
+        <button id="btn-add" type="button" class="primary">+ Añadir medida</button>
+        <p class="note">Desviación = valor − norma. La interpretación se rellena sola según la desviación estándar; si la escribes tú, se respeta tu texto (bórrala para volver a la automática). Normas orientativas (Steiner, Ricketts, Björk-Jarabak): ajústalas a tu protocolo.</p>
+      </div>
+    </section>
+
+    <!-- B. Plantilla -->
+    <section class="panel diagram-panel" aria-labelledby="h-plantilla">
+      <div class="panel-head">
+        <h2 id="h-plantilla">Plantilla cefalométrica</h2>
+        <div class="legend">
+          <span><span class="sw" style="background:var(--ok)"></span>En norma</span>
+          <span><span class="sw" style="background:var(--warn)"></span>Fuera de norma</span>
+          <label><input type="checkbox" id="solo"> Solo la seleccionada</label>
+        </div>
+      </div>
+      <div class="plate">
+        <svg id="ceph" viewBox="-178 -6 994 760" role="img" aria-label="Trazado cefalométrico lateral con puntos S, N, Ba, S1, Pt, ENP, ENA, A, B, Pg, Gn, Me, Go y los ángulos de la tabla">
+          <defs>
+            <marker id="arA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowA" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="arM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="arrowM" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+          <g class="anat">
+            <circle cx="35" cy="300" r="21"/>
+            <!-- perfil blando: frente, nariz, labios, mentón, cuello -->
+            <path d="M535,7 C531,40 528,90 530,125 C532,160 540,182 556,200 C578,222 605,250 620,280 C630,300 632,318 624,330 C614,345 594,352 578,372 C572,385 574,398 582,410 C592,425 596,440 588,452 C580,462 566,470 556,477 C566,482 574,490 576,503 C578,516 570,522 560,528 C548,540 540,556 538,580 C536,610 535,632 524,652 C512,672 490,688 460,696 C420,704 380,700 340,704 C310,708 296,716 285,727"/>
+            <!-- hueso frontal y nasal -->
+            <path d="M509,50 C511,75 510,100 505,117"/>
+            <path d="M505,117 C510,135 525,160 545,190 C525,172 498,160 480,150 C467,142 462,132 468,125 C478,119 494,121 505,117 Z"/>
+            <!-- órbita -->
+            <path d="M400,130 C404,165 405,200 415,225 C425,248 445,250 468,226"/>
+            <!-- silla turca, clivus -->
+            <path d="M110,199 C114,190 118,182 122,180 C126,186 126,198 134,206 C142,214 158,212 164,204 C169,196 168,184 172,178 L285,110"/>
+            <path d="M285,110 C277,140 274,158 268,172 C252,215 205,252 160,280 C120,305 88,335 65,374"/>
+            <path d="M110,199 C106,240 92,285 65,374"/>
+            <!-- fisura pterigomaxilar -->
+            <path d="M256,241 C249,241 245,249 245,262 C245,284 251,306 258,327 C260,305 264,282 266,262 C267,249 263,241 256,241 Z"/>
+            <!-- paladar -->
+            <path d="M248,365 C300,360 380,355 434,349 Q446,346 448,330 Q451,345 464,346 C485,347 500,347 512,348"/>
+            <path d="M248,366 C262,370 320,366 360,368 C390,372 410,384 425,398 C440,412 458,425 472,432"/>
+            <path d="M512,348 C506,358 502,368 501,380 C502,395 505,408 509,422"/>
+            <!-- mandíbula -->
+            <path d="M92,330 C104,338 110,350 112,370 C114,410 118,460 131,501 C140,520 150,530 165,537 C220,558 280,580 340,606 C370,620 400,645 424,665"/>
+            <path d="M424,665 C430,675 440,679 450,677 C457,675 461,671 463,668 C469,662 473,655 474,646 C475,632 474,615 474,600 C475,585 479,570 483,558"/>
+            <path d="M424,665 C418,650 416,628 420,605 C424,590 434,578 452,566"/>
+            <!-- incisivos -->
+            <path d="M462,360 C470,358 480,362 490,378 C500,395 510,415 520,440 C527,456 532,470 528,478 C522,482 512,478 500,470 C490,463 480,455 474,440 C468,425 465,405 460,385 C458,372 457,364 462,360 Z"/>
+            <path d="M452,588 C452,570 458,555 463,543 C468,525 474,505 482,490 C487,480 491,474 497,471 C503,469 507,475 506,486 C505,505 500,520 494,530 C489,545 484,555 482,560 C475,570 462,580 452,588 Z"/>
+            <!-- primeros molares -->
+            <path d="M318,368 C316,390 316,410 312,428 C305,436 302,446 306,456 C314,462 322,458 328,456 C334,462 344,464 350,458 C356,462 366,460 368,452 C370,442 366,432 360,426 C358,405 360,385 362,368 C356,368 352,372 350,376 L345,390 L340,376 C336,370 330,368 318,368 Z"/>
+            <path d="M298,462 C304,455 316,456 322,463 C330,457 342,459 348,466 C356,460 366,461 368,467 C366,480 360,490 357,500 C354,520 352,540 345,565 C340,573 330,574 326,566 C325,548 330,532 322,520 C314,528 312,545 306,558 C302,566 292,566 288,556 C286,535 290,515 292,500 C294,485 296,472 298,462 Z"/>
+          </g>
+          <line class="ref" x1="148" y1="190" x2="184" y2="368"/>
+          <g id="tlines"></g>
+          <g id="meas"></g>
+          <g id="lpoints"></g>
+        </svg>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+const P={S:[148,190],N:[505,117],Ba:[65,374],S1:[183,367],Pt:[255,242],ENP:[248,365],ENA:[512,348],
+  A:[501,380],B:[474,600],Pg:[474,646],Gn:[463,668],Me:[424,665],Go:[131,501]};
+const Pm=[300,456], Pa=[516,476]; // plano oclusal (molar / incisivo)
+const sub=(a,b)=>[b[0]-a[0],b[1]-a[1]];
+function inter(a,b,c,d){const r=sub(a,b),s=sub(c,d),den=r[0]*s[1]-r[1]*s[0];const t=((c[0]-a[0])*s[1]-(c[1]-a[1])*s[0])/den;return[a[0]+t*r[0],a[1]+t*r[1]];}
+const X=inter(P.Ba,P.N,P.Pt,P.Gn); // centro del cráneo (Ricketts)
+
+// Líneas / planos: [desde, hasta, prolongación inicio, prolongación fin]
+const LINES={
+  SN:[P.S,P.N,40,40], NA:[P.N,P.A,0,25], NB:[P.N,P.B,0,25], PP:[P.ENP,P.ENA,140,25],
+  GoGn:[P.Go,P.Gn,30,30], Ploc:[Pm,Pa,0,0], SGn:[P.S,P.Gn,0,20], BaN:[P.Ba,P.N,0,20], PtGn:[P.Pt,P.Gn,30,20]
+};
+
+// Medidas con trazado. Para ampliar: añade un objeto aquí.
+const MEASURES=[
+ {id:'SNA',name:'SNA',desc:'Posición sagital del maxilar',norm:82,sd:2,lines:['SN','NA'],pts:['S','N','A'],
+  v:P.N,d1:sub(P.N,P.S),d2:sub(P.N,P.A),r:52,side:'R',y:14,
+  t:{ok:'Maxilar en posición normal',hi:'Maxilar protruido (prognatismo maxilar)',lo:'Maxilar retruido'}},
+ {id:'SNB',name:'SNB',desc:'Posición sagital de la mandíbula',norm:80,sd:2,lines:['SN','NB'],pts:['S','N','B'],
+  v:P.N,d1:sub(P.N,P.S),d2:sub(P.N,P.B),r:92,side:'R',y:88,
+  t:{ok:'Mandíbula en posición normal',hi:'Mandíbula protruida',lo:'Mandíbula retruida'}},
+ {id:'ANB',name:'ANB',desc:'Relación intermaxilar sagital',norm:2,sd:2,lines:['NA','NB'],pts:['N','A','B'],
+  v:P.N,d1:sub(P.N,P.A),d2:sub(P.N,P.B),r:175,side:'R',y:162,
+  t:{ok:'Clase I esquelética',hi:'Clase II esquelética',lo:'Clase III esquelética'}},
+ {id:'SNPP',name:'SN.PP',desc:'Inclinación del plano palatino',norm:8,sd:3,lines:['SN','PP'],pts:['S','N','ENP','ENA'],
+  v:P.S,d1:sub(P.S,P.N),d2:sub(P.ENP,P.ENA),ghost:2,r:125,side:'L',y:40,
+  t:{ok:'Plano palatino con inclinación normal',hi:'Plano palatino rotado en sentido horario',lo:'Plano palatino rotado en sentido antihorario'}},
+ {id:'SNGn',name:'SN.Gn',desc:'Eje Y de crecimiento (S-Gn)',norm:67,sd:3,lines:['SN','SGn'],pts:['S','N','Gn'],
+  v:P.S,d1:sub(P.S,P.N),d2:sub(P.S,P.Gn),r:58,side:'L',y:118,
+  t:{ok:'Dirección de crecimiento equilibrada',hi:'Crecimiento vertical (rotación horaria)',lo:'Crecimiento horizontal (rotación antihoraria)'}},
+ {id:'EF',name:'Eje facial',desc:'Ricketts: Ba-N / Pt-Gn',norm:90,sd:3,lines:['BaN','PtGn'],pts:['Ba','N','Pt','Gn'],
+  v:X,d1:sub(X,P.Ba),d2:sub(X,P.Gn),r:42,side:'L',y:238,
+  t:{ok:'Mesofacial',hi:'Braquifacial (crecimiento horizontal)',lo:'Dolicofacial (crecimiento vertical)'}},
+ {id:'SNPloc',name:'SN.Ploc',desc:'Inclinación del plano oclusal',norm:14,sd:4,lines:['SN','Ploc'],pts:['S','N'],
+  v:Pm,d1:sub(P.S,P.N),d2:sub(Pm,Pa),ghost:1,r:95,side:'R',y:420,
+  t:{ok:'Plano oclusal con inclinación normal',hi:'Plano oclusal inclinado (rotación horaria)',lo:'Plano oclusal aplanado'}},
+ {id:'PPGoGn',name:'PP.GoGn',desc:'Divergencia maxilomandibular',norm:25,sd:5,lines:['PP','GoGn'],pts:['ENP','ENA','Go','Gn'],
+  v:P.Go,d1:sub(P.ENP,P.ENA),d2:sub(P.Go,P.Gn),ghost:1,r:112,side:'L',y:500,
+  t:{ok:'Divergencia normal',hi:'Hiperdivergencia (tendencia a mordida abierta)',lo:'Hipodivergencia (tendencia a mordida profunda)'}},
+ {id:'SNGoGn',name:'SN.GoGn',desc:'Ángulo del plano mandibular',norm:32,sd:5,lines:['SN','GoGn'],pts:['S','N','Go','Gn'],
+  v:P.Go,d1:sub(P.S,P.N),d2:sub(P.Go,P.Gn),ghost:1,r:165,side:'L',y:584,
+  t:{ok:'Normodivergente (mesofacial)',hi:'Hiperdivergente (dolicofacial)',lo:'Hipodivergente (braquifacial)'}}
+];
+const EXAMPLE={SNA:84,SNB:78,ANB:6,SNPP:7,SNGn:70,EF:86,SNPloc:17,PPGoGn:28,SNGoGn:37};
+const BYID=Object.fromEntries(MEASURES.map(m=>[m.id,m]));
+
+let state=fresh(true); // Demo values are explicitly marked as examples, not persisted as patient observations.
+function fresh(example){
+  return {example:!!example, custom:[],
+    rows:Object.fromEntries(MEASURES.map(m=>[m.id,{value:example?String(EXAMPLE[m.id]):'',norm:String(m.norm),sd:String(m.sd),interp:'',manual:false}]))};
+}
+function load(){
+  try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.rows){
+    MEASURES.forEach(m=>{if(!s.rows[m.id])s.rows[m.id]={value:'',norm:String(m.norm),sd:String(m.sd),interp:'',manual:false};});
+    s.custom=s.custom||[]; return s;}}catch(e){}
+  return fresh(true);
+}
+function save(){if(state.example)return;window.parent.postMessage({type:'denty:ceph:changed',state},window.location.origin);}
+
+const num=s=>{if(s==null)return NaN;const t=String(s).trim().replace(',','.');return t===''?NaN:Number(t);};
+const fmt=n=>(Math.round(n*10)/10).toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:1});
+const sgn=n=>(n>0?'+':n<0?'−':'±')+fmt(Math.abs(n));
+function evalRow(r,m){
+  const v=num(r.value),n=num(r.norm),sd=num(r.sd);
+  if(isNaN(v)) return {has:false};
+  if(isNaN(n)) return {has:true,v};
+  const d=v-n; let st=null;
+  if(!isNaN(sd)) st=Math.abs(d)<=sd?'ok':(d>0?'hi':'lo');
+  return {has:true,v,d,st,auto: st&&m&&m.t?m.t[st]:''};
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CHIP={ok:'Normal',hi:'▲ Aumentado',lo:'▼ Disminuido'};
+
+/* ---------- SVG ---------- */
+const NS='http://www.w3.org/2000/svg';
+const svg=document.getElementById('ceph');
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+function unit(d){const l=Math.hypot(d[0],d[1]);return[d[0]/l,d[1]/l];}
+
+const gl=document.getElementById('tlines');
+for(const id in LINES){const [a,b,e1,e2]=LINES[id];const u=unit(sub(a,b));
+  el('line',{class:'tline','data-line':id,x1:a[0]-u[0]*e1,y1:a[1]-u[1]*e1,x2:b[0]+u[0]*e2,y2:b[1]+u[1]*e2},gl);}
+
+const gp=document.getElementById('lpoints');
+const LBL={N:[-30,-10],S:[-8,-14],S1:[-20,28],Pt:[12,-6],ENP:[-48,-12],ENA:[10,-8],A:[13,8],B:[13,8],Pg:[13,8],Gn:[6,24],Me:[-38,14],Go:[-34,6],Ba:[-12,28]};
+for(const k in P){const g=el('g',{class:'lp','data-pt':k},gp);
+  el('circle',{cx:P[k][0],cy:P[k][1],r:5.5,class:(k==='S'||k==='S1')?'solid':''},g);
+  const t=el('text',{x:P[k][0]+LBL[k][0],y:P[k][1]+LBL[k][1],class:'halo'},g);t.textContent=k;}
+
+const gm=document.getElementById('meas');
+const BW=152,BH=60,RX=650,LX=-170;
+MEASURES.forEach(m=>{
+  const g=el('g',{class:'meas','data-id':m.id},gm);
+  const a1=Math.atan2(m.d1[1],m.d1[0]),a2=Math.atan2(m.d2[1],m.d2[0]);
+  let d=a2-a1; while(d>Math.PI)d-=2*Math.PI; while(d<=-Math.PI)d+=2*Math.PI;
+  const [vx,vy]=m.v, r=m.r;
+  if(m.ghost){const u=unit(m.ghost===1?m.d1:m.d2);el('line',{class:'ghost',x1:vx,y1:vy,x2:vx+u[0]*(r+90),y2:vy+u[1]*(r+90)},g);}
+  const sx=vx+r*Math.cos(a1),sy=vy+r*Math.sin(a1),ex=vx+r*Math.cos(a2),ey=vy+r*Math.sin(a2);
+  el('path',{class:'arc',d:`M${sx},${sy} A${r},${r} 0 0 ${d>0?1:0} ${ex},${ey}`},g);
+  const am=a1+d/2, mx=vx+r*Math.cos(am), my=vy+r*Math.sin(am);
+  const bx=m.side==='R'?RX:LX, by=m.y;
+  const lx=m.side==='R'?bx:bx+BW, ly=by+BH/2;
+  m._leader=el('line',{class:'leader',x1:lx,y1:ly,x2:mx,y2:my,'marker-end':'url(#arM)'},g);
+  const c=el('g',{class:'callout',tabindex:'0',role:'button','aria-label':'Editar '+m.name},g);
+  el('rect',{x:bx,y:by,width:BW,height:BH,rx:8},c);
+  const tn=el('text',{x:bx+12,y:by+19,class:'cn'},c);tn.textContent=m.name;
+  m._cv=el('text',{x:bx+12,y:by+48,class:'cv'},c);
+  m._cd=el('text',{x:bx+BW-10,y:by+19,class:'cd','text-anchor':'end'},c);
+  m._g=g;
+  const go=()=>{const i=document.getElementById('val-'+m.id);i.focus();i.select();};
+  c.addEventListener('click',go);c.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
+  g.addEventListener('mouseenter',()=>setActive(m.id));g.addEventListener('mouseleave',()=>setActive(null));
+});
+
+function paintMeasure(m){
+  const r=state.rows[m.id], e=evalRow(r,m);
+  m._g.classList.toggle('has',e.has);
+  ['st-ok','st-hi','st-lo'].forEach(c=>m._g.classList.remove(c));
+  if(e.st)m._g.classList.add('st-'+e.st);
+  m._cv.textContent=e.has?fmt(e.v)+'°':'— °';
+  m._cd.textContent=e.d!=null?sgn(e.d)+(e.st==='hi'?' ▲':e.st==='lo'?' ▼':''):'';
+  m._leader.setAttribute('marker-end',e.has?'url(#arA)':'url(#arM)');
+}
+function paintLines(){
+  const on=new Set();MEASURES.forEach(m=>{if(evalRow(state.rows[m.id],m).has)m.lines.forEach(l=>on.add(l));});
+  svg.querySelectorAll('.tline').forEach(l=>l.classList.toggle('on',on.has(l.dataset.line)));
+}
+
+let active=null;
+function setActive(id){
+  if(!id && document.activeElement && document.activeElement.closest){const tr=document.activeElement.closest('tr[data-id]');if(tr)id=tr.dataset.id;}
+  active=id; const m=BYID[id];
+  document.querySelectorAll('#tbody tr').forEach(tr=>tr.classList.toggle('active',tr.dataset.id===id));
+  MEASURES.forEach(x=>x._g.classList.toggle('active',x.id===id));
+  svg.querySelectorAll('.tline').forEach(l=>l.classList.toggle('active',!!m&&m.lines.includes(l.dataset.line)));
+  svg.querySelectorAll('.lp').forEach(p=>p.classList.toggle('active',!!m&&m.pts.includes(p.dataset.pt)));
+  if(m)gm.appendChild(m._g);
+}
+document.getElementById('solo').addEventListener('change',e=>svg.classList.toggle('solo',e.target.checked));
+
+/* ---------- Tabla ---------- */
+const tbody=document.getElementById('tbody');
+function rowHTML(id,r,m,custom){
+  const head=custom
+    ?`<th scope="row"><input class="name" id="name-${id}" data-k="name" value="${esc(r.name||'')}" placeholder="Nombre" aria-label="Nombre de la medida"><button class="del" type="button" data-del="${id}" aria-label="Eliminar medida">Quitar</button><span class="nodiagram">Sin trazado en la plantilla</span></th>`
+    :`<th scope="row"><span class="mname">${m.name}</span><span class="mdesc">${m.desc}</span></th>`;
+  return `<tr data-id="${id}">${head}
+   <td><input class="num val" id="val-${id}" data-k="value" inputmode="decimal" value="${esc(r.value)}" aria-label="Valor ${custom?'':m.name}"><span class="unit">°</span></td>
+   <td style="white-space:nowrap"><input class="num" id="norm-${id}" data-k="norm" inputmode="decimal" value="${esc(r.norm)}" aria-label="Norma"><span class="pm">±</span><input class="num sd" id="sd-${id}" data-k="sd" inputmode="decimal" value="${esc(r.sd)}" aria-label="Desviación estándar"></td>
+   <td class="dev"><span class="devnum">—</span><span class="chip" hidden></span></td>
+   <td><input class="interp" id="int-${id}" data-k="interp" aria-label="Interpretación"></td></tr>`;
+}
+function renderTable(){
+  tbody.innerHTML=MEASURES.map(m=>rowHTML(m.id,state.rows[m.id],m,false)).join('')+state.custom.map(c=>rowHTML(c.id,c,null,true)).join('');
+  MEASURES.forEach(m=>paintRow(m.id));state.custom.forEach(c=>paintRow(c.id));
+  document.getElementById('banner').hidden=!state.example;
+}
+function getRow(id){return state.rows[id]||state.custom.find(c=>c.id===id);}
+function paintRow(id){
+  const tr=tbody.querySelector(`tr[data-id="${id}"]`); if(!tr)return;
+  const r=getRow(id), m=BYID[id], e=evalRow(r,m);
+  tr.querySelector('.devnum').textContent=e.d!=null?sgn(e.d):'—';
+  const chip=tr.querySelector('.chip'); chip.hidden=!e.st; if(e.st){chip.className='chip '+e.st;chip.textContent=CHIP[e.st];}
+  const it=tr.querySelector('.interp');
+  if(!r.manual){r.interp=e.auto||'';}
+  if(document.activeElement!==it)it.value=r.interp;
+  it.classList.toggle('auto',!r.manual&&!!r.interp);
+  it.placeholder=r.manual?'':(e.has?'Escribe la interpretación':'Se rellena al introducir el valor');
+  if(m)paintMeasure(m);
+}
+tbody.addEventListener('input',e=>{
+  const t=e.target,k=t.dataset.k;if(!k)return;
+  const id=t.closest('tr').dataset.id,r=getRow(id);
+  if(k==='interp'){r.manual=t.value.trim()!=='';r.interp=t.value;if(!r.manual)paintRow(id);}
+  else{r[k]=t.value;paintRow(id);paintLines();}
+  if(k==='value'&&state.example){state.example=false;document.getElementById('banner').hidden=true;}
+  save();
+});
+tbody.addEventListener('focusout',e=>{if(e.target.dataset.k==='interp'){const id=e.target.closest('tr').dataset.id;paintRow(id);}setTimeout(()=>setActive(null),0);});
+tbody.addEventListener('focusin',e=>{const tr=e.target.closest('tr');if(tr)setActive(tr.dataset.id);});
+tbody.addEventListener('mouseover',e=>{const tr=e.target.closest('tr');if(tr&&tr.dataset.id!==active)setActive(tr.dataset.id);});
+tbody.addEventListener('mouseleave',()=>setActive(null));
+tbody.addEventListener('click',e=>{const id=e.target.dataset&&e.target.dataset.del;if(!id)return;
+  state.custom=state.custom.filter(c=>c.id!==id);save();renderTable();});
+
+document.getElementById('btn-add').addEventListener('click',()=>{
+  const id='c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  state.custom.push({id,name:'',value:'',norm:'',sd:'',interp:'',manual:false});save();renderTable();
+  document.getElementById('name-'+id).focus();
+});
+function clearAll(){
+  const custom=state.custom.map(c=>({...c,value:'',interp:'',manual:false}));
+  const keepNorms=state.rows;
+  state=fresh(false);state.custom=custom;
+  MEASURES.forEach(m=>{state.rows[m.id].norm=keepNorms[m.id].norm;state.rows[m.id].sd=keepNorms[m.id].sd;});
+  save();renderTable();paintLines();
+}
+document.getElementById('btn-clear').addEventListener('click',clearAll);
+document.getElementById('btn-clear2').addEventListener('click',clearAll);
+
+document.getElementById('btn-copy').addEventListener('click',()=>{
+  const lines=[['Medida','Valor','Norma','DE','Desviación','Interpretación'].join('\t')];
+  const add=(name,r,m)=>{const e=evalRow(r,m);lines.push([name,r.value,r.norm,r.sd,e.d!=null?sgn(e.d):'',r.interp||''].join('\t'));};
+  MEASURES.forEach(m=>add(m.name,state.rows[m.id],m));state.custom.forEach(c=>add(c.name||'Medida',c,null));
+  const txt=lines.join('\n'),btn=document.getElementById('btn-copy'),fb=document.getElementById('copyfb');
+  const done=()=>{btn.textContent='Copiado';setTimeout(()=>btn.textContent='Copiar resultados',1600);};
+  const fallback=()=>{fb.hidden=false;fb.value=txt;fb.focus();fb.select();btn.textContent='Selecciona y copia';};
+  try{navigator.clipboard.writeText(txt).then(done,fallback);}catch(e){fallback();}
+});
+
+window.addEventListener('message',event=>{
+  if(event.origin!==window.location.origin || event.source!==window.parent)return;
+  if(event.data?.type==='denty:ceph:hydrate'){
+    const value=event.data.state;
+    if(value && typeof value==='object' && value.rows && typeof value.rows==='object'){
+      state=fresh(false);
+      for(const m of MEASURES){
+        const supplied=value.rows[m.id];
+        if(supplied && typeof supplied==='object'){
+          const target=state.rows[m.id];
+          for(const k of ['value','norm','sd','interp']){
+            if(typeof supplied[k]==='string' && supplied[k].length<2000)target[k]=supplied[k];
+          }
+          target.manual=supplied.manual===true;
+        }
+      }
+      state.custom=Array.isArray(value.custom)?value.custom.filter(r=>r&&typeof r.id==='string'&&/^c[a-z0-9]+$/i.test(r.id)).slice(0,100).map(r=>({
+        id:r.id,name:String(r.name??'').slice(0,120),value:String(r.value??'').slice(0,30),
+        norm:String(r.norm??'').slice(0,30),sd:String(r.sd??'').slice(0,30),
+        interp:String(r.interp??'').slice(0,2000),manual:r.manual===true,
+      })):[];
+    }else{state=fresh(true);}
+    renderTable();paintLines();
+  }
+});
+renderTable();paintLines();
+window.parent.postMessage({type:'denty:ceph:ready'},window.location.origin);
+})();
+</script>
+
+</body></html>
