@@ -2,9 +2,7 @@ export const PULPAL_DIAGNOSES = [
   "Pulpa normal",
   "Pulpitis reversible",
   "Pulpitis irreversible sintomática",
-  "Pulpitis irreversible sintomatica",
   "Pulpitis irreversible asintomática",
-  "Pulpitis irreversible asintomatica",
   "Necrosis pulpar",
   "Previamente tratado",
   "Tratamiento previamente iniciado",
@@ -13,14 +11,10 @@ export const PULPAL_DIAGNOSES = [
 export const APICAL_DIAGNOSES = [
   "Tejidos apicales normales",
   "Periodontitis apical sintomática",
-  "Periodontitis apical sintomatica",
   "Periodontitis apical asintomática",
-  "Periodontitis apical asintomatica",
   "Absceso apical agudo",
   "Absceso apical crónico",
-  "Absceso apical cronico",
   "Osteítis condensante",
-  "Osteitis condensante",
 ] as const;
 
 export type PulpalDiagnosis = (typeof PULPAL_DIAGNOSES)[number];
