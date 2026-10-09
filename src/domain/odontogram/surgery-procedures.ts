@@ -1,7 +1,7 @@
 import type { DentalEntity, ToothArch } from "@/domain";
 const LEGACY_PROCEDURES = [
   ["extraction_simple", "Exodoncia simple"],
-  ["extraction_surgical", "Exodoncia quirúrgica"],
+  ["extraction_surgical", "Exodoncia compleja / 3er molar"],
   ["impacted", "Diente incluido / impactado"],
   ["germectomy", "Germectomía"],
   ["alveoloplasty", "Alveoloplastia"],
@@ -13,11 +13,15 @@ const LEGACY_PROCEDURES = [
   ["implant_planned", "Implante planificado"],
   ["implant_placed", "Implante colocado"],
   ["implant_lost", "Implante perdido"],
-  ["bone_graft", "Injerto óseo / ROG"],
+  ["bone_graft", "Injerto óseo"],
+  ["rog", "Regeneración ósea guiada (ROG)"],
+  ["connective_tissue_graft", "Injerto de tejido conectivo"],
+  ["pinhole_technique", "Pinhole technique"],
+  ["coronectomy", "Coronectomía"],
   ["socket_preservation", "Preservación alveolar"],
   ["split_crest", "Split crest"],
   ["membrane", "Membrana"],
-  ["sinus_lift_internal", "Elevación de seno interna / Summers"],
+  ["sinus_lift_internal", "Elevación de seno interna"],
   ["sinus_lift_external", "Elevación de seno externa"],
 ] as const;
 export const SURGERY_PROCEDURES = [
@@ -43,7 +47,7 @@ export const SURGERY_PROCEDURES = [
   { value: "titanium_mesh", label: "Malla de titanio", entityType: "MEMBRANE", scope: "tooth" },
 ] as const;
 function entityTypeFor(procedure: string): DentalEntity["entityType"] {
-  if (["bone_graft", "socket_preservation", "split_crest"].includes(procedure)) return "BONE_GRAFT";
+  if (["bone_graft", "rog", "socket_preservation", "split_crest"].includes(procedure)) return "BONE_GRAFT";
   if (procedure === "membrane") return "MEMBRANE";
   if (procedure.startsWith("sinus_lift")) return "SINUS_LIFT";
   if (procedure === "biopsy") return "SURGICAL_LESION";
@@ -88,7 +92,7 @@ export function createSurgeryEntity(
       procedure,
       label: config.label,
       ...(config.scope === "arch" ? { linkedImplantIds: implants.map((e) => e.id) } : {}),
-      ...(procedure === "extraction_surgical" ? { impacted: true } : {}),
+      ...(procedure === "extraction_surgical" ? { complex: true } : {}),
     },
   };
 }
