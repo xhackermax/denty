@@ -75,6 +75,10 @@ export const dentyQueryKeys = {
     root: root("alerts"),
     all: ["denty", "alerts", "list"] as const,
   },
+  quality: {
+    root: root("quality"),
+    incidents: [ "denty", "quality", "incidents" ] as const,
+  },
   analytics: {
     root: root("analytics"),
     kpiDefinitions: ["denty", "analytics", "kpi-definitions"] as const,
