@@ -63,7 +63,7 @@ export function DoctorAnalysisPage() {
       if (!range) throw new Error("Selecciona un periodo de fechas válido.");
       return qualityApi.doctors(range);
     },
-    enabled: Boolean(activeClinicId) && permissions.includes("finance.read") &&
+    enabled: Boolean(activeClinicId) && permissions.includes("analysis.read") &&
       range !== null,
   });
   const all = query.data?.items ?? [];
@@ -92,8 +92,8 @@ export function DoctorAnalysisPage() {
           data={all.map(d=>({value:d.doctorId,label:d.doctorName}))} />
       </Group>
     </section>
-    {!permissions.includes("finance.read") &&
-      <Alert color="orange">Necesitas permiso de lectura financiera para evaluar indicadores de los doctores.</Alert>}
+    {!permissions.includes("analysis.read") &&
+      <Alert color="orange">Necesitas permiso de análisis para consultar los indicadores de los doctores.</Alert>}
     {!range && <Alert color="orange">
       Selecciona fechas válidas y un periodo máximo de 12 meses.
     </Alert>}
