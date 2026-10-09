@@ -36,8 +36,8 @@ export function parseCephalometry(value:unknown):RecordState|null {
     if(!asRecord(source))continue;
     base.rows[m.id]={
       value:textField(source.value,40),
-      norm:textField(source.norm,40)||String(m.norm),
-      sd:textField(source.sd,40)||String(m.sd),
+      norm:typeof source.norm==="string"?textField(source.norm,40):String(m.norm),
+      sd:typeof source.sd==="string"?textField(source.sd,40):String(m.sd),
       interp:textField(source.interp,1000),
       manual:source.manual===true,
     };
@@ -113,7 +113,9 @@ export function CephalometryEditor({patientId,entities,readOnly,onCommit}:Cephal
   const update=(id:string,key:keyof Row,value:string)=>{
     if(readOnly)return;
     const next={
-      ...state,rows:{...state.rows},custom:state.custom.map(r=>({...r})),
+      ...(state.example?blankCephalometry():state),
+      rows:state.example?blankCephalometry().rows:{...state.rows},
+      custom:state.custom.map(r=>({...r})),
       example:false,
     };
     const row=getRow(next,id);
