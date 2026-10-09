@@ -114,6 +114,7 @@ export function IncidentsPage({ initialPatientId, initialDoctorId }: {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<IncidentCreateInput>(() => empty(initialPatientId, initialDoctorId));
   const [patientSearch, setPatientSearch] = useState("");
+  const [filterPatientSearch, setFilterPatientSearch] = useState("");
   const [formError, setFormError] = useState("");
   const [savingId, setSavingId] = useState("");
   const canRead = permissions.includes("clinical.read");
@@ -128,6 +129,11 @@ export function IncidentsPage({ initialPatientId, initialDoctorId }: {
   const doctors = useQuery({
     queryKey: [...dentyQueryKeys.staff.root, "quality-staff"],
     queryFn: qualityApi.staff, enabled: Boolean(activeClinicId) && canRead,
+  });
+  const filterPatients = useQuery({
+    queryKey: [...dentyQueryKeys.patients.root, "quality-filter", filterPatientSearch],
+    queryFn: () => qualityApi.patients(filterPatientSearch),
+    enabled: Boolean(activeClinicId) && canRead && filterPatientSearch.trim().length >= 2,
   });
   const patients = useQuery({
     queryKey: [...dentyQueryKeys.patients.root, "quality-search", patientSearch],
@@ -170,9 +176,18 @@ export function IncidentsPage({ initialPatientId, initialDoctorId }: {
     </Group>
     {!canRead && <Alert color="orange">No tienes permiso para consultar incidencias clínicas.</Alert>}
     <Group gap="sm" align="end" wrap="wrap">
-      <TextInput label="Filtrar por ID de paciente" value={patientId}
-        placeholder="ID de la ficha o abre desde Pacientes"
-        onChange={e=>setPatientId(e.currentTarget.value)}/>
+      <Stack gap={4}>
+        <TextInput label="Buscar paciente" value={filterPatientSearch}
+          placeholder="Nombre o número de ficha"
+          onChange={e=>setFilterPatientSearch(e.currentTarget.value)}/>
+        <Select aria-label="Filtrar por paciente" clearable searchable
+          placeholder={patientId ? "Paciente seleccionado" : "Todos los pacientes"}
+          value={patientId || null} onChange={value=>setPatientId(value ?? "")}
+          data={(filterPatients.data?.items ?? []).map(p=>({
+            value:p.id,label:`${p.first_name} ${p.last_name} · ${p.record_number ?? "Sin ficha"}`,
+          })).concat(patientId && !(filterPatients.data?.items ?? []).some(p=>p.id===patientId)
+            ? [{value:patientId,label:"Paciente seleccionado"}] : [])}/>
+      </Stack>
       <Select label="Doctor" clearable placeholder="Todos"
         data={staffOptions} value={doctorId || null}
         onChange={value=>setDoctorId(value ?? "")}/>
