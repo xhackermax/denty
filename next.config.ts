@@ -19,6 +19,13 @@ const CONTENT_SECURITY_POLICY = [
   "media-src 'self' blob:",
 ].join("; ");
 
+// The cephalometry worksheet is embedded by the patient-scoped editor on the same origin.
+// Its document may be framed only by Denty itself, never by third-party sites.
+const CEPHALOMETRY_CONTENT_SECURITY_POLICY = CONTENT_SECURITY_POLICY.replace(
+  "frame-ancestors 'none'",
+  "frame-ancestors 'self'",
+);
+
 const GAMES_CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -56,6 +63,14 @@ const nextConfig: NextConfig = {
             value:
               "camera=(self), geolocation=(), microphone=(self), on-device-speech-recognition=(self)",
           },
+        ],
+      },
+      {
+        source: "/cephalometry-lateral.html",
+        headers: [
+          { key: "Content-Security-Policy", value: CEPHALOMETRY_CONTENT_SECURITY_POLICY },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          ...COMMON_SECURITY_HEADERS,
         ],
       },
       {

@@ -35,6 +35,9 @@ on:
       - "package-lock.json"
       - "src/app/confirmar-cita/**"
       - "src/features/odontogram/**"
+      - "next.config.ts"
+      - "public/cephalometry-lateral.html"
+      - "scripts/tests/cephalometry-frame-route.mjs"
       - "scripts/tests/single-odontogram-workbench.mjs"
       - "src/features/patients/**"
       - "src/server/denty-supabase/record-number.ts"
@@ -72,6 +75,8 @@ jobs:
         run: npm audit --omit=dev --audit-level=critical
       - name: Typecheck
         run: npm run -s typecheck
+      - name: Cephalometry iframe security regression
+        run: node scripts/tests/cephalometry-frame-route.mjs
       - name: Pipeline regression
         run: node scripts/tests/clinical-consent-gate-regression.mjs
       - name: Focused tests
