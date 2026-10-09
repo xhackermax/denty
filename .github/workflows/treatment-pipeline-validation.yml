@@ -10,6 +10,7 @@ on:
       - feat/sidebar-mini-week-agenda
       - fix/agenda-toothbrush-prophylaxis-icon
       - main
+      - fix/patient-record-numbers-numeric
       - security-confirmation-explicit-click
   pull_request:
     paths:
@@ -40,7 +41,7 @@ on:
       - "src/server/denty-supabase/record-number.ts"
       - "src/server/denty-supabase/__tests__/record-number.test.ts"
       - "src/server/denty-supabase/patient-repository.ts"
-      - "src/app/api/denty/[...path]/__tests__/supabase-patients-route.test.ts"
+      - "src/app/api/denty/**"
       - "supabase/migrations/*numeric_patient_record_numbers.sql"
       - "src/features/parity/modules/documents-module.tsx"
       - "src/server/denty-supabase/clinical-repository.ts"
@@ -75,7 +76,7 @@ jobs:
       - name: Focused tests
         run: npx vitest run src/shared/clinical/__tests__/clinical-workspace.test.tsx src/shared/clinical/__tests__/deferred-budget-follow-up.test.tsx src/server/denty-supabase/__tests__/scoped-budgets.test.ts src/shared/clinical/__tests__/budget-options.test.tsx src/shared/clinical/budget-comparison.test.ts src/shared/clinical/patient-budget-comparison-page.test.tsx
       - name: Patient record-number regression tests
-        run: npx vitest run src/server/denty-supabase/__tests__/record-number.test.ts "src/app/api/denty/[...path]/__tests__/supabase-patients-route.test.ts"
+        run: npx vitest run src/server/denty-supabase/__tests__/record-number.test.ts src/app/api/denty
       - name: Draft budget SQL deletion and RLS privilege tests
         run: npx vitest run src/server/denty-supabase/__tests__/draft-budget-migration.test.ts
       - name: Dashboard and admin navigation tests
