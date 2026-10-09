@@ -50,7 +50,7 @@ function createSupabaseFetch() {
       const patient: StoredPatient = {
         id: "patient-1",
         clinic_id: clinicId,
-        record_number: body.record_number ?? "DNT-000001",
+        record_number: body.record_number ?? "00001",
         first_name: body.first_name ?? "",
         last_name: body.last_name ?? "",
         dni: body.dni ?? null,
@@ -221,7 +221,7 @@ describe("Supabase-backed patient API", () => {
       clinicId: "clinic-1",
       firstName: "Lucia",
       lastName: "Perez",
-      recordNumber: expect.any(String),
+      recordNumber: "00001",
       version: 1,
       medicalProfile: {
         dentitionStage: "mixed",
@@ -244,6 +244,28 @@ describe("Supabase-backed patient API", () => {
       periodontal: [],
       snapshots: [],
     });
+  });
+
+  test("removes the DNT prefix when importing an old numeric patient code", async () => {
+    const response = await POST(
+      new Request("https://denty.test/api/denty/api/patients", {
+        method: "POST",
+        headers: {
+          ...authenticatedHeaders(),
+          "content-type": "application/json",
+          origin: "https://denty.test",
+        },
+        body: JSON.stringify({
+          firstName: "Ana",
+          lastName: "Lopez",
+          recordNumber: "DNT-000123",
+        }),
+      }),
+      { params: Promise.resolve({ path: ["api", "patients"] }) },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({ recordNumber: "00123" });
   });
 
   test("lists patients with a stable latest-first order", async () => {
@@ -312,7 +334,7 @@ describe("Supabase-backed patient API", () => {
       items: [
         {
           id: "patient-imported",
-          recordNumber: "DNT-PATIENT-",
+          recordNumber: "Sin número",
           firstName: "Paciente",
           lastName: "Sin nombre",
           dni: null,
