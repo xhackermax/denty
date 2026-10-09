@@ -9,35 +9,7 @@ import { useMemo, useState } from "react";
 import { getBrowserApi } from "@/shared/api/browser";
 import styles from "@/shared/ui/parity.module.css";
 
-type Kind = "CV" | "CONTRACT";
-interface StaffFile {
-  id: string;
-  staffMemberId: string;
-  type: Kind;
-  title: string;
-  fileName: string;
-  fileSizeBytes: number;
-  checksum: string;
-  createdAt: string;
-}
-
-async function readResponse(response: Response) {
-  if (!response.ok) {
-    const payload: unknown = await response.json().catch(() => null);
-    const message = payload && typeof payload === "object" && "error" in payload
-      ? (payload as { error?: { message?: string } }).error?.message
-      : undefined;
-    throw new Error(message ?? "No se pudo consultar el archivo de personal.");
-  }
-  return response;
-}
-
-async function loadStaffFiles(kind: Kind): Promise<{ items: StaffFile[] }> {
-  const response = await fetch("/api/staff-documents?type=" + kind, {
-    credentials: "include", cache: "no-store",
-  });
-  return (await (await readResponse(response)).json()) as { items: StaffFile[] };
-}
+import type { StaffDocument as StaffFile, StaffDocumentKind as Kind } from "@/shared/api/resources/staff-documents";
 
 export function StaffDocuments({ kind }: { kind: Kind }) {
   const queryClient = useQueryClient();
@@ -51,7 +23,7 @@ export function StaffDocuments({ kind }: { kind: Kind }) {
   });
   const documents = useQuery({
     queryKey: ["staff-documents", "files", kind],
-    queryFn: () => loadStaffFiles(kind),
+    queryFn: () => getBrowserApi().staffDocuments.list(kind),
     staleTime: 0, gcTime: 0,
   });
   const team = staff.data?.staff ?? [];
@@ -65,15 +37,12 @@ export function StaffDocuments({ kind }: { kind: Kind }) {
   const upload = useMutation({
     mutationFn: async () => {
       if (!staffId || !file) throw new Error("Selecciona empleado y archivo.");
-      const form = new FormData();
-      form.set("staffMemberId", staffId);
-      form.set("type", kind);
-      form.set("title", title.trim() || file.name);
-      form.set("file", file);
-      const response = await fetch("/api/staff-documents", {
-        method: "POST", body: form, credentials: "include",
+      await getBrowserApi().staffDocuments.upload({
+        staffMemberId: staffId,
+        type: kind,
+        title: title.trim() || file.name,
+        file,
       });
-      await readResponse(response);
     },
     onSuccess: () => {
       setFile(null);
