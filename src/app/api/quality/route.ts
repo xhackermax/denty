@@ -37,6 +37,11 @@ const implantOutcome = z.object({
   reassessment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
   notes: z.string().max(2000).nullish(),
 }).strict();
+const finishClinicalVisit = z.object({
+  appointmentId: uuid,
+  expectedVersion: z.number().int().nonnegative(),
+  markTreatmentCompleted: z.boolean(),
+}).strict();
 const finishImplants = z.object({
   appointmentId: uuid,
   expectedVersion: z.number().int().nonnegative(),
@@ -125,6 +130,18 @@ async function handle(request: Request) {
         return response(200, { items: await quality.patients(url.searchParams.get("search") ?? "") }, headers);
       if (kind === "staff") return response(200, { items: await quality.doctors() }, headers);
       return fail(404, "Recurso no encontrado.", headers);
+    }
+    if (request.method === "POST" && kind === "visit-finalize") {
+      const payload = finishClinicalVisit.parse(await request.json());
+      const appointment = await identity.restClient.rpc<Record<string, unknown>>(
+        "denty_complete_clinical_visit", {
+          p_appointment_id: payload.appointmentId,
+          p_expected_version: payload.expectedVersion,
+          p_mark_treatment_completed: payload.markTreatmentCompleted,
+        });
+      if (appointment.conflict === true)
+        return fail(409, "La cita ha cambiado. Actualiza la agenda.", headers);
+      return response(200, { appointment }, headers);
     }
     if (request.method === "POST" && kind === "implant-finalize") {
       const payload = finishImplants.parse(await request.json());
