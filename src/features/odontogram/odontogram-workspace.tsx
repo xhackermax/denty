@@ -1661,6 +1661,7 @@ function OdontogramEditor({
           <details className={styles.layerEditor} open>
             <summary>Editar endodoncia</summary>
             <EndodonticPanel
+              entities={entities}
               selectedTooth={selectedTooth}
               readOnly={historical}
               onCommit={commit}
