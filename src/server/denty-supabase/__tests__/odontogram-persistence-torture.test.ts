@@ -295,4 +295,91 @@ describe("SQL persistence torture: isolated original migration functions", () =>
     expect(conflict).toMatchObject({ conflict: true, currentVersion: 2 });
     expect((await db.query("select id from dental_entities where active")).rows).toHaveLength(1);
   });
+  it("TDD full-chart round-trip retains every clinical family and nested value across reload and edits", async () => {
+    const fixtures = [
+      ["TOOTH_STATE", "filling", { surfaces: ["M","O"], lifecycle: "REALIZADO" }],
+      ["CARIES", "caries_pending", { detectedAt: "2026-10-09", depth: "dentin" }],
+      ["RESTORATION", "restoration_completed", { material: "composite", shades: ["A2","A3"] }],
+      ["ENDO", "diagnosis", { pulpalDiagnosis: "Necrosis pulpar", apicalDiagnosis: "Osteítis condensante" }],
+      ["POST", "post_pending", { fiber: true }],
+      ["CROWN", "crown_pending", { material: "zirconia", lab: { shade: "A2", due: "2026-10-20" } }],
+      ["IMPLANT", "implant_planned", { system: "Ticare", diameterMm: 4.25, lengthMm: 11.5 }],
+      ["ABUTMENT", "abutment_pending", { platform: "Multiunit", heightMm: 2 }],
+      ["PROSTHESIS", "prosthesis_pending", { support: "implants", prosthesisType: "fixed_hybrid", implantCount: 6, attachmentCount: 6, attachmentType: "MULTIUNIT", teethToRestore: 12 }],
+      ["REMOVABLE", "removable_pending", { support: "teeth", prosthesisType: "removable_cast_clasps", teethToRestore: 8 }],
+      ["ORTHODONTIC", "active", { facialProfile: "convexo", facialBiotype: "dolicofacial", appliances: ["expander","distalizer","facial_mask","habit_corrector"], toothMarks: { "16": "bracket" } }],
+      ["ORTHODONTIC", "cephalometry", { assessmentType: "LATERAL_CEPHALOMETRY", cephalometry: { example: false, rows: { SNA: { value: "83", norm: "82", sd: "2", interp: "", manual: false }, ANB: { value: "6", norm: "2", sd: "2", interp: "Clase II", manual: true }, SNGoGn: { value: "37", norm: "32", sd: "5", interp: "", manual: false } }, custom: [{ id: "cwits", name: "Wits", value: "3", norm: "0", sd: "2", interp: "", manual: false }] } }],
+      ["SURGERY", "connective_tissue_graft", { procedure: "connective_tissue_graft", lifecycle: "REALIZADO" }],
+      ["SURGERY", "pinhole_technique", { procedure: "pinhole_technique", lifecycle: "PLANIFICADO" }],
+      ["SURGERY", "coronectomy", { procedure: "coronectomy", lifecycle: "PLANIFICADO" }],
+      ["BONE_GRAFT", "bone_graft", { procedure: "bone_graft", granules: { size: "0.25-1 mm" } }],
+      ["BONE_GRAFT", "rog", { procedure: "rog", membrane: "collagen" }],
+      ["MEMBRANE", "membrane", { material: "resorbable" }],
+      ["SINUS_LIFT", "sinus_lift_internal", { technique: "internal" }],
+      ["SURGICAL_LESION", "biopsy", { histologyPending: true }],
+      ["PERIODONTAL_FINDING", "bleeding", { site: "MV", depthMm: 4, bleeding: true, suppuration: false }],
+      ["PEDIATRIC", "pulpotomy", { fdi: "54" }],
+      ["ORTHODONTIC", "orthodontic_appliance", { appliance: "orthodontic_appliance", teeth: ["16","26"] }],
+    ] as const;
+    const records = fixtures.map(([entityType,status,attributes],index) => ({
+      id: `tdd-full-${index}`, tooth: "16", entityType, status, attributes, active: true,
+    }));
+    expect(odontogramBatchSchema.safeParse({ expectedVersion: 1, entities: records }).success).toBe(true);
+    const first = await save(1, records);
+    expect(first.conflict).not.toBe(true);
+    expect(first.entities).toHaveLength(records.length);
+    const loaded = await db.query<{ entity_type: string; status: string; attributes_json: unknown }>(
+      "select entity_type,status,attributes_json from dental_entities where patient_id=$1 and active",
+      [patient],
+    );
+    for (const record of records) {
+      const match = loaded.rows.filter(row => row.entity_type === record.entityType && row.status === record.status);
+      expect(match).toHaveLength(1);
+      expect(match[0]?.attributes_json).toEqual(record.attributes);
+    }
+
+    const changed = records.map(record => record.status === "cephalometry"
+      ? { ...record, attributes: { ...record.attributes, cephalometry: {
+          example: false,
+          rows: { SNA: { value: "86", norm: "82", sd: "2", interp: "", manual: false } },
+          custom: [{ id: "cwits", name: "Wits", value: "4", norm: "0", sd: "2", interp: "manual", manual: true }],
+        } } }
+      : record);
+    const second = await save(first.version, changed);
+    expect(second.conflict).not.toBe(true);
+    expect(second.entities).toHaveLength(records.length);
+    const reloaded = await db.query<{ status: string; attributes_json: any }>(
+      "select status,attributes_json from dental_entities where patient_id=$1 and active",
+      [patient],
+    );
+    const ceph = reloaded.rows.find(row => row.status === "cephalometry")?.attributes_json?.cephalometry;
+    expect(ceph.rows.SNA.value).toBe("86");
+    expect(ceph.custom[0]).toMatchObject({ name: "Wits", value: "4", manual: true });
+    expect(reloaded.rows.find(row => row.status === "prosthesis_pending")?.attributes_json?.implantCount).toBe(6);
+    expect(reloaded.rows.find(row => row.status === "active")?.attributes_json?.facialBiotype).toBe("dolicofacial");
+  });
+
+  it("TDD guards against data loss on stale concurrent clinical saves", async () => {
+    const initial = [
+      { id: "ortho", entityType: "ORTHODONTIC", status: "active", active: true, attributes: { facialProfile: "recto" } },
+      { id: "ceph", entityType: "ORTHODONTIC", status: "cephalometry", active: true,
+        attributes: { cephalometry: { rows: { SNA: { value: "82", norm: "82", sd: "2" } }, custom: [] } } },
+    ];
+    const first = await save(1, initial);
+    const winner = await save(first.version, [
+      { ...initial[0]!, attributes: { facialProfile: "convexo" } },
+      initial[1]!,
+    ]);
+    const stale = await save(first.version, [
+      initial[0]!,
+      { ...initial[1]!, attributes: { cephalometry: { rows: { SNA: { value: "90", norm: "82", sd: "2" } }, custom: [] } } },
+    ]);
+    expect(stale).toMatchObject({ conflict: true, currentVersion: winner.version });
+    const persisted = await db.query<{ status: string; attributes_json: any }>(
+      "select status,attributes_json from dental_entities where patient_id=$1 and active", [patient],
+    );
+    expect(persisted.rows.find(row => row.status === "active")?.attributes_json?.facialProfile).toBe("convexo");
+    expect(persisted.rows.find(row => row.status === "cephalometry")?.attributes_json?.cephalometry.rows.SNA.value).toBe("82");
+  });
+
 });
