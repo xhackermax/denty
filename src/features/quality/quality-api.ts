@@ -12,7 +12,7 @@ export interface QualityIncident {
   category: string; cause: string; severity: string; status: string;
   repeat_treatment: boolean; cost_cents: number;
   corrective_action: string | null; occurred_at: string; updated_at: string;
-  patientName: string; recordNumber: string | null;
+  patientName: string; recordNumber: string | null; appointmentStart: string | null;
 }
 export interface QualityDoctor {
   doctorId: string; doctorName: string; completedVisits: number; uniquePatients: number;
@@ -86,6 +86,9 @@ export const qualityApi = {
   incidents: (filters: { patientId?: string; doctorId?: string; status?: string } = {}) =>
     request<QualityIncidentsResult>(qs("incidents", filters)),
   staff: () => request<{ items: QualityStaff[] }>(qs("staff")),
+  patientAppointments: (patientId: string) =>
+    request<{ items: Array<{id:string; startsAt:string; title:string; status:string}> }>(
+      qs("patient-appointments", { patientId })),
   patients: (search: string) =>
     request<{ items: QualityPatient[] }>(qs("patients", { search })),
   createIncident: (data: IncidentCreateInput) =>
