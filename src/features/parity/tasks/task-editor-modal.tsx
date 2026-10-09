@@ -9,6 +9,7 @@ import {
   Select,
   Stack,
   Text,
+  Textarea,
   TextInput,
 } from "@mantine/core";
 import { useState } from "react";
@@ -20,6 +21,7 @@ import type { TaskPriority, TaskTeam, TimelineTask } from "./task-types";
 
 export interface TaskFormValues {
   title: string;
+  description?: string;
   priority: TaskPriority;
   durationMin: number;
   day: string | null;
@@ -48,6 +50,7 @@ function TaskForm({
   onSubmit,
 }: Omit<TaskEditorModalProps, "opened">) {
   const [title, setTitle] = useState(task?.title ?? "");
+  const [description, setDescription] = useState(task?.description ?? "");
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? "NORMAL");
   const [duration, setDuration] = useState<number | string>(
     task?.durationMin ?? DEFAULT_DURATION_MIN,
@@ -57,7 +60,9 @@ function TaskForm({
   const [assigneeStaffId, setAssigneeStaffId] = useState<string | null>(
     task?.assigneeStaffId ?? null,
   );
-  const members = team?.items ?? [];
+  const members = (team?.items ?? []).filter((member) =>
+    !team?.assignableStaffIds || team.assignableStaffIds.includes(member.id),
+  );
   const durationMin = typeof duration === "number" ? duration : Number(duration);
   const valid = title.trim().length > 0 && Number.isFinite(durationMin) && durationMin >= 1;
 
@@ -68,6 +73,7 @@ function TaskForm({
         if (!valid) return;
         onSubmit({
           title: title.trim(),
+          ...(!task && description.trim() ? { description: description.trim() } : {}),
           priority,
           durationMin: Math.round(durationMin),
           day,
@@ -84,6 +90,17 @@ function TaskForm({
           data-autofocus
           onChange={(event) => setTitle(event.currentTarget.value)}
         />
+        {!task ? (
+          <Textarea
+            label="Instrucciones para el destinatario"
+            placeholder="Explica qué hay que hacer y cualquier detalle importante"
+            autosize minRows={2} maxRows={5} maxLength={1000}
+            value={description}
+            onChange={(event) => setDescription(event.currentTarget.value)}
+          />
+        ) : task.description ? (
+          <Text size="sm" c="dimmed">Instrucciones: {task.description}</Text>
+        ) : null}
         <div>
           <Text size="sm" fw={500} mb={4} id="task-priority-label">
             Prioridad
@@ -126,12 +143,16 @@ function TaskForm({
               placeholder="Sin asignar"
               value={assigneeStaffId}
               onChange={setAssigneeStaffId}
-              data={members.map((member) => ({ value: member.id, label: member.name }))}
+              data={members.map((member) => ({
+                value: member.id,
+                label: `${member.name} · ${member.role === "DENTIST" ? "Doctor/a" : member.role === "RECEPTION" ? "Recepción" : member.role === "ASSISTANT" ? "Auxiliar / higienista" : "Administración"}`,
+              }))}
               searchable
               clearable
               nothingFoundMessage="Sin resultados"
             />
-            {team?.currentStaffId && assigneeStaffId !== team.currentStaffId ? (
+            <Text size="xs" c="dimmed">La tarea aparecerá en «Mis tareas» de la persona seleccionada.</Text>
+            {team?.currentStaffId && members.some((member) => member.id === team.currentStaffId) && assigneeStaffId !== team.currentStaffId ? (
               <Button
                 variant="subtle"
                 size="compact-sm"
@@ -142,6 +163,9 @@ function TaskForm({
             ) : null}
           </Stack>
         )}
+        {team && members.length === 0 ? (
+          <Text size="sm" c="dimmed">No hay usuarios disponibles para asignar tareas con tu perfil.</Text>
+        ) : null}
         <Group justify="flex-end" mt="xs">
           <Button variant="default" onClick={onClose}>
             Cancelar

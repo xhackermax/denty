@@ -77,6 +77,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
   const today = zonedDayKey(now);
   const [selectedDay, setSelectedDay] = useState(() => zonedDayKey(nowFn()));
   const [view, setView] = useState<View>("agenda");
+  const [scope, setScope] = useState<"team" | "mine">("team");
   const [editing, setEditing] = useState<TimelineTask | null>(null);
   const [creating, setCreating] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -97,6 +98,8 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
   const query = useQuery({
     queryKey: dentyQueryKeys.tasks.all,
     queryFn: () => resolvedApi.list(),
+    // Assigned tasks can arrive from another user's session while this page is open.
+    refetchInterval: 30_000,
   });
   const teamQuery = useQuery({
     queryKey: dentyQueryKeys.tasks.team,
@@ -109,17 +112,24 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
     [team],
   );
   const allTasks = useMemo(() => query.data?.items ?? [], [query.data]);
-  const archived = useMemo(() => allTasks.filter((t) => t.archivedAt), [allTasks]);
+  const myTasksCount = allTasks.filter((t) => !t.archivedAt && t.assigneeStaffId === team?.currentStaffId && Boolean(team?.currentStaffId)).length;
+  const scopedTasks = useMemo(() =>
+    scope === "mine" && team?.currentStaffId
+      ? allTasks.filter((t) => t.assigneeStaffId === team.currentStaffId)
+      : allTasks,
+    [allTasks, scope, team?.currentStaffId],
+  );
+  const archived = useMemo(() => scopedTasks.filter((t) => t.archivedAt), [scopedTasks]);
   const schedule = useMemo(
-    () => buildSchedule(allTasks, { dayKey: selectedDay, now }),
-    [allTasks, selectedDay, now],
+    () => buildSchedule(scopedTasks, { dayKey: selectedDay, now }),
+    [scopedTasks, selectedDay, now],
   );
 
-  const inbox = useMemo(() => inboxTasks(allTasks), [allTasks]);
+  const inbox = useMemo(() => inboxTasks(scopedTasks), [scopedTasks]);
   const weekDays = useMemo(() => getWeekDays(selectedDay), [selectedDay]);
   const markers = useMemo(
-    () => buildDayMarkers(allTasks, weekDays, { now }),
-    [allTasks, weekDays, now],
+    () => buildDayMarkers(scopedTasks, weekDays, { now }),
+    [scopedTasks, weekDays, now],
   );
 
   const allIds = useMemo(() => allTasks.map((t) => t.id), [allTasks]);
@@ -229,7 +239,8 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
             durationMin: values.durationMin,
             scheduledOn,
             dueAt,
-            ...(values.assigneeStaffId ? { assigneeStaffId: values.assigneeStaffId } : {}),
+            ...(values.assigneeStaffId && values.assigneeStaffId !== editing.assigneeStaffId
+              ? { assigneeStaffId: values.assigneeStaffId } : {}),
           },
         },
         { onSuccess: () => setEditing(null) },
@@ -239,6 +250,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
     actions.create.mutate(
       {
         title: values.title,
+        ...(values.description ? { description: values.description } : {}),
         priority: values.priority,
         durationMin: values.durationMin,
         ...(scheduledOn ? { scheduledOn } : {}),
@@ -273,7 +285,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
   }
 
   function dropOnDay(day: string) {
-    const task = allTasks.find((t) => t.id === dragId);
+    const task = scopedTasks.find((t) => t.id === dragId);
     setDragId(null);
     setOverId(null);
     if (task) moveToDay(task, day);
@@ -295,7 +307,7 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
       {
         plan,
         allIds: mergeVisibleOrder(allIds, plan.orderedIds),
-        tasks: allTasks,
+        tasks: scopedTasks,
       },
       {
         onSettled: () => {
@@ -349,6 +361,18 @@ export function TasksTimeline({ api, now: nowFn = () => new Date() }: TasksTimel
           />
           <div className={styles.header}>
             <h2 className={styles.title}>Tareas</h2>
+            {team?.currentStaffId ? (
+              <SegmentedControl
+                size="xs"
+                aria-label="Responsable de tareas"
+                value={scope}
+                onChange={(value) => setScope(value as "team" | "mine")}
+                data={[
+                  { value: "team", label: "Equipo" },
+                  { value: "mine", label: `Mis tareas (${myTasksCount})` },
+                ]}
+              />
+            ) : null}
             <SegmentedControl
               size="xs"
               value={view}

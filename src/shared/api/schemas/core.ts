@@ -333,6 +333,7 @@ export const tasksSchema = z.object({ items: z.array(taskSchema) });
 export const taskAssigneesSchema = z.object({
   items: z.array(z.object({ id: idSchema, name: z.string(), role: z.string() })),
   currentStaffId: idSchema.nullable(),
+  assignableStaffIds: z.array(idSchema).optional(),
 });
 export const createTaskSchema = z.object({
   title: z.string().trim().min(1).max(200),

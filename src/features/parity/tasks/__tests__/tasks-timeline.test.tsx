@@ -12,6 +12,31 @@ describe("TasksTimeline", () => {
     expect(await screen.findByText(/Nada programado este día/)).toBeTruthy();
   });
 
+  it("filtra Mis tareas por destinatario y conserva el listado de equipo", async () => {
+    const api = {
+      ...makeApi([
+        mk({ id: "a", title: "Llamar al paciente", assigneeStaffId: "me",
+          description: "Confirmar la hora de la cita." }),
+        mk({ id: "b", title: "Preparar material", assigneeStaffId: "colleague" }),
+      ]),
+      assignees: vi.fn(async () => ({
+        currentStaffId: "me",
+        items: [
+          { id: "me", name: "Marta", role: "RECEPTION" },
+          { id: "colleague", name: "Isabel", role: "ASSISTANT" },
+        ],
+      })),
+    };
+    renderTimeline(api);
+    expect(await screen.findByText("Llamar al paciente")).toBeVisible();
+    expect(screen.getByText("Confirmar la hora de la cita.")).toBeVisible();
+    expect(screen.getByText("Preparar material")).toBeVisible();
+    fireEvent.click(await screen.findByRole("radio", { name: /Mis tareas/ }));
+    expect(titlesInOrder()).toEqual(["Llamar al paciente"]);
+    fireEvent.click(screen.getByRole("radio", { name: "Equipo" }));
+    expect(titlesInOrder()).toEqual(["Llamar al paciente", "Preparar material"]);
+  });
+
   it("muestra error de carga", async () => {
     const api = makeApi([]);
     api.list.mockRejectedValueOnce(new Error("Sin conexión"));

@@ -4,6 +4,7 @@ import { handleNavigationRoute } from "./navigation-route";
 import { handleNextSlotsRoute } from "./next-slots-route";
 import { ExportRepository } from "./export-repository";
 import { exportFile } from "./export-file";
+import { taskAssignmentChoices } from "@/domain/task-delegation";
 import { z } from "zod";
 import { withoutUndefined, type WithoutUndefined } from "@/shared/lib/without-undefined";
 
@@ -966,14 +967,33 @@ export async function handleSupabaseDentyRoute(
       if (identity.actor.role === "PATIENT")
         return error(403, "FORBIDDEN", "El portal no gestiona tareas internas.");
       const team = await tasks.assignees();
-      return json(200, { ...team, currentStaffId: identity.actor.staffId ?? null }, headers);
+      const currentStaffId = identity.actor.staffId ?? null;
+      return json(200, {
+        // Show colleagues' names on the team board, but only permit authorised recipients.
+        items: team.items,
+        assignableStaffIds: taskAssignmentChoices(identity.actor.role, currentStaffId, team.items)
+          .map((member) => member.id),
+        currentStaffId,
+      }, headers);
     }
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "tasks") {
       if (identity.actor.role === "PATIENT")
         return error(403, "FORBIDDEN", "El portal no gestiona tareas internas.");
       if (method === "GET") return json(200, await tasks.list(), headers);
-      if (method === "POST")
-        return json(201, await tasks.create(await parseJson(request, createTaskSchema)), headers);
+      if (method === "POST") {
+        const payload = await parseJson(request, createTaskSchema);
+        if (payload.assigneeStaffId) {
+          const team = await tasks.assignees();
+          const allowed = taskAssignmentChoices(
+            identity.actor.role, identity.actor.staffId ?? null, team.items,
+          );
+          if (!allowed.some((person) => person.id === payload.assigneeStaffId)) {
+            return error(403, "TASK_ASSIGNMENT_FORBIDDEN",
+              "Solo puedes asignar tareas a los usuarios autorizados.");
+          }
+        }
+        return json(201, await tasks.create(payload), headers);
+      }
     }
     if (
       parts.length === 3 &&
@@ -998,6 +1018,16 @@ export async function handleSupabaseDentyRoute(
         return error(403, "FORBIDDEN", "El portal no gestiona tareas internas.");
       const taskId = decodeURIComponent(parts[2] ?? "");
       const payload = await parseJson(request, updateTaskSchema);
+      if (payload.assigneeStaffId) {
+        const team = await tasks.assignees();
+        const allowed = taskAssignmentChoices(
+          identity.actor.role, identity.actor.staffId ?? null, team.items,
+        );
+        if (!allowed.some((person) => person.id === payload.assigneeStaffId)) {
+          return error(403, "TASK_ASSIGNMENT_FORBIDDEN",
+            "No puedes asignar esta tarea al usuario seleccionado.");
+        }
+      }
       const { status } = payload;
       const isLegacyStatusUpdate =
         status !== undefined &&

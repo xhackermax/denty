@@ -129,6 +129,9 @@ export function TaskNode({
           <div className={styles.taskTitle} data-testid="task-title">
             {task.title}
           </div>
+          {task.description ? (
+            <p className={styles.taskDescription}>{task.description}</p>
+          ) : null}
           {conflict || entry.overdue || entry.explicit || assigneeName ? (
             <div className={styles.tags}>
               {conflict ? (
