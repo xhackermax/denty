@@ -35,6 +35,8 @@ export function CephalometryEditor({
   savedRef.current = savedEntity?.attributes?.cephalometry ?? null;
   const readOnlyRef = useRef(readOnly);
   readOnlyRef.current = readOnly;
+  const entityIdRef = useRef<string>(savedEntity?.id ?? `cephalometry-${patientId}`);
+  if (savedEntity?.id) entityIdRef.current = savedEntity.id;
   const commitRef = useRef(onCommit);
   commitRef.current = onCommit;
 
@@ -60,7 +62,7 @@ export function CephalometryEditor({
         isRecord(event.data.state.rows)
       ) {
         commitRef.current({
-          id: `cephalometry-${patientId}`,
+          id: entityIdRef.current,
           entityType: "ORTHODONTIC",
           status: "cephalometry",
           active: true,
