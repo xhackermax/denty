@@ -248,8 +248,8 @@ export function OrthodonticPanel({
       openBite,
       deepBite,
       appliances,
-      facialProfile: facialProfile ?? undefined,
-      facialBiotype: facialBiotype ?? undefined,
+      ...(facialProfile ? { facialProfile } : {}),
+      ...(facialBiotype ? { facialBiotype } : {}),
       notes,
       toothMarks,
     } as const;
