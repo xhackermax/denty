@@ -69,8 +69,10 @@ function relative(file) {
   return path.normalize(path.relative(ROOT, file));
 }
 
+const violations = [];
+
 function fail(file, message) {
-  throw new Error(`${relative(file)}: ${message}`);
+  violations.push(`${relative(file)}: ${message}`);
 }
 
 const files = await listFiles(SRC);
@@ -111,4 +113,12 @@ for (const file of files) {
   }
 }
 
-console.log("Architecture gate OK");
+if (violations.length > 0) {
+  console.error(`Architecture gate FAILED: ${violations.length} infracción(es) detectada(s):`);
+  for (const violation of violations) {
+    console.error(`- ${violation}`);
+  }
+  process.exitCode = 1;
+} else {
+  console.log("Architecture gate OK");
+}
