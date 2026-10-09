@@ -38,6 +38,6 @@ export function ImplantPlacementOutcomeForm({appointmentId,patientId,doctorId,cl
  {form.outcome==="DEFERRED"?<TextInput label="Fecha de reevaluación" type="date" value={form.reassessmentDate} onChange={e=>set("reassessmentDate",e.currentTarget.value)}/>:null}
  <Textarea label="Observaciones" value={form.notes} onChange={e=>set("notes",e.currentTarget.value)}/>
  {error?<Alert color="red">{error}</Alert>:null}
- <Button onClick={()=>void submit()} disabled={readOnly||busy} loading={busy}>Guardar resultado obligatorio</Button>
+ <Button onClick={()=>void submit()} disabled={readOnly||busy} loading={busy}>Añadir resultado a la lista</Button>
  </Stack>;
 }
