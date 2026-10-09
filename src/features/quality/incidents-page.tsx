@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { dentyQueryKeys } from "@/shared/query";
+import { dateYMDMadrid } from "@/domain/dates";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import { PageHeader } from "@/shared/ui";
 import { qualityApi, type IncidentCreateInput } from "./quality-api";
@@ -87,7 +88,9 @@ function IncidentItem({ item, doctors, editable, onSave, busy }: {
         <Button component={Link} size="xs" variant="subtle"
           href={`/app/patients/${item.patient_id}`}>Abrir ficha del paciente</Button>
         {item.appointment_id && <Button component={Link} size="xs" variant="subtle"
-          href="/app/agenda">Ir a la agenda · cita vinculada</Button>}
+          href={item.appointmentStart
+            ? `/app/agenda?date=${dateYMDMadrid(item.appointmentStart)}&appointmentId=${item.appointment_id}`
+            : "/app/agenda"}>Abrir cita original</Button>}
         <Text size="xs" c="dimmed">Registrada: {new Intl.DateTimeFormat("es-ES",
           { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Madrid" })
           .format(new Date(item.occurred_at))}</Text>
@@ -134,6 +137,11 @@ export function IncidentsPage({ initialPatientId, initialDoctorId }: {
     queryKey: [...dentyQueryKeys.patients.root, "quality-filter", filterPatientSearch],
     queryFn: () => qualityApi.patients(filterPatientSearch),
     enabled: Boolean(activeClinicId) && canRead && filterPatientSearch.trim().length >= 2,
+  });
+  const linkedAppointments = useQuery({
+    queryKey: ["denty", "quality", "patient-appointments", form.patientId],
+    queryFn: () => qualityApi.patientAppointments(form.patientId),
+    enabled: Boolean(activeClinicId) && canRead && modalOpen && Boolean(form.patientId),
   });
   const patients = useQuery({
     queryKey: [...dentyQueryKeys.patients.root, "quality-search", patientSearch],
@@ -217,9 +225,19 @@ export function IncidentsPage({ initialPatientId, initialDoctorId }: {
             value:p.id,label:`${p.first_name} ${p.last_name} · ${p.record_number ?? "Sin número"}`,
           })).concat(form.patientId && !(patients.data?.items ?? []).some(p=>p.id===form.patientId)
             ? [{value:form.patientId,label:"Paciente de la ficha seleccionada"}] : [])}
-          value={form.patientId || null} onChange={value=>setField("patientId",value ?? "")}/>
-        <TextInput label="Cita original (ID, opcional)" value={form.appointmentId ?? ""}
-          onChange={e=>setField("appointmentId",e.currentTarget.value || null)}/>
+          value={form.patientId || null} onChange={value=>{
+            setForm(old=>({...old,patientId:value??"",appointmentId:null}));
+          }}/>
+        <Select label="Cita original (opcional)" clearable searchable
+          placeholder="Selecciona una cita de este paciente"
+          data={(linkedAppointments.data?.items ?? []).map(a=>({
+            value:a.id,
+            label:`${new Intl.DateTimeFormat("es-ES", {
+              dateStyle:"short", timeStyle:"short", timeZone:"Europe/Madrid",
+            }).format(new Date(a.startsAt))} · ${a.title} (${a.status})`,
+          }))}
+          value={form.appointmentId ?? null}
+          onChange={v=>setField("appointmentId",v ?? null)}/>
         <Select label="Doctor responsable" clearable data={staffOptions}
           value={form.doctorId ?? null}
           onChange={value=>setField("doctorId",value ?? null)}/>
