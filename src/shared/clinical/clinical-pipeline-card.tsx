@@ -37,7 +37,7 @@ function lifecycleStatus(value: string | undefined): BudgetLifecycleStatus {
     : "DRAFT";
 }
 
-export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
+export function ClinicalPipelineCard({ patientId }: { patientId: string }) {
   const [flowOpen, setFlowOpen] = useState(false);
   const syncQuery = useClinicalSyncQuery(patientId ?? "", Boolean(patientId));
   const workflowQuery = useClinicalWorkflowQuery(patientId ?? "", Boolean(patientId));
@@ -96,6 +96,9 @@ export function ClinicalPipelineCard({ patientId }: { patientId?: string }) {
     syncQuery.data,
     workflowQuery.data?.problems.length,
   ]);
+
+  // Un paciente concreto es obligatorio: no existe un pipeline clínico global.
+  if (!patientId) return null;
 
   return (
     <section className={styles.section}>
