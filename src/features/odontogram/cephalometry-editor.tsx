@@ -28,7 +28,7 @@ export function CephalometryEditor({
   const iframe = useRef<HTMLIFrameElement>(null);
   const [loaded, setLoaded] = useState(false);
   const savedEntity = useMemo(
-    () => entities.find((entry) => entry.active && entry.id === `cephalometry-${patientId}`),
+    () => entities.find((entry) => entry.active && entry.entityType === "ORTHODONTIC" && entry.status === "cephalometry" && entry.attributes?.assessmentType === "LATERAL_CEPHALOMETRY"),
     [entities, patientId],
   );
   const savedRef = useRef<unknown>(null);
