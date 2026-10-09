@@ -253,7 +253,7 @@ export function OrthodonticPanel({
       notes,
       toothMarks,
     } as const;
-    onCommit(createOrthodonticEntity(patientId, attributes));
+    onCommit({ ...createOrthodonticEntity(patientId, attributes), ...(persisted ? { id: persisted.id } : {}) });
     setSaved(true);
   };
   return (
