@@ -8,6 +8,7 @@ export interface QualityPatient {
 }
 export interface QualityIncident {
   id: string; patient_id: string; appointment_id: string | null;
+  implant_outcome_id: string | null;
   responsible_doctor_id: string | null; title: string; description: string;
   category: string; cause: string; severity: string; status: string;
   repeat_treatment: boolean; cost_cents: number;
