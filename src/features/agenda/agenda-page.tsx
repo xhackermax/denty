@@ -327,6 +327,9 @@ export function AgendaPage() {
   const [implantRows, setImplantRows] = useState<ReturnType<typeof implantOutcomePayload>[]>([]);
   const [implantEntryIndex, setImplantEntryIndex] = useState(0);
   const [implantCompleting, setImplantCompleting] = useState(false);
+  const [treatmentAppointment, setTreatmentAppointment] = useState<AgendaAppointmentView | null>(null);
+  const [treatmentCompleting, setTreatmentCompleting] = useState(false);
+  const [treatmentError, setTreatmentError] = useState<string | null>(null);
   const [implantError, setImplantError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingChange | null>(null);
   const [slotSearchOpened, setSlotSearchOpened] = useState(false);
@@ -701,6 +704,11 @@ export function AgendaPage() {
       setImplantRows([]);
       setImplantError(null);
       setImplantEntryIndex(0);
+      return;
+    }
+    if (status === "COMPLETED" && appointment.clinicalPlanItemId) {
+      setTreatmentAppointment(appointment);
+      setTreatmentError(null);
       return;
     }
     const input = { id: appointment.id, expectedVersion: appointment.version };
@@ -2084,6 +2092,69 @@ export function AgendaPage() {
               </Group>
             </Stack>
           ) : null}
+        </Modal>
+
+        <Modal
+          opened={treatmentAppointment !== null}
+          onClose={() => {
+            if (!treatmentCompleting) setTreatmentAppointment(null);
+          }}
+          title="Confirmar trabajo clínico de la cita"
+          size="md"
+        >
+          <Stack gap="md">
+            <Text fw={700}>{treatmentAppointment?.patientName}</Text>
+            <Text size="sm">
+              Esta cita está vinculada a un tratamiento del plan. ¿Ha quedado
+              realmente terminado o se trata de una sesión intermedia?
+            </Text>
+            <Alert color="blue">
+              Solo «Tratamiento terminado» lo incorporará a las estadísticas
+              del doctor. El mismo tratamiento no volverá a contabilizarse.
+            </Alert>
+            {treatmentError && <Alert color="red">{treatmentError}</Alert>}
+            <Group gap="sm" justify="flex-end">
+              <Button variant="default" disabled={treatmentCompleting}
+                onClick={() => setTreatmentAppointment(null)}>
+                Volver
+              </Button>
+              <Button variant="light" loading={treatmentCompleting}
+                onClick={async () => {
+                  if (!treatmentAppointment) return;
+                  setTreatmentCompleting(true);
+                  setTreatmentError(null);
+                  try {
+                    await qualityApi.completeClinicalVisit(
+                      treatmentAppointment.id, treatmentAppointment.version, false);
+                    setTreatmentAppointment(null);
+                    setAgendaNotice("Sesión finalizada; el tratamiento continúa pendiente.");
+                    setQuickViewId(null);
+                    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.appointments.root });
+                  } catch (error) {
+                    setTreatmentError(error instanceof Error ? error.message : "Error al cerrar la cita.");
+                  } finally { setTreatmentCompleting(false); }
+                }}>Solo finalizar cita</Button>
+              <Button loading={treatmentCompleting}
+                onClick={async () => {
+                  if (!treatmentAppointment) return;
+                  setTreatmentCompleting(true);
+                  setTreatmentError(null);
+                  try {
+                    await qualityApi.completeClinicalVisit(
+                      treatmentAppointment.id, treatmentAppointment.version, true);
+                    setTreatmentAppointment(null);
+                    setAgendaNotice("Tratamiento y cita finalizados. Estadísticas actualizadas.");
+                    setQuickViewId(null);
+                    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.appointments.root });
+                    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.root });
+                    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.analytics.root });
+                  } catch (error) {
+                    setTreatmentError(error instanceof Error ? error.message :
+                      "No se completó la operación; no se ha contabilizado el tratamiento.");
+                  } finally { setTreatmentCompleting(false); }
+                }}>Tratamiento terminado</Button>
+            </Group>
+          </Stack>
         </Modal>
 
         <Modal
