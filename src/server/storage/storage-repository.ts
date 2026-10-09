@@ -6,9 +6,14 @@ export const PATIENT_PHOTOS_BUCKET = "patient-photos";
 export const CLINICAL_DOCUMENTS_BUCKET = "clinical-documents";
 export const LAB_ATTACHMENTS_BUCKET = "lab-attachments";
 export const PRESCRIPTION_EVIDENCE_BUCKET = "prescription-evidence";
+export const STAFF_DOCUMENTS_BUCKET = "staff-documents";
 
 const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const DOCUMENT_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+const STAFF_DOCUMENT_TYPES = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
 const PRESCRIPTION_SIGNATURE_TYPES = new Set(["image/jpeg", "image/png"]);
 const LAB_ATTACHMENT_TYPES = new Set([
   "application/pdf",
@@ -38,6 +43,8 @@ function extensionFor(mimeType: string): string {
       return "webp";
     case "application/pdf":
       return "pdf";
+    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+      return "docx";
     case "application/zip":
       return "zip";
     case "application/vnd.ms-pki.stl":
@@ -79,6 +86,18 @@ export class StorageRepository {
     if (file.size <= 0 || file.size > 25 * 1024 * 1024)
       throw new Error("El documento debe ocupar entre 1 byte y 25 MB.");
     return this.upload(CLINICAL_DOCUMENTS_BUCKET, clinicId, patientId, file);
+  }
+
+  async uploadStaffDocument(
+    clinicId: string,
+    staffMemberId: string,
+    file: File,
+  ): Promise<StoredObject> {
+    if (!STAFF_DOCUMENT_TYPES.has(file.type))
+      throw new Error("Solo se admiten documentos PDF o DOCX.");
+    if (file.size <= 0 || file.size > 10 * 1024 * 1024)
+      throw new Error("El archivo debe ocupar entre 1 byte y 10 MB.");
+    return this.upload(STAFF_DOCUMENTS_BUCKET, clinicId, staffMemberId, file);
   }
 
   async uploadPrescriptionSignature(

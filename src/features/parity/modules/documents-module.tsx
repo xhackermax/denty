@@ -103,7 +103,7 @@ export function postCreateAction(document: { type: string; status: string }): "s
   return document.type === "CONSENT" && SIGNABLE_STATES.has(document.status) ? "sign" : "none";
 }
 
-export function DocumentsModule() {
+export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "consents" }) {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const initialPatientId = searchParams.get("patientId");
@@ -281,7 +281,10 @@ export function DocumentsModule() {
   const templateRows = (templates.data?.items ?? []) as TemplateRow[];
   const templateById = new Map(templateRows.map((template) => [template.id, template]));
   const activeTemplates = templateRows.filter(
-    (template) => template.active !== false && template.code !== "ATTENDANCE_CERTIFICATE",
+    (template) =>
+      template.active !== false &&
+      template.code !== "ATTENDANCE_CERTIFICATE" &&
+      (mode !== "consents" || template.code?.startsWith("CONSENT_")),
   );
   const planItems = plan.data?.items ?? [];
   const treatmentFor = (planItemId: string | null | undefined) => {
@@ -324,7 +327,9 @@ export function DocumentsModule() {
   const signingDoctorId =
     typeof signing?.data?.doctorId === "string" ? signing.data.doctorId : doctorId;
   const hasError = patients.isError || documents.isError || templates.isError;
-  const visibleDocuments = documents.data?.items ?? [];
+  const visibleDocuments = (documents.data?.items ?? []).filter(
+    (document) => mode !== "consents" || document.type === "CONSENT",
+  );
   const pendingConsents = (consents.data?.items ?? []).filter(
     (item) => item.status !== "SATISFIED",
   );
@@ -409,7 +414,7 @@ export function DocumentsModule() {
         </section>
       ) : null}
 
-      {patientId ? (
+      {patientId && mode !== "consents" ? (
         <section className={styles.section} aria-label="Justificante de asistencia">
           <Group justify="space-between">
             <div>
@@ -499,7 +504,7 @@ export function DocumentsModule() {
       <section className={styles.section}>
         <Group justify="space-between">
           <div>
-            <h3 className={styles.sectionTitle}>Nuevo documento</h3>
+            <h3 className={styles.sectionTitle}>{mode === "consents" ? "Nuevo consentimiento" : "Nuevo documento"}</h3>
             <p className={styles.sectionDescription}>Se crea directamente en la fuente canónica.</p>
           </div>
           <Badge variant="light">Servidor</Badge>
@@ -536,7 +541,7 @@ export function DocumentsModule() {
             onChange={(event) => setTitle(event.currentTarget.value)}
           />
           <Button
-            disabled={!patientId || !title.trim()}
+            disabled={!patientId || !title.trim() || (mode === "consents" && !templateId)}
             loading={create.isPending}
             onClick={() => {
               if (!patientId) return;
@@ -544,7 +549,8 @@ export function DocumentsModule() {
               create.mutate(
                 {
                   patientId,
-                  type: code?.startsWith("CONSENT_") ? "CONSENT" : "CLINICAL_DOCUMENT",
+                  type: mode === "consents" || code?.startsWith("CONSENT_")
+                     ? "CONSENT" : "CLINICAL_DOCUMENT",
                   title: title.trim(),
                   ...(templateId ? { templateId } : {}),
                 },
@@ -558,7 +564,9 @@ export function DocumentsModule() {
       </section>
 
       <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>Documentos</h3>
+        <h3 className={styles.sectionTitle}>
+          {mode === "consents" ? "Consentimientos" : "Documentos"}
+        </h3>
         <div className={styles.rowList}>
           {visibleDocuments.map((document) => {
             const pendingBudget =
@@ -663,7 +671,7 @@ export function DocumentsModule() {
             );
           })}
           {!documents.isLoading && visibleDocuments.length === 0 ? (
-            <Text c="dimmed">Sin documentos.</Text>
+            <Text c="dimmed">Sin {mode === "consents" ? "consentimientos" : "documentos"}.</Text>
           ) : null}
         </div>
       </section>
