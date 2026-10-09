@@ -83,6 +83,11 @@ export const qualityApi = {
 
   doctors: (range: { start: string; end: string; siteId?: string }) =>
     request<QualityDoctorsResult>(qs("doctors", range)),
+  incidentHistory: (incidentId: string) =>
+    request<{ items: Array<{
+      id:string; event_kind:string; previous_status:string|null;
+      new_status:string; corrective_action:string|null; occurred_at:string;
+    }> }>(qs("incident-history", {incidentId})),
   incidents: (filters: { patientId?: string; doctorId?: string; status?: string } = {}) =>
     request<QualityIncidentsResult>(qs("incidents", filters)),
   staff: () => request<{ items: QualityStaff[] }>(qs("staff")),
