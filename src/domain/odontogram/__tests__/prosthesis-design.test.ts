@@ -63,7 +63,8 @@ describe("prosthesis design catalogs", () => {
     };
     expect(() => createProsthesisPlan({ ...base, teethToRestore: 0 })).toThrow();
     expect(() => createProsthesisPlan({ ...base, implantCount: 0 })).toThrow();
-    expect(() => createProsthesisPlan({ ...base, attachmentCount: 5 })).toThrow();
+    expect(createProsthesisPlan({ ...base, attachmentCount: 5 }).attributes?.attachmentCount).toBe(5);
+    expect(() => createProsthesisPlan({ ...base, attachmentCount: 0 })).toThrow();
     expect(() => createProsthesisPlan({ ...base, selectedTooth: "46" })).toThrow();
     expect(() => createProsthesisPlan({ ...base, prosthesisType: "complete_denture" })).toThrow();
   });
