@@ -107,13 +107,13 @@ async function handle(request: Request) {
   try {
     if (request.method === "GET") {
       if (kind === "doctors") {
-        if (!permissions.includes("finance.read")) return fail(403, "Sin permiso de análisis.", headers);
+        if (!permissions.includes("analysis.read")) return fail(403, "Sin permiso de análisis.", headers);
         const query = dateQuery.parse({
           start: url.searchParams.get("start"),
           end: url.searchParams.get("end"),
           ...(url.searchParams.get("siteId") ? { siteId: url.searchParams.get("siteId") } : {}),
         });
-        return response(200, await quality.scorecards(query.start, query.end, query.siteId), headers);
+        return response(200, await quality.scorecards(query.start, query.end, query.siteId, permissions.includes("settings.manage")), headers);
       }
       if (!permissions.includes("clinical.read"))
         return fail(403, "Sin permiso de lectura clínica.", headers);
