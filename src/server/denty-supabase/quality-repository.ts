@@ -106,7 +106,7 @@ export class QualityRepository {
         ...this.where(), executed_at: `gte.${start}`,
       }),
       this.db.selectAll<Row>("clinical_incidents", {
-        select: "responsible_doctor_id,category,repeat_treatment,cause,occurred_at",
+        select: "responsible_doctor_id,category,repeat_treatment,cause,occurred_at,appointment_id",
         ...this.where(), occurred_at: `gte.${start}`,
       }),
       this.db.selectAll<Row>("implant_placement_outcomes", {
@@ -125,7 +125,8 @@ export class QualityRepository {
     const visitIds = new Set(visits.map(a => id(a, "id")));
     const performed = executions.filter(e =>
       beforeEnd(e, "executed_at") && completedIds.has(id(e, "appointment_id")));
-    const incidentRows = incidents.filter(r => beforeEnd(r, "occurred_at"));
+    const incidentRows = incidents.filter(r => beforeEnd(r, "occurred_at")
+      && (!siteId || (r.appointment_id !== null && visitIds.has(id(r, "appointment_id")))));
     const implantRows = implants.filter(r =>
       beforeEnd(r, "recorded_at") && (!siteId || visitIds.has(id(r, "appointment_id"))));
     const items = staff.filter(s => s.active !== false && /DENTIST|DOCTOR|ODONTO|CLINICIAN/i.test(id(s, "role"))).map(s => {
@@ -151,8 +152,9 @@ export class QualityRepository {
           failureKind: i.failure_kind ? id(i, "failure_kind") : null,
         })));
       const doctorPunches = punches.filter(p => id(p, "staff_member_id") === doctorId);
+      const punchInPeriod = doctorPunches.filter(p => beforeEnd(p, "occurred_at"));
       const replaced = new Set(doctorPunches.map(p => id(p, "corrects_punch_id")).filter(Boolean));
-      const effective = doctorPunches.filter(p => !replaced.has(id(p, "id")))
+      const effective = punchInPeriod.filter(p => !replaced.has(id(p, "id")))
         .sort((a, b) => id(a, "occurred_at").localeCompare(id(b, "occurred_at")));
       let started: number | null = null;
       let totalMs = 0;
@@ -174,6 +176,6 @@ export class QualityRepository {
           : anomaly ? "Fichajes incompletos: horas no calculables" : null,
       };
     });
-    return { items, warning: "Los tratamientos provienen exclusivamente del registro de ejecuciones confirmado. Los importes sin atribución no se estiman." };
+    return { items, warning: "Los tratamientos proceden solo de ejecuciones confirmadas, nunca de planes pendientes. Los importes no atribuidos no se estiman. Las horas de fichaje corresponden a toda la clínica, ya que el fichaje no identifica sede; con filtros de sede no se desglosan." };
   }
 }
