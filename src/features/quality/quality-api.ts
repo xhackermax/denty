@@ -1,3 +1,5 @@
+import type { implantOutcomePayload } from "@/domain/implant-placement-outcome";
+
 export interface QualityStaff {
   id: string; display_name: string; role: string; active: boolean;
 }
@@ -44,7 +46,34 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   if (!reply.ok) throw new Error(body.error?.message ?? "No se pudo conectar con Supabase.");
   return body as T;
 }
+type ImplantPayload = ReturnType<typeof implantOutcomePayload>;
+function implantForServer(item: ImplantPayload) {
+  return {
+    tooth_position: item.tooth_position,
+    outcome: item.outcome,
+    system: item.system,
+    implant_model: item.implant_model,
+    platform: item.platform,
+    diameter_mm: item.diameter_mm,
+    length_mm: item.length_mm,
+    lot_number: item.lot_number,
+    failure_kind: item.failure_kind,
+    reason: item.reason,
+    reassessment_date: item.reassessment_date,
+    notes: item.notes,
+  };
+}
 export const qualityApi = {
+  completeImplantAppointment: (appointmentId: string, expectedVersion: number,
+    outcomes: readonly ImplantPayload[]) =>
+    request<{ appointment: { id: string; status: string; version: number } }>(qs("implant-finalize"), {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        appointmentId, expectedVersion,
+        outcomes: outcomes.map(implantForServer),
+      }),
+    }),
+
   doctors: (range: { start: string; end: string; siteId?: string }) =>
     request<QualityDoctorsResult>(qs("doctors", range)),
   incidents: (filters: { patientId?: string; doctorId?: string; status?: string } = {}) =>
