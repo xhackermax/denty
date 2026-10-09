@@ -137,23 +137,24 @@ export class QualityRepository {
       this.doctors(),
       this.db.selectAll<Row>("appointments", {
         select: "id,patient_id,staff_id,status,site_id,starts_at",
-        ...this.where(), starts_at: `gte.${start}`,
+        ...this.where(), and: `(starts_at.gte.${start},starts_at.lt.${end})`,
+        ...(siteId ? {site_id: `eq.${siteId}`} : {}),
       }),
       this.db.selectAll<Row>("clinical_treatment_executions", {
         select: "id,doctor_id,patient_id,appointment_id,clinical_plan_item_id,treatment_category,attributed_revenue_cents,executed_at",
-        ...this.where(), executed_at: `gte.${start}`,
+        ...this.where(), and: `(executed_at.gte.${start},executed_at.lt.${end})`,
       }),
       this.db.selectAll<Row>("clinical_incidents", {
         select: "responsible_doctor_id,category,repeat_treatment,cause,occurred_at,appointment_id",
-        ...this.where(), occurred_at: `gte.${start}`,
+        ...this.where(), and: `(occurred_at.gte.${start},occurred_at.lt.${end})`,
       }),
       this.db.selectAll<Row>("implant_placement_outcomes", {
         select: "doctor_id,appointment_id,outcome,failure_kind,recorded_at",
-        ...this.where(), recorded_at: `gte.${start}`,
+        ...this.where(), and: `(recorded_at.gte.${start},recorded_at.lt.${end})`,
       }),
       this.db.selectAll<Row>("attendance_punches", {
         select: "id,staff_member_id,punch_type,occurred_at,corrects_punch_id,created_at",
-        ...this.where(), occurred_at: `gte.${start}`, order: "occurred_at.asc",
+        ...this.where(), and: `(occurred_at.gte.${start},occurred_at.lt.${end})`, order: "occurred_at.asc",
       }),
     ]);
     const beforeEnd = (r: Row, key: string) => Date.parse(id(r, key)) < Date.parse(end);
@@ -192,7 +193,7 @@ export class QualityRepository {
       && (!siteId || (r.appointment_id !== null && visitIds.has(id(r, "appointment_id")))));
     const implantRows = implants.filter(r =>
       beforeEnd(r, "recorded_at") && completedIds.has(id(r, "appointment_id")));
-    const items = staff.filter(s => s.active !== false && /DENTIST|DOCTOR|ODONTO|CLINICIAN/i.test(id(s, "role"))).map(s => {
+    const items = staff.filter(s => /DENTIST|DOCTOR|ODONTO|CLINICIAN/i.test(id(s, "role"))).map(s => {
       const doctorId = id(s, "id");
       const card = doctorScorecard(doctorId,
         performed.map(e => ({
@@ -221,8 +222,10 @@ export class QualityRepository {
           punch_type: id(p, "punch_type"), occurred_at: id(p, "occurred_at"),
           corrects_punch_id: p.corrects_punch_id ? id(p, "corrects_punch_id") : null,
         } satisfies AttendancePunch));
-      const attendance = verifiedAttendanceHours(doctorPunches, end);
-      return { ...card, doctorName: id(s, "display_name"),
+      const attendance = siteId
+        ? {hours: null, note: "El fichaje no identifica sede; selecciona toda la clínica"}
+        : verifiedAttendanceHours(doctorPunches, end);
+      return { ...card, doctorName: `${id(s, "display_name")}${s.active === false ? " (inactivo)" : ""}`,
         attendanceHours: attendance.hours,
         attendanceNote: attendance.note,
       };
