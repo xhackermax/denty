@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   ENDODONTIC_DECISION_NOTICE,
+  APICAL_DIAGNOSES,
+  PULPAL_DIAGNOSES,
   ENDODONTIC_VISUAL_MARKS,
   endodonticConsistency,
   endodonticVisualCodeForApicalDiagnosis,
@@ -61,4 +63,14 @@ describe("endodontic consistency", () => {
     });
     expect(ENDODONTIC_VISUAL_MARKS.chronic_apical_abscess.svgPath).toContain("C");
   });
+});
+
+it("shows only one accented entry per endodontic diagnosis", () => {
+  expect(APICAL_DIAGNOSES).toContain("Periodontitis apical sintomática");
+  expect(APICAL_DIAGNOSES).toContain("Periodontitis apical asintomática");
+  expect(APICAL_DIAGNOSES).toContain("Osteítis condensante");
+  expect(APICAL_DIAGNOSES).toContain("Absceso apical crónico");
+  const canonical = (label: string) => label.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  expect(new Set(APICAL_DIAGNOSES.map(canonical)).size).toBe(APICAL_DIAGNOSES.length);
+  expect(new Set(PULPAL_DIAGNOSES.map(canonical)).size).toBe(PULPAL_DIAGNOSES.length);
 });

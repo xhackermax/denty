@@ -56,7 +56,7 @@ describe("SurgeryPanel", () => {
   });
 });
 
-it.each(["Gingivectomía", "Regularización ósea", "Férula quirúrgica guiada", "Malla de titanio"])(
+it.each(["Gingivectomía", "Regularización ósea", "Férula quirúrgica guiada", "Malla de titanio", "Regeneración ósea guiada (ROG)", "Injerto de tejido conectivo", "Pinhole technique", "Coronectomía", "Exodoncia compleja / 3er molar", "Elevación de seno interna"])(
   "offers %s in procedure selector",
   (label) => {
     const view = render(
@@ -92,7 +92,7 @@ it("registers an extra treatment on the same tooth in one batch", () => {
   fireEvent.click(
     view.getAllByLabelText("Tratamientos adicionales").find((el) => el.tagName === "INPUT")!,
   );
-  fireEvent.click(view.getByRole("option", { name: /Injerto/ }));
+  fireEvent.click(view.getByRole("option", { name: "Injerto óseo" }));
   fireEvent.click(view.getByRole("button", { name: "Registrar" }));
   expect(onCommitBatch.mock.calls[0]?.[0].map((e: { status: string }) => e.status)).toEqual([
     "extraction_simple",

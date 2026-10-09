@@ -117,6 +117,7 @@ import {
 
 import { patientLine } from "./patient-line";
 import { SurgeryPanel } from "./surgery-panel";
+import { ProstheticsPanel } from "./prosthetics-panel";
 import { surgicalVisualsForTooth } from "./surgery-visuals";
 const TOOL_OPTIONS = TOOTH_STATES.map((state) => ({
   value: state,
@@ -1672,11 +1673,17 @@ function OdontogramEditor({
             Selecciona un plan para mostrar sus propuestas.
           </Alert>
         ) : null}
-              {inspectorLayer === "prosthetics" ? (
-                <Text size="xs" c="dimmed">
-                  Las herramientas de prótesis se encuentran en «Más herramientas». Sus componentes se dibujan sobre el odontograma común.
-                </Text>
-              ) : null}
+              <RetainedFlowStep active={inspectorLayer === "prosthetics" && viewState.visibleLayerIds.includes("prosthetics")}>
+                <details className={styles.layerEditor} open>
+                  <summary>Editar prótesis sobre dientes / implantes</summary>
+                  <ProstheticsPanel
+                    selectedTooth={selectedTooth}
+                    readOnly={historical}
+                    onCommit={commit}
+                    onWarning={setClinicalRuleMessage}
+                  />
+                </details>
+              </RetainedFlowStep>
             </div>
           </section>
         </div>
