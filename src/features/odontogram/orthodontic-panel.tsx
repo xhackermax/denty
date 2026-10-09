@@ -43,6 +43,9 @@ const APPLIANCES: readonly {
   { value: "lingual_arch", label: "Arco lingual" },
   { value: "space_maintainer", label: "Mantenedor" },
   { value: "miniscrews", label: "Microtornillos" },
+  { value: "distalizer", label: "Distalizador" },
+  { value: "facial_mask", label: "Máscara facial" },
+  { value: "habit_corrector", label: "Aparatología para corrección de hábitos" },
 ];
 type OrthoMark = "none" | "bracket" | "band" | "attachment" | "extract" | "space" | "miniscrew" | "maintainer";
 const ORTHO_MARKS: readonly OrthoMark[] = [
@@ -80,6 +83,8 @@ interface OrthodonticDraft {
   deepBite: boolean;
   appliances: OrthodonticAppliance[];
   notes: string;
+  facialProfile: "convexo" | "recto" | "concavo" | null;
+  facialBiotype: "mesofacial" | "dolicofacial" | "braquifacial" | null;
   toothMarks: Record<string, OrthoMark>;
 }
 const CLASSES = new Set<string>(["I", "II", "III"]);
@@ -116,6 +121,8 @@ export function orthodonticDraftFromEntity(
         )
       : [],
     notes: typeof a.notes === "string" ? a.notes : "",
+    facialProfile: ["convexo", "recto", "concavo"].includes(String(a.facialProfile)) ? a.facialProfile as OrthodonticDraft["facialProfile"] : null,
+    facialBiotype: ["mesofacial", "dolicofacial", "braquifacial"].includes(String(a.facialBiotype)) ? a.facialBiotype as OrthodonticDraft["facialBiotype"] : null,
     toothMarks: Object.fromEntries(
       Object.entries(marks).filter((entry): entry is [string, OrthoMark] =>
         MARKS.has(String(entry[1])),
@@ -148,12 +155,14 @@ export function OrthodonticPanel({
   const [openBite, setOpenBite] = useState(false);
   const [deepBite, setDeepBite] = useState(false);
   const [notes, setNotes] = useState("");
+  const [facialProfile, setFacialProfile] = useState<OrthodonticDraft["facialProfile"]>(null);
+  const [facialBiotype, setFacialBiotype] = useState<OrthodonticDraft["facialBiotype"]>(null);
   const [appliances, setAppliances] = useState<OrthodonticAppliance[]>([]);
   const [toothMarks, setToothMarks] = useState<Record<string, OrthoMark>>({});
   const [saved, setSaved] = useState(false);
   const persisted = entities.find(
     (entity) =>
-      entity.active && entity.entityType === "ORTHODONTIC" && !entity.attributes?.appliance,
+      entity.active && entity.entityType === "ORTHODONTIC" && entity.status !== "cephalometry" && !entity.attributes?.appliance,
   );
   // Compared by content: the chart hands over new entity objects on every edit.
   const persistedKey = persisted ? JSON.stringify(persisted.attributes ?? {}) : "";
@@ -165,6 +174,8 @@ export function OrthodonticPanel({
       setAppliances([]);
       setToothMarks({});
       setNotes("");
+      setFacialProfile(null);
+      setFacialBiotype(null);
       setSaved(false);
       return;
     }
@@ -182,6 +193,8 @@ export function OrthodonticPanel({
     setDeepBite(draft.deepBite);
     setAppliances([...draft.appliances]);
     setNotes(draft.notes);
+    setFacialProfile(draft.facialProfile);
+    setFacialBiotype(draft.facialBiotype);
     setToothMarks({ ...draft.toothMarks });
     setSaved(true);
   }, [patientId, persistedKey]);
@@ -235,6 +248,8 @@ export function OrthodonticPanel({
       openBite,
       deepBite,
       appliances,
+      facialProfile: facialProfile ?? undefined,
+      facialBiotype: facialBiotype ?? undefined,
       notes,
       toothMarks,
     } as const;
@@ -366,6 +381,11 @@ export function OrthodonticPanel({
           onChange={(event) => setDeepBite(event.currentTarget.checked)}
         />
       </Group>
+
+      <SimpleGrid cols={{ base: 1, sm: 2 }} mt="md">
+        <Select label="Perfil facial" placeholder="Seleccionar" clearable value={facialProfile} onChange={(v) => setFacialProfile(v as OrthodonticDraft["facialProfile"])} data={[{ value: "convexo", label: "Convexo" }, { value: "recto", label: "Recto" }, { value: "concavo", label: "Cóncavo" }]} disabled={readOnly}/>
+        <Select label="Biotipo facial" placeholder="Seleccionar" clearable value={facialBiotype} onChange={(v) => setFacialBiotype(v as OrthodonticDraft["facialBiotype"])} data={[{ value: "mesofacial", label: "Mesofacial" }, { value: "dolicofacial", label: "Dolicofacial" }, { value: "braquifacial", label: "Braquifacial" }]} disabled={readOnly}/>
+      </SimpleGrid>
 
       <Group mt="md">
         {APPLIANCES.map((appliance) => (
