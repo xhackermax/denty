@@ -1689,6 +1689,7 @@ function OdontogramEditor({
                 <details className={styles.layerEditor} open>
                   <summary>Editar prótesis sobre dientes / implantes</summary>
                   <ProstheticsPanel
+                    entities={entities}
                     selectedTooth={selectedTooth}
                     readOnly={historical}
                     onCommit={commit}
