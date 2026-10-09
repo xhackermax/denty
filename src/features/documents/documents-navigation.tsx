@@ -1,9 +1,11 @@
 "use client";
 
 import { Anchor, Badge, Group, SimpleGrid, Stack, Text, ThemeIcon } from "@mantine/core";
+import { useQuery } from "@tanstack/react-query";
+import { getBrowserApi } from "@/shared/api/browser";
 import {
   IconFileInvoice, IconFileCheck, IconFileDescription, IconPill,
-  IconUsers, IconFileCv, IconFileCertificate, IconArchive, IconArrowRight,
+  IconUsers, IconFileText, IconFileCertificate, IconArrowRight,
 } from "@tabler/icons-react";
 import Link from "next/link";
 
@@ -18,12 +20,23 @@ const categories = [
 ] as const;
 
 const personnel = [
-  { href: "/app/documents/personal/curriculums", title: "Currículums", description: "CV de profesionales activos e inactivos.", icon: IconFileCv },
+  { href: "/app/documents/personal/curriculums", title: "Currículums", description: "CV de profesionales activos e inactivos.", icon: IconFileText },
   { href: "/app/documents/personal/contratos", title: "Contratos", description: "Contratos del equipo, asociados a cada empleado.", icon: IconFileCertificate },
 ] as const;
 
 export function DocumentCards({ personnelOnly = false }: { personnelOnly?: boolean }) {
-  const items = personnelOnly ? personnel : categories;
+  const session = useQuery({
+    queryKey: ["documents", "access"],
+    queryFn: () => getBrowserApi().auth.session(),
+    staleTime: 0,
+    gcTime: 0,
+  });
+  const items = personnelOnly
+    ? personnel
+    : categories.filter((item) =>
+        item.href !== "/app/documents/personal" ||
+        session.data?.actor.permissions.includes("users.manage"),
+      );
   return (
     <Stack gap="md">
       {personnelOnly ? (
