@@ -262,6 +262,7 @@ export function evaluateRulesR001R018(
   push(
     proposed.status === "extraction_surgical" &&
       proposed.attributes?.impacted !== true &&
+      proposed.attributes?.complex !== true &&
       !has(sameTooth, (entity) => ["impacted", "included"].includes(entity.status)) &&
       decision(
         "R018",
