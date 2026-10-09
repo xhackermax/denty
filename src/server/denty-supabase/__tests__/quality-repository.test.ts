@@ -74,13 +74,16 @@ describe("doctor analytics period and clinic scope", () => {
   const end = "2026-10-10T00:00:00+02:00";
 
   it("passes date boundaries into Supabase instead of loading an unbounded history", async () => {
-    const selectAll = vi.fn(async (table: string) => rows[table] ?? []);
+    const selectAll = vi.fn(async (table: string, _query: Record<string, string | number> = {}) => rows[table] ?? []);
     const select = vi.fn(async (table: string) => rows[table] ?? []);
     const client = { selectAll, select } as unknown as SupabaseRestClient;
     await new QualityRepository(client, "clinic1").scorecards(start, end, "site1");
     const appointmentQuery = selectAll.mock.calls.find(([name]) => name === "appointments");
     // The repository query must apply upper and lower bounds before pagination.
-    expect(appointmentQuery).toBeDefined();
+    expect(appointmentQuery?.[1]).toMatchObject({
+      clinic_id: "eq.clinic1", site_id: "eq.site1",
+      and: `(starts_at.gte.${start},starts_at.lt.${end})`,
+    });
   });
 
   it("does not attribute whole-clinic attendance to a single site", async () => {
