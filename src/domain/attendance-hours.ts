@@ -61,11 +61,8 @@ export function summarizeAttendance(
   }
   if (open !== null && open < end) {
     // An unmatched IN may span the requested range. Never add assumed hours.
-    if (open >= start || effective.some(p =>
-      Date.parse(p.occurredAt) >= start && Date.parse(p.occurredAt) < end)) {
-      invalid = true;
-      relevant = true;
-    }
+    invalid = true;
+    relevant = true;
   }
   if (invalid) return { hours: null, status: "INCOMPLETE", pairs };
   if (!relevant) return { hours: null, status: "NO_RECORDS", pairs: 0 };
