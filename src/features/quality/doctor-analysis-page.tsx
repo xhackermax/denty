@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Badge, Button, Group, Loader, Select, SimpleGrid, Table, Text, TextInput } from "@mantine/core";
+import { Alert, Badge, Button, Group, Loader, Select, SimpleGrid, Table, Text, TextInput, Stack, ScrollArea } from "@mantine/core";
 import { IconArrowLeft, IconClipboardList } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -52,7 +52,7 @@ export function DoctorAnalysisPage() {
   const executed = shown.reduce((sum, doctor) => sum + doctor.recordedExecutions, 0);
   const incidents = shown.reduce((sum, doctor) => sum + doctor.reportedIncidents, 0);
 
-  return <div style={{display:"grid",gap:20}}>
+  return <Stack gap="lg">
     <PageHeader title="Análisis por doctores"
       description="Actividad clínica verificada, incidencias, implantes y fichajes por profesional." />
     <Group gap="sm" wrap="wrap">
@@ -89,7 +89,7 @@ export function DoctorAnalysisPage() {
         <section><Text size="xs" c="dimmed">Doctores</Text><Text size="xl" fw={800}>{shown.length}</Text></section>
       </SimpleGrid>
       {!shown.length ? <Alert color="gray">No hay doctores disponibles para los filtros seleccionados.</Alert> :
-        <div style={{overflowX:"auto"}}>
+        <ScrollArea>
           <Table striped highlightOnHover verticalSpacing="md" aria-label="Resultados por doctor">
             <Table.Thead><Table.Tr>
               <Table.Th>Doctor</Table.Th><Table.Th>Citas</Table.Th>
@@ -124,7 +124,7 @@ export function DoctorAnalysisPage() {
               </Button><Text size="xs" c="dimmed">{d.repeatedTreatmentIncidents} repeticiones</Text></Table.Td>
             </Table.Tr>)}</Table.Tbody>
           </Table>
-        </div>}
+        </ScrollArea>}
     </>}
-  </div>;
+  </Stack>;
 }
