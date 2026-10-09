@@ -81,7 +81,11 @@ vi.mock("@/shared/clinical/clinical-data", () => ({
   useClinicalWorkflowQuery: () => workflowQuery,
 }));
 
-vi.mock("@/shared/clinical/clinical-pipeline-card", () => ({ ClinicalPipelineCard: () => null }));
+vi.mock("@/shared/clinical/clinical-pipeline-card", () => ({
+  ClinicalPipelineCard: ({ patientId }: { patientId?: string }) => (
+    <div data-testid="patient-clinical-pipeline">{patientId}</div>
+  ),
+}));
 vi.mock("@/shared/clinical/clinical-sync-card", () => ({ ClinicalSyncCard: () => null }));
 vi.mock("@/shared/clinical/clinical-workspace", () => ({
   ClinicalWorkspace: ({ mode }: { mode?: string }) => (
@@ -109,6 +113,27 @@ describe("PatientProfile next visit context", () => {
     cleanup();
     vi.useRealTimers();
     vi.clearAllMocks();
+  });
+
+  it("keeps the clinical pipeline inside the selected patient's clinical tab", () => {
+    const { unmount } = render(
+      <MantineProvider>
+        <PatientProfile patientId="patient-1" />
+      </MantineProvider>,
+    );
+    expect(screen.getByRole("link", { name: /Seguimiento clínico/ })).toHaveAttribute(
+      "href", "/app/patients/patient-1?view=clinical",
+    );
+    expect(screen.queryByTestId("patient-clinical-pipeline")).not.toBeInTheDocument();
+    unmount();
+
+    navigation.query = "view=clinical";
+    render(
+      <MantineProvider>
+        <PatientProfile patientId="patient-1" />
+      </MantineProvider>,
+    );
+    expect(screen.getByTestId("patient-clinical-pipeline")).toHaveTextContent("patient-1");
   });
 
   it("opens plan and budgets as stages inside the patient record", () => {
