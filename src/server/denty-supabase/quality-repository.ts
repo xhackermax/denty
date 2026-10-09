@@ -154,7 +154,7 @@ export class QualityRepository {
         ...this.where(), occurred_at: `gte.${start}`, order: "occurred_at.asc",
       }),
     ]);
-    const beforeEnd = (r: Row, key: string) => id(r, key) < end;
+    const beforeEnd = (r: Row, key: string) => Date.parse(id(r, key)) < Date.parse(end);
     const visits = appointments.filter(a => beforeEnd(a, "starts_at") && (!siteId || id(a, "site_id") === siteId));
     const completed = visits.filter(a => a.status === "COMPLETED");
     const completedIds = new Set(completed.map(a => id(a, "id")));
