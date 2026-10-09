@@ -44,6 +44,9 @@ BEGIN
 END;
 $body$;
 
+REVOKE ALL ON FUNCTION public.denty_capture_plan_item_execution(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.denty_capture_plan_item_execution(uuid) FROM authenticated;
+
 CREATE OR REPLACE FUNCTION public.denty_on_appointment_complete()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $body$
 BEGIN
@@ -85,7 +88,7 @@ DECLARE
 BEGIN
   IF NEW.status IS DISTINCT FROM 'COMPLETED'
      OR OLD.status IS NOT DISTINCT FROM NEW.status THEN RETURN NEW; END IF;
-  v_reason := lower(translate(coalesce(NEW.reason, NEW.title, ''),
+  v_reason := lower(translate(coalesce(nullif(NEW.reason, ''), NEW.title, ''),
     'áéíóúüÁÉÍÓÚÜ', 'aeiouuAEIOUU'));
   v_is_implant := v_reason ~ '(implante|implantologia|all[- ]?on[- ]?[46])';
   v_is_surgery := v_reason ~ '(cirugi|quirurg|colocaci|inserci|fase quir|all[- ]?on[- ]?[46])'
