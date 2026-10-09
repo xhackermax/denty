@@ -203,14 +203,14 @@ export function CephalometryEditor({patientId,entities,readOnly,onCommit}:Cephal
                     }}/>:<><strong>{entry.name}</strong><small>{entry.description}</small></>}
                     {custom?<button type="button" disabled={readOnly} onClick={()=>commit({...state,custom:state.custom.filter(item=>item.id!==entry.id)})}>Quitar</button>:null}
                   </th>
-                  <td><input ref={element=>{ids.current[entry.id]=element}} aria-label={`Valor ${entry.name}`} className={styles.numberInput} inputMode="decimal" disabled={readOnly} value={row.value} onChange={event=>update(entry.id,"value",event.target.value)}/>{unitFor(entry.id)}</td>
-                  <td><div className={styles.normGroup}>
+                  <td data-label="Valor"><input ref={element=>{ids.current[entry.id]=element}} aria-label={`Valor ${entry.name}`} className={styles.numberInput} inputMode="decimal" disabled={readOnly} value={row.value} onChange={event=>update(entry.id,"value",event.target.value)}/>{unitFor(entry.id)}</td>
+                  <td data-label="Norma ± DE"><div className={styles.normGroup}>
                     <input aria-label={`Norma ${entry.name}`} className={styles.numberInput} inputMode="decimal" disabled={readOnly} value={row.norm} onChange={event=>update(entry.id,"norm",event.target.value)}/>
                     ±
                     <input aria-label={`DE ${entry.name}`} className={styles.numberInput} inputMode="decimal" disabled={readOnly} value={row.sd} onChange={event=>update(entry.id,"sd",event.target.value)}/>
                   </div></td>
-                  <td className={styles.deviation}>{formatDeviation(e.deviation,unitFor(entry.id))} {e.status?<span className={e.status==="ok"?styles.ok:styles.warn}>{label[e.status]}</span>:null}</td>
-                  <td><input aria-label={`Interpretación ${entry.name}`} className={styles.interpretation} disabled={readOnly} placeholder="Interpretación" value={row.manual?row.interp:e.auto} onChange={event=>update(entry.id,"interp",event.target.value)}/></td>
+                  <td data-label="Desviación" className={styles.deviation}>{formatDeviation(e.deviation,unitFor(entry.id))} {e.status?<span className={e.status==="ok"?styles.ok:styles.warn}>{label[e.status]}</span>:null}</td>
+                  <td data-label="Interpretación"><input aria-label={`Interpretación ${entry.name}`} className={styles.interpretation} disabled={readOnly} placeholder="Interpretación" value={row.manual?row.interp:e.auto} onChange={event=>update(entry.id,"interp",event.target.value)}/></td>
                 </tr>;
               })}
             </tbody>
