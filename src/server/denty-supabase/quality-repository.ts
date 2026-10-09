@@ -1,4 +1,5 @@
 import { doctorScorecard } from "@/domain/doctor-performance";
+import { summarizeAttendance } from "@/domain/attendance-hours";
 import type { SupabaseRestClient } from "@/server/supabase/rest-client";
 
 type Row = Record<string, unknown>;
@@ -130,42 +131,73 @@ export class QualityRepository {
     });
   }
 
-  async scorecards(start: string, end: string, siteId?: string) {
-    const [staff, appointments, executions, incidents, implants, punches] = await Promise.all([
+  async scorecards(
+    start: string, end: string, siteId?: string, canViewAttendance = false,
+  ) {
+    // A recorded execution can occur in a later period than the original
+    // appointment. Retrieve the originating appointment even when it is older.
+    const [staff, recentVisits, executions, incidents, implants, punches] = await Promise.all([
       this.doctors(),
       this.db.selectAll<Row>("appointments", {
         select: "id,patient_id,staff_id,status,site_id,starts_at",
-        ...this.where(), starts_at: `gte.${start}`,
+        ...this.where(), and: `(starts_at.gte.${start},starts_at.lt.${end})`,
       }),
       this.db.selectAll<Row>("clinical_treatment_executions", {
         select: "id,doctor_id,patient_id,appointment_id,treatment_category,attributed_revenue_cents,executed_at",
-        ...this.where(), executed_at: `gte.${start}`,
+        ...this.where(), and: `(executed_at.gte.${start},executed_at.lt.${end})`,
       }),
       this.db.selectAll<Row>("clinical_incidents", {
         select: "responsible_doctor_id,category,repeat_treatment,cause,occurred_at,appointment_id",
-        ...this.where(), occurred_at: `gte.${start}`,
+        ...this.where(), and: `(occurred_at.gte.${start},occurred_at.lt.${end})`,
       }),
       this.db.selectAll<Row>("implant_placement_outcomes", {
         select: "doctor_id,appointment_id,outcome,failure_kind,recorded_at",
-        ...this.where(), recorded_at: `gte.${start}`,
+        ...this.where(), and: `(recorded_at.gte.${start},recorded_at.lt.${end})`,
       }),
-      this.db.selectAll<Row>("attendance_punches", {
-        select: "id,staff_member_id,punch_type,occurred_at,corrects_punch_id,created_at",
-        ...this.where(), occurred_at: `gte.${start}`, order: "occurred_at.asc",
-      }),
+      canViewAttendance
+        ? this.db.selectAll<Row>("attendance_punches", {
+            select: "id,staff_member_id,punch_type,occurred_at,corrects_punch_id",
+            ...this.where(), order: "occurred_at.asc",
+          })
+        : Promise.resolve([] as Row[]),
     ]);
-    const beforeEnd = (r: Row, key: string) => Date.parse(id(r, key)) < Date.parse(end);
-    const visits = appointments.filter(a => beforeEnd(a, "starts_at") && (!siteId || id(a, "site_id") === siteId));
-    const completed = visits.filter(a => a.status === "COMPLETED");
-    const completedIds = new Set(completed.map(a => id(a, "id")));
-    const visitIds = new Set(visits.map(a => id(a, "id")));
-    const performed = executions.filter(e =>
-      beforeEnd(e, "executed_at") && completedIds.has(id(e, "appointment_id")));
-    const incidentRows = incidents.filter(r => beforeEnd(r, "occurred_at")
-      && (!siteId || (r.appointment_id !== null && visitIds.has(id(r, "appointment_id")))));
-    const implantRows = implants.filter(r =>
-      beforeEnd(r, "recorded_at") && (!siteId || visitIds.has(id(r, "appointment_id"))));
-    const items = staff.filter(s => s.active !== false && /DENTIST|DOCTOR|ODONTO|CLINICIAN/i.test(id(s, "role"))).map(s => {
+    const existing = new Set(recentVisits.map(a => id(a, "id")));
+    const referenced = new Set([
+      ...executions.map(e => id(e, "appointment_id")),
+      ...incidents.map(i => id(i, "appointment_id")),
+      ...implants.map(i => id(i, "appointment_id")),
+    ].filter(Boolean));
+    const missing = [...referenced].filter(appointmentId => !existing.has(appointmentId));
+    const batches: string[][] = [];
+    for (let index = 0; index < missing.length; index += 100) {
+      batches.push(missing.slice(index, index + 100));
+    }
+    const historic = (await Promise.all(batches.map(ids =>
+      this.db.select<Row>("appointments", {
+        select: "id,patient_id,staff_id,status,site_id,starts_at",
+        ...this.where(), id: `in.(${ids.join(",")})`,
+      })))).flat();
+    const byAppointment = new Map(
+      [...recentVisits, ...historic].map(appointment => [id(appointment, "id"), appointment]),
+    );
+    const matchesSite = (appointmentId: string) => !siteId ||
+      id(byAppointment.get(appointmentId) ?? {}, "site_id") === siteId;
+    const completedVisits = recentVisits.filter(visit =>
+      visit.status === "COMPLETED" && matchesSite(id(visit, "id")));
+    const performed = executions.filter(e => {
+      const originalId = id(e, "appointment_id");
+      return byAppointment.get(originalId)?.status === "COMPLETED" &&
+        matchesSite(originalId);
+    });
+    const relevantIncidents = incidents.filter(i =>
+      !siteId || (i.appointment_id !== null && matchesSite(id(i, "appointment_id")) &&
+        byAppointment.has(id(i, "appointment_id"))));
+    const relevantImplants = implants.filter(i =>
+      matchesSite(id(i, "appointment_id")));
+
+    const items = staff.filter(s =>
+      s.active !== false && /DENTIST|DOCTOR|ODONTO|CLINICIAN/i.test(id(s, "role"))
+    ).map(s => {
       const doctorId = id(s, "id");
       const card = doctorScorecard(doctorId,
         performed.map(e => ({
@@ -174,44 +206,49 @@ export class QualityRepository {
           treatmentCategory: id(e, "treatment_category"),
           attributedRevenueCents: number(e, "attributed_revenue_cents"),
         })),
-        completed.map(a => ({
+        completedVisits.map(a => ({
           doctorId: id(a, "staff_id"), patientId: id(a, "patient_id"),
           appointmentId: id(a, "id"), status: id(a, "status"),
         })),
-        incidentRows.map(i => ({
-          responsibleDoctorId: i.responsible_doctor_id ? id(i, "responsible_doctor_id") : null,
+        relevantIncidents.map(i => ({
+          responsibleDoctorId: i.responsible_doctor_id
+            ? id(i, "responsible_doctor_id") : null,
           category: id(i, "category"), repeatTreatment: i.repeat_treatment === true,
           cause: id(i, "cause"),
         })),
-        implantRows.map(i => ({
-          doctorId: id(i, "doctor_id"), outcome: id(i, "outcome") as "PLACED" | "FAILED" | "DEFERRED",
+        relevantImplants.map(i => ({
+          doctorId: id(i, "doctor_id"),
+          outcome: id(i, "outcome") as "PLACED" | "FAILED" | "DEFERRED",
           failureKind: i.failure_kind ? id(i, "failure_kind") : null,
-        })));
-      const doctorPunches = punches.filter(p => id(p, "staff_member_id") === doctorId);
-      const punchInPeriod = doctorPunches.filter(p => beforeEnd(p, "occurred_at"));
-      const replaced = new Set(doctorPunches.map(p => id(p, "corrects_punch_id")).filter(Boolean));
-      const effective = punchInPeriod.filter(p => !replaced.has(id(p, "id")))
-        .sort((a, b) => id(a, "occurred_at").localeCompare(id(b, "occurred_at")));
-      let started: number | null = null;
-      let totalMs = 0;
-      let anomaly = false;
-      for (const punch of effective) {
-        const at = Date.parse(id(punch, "occurred_at"));
-        if (punch.punch_type === "IN") {
-          if (started !== null) anomaly = true;
-          started = at;
-        } else if (started !== null && at > started) {
-          totalMs += at - started; started = null;
-        } else { anomaly = true; }
-      }
-      if (started !== null) anomaly = true;
-      return { ...card, doctorName: id(s, "display_name"),
-        attendanceHours: effective.length && !anomaly
-          ? Math.round(totalMs / 36000) / 100 : null,
-        attendanceNote: !effective.length ? "Sin fichajes"
-          : anomaly ? "Fichajes incompletos: horas no calculables" : null,
+        })),
+      );
+      const attendance = canViewAttendance && !siteId
+        ? summarizeAttendance(
+            punches.filter(p => id(p, "staff_member_id") === doctorId)
+              .map(p => ({
+                id: id(p, "id"),
+                punchType: id(p, "punch_type") as "IN" | "OUT",
+                occurredAt: id(p, "occurred_at"),
+                correctsPunchId: p.corrects_punch_id
+                  ? id(p, "corrects_punch_id") : null,
+              })),
+            start, end,
+          )
+        : null;
+      return {
+        ...card, doctorName: id(s, "display_name"),
+        attendanceHours: attendance?.hours ?? null,
+        attendanceNote: !canViewAttendance
+          ? "Acceso a fichajes restringido"
+          : siteId ? "Fichajes sin sede identificada"
+          : attendance?.status === "NO_RECORDS" ? "Sin fichajes en este periodo"
+          : attendance?.status === "INCOMPLETE"
+            ? "Fichajes incompletos: horas no calculables" : null,
       };
     });
-    return { items, warning: "Los tratamientos proceden solo de ejecuciones confirmadas, nunca de planes pendientes. Los importes no atribuidos no se estiman. Las horas de fichaje corresponden a toda la clínica, ya que el fichaje no identifica sede; con filtros de sede no se desglosan." };
+    return {
+      items,
+      warning: "Las ejecuciones se agrupan por fecha real de finalización; las citas se cuentan por fecha de visita. Los importes sin atribución no se estiman y los fichajes solo se muestran con autorización.",
+    };
   }
 }
