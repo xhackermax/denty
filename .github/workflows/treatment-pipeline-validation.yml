@@ -98,6 +98,8 @@ jobs:
           node scripts/stage6-dentition-ui-contract.test.mjs
       - name: Agenda dental hygiene brush icon tests
         run: npx vitest run src/features/agenda/__tests__/agenda-appointment-card.test.tsx src/domain/__tests__/agenda-clinical-icons.test.ts
+      - name: Supabase odontogram clinical persistence regression
+        run: npx vitest run src/server/denty-supabase/__tests__/odontogram-persistence-torture.test.ts src/shared/odontogram/odontogram-wire.test.ts
       - name: Vercel architecture gate
         run: npm run -s architecture:check
       - name: Production build smoke test
