@@ -154,7 +154,7 @@ export function CephalometryEditor({patientId,entities,readOnly,onCommit}:Cephal
       </div>
       <Group gap="xs" wrap="wrap">
         <Button size="xs" variant="light" disabled={readOnly} onClick={()=>commit(blankCephalometry())}>Empezar en blanco</Button>
-        <Button size="xs" variant="light" onClick={()=>printOrthodonticReport({patientId,entities,svg:document.querySelector('[aria-label="Plantilla cefalométrica reactiva"] svg')})}>Imprimir informe / PDF</Button>
+        <Button size="xs" variant="light" onClick={()=>printOrthodonticReport({patientId,entities,svg:document.querySelector<SVGSVGElement>('[aria-label="Plantilla cefalométrica reactiva"] svg')})}>Imprimir informe / PDF</Button>
         <Button size="xs" variant="light" onClick={()=>void copy()}>{copied?"Copiado":"Copiar resultados"}</Button>
       </Group>
     </Group>
