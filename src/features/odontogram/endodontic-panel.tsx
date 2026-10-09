@@ -35,7 +35,7 @@ export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: Endodonti
   const mouth = useMouthState();
   const blocked = readOnly || !isEndoCandidate(mouth, selectedTooth);
   const [pulpalDiagnosis, setPulpalDiagnosis] = useState<PulpalDiagnosis>("Necrosis pulpar");
-  const [apicalDiagnosis, setApicalDiagnosis] = useState<ApicalDiagnosis>("Absceso apical cronico");
+  const [apicalDiagnosis, setApicalDiagnosis] = useState<ApicalDiagnosis>("Absceso apical crónico");
   const [treatment, setTreatment] = useState<string>("endo");
   const visualCode = useMemo(
     () => endodonticVisualCodeForApicalDiagnosis(apicalDiagnosis),
@@ -71,7 +71,7 @@ export function EndodonticPanel({ selectedTooth, readOnly, onCommit }: Endodonti
           value={apicalDiagnosis}
           data={APICAL_DIAGNOSES.map((value) => ({ value, label: value }))}
           onChange={(value) =>
-            setApicalDiagnosis((value ?? "Absceso apical cronico") as ApicalDiagnosis)
+            setApicalDiagnosis((value ?? "Absceso apical crónico") as ApicalDiagnosis)
           }
           disabled={blocked}
         />
