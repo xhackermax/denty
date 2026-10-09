@@ -67,12 +67,13 @@ export function isImplantSurgeryReason(reason: string): boolean {
   if (!/implante|implantologia|all[- ]?on[- ]?[46]/.test(normalized)) return false;
 
   const explicitSurgery =
-    /cirugia|quirurg|colocacion|colocar|insercion|fase quirurgica|all[- ]?on[- ]?[46]/.test(
+    /cirugia|quirurg|insercion|fase quirurgica|all[- ]?on[- ]?[46]|colocacion (de |del )?implante|colocar (un )?implante/.test(
       normalized,
     );
   if (explicitSurgery) return true;
 
-  if (/revision|control|mantenimiento|impresion|escaneado/.test(normalized)) {
+  // Crown delivery, prosthetic components and follow-ups are not implant surgery.
+  if (/revision|control|mantenimiento|impresion|escaneado|corona|pilar|protes|cementacion|atornillad/.test(normalized)) {
     return false;
   }
   return true;
