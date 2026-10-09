@@ -42,6 +42,13 @@ jobs:
         run: node scripts/tests/clinical-consent-gate-regression.mjs
       - name: Focused tests
         run: npx vitest run src/shared/clinical/__tests__/clinical-workspace.test.tsx src/shared/clinical/__tests__/deferred-budget-follow-up.test.tsx src/server/denty-supabase/__tests__/scoped-budgets.test.ts src/shared/clinical/__tests__/budget-options.test.tsx src/shared/clinical/budget-comparison.test.ts src/shared/clinical/patient-budget-comparison-page.test.tsx
+      - name: Doctor quality, implant and cefalometry regression tests
+        run: >-
+          npx vitest run
+          src/domain/__tests__/attendance-hours.test.ts
+          src/domain/__tests__/doctor-performance.test.ts
+          src/domain/__tests__/implant-surgery-reason.test.ts
+          src/features/odontogram/cephalometry-editor.test.tsx
       - name: Patient record-number regression tests
         run: npx vitest run src/server/denty-supabase/__tests__/record-number.test.ts src/app/api/denty
       - name: Draft budget SQL deletion and RLS privilege tests
