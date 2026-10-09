@@ -261,6 +261,7 @@ export function AgendaPage() {
   const searchParams = useSearchParams();
   const requestedPatientId = searchParams.get("patientId") ?? "";
   const requestedDate = searchParams.get("date");
+  const requestedAppointmentId = searchParams.get("appointmentId") ?? "";
   // Arriving from the treatment flow ("Dar cita"): open the form with the plan item chosen.
   const requestedPlanItemId = searchParams.get("planItemId") ?? "";
   const requestedPlanItemHandled = useRef(false);
@@ -391,6 +392,13 @@ export function AgendaPage() {
     () => projectApiAppointments(appointmentsQuery.data, patients),
     [appointmentsQuery.data, patients],
   );
+  useEffect(() => {
+    if (requestedAppointmentId &&
+        appointments.some(appointment => appointment.id === requestedAppointmentId)) {
+      setQuickViewId(requestedAppointmentId);
+    }
+  }, [requestedAppointmentId, appointments]);
+
   const staff = useMemo(() => projectApiStaff(contextQuery.data), [contextQuery.data]);
   const doctorOptions = useMemo(
     () =>
