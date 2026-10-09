@@ -2,24 +2,61 @@
 .layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:14px;align-items:start;min-width:0}
 .tablePanel,.diagramPanel{min-width:0;padding:12px;border:1px solid var(--mantine-color-default-border);border-radius:12px;background:var(--mantine-color-body)}
 .tablePanel{display:grid;gap:10px}
-.tableScroll{width:100%;overflow-x:auto}
-.table{border-collapse:collapse;width:100%;min-width:730px;font-size:12px}
+.tableScroll{width:100%;min-width:0;overflow:visible}
+.table{border-collapse:collapse;width:100%;min-width:0;table-layout:fixed;font-size:12px}
 .table th,.table td{text-align:left;border-bottom:1px solid var(--mantine-color-default-border);padding:7px 5px;vertical-align:middle}
-.table th[scope=row]{min-width:120px;font-weight:500}
+.table th[scope=row]{font-weight:500;overflow-wrap:anywhere}
 .table th strong,.table th small{display:block}
 .table th small{font-weight:400;color:var(--mantine-color-dimmed);font-size:11px}
 .table tbody tr.focused{background:var(--mantine-primary-color-light)}
 .numberInput,.nameInput,.interpretation{font:inherit;border:1px solid var(--mantine-color-default-border);background:var(--mantine-color-body);color:var(--mantine-color-text);border-radius:5px;padding:5px;min-width:0}
 .numberInput{width:51px;text-align:right;font-variant-numeric:tabular-nums}
-.nameInput{width:100px}
-.interpretation{min-width:160px;width:100%}
-.normGroup{display:flex;align-items:center;gap:3px}
+.nameInput{width:100%;max-width:100%}
+.interpretation{min-width:0;width:100%;max-width:100%}
+.normGroup{display:flex;align-items:center;gap:3px;min-width:0;flex-wrap:wrap}
 .deviation{white-space:nowrap;font-variant-numeric:tabular-nums}
 .ok,.warn{display:inline-block;border-radius:12px;padding:2px 5px;font-size:10px;white-space:nowrap}
 .ok{background:#e2f4e8;color:#116337}
 .warn{background:#fff0df;color:#93410a}
-.diagramPanel{display:grid;gap:8px;overflow-x:auto}
-.diagramSvg{display:block;width:100%;height:auto;min-width:340px}
+.diagramPanel{display:grid;gap:8px;overflow:hidden}
+.diagramSvg{display:block;width:100%;height:auto;min-width:0;max-width:100%;aspect-ratio:994/760}
 .angleAction{cursor:pointer;outline-offset:2px}
 @media(max-width:1100px){.layout{grid-template-columns:minmax(0,1fr)}}
 @media(prefers-reduced-motion:reduce){.wrapper *{scroll-behavior:auto}}
+
+/* The odontogram is a nested work area: container width matters more than the viewport. */
+@container (max-width: 900px) {
+  .layout{grid-template-columns:minmax(0,1fr)}
+}
+.table th:nth-child(1){width:22%}
+.table th:nth-child(2){width:12%}
+.table th:nth-child(3){width:22%}
+.table th:nth-child(4){width:18%}
+.table th:nth-child(5){width:26%}
+.table td{overflow-wrap:anywhere}
+.deviation{white-space:normal}
+.diagramPanel > *{min-width:0;max-width:100%}
+.wrapper{container-type:inline-size}
+
+/* Compact cards preserve every editable measurement without horizontal panning. */
+@container (max-width: 760px) {
+  .table thead{display:none}
+  .table,.table tbody{display:block;width:100%}
+  .table tbody{display:grid;gap:10px}
+  .table tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px 12px;padding:12px;border:1px solid var(--mantine-color-default-border);border-radius:10px;min-width:0}
+  .table th[scope=row]{grid-column:1/-1;padding:0 0 8px;border-bottom:1px solid var(--mantine-color-default-border)}
+  .table th[scope=row] strong,.table th[scope=row] small{overflow-wrap:anywhere}
+  .table td{display:flex;flex-direction:column;align-items:stretch;min-width:0;padding:0;border:0;gap:4px}
+  .table td::before{content:attr(data-label);display:block;font-size:11px;font-weight:650;color:var(--mantine-color-dimmed)}
+  .table td:nth-of-type(4){grid-column:1/-1}
+  .numberInput{width:100%;max-width:100%;min-height:38px;font-size:16px}
+  .normGroup{flex-wrap:nowrap;gap:5px}
+  .normGroup .numberInput{width:calc((100% - 22px)/2);flex:1;min-width:0}
+  .interpretation{min-height:38px;font-size:16px}
+  .deviation{align-items:flex-start}
+  .tablePanel,.diagramPanel{padding:10px}
+}
+@container (max-width: 400px) {
+  .table tr{gap:9px 8px;padding:10px}
+  .table td:nth-of-type(3){grid-column:1/-1}
+}
