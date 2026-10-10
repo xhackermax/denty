@@ -45,6 +45,61 @@ export const communicationTemplatesSchema = z.object({
   ),
 });
 
+export const marketingMessageKindSchema = z.enum(["BIRTHDAY", "OFFER", "DISCOUNT"]);
+export const marketingMessageTemplateSchema = z.object({
+  clinic_id: idSchema,
+  kind: marketingMessageKindSchema,
+  channel: communicationChannelSchema,
+  enabled: z.boolean(),
+  subject: z.string(),
+  body: z.string(),
+  offer_details: z.string(),
+  discount_percent: z.number().int().nullable(),
+  valid_until: z.string().nullable(),
+  contact_email: z.string(),
+  updated_at: z.string(),
+});
+export const marketingMessageTemplatesSchema = z.object({
+  items: z.array(marketingMessageTemplateSchema),
+});
+export const saveMarketingMessageTemplateSchema = z.object({
+  kind: marketingMessageKindSchema,
+  channel: communicationChannelSchema,
+  enabled: z.boolean(),
+  subject: z.string().trim().min(1).max(150),
+  body: z.string().trim().min(10).max(1000),
+  offerDetails: z.string().trim().max(500),
+  discountPercent: z.number().int().min(1).max(100).nullable(),
+  validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  contactEmail: z.string().trim().max(160),
+}).superRefine((input, ctx) => {
+  if (input.enabled && input.kind !== "BIRTHDAY" &&
+      (input.offerDetails.length < 10 || !input.validUntil)) {
+    ctx.addIssue({ code: "custom", path: ["offerDetails"],
+      message: "Indica las condiciones y el último día de la oferta." });
+  }
+  if (input.enabled && input.kind === "DISCOUNT" && !input.discountPercent) {
+    ctx.addIssue({ code: "custom", path: ["discountPercent"],
+      message: "Indica el porcentaje de descuento." });
+  }
+  if (input.enabled && input.channel === "EMAIL" &&
+      !/^[^ @]+@[^ @]+\.[^ @]+$/.test(input.contactEmail)) {
+    ctx.addIssue({ code: "custom", path: ["contactEmail"],
+      message: "Se requiere una dirección de contacto para solicitar la baja." });
+  }
+});
+export const queueMarketingMessageTemplateSchema = z.object({
+  kind: marketingMessageKindSchema,
+  patientId: idSchema.optional(),
+}).refine(input => input.kind === "BIRTHDAY" || Boolean(input.patientId), {
+  message: "Selecciona un paciente para ofertas y descuentos.",
+});
+export const marketingMessageQueueResultSchema = z.object({
+  queued: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+  alreadyQueued: z.number().int().nonnegative(),
+});
+
 export const appointmentMessagingSettingsSchema = z
   .object({
     clinic_id: idSchema.optional(),

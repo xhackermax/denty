@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query/keys";
 import styles from "@/shared/ui/parity.module.css";
+import { MarketingMessagesPanel } from "./marketing-messages-panel";
 
 const defaultTemplate =
   "Hola {{patientName}}, confirma tu cita en Denty para el {{appointmentDate}} a las {{appointmentTime}}: {{confirmationUrl}}";
@@ -182,6 +183,7 @@ export function AdminCommunicationsPanel() {
           {save.isError ? <Alert color="red">No se pudo guardar la configuración.</Alert> : null}
         </Stack>
       </section>
+      <MarketingMessagesPanel />
     </Stack>
   );
 }
