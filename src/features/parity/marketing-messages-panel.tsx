@@ -14,6 +14,7 @@ import type {
   saveMarketingMessageTemplateSchema,
 } from "@/shared/api/schemas/engagement";
 import styles from "@/shared/ui/parity.module.css";
+import panelStyles from "./marketing-messages-panel.module.css";
 
 type Template = z.infer<typeof marketingMessageTemplateSchema>;
 type TemplateInput = z.input<typeof saveMarketingMessageTemplateSchema>;
@@ -150,7 +151,7 @@ function Editor({ template }: { template: Template }) {
         ) : null}
         <div>
           <Text fw={600} size="sm" mb="xs">Vista previa del mensaje</Text>
-          <Text size="sm" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+          <Text size="sm" className={panelStyles.previewText}>
             {previewTemplate(state, selectedPatient
               ? `${selectedPatient.firstName} ${selectedPatient.lastName}`
               : "María García")}
