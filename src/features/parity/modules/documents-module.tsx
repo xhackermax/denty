@@ -59,6 +59,7 @@ const TYPE_LABELS: Record<string, string> = {
   CERTIFICATE: "Justificante",
   CLINICAL_DOCUMENT: "Documento clínico",
   DEBT_ACKNOWLEDGEMENT: "Reconocimiento de deuda",
+  PRIVACY_NOTICE: "Información de protección de datos (acuse de recibo)",
 };
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Borrador",
@@ -284,6 +285,21 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
     },
   });
 
+  const createPrivacy = useMutation({
+    mutationFn: async () => {
+      if (!patientId || !context.site?.id || !doctorId)
+        throw new Error("Selecciona paciente, sede y doctor responsable.");
+      return getBrowserApi().documents.privacyNotice({
+        patientId,
+        siteId: context.site.id,
+        doctorId,
+      });
+    },
+    onSuccess: document => {
+      invalidateClinical(document.patientId);
+      openSigning(document);
+    },
+  });
   const createDebt = useMutation({
     mutationFn: async () => {
       if (!patientId || !context.site?.id || !doctorId)
@@ -353,7 +369,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
       if (!patient) throw new Error("No se encontró al paciente de este documento.");
       if (!template?.body) throw new Error("Este documento no tiene una plantilla imprimible.");
       let signatureImageDataUrl: string | undefined;
-      if (template.code === "DEBT_ACKNOWLEDGEMENT" && document.signedAt && document.id) {
+      if ((template.code === "DEBT_ACKNOWLEDGEMENT" || template.code === "DATA_PROTECTION") && document.signedAt && document.id) {
         const image = await getBrowserApi().documents.signatureImage(document.id);
         signatureImageDataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -384,7 +400,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
     typeof signing?.data?.doctorId === "string" ? signing.data.doctorId : doctorId;
   const hasError = patients.isError || documents.isError || templates.isError;
   const visibleDocuments = (documents.data?.items ?? []).filter(
-    (document) => mode !== "consents" || document.type === "CONSENT" || document.type === "DEBT_ACKNOWLEDGEMENT",
+    (document) => mode !== "consents" || document.type === "CONSENT" || document.type === "DEBT_ACKNOWLEDGEMENT" || document.type === "PRIVACY_NOTICE",
   );
   const pendingConsents = (consents.data?.items ?? []).filter(
     (item) => item.status !== "SATISFIED",
@@ -628,6 +644,46 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
         </section>
       ) : null}
 
+      {patientId ? (
+        <section className={styles.section} aria-label="Información RGPD">
+          <Group justify="space-between" mb="sm">
+            <div>
+              <h3 className={styles.sectionTitle}>Protección de datos · Información RGPD</h3>
+              <p className={styles.sectionDescription}>
+                Entrega y firma del acuse de recibo de la información de privacidad.
+                No es un consentimiento para publicidad ni para la asistencia sanitaria.
+              </p>
+            </div>
+            <Badge variant="light">Firmable</Badge>
+          </Group>
+          <Stack gap="sm">
+            <Text size="sm" c="dimmed">
+              Paciente: {patientName(patientId)} · DNI/NIE: {patientById.get(patientId)?.dni ?? "Sin registrar"}
+            </Text>
+            <Text size="sm" c="dimmed">
+              Responsable y domicilio: se obtienen de Ajustes de facturación.
+              La clínica debe proporcionar también su información ampliada vigente,
+              incluido el contacto del DPD si es obligatorio.
+            </Text>
+            <Select label="Doctor responsable del documento" searchable value={doctorId}
+              onChange={setDoctorChoice}
+              data={context.doctors.map(doctor => ({ value: doctor.id, label: doctor.displayName }))}
+            />
+            {createPrivacy.isError ? (
+              <Alert color="red">{createPrivacy.error instanceof Error
+                ? createPrivacy.error.message : "No se pudo crear la información RGPD."}</Alert>
+            ) : null}
+            <Group justify="flex-end">
+              <Button loading={createPrivacy.isPending}
+                disabled={!patientById.get(patientId)?.dni || !context.site?.id || !doctorId}
+                onClick={() => createPrivacy.mutate()}>
+                Entregar información, revisar y firmar
+              </Button>
+            </Group>
+          </Stack>
+        </section>
+      ) : null}
+
       <section className={styles.section}>
         <Group justify="space-between">
           <div>
@@ -692,7 +748,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>
-          {mode === "consents" ? "Consentimientos y reconocimientos de deuda" : "Documentos"}
+          {mode === "consents" ? "Documentos firmables del paciente" : "Documentos"}
         </h3>
         <div className={styles.rowList}>
           {visibleDocuments.map((document) => {
@@ -816,7 +872,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
               <Select
                 label="Profesional responsable"
                 value={signingDoctorId}
-                disabled={signing.data?.documentKind === "DEBT_ACKNOWLEDGEMENT"}
+                disabled={signing.data?.documentKind === "DEBT_ACKNOWLEDGEMENT" || signing.data?.documentKind === "PRIVACY_NOTICE"}
                 onChange={(value) =>
                   setSigning({ ...signing, data: { ...signing.data, doctorId: value } })
                 }
@@ -859,7 +915,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
           ) : null}
           <TextInput
             label="Nombre de quien firma"
-            disabled={signing?.data?.documentKind === "DEBT_ACKNOWLEDGEMENT"}
+            disabled={signing?.data?.documentKind === "DEBT_ACKNOWLEDGEMENT" || signing?.data?.documentKind === "PRIVACY_NOTICE"}
             value={signerName}
             onChange={(event) => setSignerName(event.currentTarget.value)}
           />
