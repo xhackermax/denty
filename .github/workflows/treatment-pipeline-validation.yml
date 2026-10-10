@@ -43,7 +43,7 @@ jobs:
       - name: Focused tests
         run: npx vitest run src/shared/clinical/__tests__/clinical-workspace.test.tsx src/shared/clinical/__tests__/deferred-budget-follow-up.test.tsx src/server/denty-supabase/__tests__/scoped-budgets.test.ts src/shared/clinical/__tests__/budget-options.test.tsx src/shared/clinical/budget-comparison.test.ts src/shared/clinical/patient-budget-comparison-page.test.tsx
       - name: Marketing message templates and consent checks
-        run: npx vitest run src/domain/__tests__/marketing-message-templates.test.ts
+        run: npx vitest run src/domain/__tests__/marketing-message-templates.test.ts src/domain/__tests__/marketing-audience-safety.test.ts
       - name: Debt acknowledgement and signed print tests
         run: npx vitest run src/server/documents/document-repository.debt.test.ts src/shared/documents/document-print.test.ts
       - name: Quality integration and dental diagnosis tests

@@ -5,7 +5,7 @@ import {
   Text, Textarea, TextInput, Title,
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { getBrowserApi } from "@/shared/api/browser";
 import type { z } from "zod";
@@ -40,9 +40,7 @@ function previewTemplate(input: TemplateInput, patientName: string) {
     .replaceAll("{{discountPercent}}", String(input.discountPercent ?? ""))
     .replaceAll("{{validUntil}}", input.validUntil ?? "");
   const prefix = input.kind === "BIRTHDAY" ? "" : "PUBLICIDAD · Nombre de la clínica. ";
-  const footer = input.channel === "EMAIL"
-    ? `Para dejar de recibir publicidad, escribe a ${input.contactEmail || "(correo pendiente)"}.`
-    : "Para no recibir más ofertas, responde BAJA a este mensaje.";
+  const footer = `Para dejar de recibir estos mensajes, escribe a ${input.contactEmail || "(correo pendiente)"}.`;
   return `${prefix}${body}\n${footer}`;
 }
 
@@ -61,6 +59,7 @@ function Editor({ template }: { template: Template }) {
   });
   const [patientId, setPatientId] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [optOutOpen, setOptOutOpen] = useState(false);
   const patients = useQuery({
     queryKey: ["marketing-campaign-patients"],
     queryFn: () => getBrowserApi().patients.list(),
@@ -71,6 +70,25 @@ function Editor({ template }: { template: Template }) {
     queryFn: () => getBrowserApi().engagement.communications.consents(patientId!),
     enabled: Boolean(patientId),
   });
+  const changed = JSON.stringify({
+    ...state, offerDetails: state.offerDetails || "",
+  }) !== JSON.stringify({
+    kind: template.kind, channel: template.channel, enabled: template.enabled,
+    subject: template.subject, body: template.body,
+    offerDetails: template.offer_details, discountPercent: template.discount_percent,
+    validUntil: template.valid_until, contactEmail: template.contact_email,
+  });
+  const preview = useQuery({
+    queryKey: ["marketing-audience-preview", template.kind, patientId,
+      template.updated_at, template.channel],
+    queryFn: () => getBrowserApi().engagement.communications.previewCampaign({
+      kind: template.kind,
+      ...(patientId && template.kind !== "BIRTHDAY" ? { patientId } : {}),
+    }),
+    enabled: template.enabled && !changed &&
+      (template.kind === "BIRTHDAY" || Boolean(patientId)),
+    staleTime: 0,
+  });
   const selectedPatient = patients.data?.items.find(p => p.id === patientId);
   const granted = useMemo(() => {
     const rows = (consents.data?.items ?? []) as Array<Record<string, unknown>>;
@@ -79,6 +97,17 @@ function Editor({ template }: { template: Template }) {
     return consent?.status === "GRANTED" || consent?.granted === true;
   }, [consents.data, state.channel]);
 
+  const unsubscribe = useMutation({
+    mutationFn: () => getBrowserApi().engagement.communications.setConsent(patientId!, {
+      channel: state.channel, category: "MARKETING", granted: false,
+      source: "STAFF_UI", evidenceNote: "Baja solicitada por el paciente, registrada en campañas",
+    }),
+    onSuccess: () => {
+      setOptOutOpen(false);
+      void qc.invalidateQueries({ queryKey: ["marketing-campaign-consents", patientId] });
+      void qc.invalidateQueries({ queryKey: ["marketing-audience-preview"] });
+    },
+  });
   const save = useMutation({
     mutationFn: () => getBrowserApi().engagement.communications.saveCampaignTemplate(state),
     onSuccess: () => {
@@ -93,16 +122,10 @@ function Editor({ template }: { template: Template }) {
     onSuccess: () => {
       setConfirmOpen(false);
       void qc.invalidateQueries({ queryKey: ["denty", "communications"] });
+      void qc.invalidateQueries({ queryKey: ["marketing-audience-preview"] });
     },
   });
-  const changed = JSON.stringify({
-    ...state, offerDetails: state.offerDetails || "",
-  }) !== JSON.stringify({
-    kind: template.kind, channel: template.channel, enabled: template.enabled,
-    subject: template.subject, body: template.body,
-    offerDetails: template.offer_details, discountPercent: template.discount_percent,
-    validUntil: template.valid_until, contactEmail: template.contact_email,
-  });
+
 
   return (
     <section className={styles.section}>
@@ -144,11 +167,10 @@ function Editor({ template }: { template: Template }) {
               }))}/>
           </>
         ) : null}
-        {state.channel === "EMAIL" ? (
-          <TextInput label="Correo para ejercer la baja" type="email" required
-            placeholder="contacto@clinica.es" value={state.contactEmail}
-            onChange={event => setState(s => ({ ...s, contactEmail: event.currentTarget.value }))}/>
-        ) : null}
+        <TextInput label="Correo de bajas (todos los canales)" type="email" required
+          description="Debe ser una dirección atendida. Hasta conectar respuestas automáticas, la baja se solicita aquí."
+          placeholder="privacidad@clinica.es" value={state.contactEmail}
+          onChange={event => setState(s => ({ ...s, contactEmail: event.currentTarget.value }))}/>
         <div>
           <Text fw={600} size="sm" mb="xs">Vista previa del mensaje</Text>
           <Text size="sm" className={panelStyles.previewText}>
@@ -193,9 +215,41 @@ function Editor({ template }: { template: Template }) {
             Regístralo únicamente si el paciente lo ha autorizado realmente.
           </Alert>
         ) : null}
+        {patientId && granted ? (
+          <Group justify="flex-end">
+            <Button variant="subtle" color="red" size="xs"
+              onClick={() => setOptOutOpen(true)}>
+              Registrar baja de publicidad del paciente
+            </Button>
+          </Group>
+        ) : null}
+        {preview.data ? (
+          <Alert color={preview.data.eligible > 0 ? "blue" : "gray"} title="Simulación de destinatarios">
+            Revisados: {preview.data.candidates} · Elegibles: {preview.data.eligible}.
+            {Object.entries(preview.data.excluded).map(([reason, count]) => (
+              <Text size="xs" key={reason}>
+                Excluidos ({reason === "NO_CONSENT" ? "sin permiso comercial" :
+                  reason === "RECENT_PROMOTION" ? "contactados recientemente" :
+                  reason === "UNDERAGE_OR_UNKNOWN_AGE" ? "menores o edad desconocida" :
+                  reason === "MISSING_CONTACT" ? "sin datos de contacto" :
+                  reason === "NOT_BIRTHDAY" ? "no cumplen años" : reason}): {count}
+              </Text>
+            ))}
+            <Text size="xs">
+              Fecha prevista: {new Date(preview.data.scheduledAt).toLocaleString("es-ES", {
+                timeZone: "Europe/Madrid", dateStyle: "medium", timeStyle: "short",
+              })} (hora peninsular).
+            </Text>
+          </Alert>
+        ) : null}
+        {preview.isFetching ? <Text size="xs" c="dimmed">Comprobando elegibilidad…</Text> : null}
+        {preview.isError && template.enabled && !changed ?
+          <Alert color="red">No se pudo simular la campaña. No se permitirá encolar sin comprobarla.</Alert>
+          : null}
         {changed ? <Text c="dimmed" size="xs">Guarda los cambios antes de preparar el envío.</Text> : null}
         <Group justify="flex-end">
-          <Button variant="light" disabled={!template.enabled || changed ||
+          <Button variant="light" disabled={!template.enabled || changed || preview.isFetching ||
+              !preview.data || preview.data.eligible === 0 ||
               (template.kind !== "BIRTHDAY" && (!patientId || !granted))}
             onClick={() => setConfirmOpen(true)}>
             {template.kind === "BIRTHDAY" ? "Encolar cumpleaños de hoy" : "Encolar mensaje"}
@@ -218,7 +272,8 @@ function Editor({ template }: { template: Template }) {
             Vas a preparar {template.kind === "BIRTHDAY"
               ? "los cumpleaños de hoy de pacientes con permiso comercial"
               : `una promoción para ${selectedPatient?.firstName ?? "el paciente seleccionado"}`}.
-            Se registrará en la cola y podrá enviarse automáticamente si el proveedor está activo.
+            Se registrará en la cola para la franja horaria configurada y podrá enviarse
+            automáticamente cuando el proveedor esté activo. La audiencia se verificará de nuevo.
           </Text>
           <Group justify="flex-end">
             <Button variant="default" onClick={() => setConfirmOpen(false)}>Cancelar</Button>
@@ -228,6 +283,76 @@ function Editor({ template }: { template: Template }) {
           </Group>
         </Stack>
       </Modal>
+      <Modal opened={optOutOpen} onClose={() => setOptOutOpen(false)}
+        title="Registrar oposición a publicidad">
+        <Stack gap="md">
+          <Text size="sm">
+            Se revocará el consentimiento comercial de {selectedPatient?.firstName ?? "este paciente"}
+            para {state.channel}. Esto también impide despachar mensajes comerciales pendientes.
+          </Text>
+          {unsubscribe.isError ? <Alert color="red">No se pudo registrar la baja.</Alert> : null}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setOptOutOpen(false)}>Cancelar</Button>
+            <Button color="red" loading={unsubscribe.isPending}
+              onClick={() => unsubscribe.mutate()}>Registrar baja</Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </section>
+  );
+}
+
+function MarketingPolicyPanel() {
+  const qc = useQueryClient();
+  const query = useQuery({
+    queryKey: ["marketing-communication-policy"],
+    queryFn: () => getBrowserApi().engagement.communications.marketingPolicy(),
+  });
+  const [frequencyDays, setFrequencyDays] = useState(21);
+  const [startHour, setStartHour] = useState(10);
+  const [endHour, setEndHour] = useState(19);
+  useEffect(() => {
+    if (!query.data) return;
+    setFrequencyDays(query.data.min_days_between_messages);
+    setStartHour(query.data.send_from_hour);
+    setEndHour(query.data.send_until_hour);
+  }, [query.data]);
+  const save = useMutation({
+    mutationFn: () => getBrowserApi().engagement.communications.saveMarketingPolicy({
+      frequencyDays, startHour, endHour,
+    }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["marketing-communication-policy"] });
+      void qc.invalidateQueries({ queryKey: ["marketing-audience-preview"] });
+    },
+  });
+  return (
+    <section className={styles.section}>
+      <Title order={3}>Protección frente a mensajes excesivos</Title>
+      <Text c="dimmed" size="sm" mt="xs">
+        Se comprueban los permisos comerciales, el contacto, la edad del paciente,
+        la frecuencia y el horario antes de enviar cualquier campaña.
+        Los mensajes comerciales no incluyen diagnósticos ni tratamientos del historial.
+      </Text>
+      {query.isError ? <Alert color="red" mt="sm">No se pudo cargar la política de comunicaciones.</Alert> : null}
+      <Group grow align="end" mt="md">
+        <NumberInput label="Mínimo de días entre mensajes comerciales"
+          min={7} max={90} value={frequencyDays}
+          onChange={value => setFrequencyDays(Number(value) || 21)}/>
+        <NumberInput label="Enviar a partir de (hora de España)"
+          min={8} max={13} value={startHour}
+          onChange={value => setStartHour(Number(value) || 10)}/>
+        <NumberInput label="No enviar a partir de"
+          min={16} max={21} value={endHour}
+          onChange={value => setEndHour(Number(value) || 19)}/>
+      </Group>
+      <Group justify="flex-end" mt="md">
+        <Button variant="light" loading={save.isPending}
+          disabled={!query.data || endHour - startHour < 5}
+          onClick={() => save.mutate()}>Guardar límites</Button>
+      </Group>
+      {save.isSuccess ? <Alert color="green" mt="sm">Reglas actualizadas.</Alert> : null}
+      {save.isError ? <Alert color="red" mt="sm">No se pudieron actualizar los límites.</Alert> : null}
     </section>
   );
 }
@@ -246,6 +371,7 @@ export function MarketingMessagesPanel() {
         el canal y las condiciones de cada promoción. Las citas se gestionan en
         «Confirmación de citas», arriba.
       </Text>
+      <MarketingPolicyPanel />
       {templates.isError ? (
         <Alert color="red">No se pudo cargar la configuración de las campañas.</Alert>
       ) : null}
