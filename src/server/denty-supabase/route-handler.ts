@@ -400,6 +400,7 @@ export const LOCALLY_HANDLED_SECTIONS: ReadonlySet<string> = new Set([
   "payment-terminals",
   "clinical-plan",
   "navigation",
+  "recovery",
 ]);
 
 export async function handleSupabaseDentyRoute(
