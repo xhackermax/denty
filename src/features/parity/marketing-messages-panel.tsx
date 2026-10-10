@@ -302,6 +302,61 @@ function Editor({ template }: { template: Template }) {
   );
 }
 
+function MarketingPolicyPanel() {
+  const qc = useQueryClient();
+  const query = useQuery({
+    queryKey: ["marketing-communication-policy"],
+    queryFn: () => getBrowserApi().engagement.communications.marketingPolicy(),
+  });
+  const [frequencyDays, setFrequencyDays] = useState(21);
+  const [startHour, setStartHour] = useState(10);
+  const [endHour, setEndHour] = useState(19);
+  useEffect(() => {
+    if (!query.data) return;
+    setFrequencyDays(query.data.min_days_between_messages);
+    setStartHour(query.data.send_from_hour);
+    setEndHour(query.data.send_until_hour);
+  }, [query.data]);
+  const save = useMutation({
+    mutationFn: () => getBrowserApi().engagement.communications.saveMarketingPolicy({
+      frequencyDays, startHour, endHour,
+    }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["marketing-communication-policy"] });
+      void qc.invalidateQueries({ queryKey: ["marketing-audience-preview"] });
+    },
+  });
+  return (
+    <section className={styles.section}>
+      <Title order={3}>Protección frente a mensajes excesivos</Title>
+      <Text c="dimmed" size="sm" mt="xs">
+        Se comprueban los permisos comerciales, el contacto, la edad del paciente,
+        la frecuencia y el horario antes de enviar cualquier campaña.
+        Los mensajes comerciales no incluyen diagnósticos ni tratamientos del historial.
+      </Text>
+      {query.isError ? <Alert color="red" mt="sm">No se pudo cargar la política de comunicaciones.</Alert> : null}
+      <Group grow align="end" mt="md">
+        <NumberInput label="Mínimo de días entre mensajes comerciales"
+          min={7} max={90} value={frequencyDays}
+          onChange={value => setFrequencyDays(Number(value) || 21)}/>
+        <NumberInput label="Enviar a partir de (hora de España)"
+          min={8} max={13} value={startHour}
+          onChange={value => setStartHour(Number(value) || 10)}/>
+        <NumberInput label="No enviar a partir de"
+          min={16} max={21} value={endHour}
+          onChange={value => setEndHour(Number(value) || 19)}/>
+      </Group>
+      <Group justify="flex-end" mt="md">
+        <Button variant="light" loading={save.isPending}
+          disabled={!query.data || endHour - startHour < 5}
+          onClick={() => save.mutate()}>Guardar límites</Button>
+      </Group>
+      {save.isSuccess ? <Alert color="green" mt="sm">Reglas actualizadas.</Alert> : null}
+      {save.isError ? <Alert color="red" mt="sm">No se pudieron actualizar los límites.</Alert> : null}
+    </section>
+  );
+}
+
 export function MarketingMessagesPanel() {
   const templates = useQuery({
     queryKey: ["marketing-campaign-templates"],
@@ -316,6 +371,7 @@ export function MarketingMessagesPanel() {
         el canal y las condiciones de cada promoción. Las citas se gestionan en
         «Confirmación de citas», arriba.
       </Text>
+      <MarketingPolicyPanel />
       {templates.isError ? (
         <Alert color="red">No se pudo cargar la configuración de las campañas.</Alert>
       ) : null}
