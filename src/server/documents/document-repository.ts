@@ -105,7 +105,7 @@ export class DocumentRepository {
    * authenticated clinic on the server, never from client-provided names.
    */
   async createDebtAcknowledgement(input: CreateDebtAcknowledgement): Promise<DocumentView> {
-    const [patientRows, siteRows, doctorRows, clinicRows, templates] = await Promise.all([
+    const [patientRows, siteRows, doctorRows, clinicRows, templates, fiscalRows] = await Promise.all([
       this.rest.select<{ id: string; first_name: string; last_name: string; dni: string | null }>(
         "patients", { select: "id,first_name,last_name,dni", clinic_id: `eq.${this.clinicId}`, id: `eq.${input.patientId}`, limit: 1 },
       ),
@@ -125,12 +125,19 @@ export class DocumentRepository {
           order: "version.desc", limit: 1,
         },
       ),
+      this.rest.select<{ fiscal_legal_name: string | null; fiscal_tax_id: string | null }>(
+        "billing_settings", { select: "fiscal_legal_name,fiscal_tax_id",
+          clinic_id: `eq.${this.clinicId}`, limit: 1 },
+      ),
     ]);
     const patient = patientRows[0];
     const site = siteRows[0];
     const doctor = doctorRows[0];
     const clinic = clinicRows[0];
     const template = templates[0];
+    const fiscal = fiscalRows[0];
+    if (!fiscal?.fiscal_legal_name?.trim() || !fiscal.fiscal_tax_id?.trim())
+      throw new Error("Configura la razón social y el NIF/CIF del emisor en Ajustes de facturación.");
     if (!patient || !patient.dni?.trim())
       throw new Error("El paciente debe tener DNI/NIE registrado antes de firmar.");
     if (!site || !doctor || !doctor.active || doctor.role !== "DENTIST" || !clinic || !template)
@@ -203,14 +210,18 @@ export class DocumentRepository {
       direccion_sede: [site.address,site.city].filter(Boolean).join(", "),
       ciudad: site.city ?? "",
       clinica: clinic.name,
-      acreedor: clinic.name,
+      acreedor: fiscal.fiscal_legal_name.trim(),
+      nif_acreedor: fiscal.fiscal_tax_id.trim(),
       paciente: [patient.first_name,patient.last_name].join(" ").trim(),
       dni: patient.dni.trim(),
       concepto: input.concept,
       referencia: reference,
       importe_deuda: euro(amountCents),
       importe_total: euro(totalCents),
-      importe_pagado: euro(paidCents),
+      importe_pagado: input.budgetId ? euro(paidCents) : "",
+      desglose: input.budgetId
+        ? `Total del presupuesto: ${euro(totalCents)} euros; pagos contabilizados: ${euro(paidCents)} euros; saldo pendiente: ${euro(amountCents)} euros.`
+        : "Saldo comunicado y comprobado manualmente con el paciente; compruebe los abonos previos en el sistema de cobros.",
       importe_deuda_centimos: amountCents,
       vencimiento: dueText,
       dueMode: input.dueMode,
