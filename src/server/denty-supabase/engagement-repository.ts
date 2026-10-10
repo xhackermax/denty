@@ -331,6 +331,15 @@ export class EngagementRepository {
       p_occurred_at: new Date().toISOString(),
     });
   }
+  async recoveryWorklist(input: { kind: string; page: number; pageSize: number }) {
+    return this.client.rpc<Record<string, unknown>>("recovery_worklist", {
+      p_clinic_id: this.clinicId,
+      p_kind: input.kind,
+      p_page: input.page,
+      p_page_size: input.pageSize,
+    });
+  }
+
   async listCommunications(patientId?: string) {
     const query: Record<string, string | number | undefined> = {
       select: "*",
