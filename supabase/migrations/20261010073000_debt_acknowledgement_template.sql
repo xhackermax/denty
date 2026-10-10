@@ -12,7 +12,7 @@ begin
     $template$
 ## Identificación de las partes
 
-Entidad acreedora: {{acreedor}}.
+Entidad acreedora: {{acreedor}}, NIF/CIF {{nif_acreedor}}.
 Centro y sede: {{clinica}}, {{sede}}, {{direccion_sede}}.
 Profesional responsable de la asistencia: {{doctor}}.
 
@@ -20,12 +20,11 @@ Paciente/deudor: {{paciente}}, DNI/NIE {{dni}}.
 
 ## Origen y cuantía del saldo
 
-El/la firmante declara haber recibido información sobre los servicios odontológicos y/o el presupuesto indicado en este documento y reconoce un saldo pendiente de pago a favor de la entidad acreedora por un importe de **{{importe_deuda}} euros** ({{importe_letras}}).
+El/la firmante declara haber recibido información sobre los servicios odontológicos y/o el presupuesto indicado en este documento y reconoce un saldo pendiente de pago a favor de la entidad acreedora por un importe pendiente de **{{importe_deuda}} euros**.
 
 Referencia del tratamiento, presupuesto o factura: {{referencia}}.
 Descripción resumida de los servicios: {{concepto}}.
-Importe total de referencia: {{importe_total}} euros.
-Pagos contabilizados hasta esta fecha: {{importe_pagado}} euros.
+{{desglose}}
 
 ## Compromiso de pago
 
