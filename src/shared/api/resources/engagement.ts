@@ -11,6 +11,8 @@ import {
   communicationConsentSchema,
   communicationConsentsSchema,
   communicationsSchema,
+  recoveryWorklistSchema,
+  recoveryKindSchema,
   communicationTemplatesSchema,
   createCommunicationSchema,
   appointmentMessagingSettingsSchema,
@@ -55,6 +57,18 @@ const notificationsSchema = z.object({
 export function createEngagementResource(client: ApiClient) {
   return {
     communications: {
+      recoveryWorklist: (options: {
+        kind?: z.infer<typeof recoveryKindSchema>;
+        page?: number;
+        pageSize?: number;
+      } = {}) => client.request(
+        withQuery("/api/recovery/worklist", {
+          kind: options.kind ?? "ALL",
+          page: String(options.page ?? 1),
+          pageSize: String(options.pageSize ?? 25),
+        }),
+        recoveryWorklistSchema,
+      ),
       list: () => client.request("/api/admin/communications", communicationsSchema),
       appointmentSettings: () =>
         client.request(
