@@ -9,6 +9,7 @@ import { PageHeader } from "@/shared/ui";
 const CATEGORIES = {
   facturas: ["Facturas", "Archivo de facturas de la clínica."],
   consentimientos: ["Consentimientos", "Consentimientos firmados y pendientes por paciente."],
+  "proteccion-datos": ["Protección de datos", "Información RGPD, entregas y acuses firmados por los pacientes."],
   presupuestos: ["Presupuestos", "Presupuestos con su estado y enlace al plan del paciente."],
   recetas: ["Recetas", "Emisión y archivo de recetas."],
   personal: ["Personal", "Expedientes laborales: currículums y contratos."],
@@ -28,6 +29,7 @@ export default async function DocumentsCategoryPage({ params }: PageProps) {
       <PageHeader title={title} description={description} />
       {key === "facturas" ? <InvoiceDocuments /> : null}
       {key === "consentimientos" ? <DocumentsModule mode="consents" /> : null}
+      {key === "proteccion-datos" ? <DocumentsModule mode="privacy" /> : null}
       {key === "presupuestos" ? <BudgetDocuments /> : null}
       {key === "recetas" ? <PrescriptionsModule /> : null}
       {key === "personal" ? <DocumentCards personnelOnly /> : null}
