@@ -181,6 +181,31 @@ export class EngagementRepository {
     );
     return appointmentMessagingSettings(row);
   }
+  async getMarketingCommunicationPolicy() {
+    return this.client.rpc<Record<string, unknown>>("get_marketing_communication_policy", {
+      p_clinic_id: this.clinicId,
+    });
+  }
+  async saveMarketingCommunicationPolicy(input: {
+    frequencyDays: number; startHour: number; endHour: number;
+  }) {
+    return this.client.rpc<Record<string, unknown>>("save_marketing_communication_policy", {
+      p_clinic_id: this.clinicId,
+      p_frequency_days: input.frequencyDays,
+      p_start_hour: input.startHour,
+      p_end_hour: input.endHour,
+    });
+  }
+  async previewMarketingMessageTemplate(input: { kind: string; patientId?: string }) {
+    return this.client.rpc<{
+      candidates: number; eligible: number;
+      excluded: Record<string, number>; scheduledAt: string; channel: string;
+    }>("preview_marketing_template_recipients", {
+      p_clinic_id: this.clinicId,
+      p_kind: input.kind,
+      p_patient_id: input.patientId ?? null,
+    });
+  }
   async listMarketingMessageTemplates() {
     return this.client.rpc<{items: Record<string, unknown>[]}>(
       "list_marketing_message_templates", { p_clinic_id: this.clinicId },
