@@ -58,6 +58,8 @@ const TYPE_LABELS: Record<string, string> = {
   CONSENT: "Consentimiento",
   CERTIFICATE: "Justificante",
   CLINICAL_DOCUMENT: "Documento clínico",
+  DEBT_ACKNOWLEDGEMENT: "Reconocimiento de deuda",
+  PRIVACY_NOTICE: "Información de protección de datos (acuse de recibo)",
 };
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Borrador",
@@ -103,7 +105,7 @@ export function postCreateAction(document: { type: string; status: string }): "s
   return document.type === "CONSENT" && SIGNABLE_STATES.has(document.status) ? "sign" : "none";
 }
 
-export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "consents" }) {
+export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "consents" | "privacy" }) {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const initialPatientId = searchParams.get("patientId");
@@ -138,6 +140,13 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
   const [certReason, setCertReason] = useState("recibir tratamiento odontológico");
   const [companionName, setCompanionName] = useState("");
   const [companionDni, setCompanionDni] = useState("");
+  // Reconocimiento de deuda. The amount is computed from the budget ledger if selected.
+  const [debtBudgetId, setDebtBudgetId] = useState<string | null>(null);
+  const [debtAmount, setDebtAmount] = useState("");
+  const [debtConcept, setDebtConcept] = useState("Tratamiento odontológico realizado o presupuestado");
+  const [debtDueMode, setDebtDueMode] = useState<"END_OF_TREATMENT" | "FIXED_DATE">("END_OF_TREATMENT");
+  const [debtDueDate, setDebtDueDate] = useState("");
+
 
   const context = useDocumentContext();
   const printNotice = usePrintNotice();
@@ -145,6 +154,17 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
   const consents = useConsentRequirementsQuery(patientId ?? "", Boolean(patientId));
   const plan = useClinicalPlanQuery(patientId ?? "", Boolean(patientId));
   const patientBudgets = usePatientBudgetsQuery(patientId ?? "", Boolean(patientId));
+  const signedBudgets = (patientBudgets.data?.items ?? []).filter(
+    budget => budget.status === "SIGNED" && budget.totalCents > 0,
+  );
+  const selectedDebtBudget = signedBudgets.find(b => b.id === debtBudgetId);
+  const debtAmountCents = (() => {
+    const entered = debtAmount.trim().replace(",", ".");
+    if (!/^\d{1,7}(?:\.\d{1,2})?$/.test(entered)) return null;
+    const [euros = "0", cents = ""] = entered.split(".");
+    const value = Number(euros) * 100 + Number(cents.padEnd(2, "0"));
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  })();
   const signedBudgetIds = new Set(
     (patientBudgets.data?.items ?? [])
       .filter((budget) => budget.status === "SIGNED")
@@ -170,7 +190,8 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
 
   const openSigning = (document: SignableDocument) => {
     setSigning(document);
-    setSignerName(patientName(document.patientId));
+    setSignerName(typeof document.data?.paciente === "string" ?
+      document.data.paciente : patientName(document.patientId));
     setSignature(null);
   };
 
@@ -264,6 +285,45 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
     },
   });
 
+  const createPrivacy = useMutation({
+    mutationFn: async () => {
+      if (!patientId || !context.site?.id || !doctorId)
+        throw new Error("Selecciona paciente, sede y doctor responsable.");
+      return getBrowserApi().documents.privacyNotice({
+        patientId,
+        siteId: context.site.id,
+        doctorId,
+      });
+    },
+    onSuccess: document => {
+      invalidateClinical(document.patientId);
+      openSigning(document);
+    },
+  });
+  const createDebt = useMutation({
+    mutationFn: async () => {
+      if (!patientId || !context.site?.id || !doctorId)
+        throw new Error("Selecciona paciente, sede y profesional.");
+      if (debtDueMode === "FIXED_DATE" && !debtDueDate)
+        throw new Error("Indica la fecha límite de pago.");
+      if (!debtBudgetId && !debtAmountCents)
+        throw new Error("Introduce el saldo pendiente en euros o elige un presupuesto firmado.");
+      return getBrowserApi().documents.debtAcknowledgement({
+        patientId,
+        siteId: context.site.id,
+        doctorId,
+        ...(debtBudgetId ? { budgetId: debtBudgetId } : { amountCents: debtAmountCents! }),
+        concept: debtConcept.trim(),
+        dueMode: debtDueMode,
+        ...(debtDueMode === "FIXED_DATE" ? { dueDate: debtDueDate } : {}),
+      });
+    },
+    onSuccess: document => {
+      invalidateClinical(document.patientId);
+      openSigning(document);
+    },
+  });
+
   const downloadFile = async (id: string, fileName?: string | null) => {
     try {
       const blob = await getBrowserApi().documents.download(id);
@@ -284,6 +344,8 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
     (template) =>
       template.active !== false &&
       template.code !== "ATTENDANCE_CERTIFICATE" &&
+      template.code !== "DEBT_ACKNOWLEDGEMENT" &&
+      template.code !== "DATA_PROTECTION" &&
       (mode !== "consents" || template.code?.startsWith("CONSENT_")),
   );
   const planItems = plan.data?.items ?? [];
@@ -307,6 +369,16 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
       const patient = patientById.get(document.patientId);
       if (!patient) throw new Error("No se encontró al paciente de este documento.");
       if (!template?.body) throw new Error("Este documento no tiene una plantilla imprimible.");
+      let signatureImageDataUrl: string | undefined;
+      if ((template.code === "DEBT_ACKNOWLEDGEMENT" || template.code === "DATA_PROTECTION") && document.signedAt && document.id) {
+        const image = await getBrowserApi().documents.signatureImage(document.id);
+        signatureImageDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error("No se pudo preparar la firma original."));
+          reader.onload = () => resolve(String(reader.result));
+          reader.readAsDataURL(image);
+        });
+      }
       await printClinicalDocument({
         title: document.title,
         templateCode: template.code,
@@ -320,6 +392,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
             : null,
         createdAt: document.createdAt,
         reference: document.id?.slice(0, 8),
+        ...(signatureImageDataUrl ? { signatureImageDataUrl } : {}),
       });
     });
   const signingTemplate = signing?.templateId ? templateById.get(signing.templateId) : undefined;
@@ -328,7 +401,9 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
     typeof signing?.data?.doctorId === "string" ? signing.data.doctorId : doctorId;
   const hasError = patients.isError || documents.isError || templates.isError;
   const visibleDocuments = (documents.data?.items ?? []).filter(
-    (document) => mode !== "consents" || document.type === "CONSENT",
+    (document) => mode === "privacy"
+      ? document.type === "PRIVACY_NOTICE"
+      : mode !== "consents" || ["CONSENT","DEBT_ACKNOWLEDGEMENT","PRIVACY_NOTICE"].includes(document.type),
   );
   const pendingConsents = (consents.data?.items ?? []).filter(
     (item) => item.status !== "SATISFIED",
@@ -357,7 +432,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
       {finalize.isError ? <Alert color="red">No se pudo finalizar el documento.</Alert> : null}
       {uploadFile.isError ? <Alert color="red">No se pudo adjuntar el archivo.</Alert> : null}
 
-      {patientId ? (
+      {patientId && mode === "consents" ? (
         <section className={styles.section} aria-label="Consentimientos del plan">
           <Group justify="space-between">
             <div>
@@ -414,7 +489,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
         </section>
       ) : null}
 
-      {patientId && mode !== "consents" ? (
+      {patientId && mode === "archive" ? (
         <section className={styles.section} aria-label="Justificante de asistencia">
           <Group justify="space-between">
             <div>
@@ -501,6 +576,125 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
         </section>
       ) : null}
 
+      {patientId && mode !== "privacy" ? (
+        <section className={styles.section} aria-label="Reconocimiento de deuda">
+          <Group justify="space-between" mb="sm">
+            <div>
+              <h3 className={styles.sectionTitle}>Reconocimiento de deuda</h3>
+              <p className={styles.sectionDescription}>
+                Para un pago aplazado hasta terminar el tratamiento o una fecha pactada.
+                La firma no sustituye el presupuesto ni la factura.
+              </p>
+            </div>
+            <Badge variant="light">Firmable</Badge>
+          </Group>
+          <Stack gap="sm">
+            <Text size="sm" c="dimmed">
+              Paciente: {patientName(patientId)} · DNI/NIE: {patientById.get(patientId)?.dni ?? "Pendiente"}
+            </Text>
+            <Text size="sm" c="dimmed">
+              Sede: {context.site?.name ?? "Selecciona una sede activa"}.
+              El saldo se calcula en el servidor al generar el documento.
+            </Text>
+            <Select label="Doctor responsable" data={context.doctors.map(doctor => ({
+              value: doctor.id, label: doctor.displayName,
+            }))} value={doctorId} onChange={setDoctorChoice} searchable/>
+            <Select label="Presupuesto firmado (opcional)" clearable searchable
+              placeholder="Sin presupuesto: especificar saldo manualmente"
+              value={debtBudgetId} onChange={setDebtBudgetId}
+              data={signedBudgets.map(budget => ({
+                value: budget.id,
+                label: `${budget.code} · ${(budget.totalCents / 100).toFixed(2)} € (importe total)`,
+              }))}
+            />
+            {selectedDebtBudget ? (
+              <Alert color="blue">
+                Presupuesto: {(selectedDebtBudget.totalCents / 100).toFixed(2)} €.
+                El saldo exacto descontará los pagos contabilizados antes de la firma.
+              </Alert>
+            ) : (
+              <TextInput label="Importe pendiente verificado (€)" inputMode="decimal"
+                placeholder="Ej.: 350,00" value={debtAmount} onChange={event => setDebtAmount(event.currentTarget.value)}
+                description="Comprueba el importe y los pagos recibidos antes de solicitar la firma."
+              />
+            )}
+            <TextInput label="Origen o concepto de la deuda" required maxLength={500}
+              value={debtConcept} onChange={event => setDebtConcept(event.currentTarget.value)} />
+            <Select label="Cuándo se pagará" value={debtDueMode}
+              onChange={value => setDebtDueMode(value === "FIXED_DATE" ? "FIXED_DATE" : "END_OF_TREATMENT")}
+              data={[
+                {value:"END_OF_TREATMENT", label:"Al finalizar el tratamiento"},
+                {value:"FIXED_DATE", label:"En una fecha concreta"},
+              ]} />
+            {debtDueMode === "FIXED_DATE" ? (
+              <TextInput label="Fecha límite de pago" type="date" value={debtDueDate}
+                min={todayMadrid()} onChange={event => setDebtDueDate(event.currentTarget.value)} />
+            ) : null}
+            {createDebt.isError ? (
+              <Alert color="red">{createDebt.error instanceof Error ? createDebt.error.message
+                : "No se pudo generar el reconocimiento de deuda."}</Alert>
+            ) : null}
+            <Group justify="flex-end">
+              <Button loading={createDebt.isPending}
+                disabled={!patientById.get(patientId)?.dni || !context.site?.id || !doctorId ||
+                  debtConcept.trim().length < 5 || (!debtBudgetId && !debtAmountCents) ||
+                  (debtDueMode === "FIXED_DATE" && !debtDueDate)}
+                onClick={() => createDebt.mutate()}>
+                Generar, revisar y firmar
+              </Button>
+            </Group>
+          </Stack>
+        </section>
+      ) : null}
+
+      {patientId || mode === "privacy" ? (
+        <section className={styles.section} aria-label="Información RGPD">
+          <Group justify="space-between" mb="sm">
+            <div>
+              <h3 className={styles.sectionTitle}>Protección de datos · Información RGPD</h3>
+              <p className={styles.sectionDescription}>
+                Entrega y firma del acuse de recibo de la información de privacidad.
+                No es un consentimiento para publicidad ni para la asistencia sanitaria.
+              </p>
+            </div>
+            <Badge variant="light">Firmable</Badge>
+          </Group>
+          <Stack gap="sm">
+            {mode === "privacy" ? (
+              <Select label="Paciente" searchable clearable value={patientId} onChange={setPatientId}
+                data={(patients.data?.items ?? []).map(patient => ({
+                  value: patient.id, label: `${patient.firstName} ${patient.lastName}`,
+                }))}
+              />
+            ) : null}
+            <Text size="sm" c="dimmed">
+              Paciente: {patientId ? patientName(patientId) : "Selecciona un paciente"} · DNI/NIE: {patientById.get(patientId ?? "")?.dni ?? "Sin registrar"}
+            </Text>
+            <Text size="sm" c="dimmed">
+              Responsable y domicilio: se obtienen de Ajustes de facturación.
+              La clínica debe proporcionar también su información ampliada vigente,
+              incluido el contacto del DPD si es obligatorio.
+            </Text>
+            <Select label="Doctor responsable del documento" searchable value={doctorId}
+              onChange={setDoctorChoice}
+              data={context.doctors.map(doctor => ({ value: doctor.id, label: doctor.displayName }))}
+            />
+            {createPrivacy.isError ? (
+              <Alert color="red">{createPrivacy.error instanceof Error
+                ? createPrivacy.error.message : "No se pudo crear la información RGPD."}</Alert>
+            ) : null}
+            <Group justify="flex-end">
+              <Button loading={createPrivacy.isPending}
+                disabled={!patientId || !patientById.get(patientId ?? "")?.dni || !context.site?.id || !doctorId}
+                onClick={() => createPrivacy.mutate()}>
+                Entregar información, revisar y firmar
+              </Button>
+            </Group>
+          </Stack>
+        </section>
+      ) : null}
+
+      {mode !== "privacy" ? (
       <section className={styles.section}>
         <Group justify="space-between">
           <div>
@@ -562,10 +756,11 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
           </Button>
         </Stack>
       </section>
+      ) : null}
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>
-          {mode === "consents" ? "Consentimientos" : "Documentos"}
+          {mode === "privacy" ? "Documentos RGPD del paciente" : mode === "consents" ? "Documentos firmables del paciente" : "Documentos"}
         </h3>
         <div className={styles.rowList}>
           {visibleDocuments.map((document) => {
@@ -689,6 +884,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
               <Select
                 label="Profesional responsable"
                 value={signingDoctorId}
+                disabled={signing.data?.documentKind === "DEBT_ACKNOWLEDGEMENT" || signing.data?.documentKind === "PRIVACY_NOTICE"}
                 onChange={(value) =>
                   setSigning({ ...signing, data: { ...signing.data, doctorId: value } })
                 }
@@ -705,11 +901,15 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
                     doctor: context.doctorById(signingDoctorId),
                     clinicName: context.clinicName,
                     city: context.site?.city,
-                    date: todayMadrid(),
+                    date: typeof signing.data?.fecha === "string" ? signing.data.fecha : todayMadrid(),
                     treatment:
                       typeof signing.data?.tratamiento === "string"
                         ? signing.data.tratamiento
                         : null,
+                    extra: Object.fromEntries(
+                      Object.entries(signing.data ?? {})
+                        .filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+                    ),
                   })}
                 />
               </div>
@@ -727,6 +927,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
           ) : null}
           <TextInput
             label="Nombre de quien firma"
+            disabled={signing?.data?.documentKind === "DEBT_ACKNOWLEDGEMENT" || signing?.data?.documentKind === "PRIVACY_NOTICE"}
             value={signerName}
             onChange={(event) => setSignerName(event.currentTarget.value)}
           />

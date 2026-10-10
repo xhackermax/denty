@@ -14,6 +14,7 @@ import styles from "@/shared/ui/parity.module.css";
 const categories = [
   { href: "/app/documents/facturas", title: "Facturas", description: "Consultar, emitir y descargar facturas.", icon: IconFileInvoice },
   { href: "/app/documents/consentimientos", title: "Consentimientos", description: "Pendientes de firma y consentimientos firmados.", icon: IconFileCheck },
+  { href: "/app/documents/proteccion-datos", title: "Protección de datos", description: "Información RGPD y acuses de recibo firmados por pacientes.", icon: IconFileText },
   { href: "/app/documents/presupuestos", title: "Presupuestos", description: "Revisiones, importes y firmas del plan.", icon: IconFileDescription },
   { href: "/app/documents/recetas", title: "Recetas", description: "Recetas clínicas y su historial.", icon: IconPill },
   { href: "/app/documents/personal", title: "Personal", description: "Currículums y contratos del equipo. Acceso restringido.", icon: IconUsers },

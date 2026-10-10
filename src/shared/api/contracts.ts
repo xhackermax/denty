@@ -330,6 +330,31 @@ export const createDocumentSchema = z.object({
   data: z.record(z.string(), z.union([z.string(), z.number(), z.null()])).default({}),
 });
 
+/** Staff creates a debt statement only after choosing a patient and a verified balance.
+ * If budgetId is present the server computes the unpaid amount from the ledger.
+ */
+export const createDebtAcknowledgementSchema = z.object({
+  patientId: idSchema,
+  siteId: idSchema,
+  doctorId: idSchema,
+  budgetId: idSchema.optional(),
+  amountCents: z.number().int().positive().max(100_000_000).optional(),
+  concept: z.string().trim().min(5).max(500),
+  dueMode: z.enum(["END_OF_TREATMENT", "FIXED_DATE"]),
+  dueDate: isoDateSchema.optional(),
+}).refine(value => value.budgetId || value.amountCents, {
+  message: "Elige un presupuesto o indica un importe pendiente verificado.",
+}).refine(value => value.dueMode !== "FIXED_DATE" || value.dueDate, {
+  message: "Indica la fecha pactada de pago.",
+});
+
+/** Signature acknowledges receiving GDPR information, not consent for care or marketing. */
+export const createPrivacyNoticeSchema = z.object({
+  patientId: idSchema,
+  siteId: idSchema,
+  doctorId: idSchema,
+});
+
 export const signDocumentSchema = z.object({
   signerName: z.string().trim().min(2),
   /** PNG/JPEG data URL captured by SignaturePad; sent to the server as multipart. */

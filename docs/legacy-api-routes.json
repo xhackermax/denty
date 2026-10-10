@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
-  "routeCount": 280,
+  "routeCount": 283,
   "routes": [
     {
       "method": "GET",
@@ -797,9 +797,27 @@
       "kind": "browser"
     },
     {
+      "method": "GET",
+      "path": "/api/documents/:id/signature",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
       "method": "POST",
       "path": "/api/documents/attendance-certificate",
       "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents/debt-acknowledgement",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents/privacy-notice",
+      "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
     {

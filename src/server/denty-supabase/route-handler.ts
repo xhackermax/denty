@@ -13,6 +13,8 @@ import {
   archivePatientSchema,
   createAppointmentSchema,
   createDocumentSchema,
+  createDebtAcknowledgementSchema,
+  createPrivacyNoticeSchema,
   createLabWorkSchema,
   createPatientSchema,
   labTransitionSchema,
@@ -2497,6 +2499,23 @@ export async function handleSupabaseDentyRoute(
       responseHeaders.set("content-length", String(blob.size));
       return new Response(blob, { status: 200, headers: responseHeaders });
     }
+    if (parts.length === 3 && parts[0] === "api" &&
+        parts[1] === "documents" && parts[2] === "privacy-notice" &&
+        method === "POST") {
+      const denied = requireActorPermission(identity, "documents.write");
+      if (denied) return denied;
+      const payload = await parseJson(request, createPrivacyNoticeSchema);
+      return json(201, await documentRepository(identity).createPrivacyNotice(payload), headers);
+    }
+    if (parts.length === 3 && parts[0] === "api" &&
+        parts[1] === "documents" && parts[2] === "debt-acknowledgement" &&
+        method === "POST") {
+      const denied = requireActorPermission(identity, "documents.write") ??
+        requireActorPermission(identity, "finance.read");
+      if (denied) return denied;
+      const payload = await parseJson(request, createDebtAcknowledgementSchema);
+      return json(201, await documentRepository(identity).createDebtAcknowledgement(payload), headers);
+    }
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "documents") {
       const documents = documentRepository(identity);
       if (method === "GET") {
@@ -2509,6 +2528,19 @@ export async function handleSupabaseDentyRoute(
         const payload = await parseJson(request, createDocumentSchema);
         return json(201, await documents.create(payload), headers);
       }
+    }
+    if (parts.length === 4 && parts[0] === "api" &&
+        parts[1] === "documents" && parts[3] === "signature" && method === "GET") {
+      const denied = requireActorPermission(identity, "documents.read");
+      if (denied) return denied;
+      const signature = await documentRepository(identity).signatureImage(
+        decodeURIComponent(parts[2] ?? ""),
+      );
+      const responseHeaders = responseHeadersForIdentity(request, identity);
+      responseHeaders.set("content-type", signature.mimeType);
+      responseHeaders.set("cache-control", "private, no-store");
+      responseHeaders.set("x-content-type-options", "nosniff");
+      return new Response(signature.blob, { status: 200, headers: responseHeaders });
     }
     if (
       parts.length === 4 &&
@@ -2549,7 +2581,15 @@ export async function handleSupabaseDentyRoute(
       // Stage 13: consents are signed in the clinic (tablet/firma manuscrita) by staff.
       if (identity.actor.role === "PATIENT")
         return error(403, "FORBIDDEN", "La firma de documentos se realiza en la clínica.");
-      const denied = requireActorPermission(identity, "documents.sign");
+      const documentId = decodeURIComponent(parts[2] ?? "");
+      const documentToSign = await documentRepository(identity).get(documentId);
+      if (!documentToSign)
+        return error(404, "DOCUMENT_NOT_FOUND", "No se encuentra el documento del paciente.");
+      const isAdministrativeAcknowledgement =
+        ["DEBT_ACKNOWLEDGEMENT","PRIVACY_NOTICE"].includes(documentToSign.type);
+      const denied = isAdministrativeAcknowledgement
+        ? requireActorPermission(identity, "documents.write")
+        : requireActorPermission(identity, "documents.sign");
       if (denied) return denied;
       const form = await request.formData();
       const file = form.get("file");
@@ -2558,7 +2598,7 @@ export async function handleSupabaseDentyRoute(
       const payload = signDocumentMetadataSchema.parse({ signerName: form.get("signerName") });
       return json(
         200,
-        await documentRepository(identity).sign(decodeURIComponent(parts[2] ?? ""), {
+        await documentRepository(identity).sign(documentId, {
           signerName: payload.signerName,
           file,
         }),
