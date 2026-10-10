@@ -100,6 +100,7 @@ import {
   snoozeAlertSchema,
   updateAppointmentMessagingSettingsSchema,
   saveMarketingMessageTemplateSchema,
+  updateMarketingCommunicationPolicySchema,
   queueMarketingMessageTemplateSchema,
   updateMarketingCampaignSchema,
 } from "@/shared/api/schemas/engagement";
@@ -734,6 +735,32 @@ export async function handleSupabaseDentyRoute(
       const d = requireActorPermission(identity, "communications.read");
       if (d) return d;
       return json(200, await engagement.listCommunications(), headers);
+    }
+    if (parts.length === 4 && parts[0] === "api" &&
+        parts[1] === "admin" && parts[2] === "communications" &&
+        parts[3] === "marketing-policy") {
+      if (method === "GET") {
+        const d = requireActorPermission(identity, "communications.read");
+        if (d) return d;
+        return json(200, await engagement.getMarketingCommunicationPolicy(), headers);
+      }
+      if (method === "PUT") {
+        const d = requireActorPermission(identity, "communications.manage");
+        if (d) return d;
+        return json(200, await engagement.saveMarketingCommunicationPolicy(
+          await parseJson(request, updateMarketingCommunicationPolicySchema),
+        ), headers);
+      }
+    }
+    if (parts.length === 5 && parts[0] === "api" &&
+        parts[1] === "admin" && parts[2] === "communications" &&
+        parts[3] === "campaign-templates" && parts[4] === "preview" &&
+        method === "POST") {
+      const d = requireActorPermission(identity, "communications.manage");
+      if (d) return d;
+      return json(200, await engagement.previewMarketingMessageTemplate(
+        await parseJson(request, queueMarketingMessageTemplateSchema),
+      ), headers);
     }
     if (parts.length === 4 && parts[0] === "api" &&
         parts[1] === "admin" && parts[2] === "communications" &&
