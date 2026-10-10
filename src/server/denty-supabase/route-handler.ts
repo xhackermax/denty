@@ -628,6 +628,25 @@ export async function handleSupabaseDentyRoute(
     const engagement = engagementRepository(identity);
     const tasks = taskRepository(identity);
     const prescriptions = prescriptionRepository(identity);
+    if (
+      parts.length === 3 && parts[0] === "api" &&
+      parts[1] === "recovery" && parts[2] === "worklist" && method === "GET"
+    ) {
+      const denied = requireActorPermission(identity, "communications.read") ??
+        requireActorPermission(identity, "patients.read");
+      if (denied) return denied;
+      const url = new URL(request.url);
+      const kind = url.searchParams.get("kind") ?? "ALL";
+      const page = Number(url.searchParams.get("page") ?? 1);
+      const pageSize = Number(url.searchParams.get("pageSize") ?? 25);
+      if (!["ALL", "RECALL", "PLAN", "BUDGET"].includes(kind) ||
+          !Number.isSafeInteger(page) || page < 1 ||
+          !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 50) {
+        return error(400, "INVALID_RECOVERY_FILTER", "Filtros de recuperación no válidos.");
+      }
+      return json(200, await engagement.recoveryWorklist({ kind, page, pageSize }), headers);
+    }
+
     // Stage 11: staff attendance, privacy, engagement, attribution and persistent tasks.
     if (
       parts.length === 3 &&
