@@ -214,7 +214,7 @@ begin
  ) then
   raise exception 'PROMOTION_NOT_VALID' using errcode='22023';
  end if;
- if v_template.contact_email !~ '^[^ @]+@[^ @]+\.[^ @]+
+ if v_template.contact_email !~ '^[^ @]+@[^ @]+[.][^ @]+$' then
   raise exception 'UNSUBSCRIBE_ADDRESS_REQUIRED' using errcode='22023';
  end if;
  v_local := now() at time zone 'Europe/Madrid';
