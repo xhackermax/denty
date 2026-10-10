@@ -8,6 +8,7 @@ import { AnalysisModule } from "./modules/analysis-module";
 import { AttendanceModule } from "./modules/attendance-module";
 import { CampaignsModule } from "./modules/campaigns-module";
 import { CommunicationsModule } from "./modules/communications-module";
+import { RecoveryModule } from "./modules/recovery-module";
 import { DocumentsModule } from "./modules/documents-module";
 import { FinanceModule } from "./modules/finance-module";
 import { LaboratoryModule } from "./modules/laboratory-module";
