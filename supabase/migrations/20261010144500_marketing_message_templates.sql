@@ -17,10 +17,10 @@ create table if not exists public.marketing_message_templates (
   updated_by uuid references auth.users(id) on delete set null,
   primary key (clinic_id, kind),
   constraint marketing_templates_complete_offer check (
-    kind = 'BIRTHDAY' or (length(btrim(offer_details)) >= 10 and valid_until is not null)
+    not enabled or kind = 'BIRTHDAY' or (length(btrim(offer_details)) >= 10 and valid_until is not null)
   ),
   constraint marketing_templates_discount_only check (
-    kind <> 'DISCOUNT' or discount_percent is not null
+    not enabled or kind <> 'DISCOUNT' or discount_percent is not null
   )
 );
 
@@ -49,20 +49,6 @@ begin
 end;
 $$;
 revoke all on function private.seed_marketing_templates(uuid) from public,anon,authenticated;
-
--- OFFERS start incomplete and disabled. The offer-completeness constraint applies
--- only to enabled offers/discounts so clinics can save draft templates.
-alter table public.marketing_message_templates
-  drop constraint if exists marketing_templates_complete_offer;
-alter table public.marketing_message_templates
-  add constraint marketing_templates_complete_offer
-  check (not enabled or kind = 'BIRTHDAY'
-    or (length(btrim(offer_details)) >= 10 and valid_until is not null));
-alter table public.marketing_message_templates
-  drop constraint if exists marketing_templates_discount_only;
-alter table public.marketing_message_templates
-  add constraint marketing_templates_discount_only
-  check (not enabled or kind <> 'DISCOUNT' or discount_percent is not null);
 
 create or replace function private.seed_marketing_templates_on_clinic()
 returns trigger language plpgsql security definer set search_path = '' as $$
