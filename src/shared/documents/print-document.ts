@@ -30,6 +30,7 @@ export function printClinicalDocument(input: {
   context: Context;
   data?: Record<string, unknown> | undefined;
   signed?: { signerName: string; signedAt: string } | null;
+  signatureImageDataUrl?: string | undefined;
   createdAt?: string | undefined;
   reference?: string | undefined;
 }): Promise<void> {
@@ -97,6 +98,7 @@ export function printClinicalDocument(input: {
         collegiateNumber: doctor?.collegiateNumber ?? null,
       },
       signed: input.signed ?? null,
+      ...(input.signatureImageDataUrl ? { signatureImageDataUrl: input.signatureImageDataUrl } : {}),
       ...(input.reference ? { reference: input.reference } : {}),
     }),
   );
