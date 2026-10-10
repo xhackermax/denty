@@ -105,7 +105,7 @@ export function postCreateAction(document: { type: string; status: string }): "s
   return document.type === "CONSENT" && SIGNABLE_STATES.has(document.status) ? "sign" : "none";
 }
 
-export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "consents" }) {
+export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "consents" | "privacy" }) {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const initialPatientId = searchParams.get("patientId");
@@ -401,7 +401,9 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
     typeof signing?.data?.doctorId === "string" ? signing.data.doctorId : doctorId;
   const hasError = patients.isError || documents.isError || templates.isError;
   const visibleDocuments = (documents.data?.items ?? []).filter(
-    (document) => mode !== "consents" || document.type === "CONSENT" || document.type === "DEBT_ACKNOWLEDGEMENT" || document.type === "PRIVACY_NOTICE",
+    (document) => mode === "privacy"
+      ? document.type === "PRIVACY_NOTICE"
+      : mode !== "consents" || ["CONSENT","DEBT_ACKNOWLEDGEMENT","PRIVACY_NOTICE"].includes(document.type),
   );
   const pendingConsents = (consents.data?.items ?? []).filter(
     (item) => item.status !== "SATISFIED",
@@ -430,7 +432,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
       {finalize.isError ? <Alert color="red">No se pudo finalizar el documento.</Alert> : null}
       {uploadFile.isError ? <Alert color="red">No se pudo adjuntar el archivo.</Alert> : null}
 
-      {patientId ? (
+      {patientId && mode === "consents" ? (
         <section className={styles.section} aria-label="Consentimientos del plan">
           <Group justify="space-between">
             <div>
@@ -487,7 +489,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
         </section>
       ) : null}
 
-      {patientId && mode !== "consents" ? (
+      {patientId && mode === "archive" ? (
         <section className={styles.section} aria-label="Justificante de asistencia">
           <Group justify="space-between">
             <div>
@@ -574,7 +576,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
         </section>
       ) : null}
 
-      {patientId ? (
+      {patientId && mode !== "privacy" ? (
         <section className={styles.section} aria-label="Reconocimiento de deuda">
           <Group justify="space-between" mb="sm">
             <div>
@@ -645,7 +647,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
         </section>
       ) : null}
 
-      {patientId ? (
+      {patientId || mode === "privacy" ? (
         <section className={styles.section} aria-label="Información RGPD">
           <Group justify="space-between" mb="sm">
             <div>
@@ -658,8 +660,15 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
             <Badge variant="light">Firmable</Badge>
           </Group>
           <Stack gap="sm">
+            {mode === "privacy" ? (
+              <Select label="Paciente" searchable clearable value={patientId} onChange={setPatientId}
+                data={(patients.data?.items ?? []).map(patient => ({
+                  value: patient.id, label: `${patient.firstName} ${patient.lastName}`,
+                }))}
+              />
+            ) : null}
             <Text size="sm" c="dimmed">
-              Paciente: {patientName(patientId)} · DNI/NIE: {patientById.get(patientId)?.dni ?? "Sin registrar"}
+              Paciente: {patientId ? patientName(patientId) : "Selecciona un paciente"} · DNI/NIE: {patientById.get(patientId ?? "")?.dni ?? "Sin registrar"}
             </Text>
             <Text size="sm" c="dimmed">
               Responsable y domicilio: se obtienen de Ajustes de facturación.
@@ -676,7 +685,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
             ) : null}
             <Group justify="flex-end">
               <Button loading={createPrivacy.isPending}
-                disabled={!patientById.get(patientId)?.dni || !context.site?.id || !doctorId}
+                disabled={!patientId || !patientById.get(patientId ?? "")?.dni || !context.site?.id || !doctorId}
                 onClick={() => createPrivacy.mutate()}>
                 Entregar información, revisar y firmar
               </Button>
@@ -685,6 +694,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
         </section>
       ) : null}
 
+      {mode !== "privacy" ? (
       <section className={styles.section}>
         <Group justify="space-between">
           <div>
@@ -746,10 +756,11 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
           </Button>
         </Stack>
       </section>
+      ) : null}
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>
-          {mode === "consents" ? "Documentos firmables del paciente" : "Documentos"}
+          {mode === "privacy" ? "Documentos RGPD del paciente" : mode === "consents" ? "Documentos firmables del paciente" : "Documentos"}
         </h3>
         <div className={styles.rowList}>
           {visibleDocuments.map((document) => {
