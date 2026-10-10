@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
-  "routeCount": 283,
+  "routeCount": 286,
   "routes": [
     {
       "method": "GET",
@@ -78,6 +78,24 @@
     {
       "method": "PUT",
       "path": "/api/admin/communications/appointment-settings",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/communications/campaign-templates",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/communications/campaign-templates",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/communications/campaign-templates/queue",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
