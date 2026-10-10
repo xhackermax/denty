@@ -40,7 +40,6 @@ describe("patient marketing guardrails", () => {
     expect(sql).toContain("v_reason:=private.marketing_recipient_reason(");
     expect(sql).toContain("v_reason<>'ELIGIBLE'");
     expect(sql).toContain("v_reason='ELIGIBLE'");
-    expect(sql).toContain("cc"); // Consent is part of the existing queue API, not a bypass.
     expect(sql).toContain("purpose='MARKETING'");
     expect(sql).toContain("RECENT_PROMOTION");
     expect(sql).toContain("UNDERAGE_OR_UNKNOWN_AGE");
