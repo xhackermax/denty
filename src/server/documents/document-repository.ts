@@ -1,9 +1,10 @@
 import { createDocumentSchema } from "@/shared/api";
-import { createDebtAcknowledgementSchema } from "@/shared/api/contracts";
+import { createDebtAcknowledgementSchema, createPrivacyNoticeSchema } from "@/shared/api/contracts";
 import type { z } from "zod";
 
 type CreateDocument = z.input<typeof createDocumentSchema>;
 type CreateDebtAcknowledgement = z.infer<typeof createDebtAcknowledgementSchema>;
+type CreatePrivacyNotice = z.infer<typeof createPrivacyNoticeSchema>;
 
 import type { SupabaseRestClient } from "../supabase/rest-client";
 import { CLINICAL_DOCUMENTS_BUCKET, type StorageRepository } from "../storage/storage-repository";
@@ -80,8 +81,8 @@ export class DocumentRepository {
   }
 
   async create(payload: CreateDocument): Promise<DocumentView> {
-    if (payload.type === "DEBT_ACKNOWLEDGEMENT")
-      throw new Error("Utiliza el formulario de reconocimiento de deuda para verificar los datos.");
+    if (payload.type === "DEBT_ACKNOWLEDGEMENT" || payload.type === "PRIVACY_NOTICE")
+      throw new Error("Utiliza el formulario específico para generar un documento firmable verificado.");
     const patients = await this.rest.select<{ id: string }>("patients", {
       select: "id",
       clinic_id: `eq.${this.clinicId}`,
@@ -105,6 +106,89 @@ export class DocumentRepository {
    * Financial acknowledgement. Resolve all personal/site/doctor fields from the
    * authenticated clinic on the server, never from client-provided names.
    */
+  /** Patient acknowledgement of receipt of GDPR information. It is never marketing consent. */
+  async createPrivacyNotice(input: CreatePrivacyNotice): Promise<DocumentView> {
+    const [patients, sites, doctors, clinics, fiscalRows, templates] = await Promise.all([
+      this.rest.select<{ id: string; first_name: string; last_name: string; dni: string | null }>(
+        "patients", {
+          select: "id,first_name,last_name,dni",
+          clinic_id: `eq.${this.clinicId}`, id: `eq.${input.patientId}`, limit: 1,
+        },
+      ),
+      this.rest.select<{ id: string; name: string; city: string | null; address: string | null }>(
+        "sites", {
+          select: "id,name,city,address",
+          clinic_id: `eq.${this.clinicId}`, id: `eq.${input.siteId}`, limit: 1,
+        },
+      ),
+      this.rest.select<{ id: string; display_name: string; role: string; active: boolean }>(
+        "staff_members", {
+          select: "id,display_name,role,active",
+          clinic_id: `eq.${this.clinicId}`, id: `eq.${input.doctorId}`, limit: 1,
+        },
+      ),
+      this.rest.select<{ name: string }>("clinics", {
+        select: "name", id: `eq.${this.clinicId}`, limit: 1,
+      }),
+      this.rest.select<{
+        fiscal_legal_name: string | null;
+        fiscal_tax_id: string | null;
+        fiscal_address: string | null;
+      }>("billing_settings", {
+        select: "fiscal_legal_name,fiscal_tax_id,fiscal_address",
+        clinic_id: `eq.${this.clinicId}`, limit: 1,
+      }),
+      this.rest.select<{ id: string; version: number; body: string }>("document_templates", {
+        select: "id,version,body", clinic_id: `eq.${this.clinicId}`,
+        code: "eq.DATA_PROTECTION", active: "eq.true",
+        order: "version.desc", limit: 1,
+      }),
+    ]);
+    const patient = patients[0];
+    const site = sites[0];
+    const doctor = doctors[0];
+    const clinic = clinics[0];
+    const fiscal = fiscalRows[0];
+    const template = templates[0];
+    if (!patient?.dni?.trim())
+      throw new Error("El DNI/NIE del paciente es necesario para registrar el acuse.");
+    if (!doctor?.active || doctor.role !== "DENTIST" || !site || !clinic)
+      throw new Error("Selecciona un doctor activo y una sede de la clínica.");
+    if (!fiscal?.fiscal_legal_name?.trim() || !fiscal.fiscal_tax_id?.trim()
+        || !fiscal.fiscal_address?.trim())
+      throw new Error("Completa la razón social, NIF/CIF y domicilio fiscal del responsable en Facturación.");
+    if (!template || template.version < 2)
+      throw new Error("La plantilla RGPD actualizada todavía no está disponible.");
+    const fecha = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date());
+    const data = {
+      documentKind: "PRIVACY_NOTICE",
+      fecha,
+      patientId: patient.id,
+      paciente: `${patient.first_name} ${patient.last_name}`.trim(),
+      dni: patient.dni.trim(),
+      doctorId: doctor.id,
+      doctor: doctor.display_name,
+      siteId: site.id,
+      sede: site.name,
+      direccion_sede: [site.address, site.city].filter(Boolean).join(", "),
+      ciudad: site.city ?? "",
+      clinica: clinic.name,
+      acreedor: fiscal.fiscal_legal_name.trim(),
+      nif_acreedor: fiscal.fiscal_tax_id.trim(),
+      direccion_fiscal: fiscal.fiscal_address.trim(),
+      privacyPurpose: "ACKNOWLEDGEMENT_OF_INFORMATION_ONLY",
+      templateVersion: template.version,
+    };
+    const row = await this.rest.insert<DocumentRow>("documents", {
+      clinic_id: this.clinicId, patient_id: patient.id, template_id: template.id,
+      type: "PRIVACY_NOTICE", title: "Información sobre protección de datos (RGPD)",
+      status: "DRAFT", data_json: data,
+    });
+    return toView(row);
+  }
+
   async createDebtAcknowledgement(input: CreateDebtAcknowledgement): Promise<DocumentView> {
     const [patientRows, siteRows, doctorRows, clinicRows, templates, fiscalRows] = await Promise.all([
       this.rest.select<{ id: string; first_name: string; last_name: string; dni: string | null }>(
@@ -306,7 +390,7 @@ export class DocumentRepository {
   async sign(id: string, input: { signerName: string; file: File }): Promise<DocumentView> {
     const current = await this.get(id);
     if (!current) throw new Error("Documento no encontrado.");
-    if (current.type === "DEBT_ACKNOWLEDGEMENT" &&
+    if ((current.type === "DEBT_ACKNOWLEDGEMENT" || current.type === "PRIVACY_NOTICE") &&
       (typeof current.data_json.paciente !== "string" ||
         input.signerName.trim().toLocaleLowerCase("es-ES") !==
         current.data_json.paciente.trim().toLocaleLowerCase("es-ES"))) {
