@@ -7,7 +7,7 @@ import { parseTemplate, shortDate, type TemplateValues } from "./template-render
  */
 
 export interface DocumentPrintData {
-  kind: "consent" | "certificate";
+  kind: "consent" | "certificate" | "debt";
   clinicName: string;
   site?: {
     name: string;
@@ -67,7 +67,18 @@ export function buildDocumentPrintHtml(data: DocumentPrintData): string {
       : ""
   }`;
   const signatures =
-    data.kind === "consent"
+    data.kind === "debt"
+      ? `<section class="signatures single">
+          <div class="signature">
+            <div class="box">${data.signed
+              ? `<span class="esign">Firma electrónica simple registrada<br>
+              ${escapeHtml(data.signed.signerName)} · ${escapeHtml(shortDate(data.signed.signedAt))}</span>`
+              : ""}</div>
+            <b>Paciente/deudor</b>
+            ${escapeHtml(data.signed?.signerName ?? data.patient.name)}
+          </div>
+        </section>`
+      : data.kind === "consent"
       ? `<section class="signatures">
           <div class="signature">
             <div class="box">${
