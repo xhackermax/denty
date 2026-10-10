@@ -345,6 +345,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
       template.active !== false &&
       template.code !== "ATTENDANCE_CERTIFICATE" &&
       template.code !== "DEBT_ACKNOWLEDGEMENT" &&
+      template.code !== "DATA_PROTECTION" &&
       (mode !== "consents" || template.code?.startsWith("CONSENT_")),
   );
   const planItems = plan.data?.items ?? [];
