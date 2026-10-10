@@ -52,6 +52,8 @@ export function printClinicalDocument(input: {
       acompanante: text(data.acompanante) ?? "",
       ...(debt ? {
         acreedor: text(data.acreedor) ?? "",
+        nif_acreedor: text(data.nif_acreedor) ?? "",
+        desglose: text(data.desglose) ?? "",
         clinica: text(data.clinica) ?? "",
         sede: text(data.sede) ?? "",
         direccion_sede: text(data.direccion_sede) ?? "",
