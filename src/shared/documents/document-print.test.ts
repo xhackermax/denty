@@ -65,6 +65,24 @@ describe("buildDocumentPrintHtml", () => {
     expect(html).not.toContain("<h2>Revocación</h2>");
   });
 
+  it("prints a privacy receipt signature without pretending to collect consent for care", () => {
+    const html = buildDocumentPrintHtml({
+      ...base,
+      kind: "privacy",
+      title: "Información de protección de datos",
+      body: "Se informa a {{paciente}} del tratamiento de sus datos por {{acreedor}}.",
+      values: { paciente: "Ana Ruiz", acreedor: "Clínica Sanitaria S.L." },
+      patient: { name: "Ana Ruiz", dni: "12345678Z" },
+      signed: { signerName: "Ana Ruiz", signedAt: "2026-10-10T10:00:00Z" },
+      signatureImageDataUrl: "data:image/png;base64,aGVsbG8=",
+    });
+    expect(html).toContain("Firma de recepción de información");
+    expect(html).toContain("Clínica Sanitaria S.L.");
+    expect(html).toContain("data:image/png;base64,aGVsbG8=");
+    expect(html).not.toContain("<h2>Revocación</h2>");
+    expect(html).not.toContain("Paciente/deudor");
+  });
+
   it("states the electronic signature when the document is signed", () => {
     const html = buildDocumentPrintHtml({
       ...base,
