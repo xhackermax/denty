@@ -14,6 +14,7 @@ import {
   createAppointmentSchema,
   createDocumentSchema,
   createDebtAcknowledgementSchema,
+  createPrivacyNoticeSchema,
   createLabWorkSchema,
   createPatientSchema,
   labTransitionSchema,
@@ -2497,6 +2498,14 @@ export async function handleSupabaseDentyRoute(
       responseHeaders.set("content-type", stored.mimeType || blob.type || "image/jpeg");
       responseHeaders.set("content-length", String(blob.size));
       return new Response(blob, { status: 200, headers: responseHeaders });
+    }
+    if (parts.length === 3 && parts[0] === "api" &&
+        parts[1] === "documents" && parts[2] === "privacy-notice" &&
+        method === "POST") {
+      const denied = requireActorPermission(identity, "documents.write");
+      if (denied) return denied;
+      const payload = await parseJson(request, createPrivacyNoticeSchema);
+      return json(201, await documentRepository(identity).createPrivacyNotice(payload), headers);
     }
     if (parts.length === 3 && parts[0] === "api" &&
         parts[1] === "documents" && parts[2] === "debt-acknowledgement" &&
