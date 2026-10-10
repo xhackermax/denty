@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Badge, Button, Group, Pagination, SegmentedControl, Stack, Text } from "@mantine/core";
+import { Alert, Badge, Button, Group, Pagination, Stack, Text } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
@@ -79,19 +79,24 @@ export function RecoveryModule() {
 
       <section className={styles.section}>
         <Text fw={600} mb="sm">Lista de trabajo</Text>
-        <SegmentedControl
-          fullWidth
-          size="sm"
-          aria-label="Filtro de recuperación"
-          value={kind}
-          onChange={changeKind}
-          data={[
-            { value: "ALL", label: "Todos" },
-            { value: "RECALL", label: "Revisiones" },
-            { value: "PLAN", label: "Tratamientos" },
-            { value: "BUDGET", label: "Presupuestos" },
-          ]}
-        />
+        <Group gap="xs" wrap="wrap" aria-label="Filtro de recuperación">
+          {([
+            ["ALL", "Todos"],
+            ["RECALL", "Revisiones"],
+            ["PLAN", "Tratamientos"],
+            ["BUDGET", "Presupuestos"],
+          ] as const).map(([value, label]) => (
+            <Button
+              size="xs"
+              key={value}
+              variant={kind === value ? "filled" : "light"}
+              aria-pressed={kind === value}
+              onClick={() => changeKind(value)}
+            >
+              {label}
+            </Button>
+          ))}
+        </Group>
         {worklist.isPending ? (
           <Text mt="md" c="dimmed">Consultando revisiones y tratamientos pendientes…</Text>
         ) : worklist.isError ? (
