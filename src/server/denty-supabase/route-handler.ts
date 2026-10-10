@@ -13,6 +13,7 @@ import {
   archivePatientSchema,
   createAppointmentSchema,
   createDocumentSchema,
+  createDebtAcknowledgementSchema,
   createLabWorkSchema,
   createPatientSchema,
   labTransitionSchema,
@@ -2496,6 +2497,15 @@ export async function handleSupabaseDentyRoute(
       responseHeaders.set("content-type", stored.mimeType || blob.type || "image/jpeg");
       responseHeaders.set("content-length", String(blob.size));
       return new Response(blob, { status: 200, headers: responseHeaders });
+    }
+    if (parts.length === 3 && parts[0] === "api" &&
+        parts[1] === "documents" && parts[2] === "debt-acknowledgement" &&
+        method === "POST") {
+      const denied = requireActorPermission(identity, "documents.write") ??
+        requireActorPermission(identity, "finance.read");
+      if (denied) return denied;
+      const payload = await parseJson(request, createDebtAcknowledgementSchema);
+      return json(201, await documentRepository(identity).createDebtAcknowledgement(payload), headers);
     }
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "documents") {
       const documents = documentRepository(identity);
