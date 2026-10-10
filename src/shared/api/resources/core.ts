@@ -6,6 +6,7 @@ import {
   archivePatientSchema,
   createAppointmentSchema,
   createDocumentSchema,
+  createDebtAcknowledgementSchema,
   createLabWorkSchema,
   createPatientSchema,
   changePasswordSchema,
@@ -321,6 +322,12 @@ export function createCoreResource(client: ApiClient) {
         client.request(withQuery("/api/documents", { patientId }), documentsSchema),
       create: (payload: z.input<typeof createDocumentSchema>) =>
         client.mutation("/api/documents", documentSchema, createDocumentSchema.parse(payload)),
+      debtAcknowledgement: (payload: z.input<typeof createDebtAcknowledgementSchema>) =>
+        client.mutation(
+          "/api/documents/debt-acknowledgement",
+          documentSchema,
+          createDebtAcknowledgementSchema.parse(payload),
+        ),
       attendanceCertificate: (payload: z.input<typeof attendanceCertificateSchema>) =>
         client.mutation(
           "/api/documents/attendance-certificate",
