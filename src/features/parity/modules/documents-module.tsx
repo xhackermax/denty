@@ -189,7 +189,8 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
 
   const openSigning = (document: SignableDocument) => {
     setSigning(document);
-    setSignerName(patientName(document.patientId));
+    setSignerName(typeof document.data?.paciente === "string" ?
+      document.data.paciente : patientName(document.patientId));
     setSignature(null);
   };
 
