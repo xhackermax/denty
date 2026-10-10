@@ -43,6 +43,28 @@ describe("buildDocumentPrintHtml", () => {
     expect(html).not.toContain("<Denty>");
   });
 
+  it("prints a signed debt statement with image and without clinical revocation", () => {
+    const html = buildDocumentPrintHtml({
+      ...base,
+      kind: "debt",
+      title: "Reconocimiento de deuda",
+      body: "D./Dña. {{paciente}} reconoce deuda de {{importe_deuda}} euros a {{acreedor}}.",
+      values: {
+        paciente: "Ana Ruiz",
+        importe_deuda: "350,00",
+        acreedor: "Centro Dental Funcional S.L.",
+      },
+      patient: { name: "Ana Ruiz", dni: "12345678Z" },
+      signed: { signerName: "Ana Ruiz", signedAt: "2026-10-10T10:00:00Z" },
+      signatureImageDataUrl: "data:image/png;base64,aGVsbG8=",
+    });
+    expect(html).toContain("350,00 euros");
+    expect(html).toContain("12345678Z");
+    expect(html).toContain("Firma electrónica simple");
+    expect(html).toContain("data:image/png;base64,aGVsbG8=");
+    expect(html).not.toContain("<h2>Revocación</h2>");
+  });
+
   it("states the electronic signature when the document is signed", () => {
     const html = buildDocumentPrintHtml({
       ...base,
