@@ -369,6 +369,10 @@ export function createCoreResource(client: ApiClient) {
           method: "POST",
         });
       },
+      signatureImage: (id: string) =>
+        client.requestBlob(`/api/documents/${encodeId(id)}/signature`, {
+          headers: { accept: "image/png,image/jpeg" },
+        }),
       download: (id: string) =>
         client.requestBlob(`/api/documents/${encodeId(id)}/file`, {
           headers: { accept: "application/pdf" },
