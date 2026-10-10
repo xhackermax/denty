@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
-  "routeCount": 286,
+  "routeCount": 289,
   "routes": [
     {
       "method": "GET",
@@ -95,7 +95,25 @@
     },
     {
       "method": "POST",
+      "path": "/api/admin/communications/campaign-templates/preview",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
       "path": "/api/admin/communications/campaign-templates/queue",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/communications/marketing-policy",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/communications/marketing-policy",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
