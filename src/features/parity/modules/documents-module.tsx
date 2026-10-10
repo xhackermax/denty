@@ -159,7 +159,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
   const selectedDebtBudget = signedBudgets.find(b => b.id === debtBudgetId);
   const debtAmountCents = (() => {
     const entered = debtAmount.trim().replace(",", ".");
-    if (!/^\\d{1,7}(?:\\.\\d{1,2})?$/.test(entered)) return null;
+    if (!/^\d{1,7}(?:\.\d{1,2})?$/.test(entered)) return null;
     const [euros = "0", cents = ""] = entered.split(".");
     const value = Number(euros) * 100 + Number(cents.padEnd(2, "0"));
     return Number.isSafeInteger(value) && value > 0 ? value : null;
