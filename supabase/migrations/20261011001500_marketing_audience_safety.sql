@@ -273,66 +273,6 @@ begin
  end loop;
  return jsonb_build_object('queued',v_queued,'skipped',v_skipped,'alreadyQueued',v_reused);
 end;
-$$; then
-  raise exception 'UNSUBSCRIBE_ADDRESS_REQUIRED' using errcode='22023';
- end if;
- for v_patient in
-  select p.id, p.first_name, p.last_name, p.birth_date, p.phone, p.email
-  from public.patients p
-  where p.clinic_id=p_clinic_id and p.archived_at is null
-   and (p_patient_id is null or p.id=p_patient_id)
-   and (p_kind <> 'BIRTHDAY' or (
-      p.birth_date is not null
-      and (
-       to_char(p.birth_date,'MM-DD')=to_char(v_now,'MM-DD')
-       or (to_char(p.birth_date,'MM-DD')='02-29'
-           and to_char(v_now,'MM-DD')='02-28'
-           and extract(day from (date_trunc('month',v_now::timestamp)
-             + interval '1 month - 1 day'))=28)
-      )
-   ))
-  order by p.id
- loop
-  if (v_template.channel='EMAIL' and nullif(btrim(coalesce(v_patient.email,'')),'') is null)
-     or (v_template.channel in ('WHATSAPP','SMS')
-         and nullif(btrim(coalesce(v_patient.phone,'')),'') is null) then
-   v_skipped:=v_skipped+1; continue;
-  end if;
-  select cc.status into v_consent from public.communication_consents cc
-   where cc.clinic_id=p_clinic_id and cc.patient_id=v_patient.id
-    and cc.channel=v_template.channel and cc.purpose='MARKETING'
-   order by cc.captured_at desc,cc.created_at desc limit 1;
-  if coalesce(v_consent,'REVOKED')<>'GRANTED' then
-   v_skipped:=v_skipped+1; continue;
-  end if;
-  v_body:=replace(v_template.body,'{{patientName}}',
-    btrim(coalesce(v_patient.first_name,'')||' '||coalesce(v_patient.last_name,'')));
-  v_body:=replace(v_body,'{{clinicName}}',v_clinic.name);
-  v_body:=replace(v_body,'{{offerDetails}}',v_template.offer_details);
-  v_body:=replace(v_body,'{{discountPercent}}',coalesce(v_template.discount_percent::text,''));
-  v_body:=replace(v_body,'{{validUntil}}',coalesce(to_char(v_template.valid_until,'DD/MM/YYYY'),''));
-  v_subject:=replace(v_template.subject,'{{clinicName}}',v_clinic.name);
-  if p_kind<>'BIRTHDAY' then v_body:='PUBLICIDAD · '||v_clinic.name||'. '||v_body; end if;
-  v_body:=v_body||case when v_template.channel='EMAIL'
-   then E'\nPara dejar de recibir publicidad, escribe a '||v_template.contact_email||'.'
-   else E'\nPara no recibir más ofertas, responde BAJA a este mensaje.' end;
-  v_key:='marketing-template:'||p_kind||':'||p_clinic_id::text||':'||
-   v_patient.id::text||':'||
-   case when p_kind='BIRTHDAY' then to_char(v_now,'YYYY')
-        else to_char(v_now,'YYYY-MM-DD') end;
-  if exists(select 1 from public.communication_outbox co
-    where co.clinic_id=p_clinic_id and co.idempotency_key=v_key) then
-   v_reused:=v_reused+1;continue;
-  end if;
-  v_message:=public.queue_communication(
-   p_clinic_id,v_patient.id,v_template.channel,'MARKETING',
-   v_subject,v_body,'PROMOTION_'||p_kind,
-   jsonb_build_object('kind',p_kind,'consentChecked',true,'providerReady',false),
-   now(),null,v_key);
-  v_queued:=v_queued+1;
- end loop;
- return jsonb_build_object('queued',v_queued,'skipped',v_skipped,'alreadyQueued',v_reused);
-end;
 $$;
 
 create or replace function public.preview_marketing_template_recipients(
