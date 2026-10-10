@@ -42,8 +42,59 @@ $template$,
     true, 1
   )
   on conflict (clinic_id, code, version) do nothing;
+  -- Privacy notice v2 explicitly acknowledges receipt, NOT consent for clinical data.
+  -- The clinic's controller and contact data are captured in the document snapshot.
+  insert into public.document_templates
+    (clinic_id, code, title, body, schema_json, active, version)
+  values (
+    p_clinic_id, 'DATA_PROTECTION',
+    'Información de protección de datos (RGPD): acuse de recibo',
+    $privacy$
+## Responsable del tratamiento
+
+Responsable: {{acreedor}}, NIF/CIF {{nif_acreedor}}.
+Dirección a efectos de protección de datos: {{direccion_fiscal}}.
+Clínica y sede: {{clinica}}, {{sede}}, {{direccion_sede}}.
+Profesional sanitario: {{doctor}}.
+
+## Identificación del paciente
+
+Nombre: {{paciente}}.
+DNI/NIE: {{dni}}.
+
+## Para qué se tratan los datos y con qué fundamento
+
+Los datos personales y de salud necesarios se tratan para la asistencia odontológica, diagnóstico, elaboración y conservación de la historia clínica, citas, presupuestos, facturación, cobros y cumplimiento de obligaciones legales. La asistencia sanitaria y la custodia documental se amparan en las bases legales aplicables, incluido el artículo 6 del RGPD, y en la excepción para datos de salud del artículo 9.2.h del RGPD cuando procede. No se solicita consentimiento para los tratamientos necesarios para prestar la asistencia sanitaria.
+
+No se autoriza mediante este documento el envío de publicidad, el uso promocional de fotografías ni ningún otro tratamiento opcional que requiera consentimiento específico y separado.
+
+## Comunicación, seguridad y conservación
+
+Solo accederá a los datos el personal autorizado por razón de sus funciones. Cuando sea necesario, podrán comunicarse los datos mínimos pertinentes a laboratorios, profesionales sanitarios, aseguradoras, prestadores encargados del tratamiento o autoridades con fundamento legal. La historia clínica se conservará durante los plazos exigidos por la normativa sanitaria aplicable y, en su caso, por las responsabilidades legales; los documentos administrativos según sus plazos legales. Los datos están sujetos a obligaciones de confidencialidad.
+
+Para conocer las categorías concretas de destinatarios, las transferencias internacionales si existiesen, los datos de contacto del delegado de protección de datos cuando corresponda y los plazos detallados de conservación, la clínica debe facilitar también su información ampliada de privacidad vigente.
+
+## Derechos de las personas
+
+Puede solicitar acceso, rectificación, supresión cuando proceda, limitación, oposición y portabilidad cuando sea aplicable. Puede dirigir su solicitud al responsable en la dirección indicada y reclamar ante la Agencia Española de Protección de Datos (www.aepd.es). El ejercicio de derechos puede estar sujeto a las obligaciones legales de conservación de documentación sanitaria.
+
+## Acreditación de entrega
+
+En {{ciudad}}, a {{fecha_larga}}, declaro haber recibido y leído esta información básica sobre protección de datos. Mi firma acredita su recepción y no constituye consentimiento para tratamientos opcionales.
+
+Firmante: {{paciente}}, DNI/NIE {{dni}}.
+$privacy$,
+    jsonb_build_object(
+      'category','PRIVACY',
+      'signature','ACKNOWLEDGEMENT_ONLY',
+      'requires','patient_dni,doctor,site,controller_tax_details,controller_postal_address',
+      'legal_review_required',true
+    ),
+    true, 2
+  )
+  on conflict (clinic_id, code, version) do nothing;
 end;
-$$;
+$;
 revoke all on function private.seed_debt_acknowledgement_template(uuid) from public,anon,authenticated;
 
 create or replace function private.seed_debt_acknowledgement_on_new_clinic()
@@ -72,7 +123,8 @@ declare
   v_kind text;
 begin
   if tg_op = 'UPDATE' then
-    if (old.type = 'DEBT_ACKNOWLEDGEMENT' or new.type = 'DEBT_ACKNOWLEDGEMENT')
+    if (old.type in ('DEBT_ACKNOWLEDGEMENT','PRIVACY_NOTICE')
+        or new.type in ('DEBT_ACKNOWLEDGEMENT','PRIVACY_NOTICE'))
       and (new.data_json is distinct from old.data_json
         or new.template_id is distinct from old.template_id
         or new.patient_id is distinct from old.patient_id
@@ -87,6 +139,21 @@ begin
   select code into v_template_code from public.document_templates dt
   where dt.id = new.template_id and dt.clinic_id = new.clinic_id;
 
+  if new.type = 'PRIVACY_NOTICE'
+     or (v_template_code = 'DATA_PROTECTION' and new.type = 'PRIVACY_NOTICE') then
+    if new.type <> 'PRIVACY_NOTICE'
+       or v_template_code <> 'DATA_PROTECTION'
+       or coalesce(new.data_json ->> 'documentKind','') <> 'PRIVACY_NOTICE'
+       or btrim(coalesce(new.data_json ->> 'dni','')) = ''
+       or btrim(coalesce(new.data_json ->> 'acreedor','')) = ''
+       or btrim(coalesce(new.data_json ->> 'nif_acreedor','')) = ''
+       or btrim(coalesce(new.data_json ->> 'direccion_fiscal','')) = ''
+       or btrim(coalesce(new.data_json ->> 'sede','')) = ''
+       or btrim(coalesce(new.data_json ->> 'doctor','')) = ''
+    then
+      raise exception 'INVALID_PRIVACY_NOTICE' using errcode = '23514';
+    end if;
+  end if;
   if new.type = 'DEBT_ACKNOWLEDGEMENT'
      or v_template_code = 'DEBT_ACKNOWLEDGEMENT' then
     if new.type <> 'DEBT_ACKNOWLEDGEMENT'
