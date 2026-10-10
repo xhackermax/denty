@@ -8,6 +8,7 @@ import { AnalysisModule } from "./modules/analysis-module";
 import { AttendanceModule } from "./modules/attendance-module";
 import { CampaignsModule } from "./modules/campaigns-module";
 import { CommunicationsModule } from "./modules/communications-module";
+import { RecoveryModule } from "./modules/recovery-module";
 import { DocumentsModule } from "./modules/documents-module";
 import { FinanceModule } from "./modules/finance-module";
 import { LaboratoryModule } from "./modules/laboratory-module";
@@ -18,6 +19,7 @@ export type ParityModuleKey =
   | "laboratory"
   | "prescriptions"
   | "communications"
+  | "recovery"
   | "documents"
   | "finance"
   | "analysis"
@@ -42,6 +44,10 @@ const TITLES: Record<ParityModuleKey, { title: string; description: string }> = 
   communications: {
     title: "Comunicaciones",
     description: "Mensajes y seguimiento.",
+  },
+  recovery: {
+    title: "Recuperación de pacientes",
+    description: "Revisiones pendientes, tratamientos sin cita y presupuestos por responder.",
   },
   documents: {
     title: "Documentos",
@@ -81,6 +87,8 @@ function renderModule(module: ParityModuleKey) {
       return <PrescriptionsModule />;
     case "communications":
       return <CommunicationsModule />;
+    case "recovery":
+      return <RecoveryModule />;
     case "documents":
       return <DocumentsModule />;
     case "finance":

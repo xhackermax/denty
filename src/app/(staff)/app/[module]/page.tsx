@@ -6,6 +6,7 @@ const MODULES = new Set<ParityModuleKey>([
   "laboratory",
   "prescriptions",
   "communications",
+  "recovery",
   "documents",
   "finance",
   "analysis",

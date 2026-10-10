@@ -9,6 +9,7 @@ export const NAVIGATION_KEYS = [
   "laboratory",
   "prescriptions",
   "communications",
+  "recovery",
   "clinic-contacts",
   "tasks",
   "analysis",

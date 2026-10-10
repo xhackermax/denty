@@ -54,6 +54,7 @@ export const CLINICAL_NAV: readonly NavigationItem[] = [
 export const MANAGEMENT_NAV: readonly NavigationItem[] = [
   { href: "/app/clinic-contacts", key: "clinic-contacts", tone: "teal", icon: IconPhone },
   { href: "/app/tasks", key: "tasks", tone: "amber", icon: IconChecklist },
+  { href: "/app/recovery", key: "recovery", tone: "teal", icon: IconClipboardText },
   { href: "/app/analysis", key: "analysis", tone: "blue", icon: IconChartBar },
   { href: "/app/incidents", key: "incidents", tone: "amber", icon: IconClipboardText },
   { href: "/app/campaigns", key: "campaigns", tone: "violet", icon: IconSpeakerphone },

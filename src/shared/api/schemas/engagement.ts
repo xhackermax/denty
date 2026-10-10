@@ -2,6 +2,28 @@ import { z } from "zod";
 
 import { idSchema } from "../contracts";
 
+/** Read-only phase 1 recovery board: one row per patient even with multiple reasons. */
+export const recoveryKindSchema = z.enum(["ALL", "RECALL", "PLAN", "BUDGET"]);
+export const recoveryWorklistItemSchema = z.object({
+  patientId: idSchema,
+  patientName: z.string(),
+  recordNumber: z.string().nullable(),
+  phone: z.string().nullable(),
+  kind: recoveryKindSchema.exclude(["ALL"]),
+  referenceId: idSchema,
+  label: z.string(),
+  dueAt: z.string(),
+  amountCents: z.number().int().nullable(),
+  kinds: z.array(recoveryKindSchema.exclude(["ALL"])),
+});
+export const recoveryWorklistSchema = z.object({
+  items: z.array(recoveryWorklistItemSchema),
+  counts: z.record(z.string(), z.number().int().nonnegative()),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  pageSize: z.number().int().min(1).max(50),
+});
+
 export const communicationChannelSchema = z.enum(["WHATSAPP", "SMS", "EMAIL"]);
 export const communicationCategorySchema = z.enum([
   "APPOINTMENT_REMINDER",
