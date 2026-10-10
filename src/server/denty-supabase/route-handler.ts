@@ -2520,6 +2520,19 @@ export async function handleSupabaseDentyRoute(
         return json(201, await documents.create(payload), headers);
       }
     }
+    if (parts.length === 4 && parts[0] === "api" &&
+        parts[1] === "documents" && parts[3] === "signature" && method === "GET") {
+      const denied = requireActorPermission(identity, "documents.read");
+      if (denied) return denied;
+      const signature = await documentRepository(identity).signatureImage(
+        decodeURIComponent(parts[2] ?? ""),
+      );
+      const responseHeaders = responseHeadersForIdentity(request, identity);
+      responseHeaders.set("content-type", signature.mimeType);
+      responseHeaders.set("cache-control", "private, no-store");
+      responseHeaders.set("x-content-type-options", "nosniff");
+      return new Response(signature.blob, { status: 200, headers: responseHeaders });
+    }
     if (
       parts.length === 4 &&
       parts[0] === "api" &&
