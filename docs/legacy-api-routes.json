@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
   "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
-  "routeCount": 289,
+  "routeCount": 290,
   "routes": [
     {
       "method": "GET",
@@ -1537,6 +1537,12 @@
       "method": "POST",
       "path": "/api/prescriptions/:id/validate",
       "source": "apps/api/src/modules/prescriptions/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/recovery/worklist",
+      "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
     {
