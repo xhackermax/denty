@@ -88,6 +88,29 @@ export const saveMarketingMessageTemplateSchema = z.object({
       message: "Se requiere una dirección de contacto para solicitar la baja." });
   }
 });
+export const marketingCommunicationPolicySchema = z.object({
+  clinic_id: idSchema,
+  min_days_between_messages: z.number().int().min(7).max(90),
+  send_from_hour: z.number().int().min(8).max(13),
+  send_until_hour: z.number().int().min(16).max(21),
+  updated_at: z.string(),
+});
+export const updateMarketingCommunicationPolicySchema = z.object({
+  frequencyDays: z.number().int().min(7).max(90),
+  startHour: z.number().int().min(8).max(13),
+  endHour: z.number().int().min(16).max(21),
+}).refine(v => v.endHour - v.startHour >= 5, {
+  message: "Deja al menos cinco horas para los envíos.",
+  path: ["endHour"],
+});
+export const marketingAudiencePreviewSchema = z.object({
+  candidates: z.number().int().nonnegative(),
+  eligible: z.number().int().nonnegative(),
+  excluded: z.record(z.string(), z.number().int().nonnegative()),
+  scheduledAt: z.string(),
+  channel: communicationChannelSchema,
+});
+
 export const queueMarketingMessageTemplateSchema = z.object({
   kind: marketingMessageKindSchema,
   patientId: idSchema.optional(),
