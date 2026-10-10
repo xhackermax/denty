@@ -20,6 +20,9 @@ import {
   saveMarketingMessageTemplateSchema,
   queueMarketingMessageTemplateSchema,
   marketingMessageQueueResultSchema,
+  marketingCommunicationPolicySchema,
+  updateMarketingCommunicationPolicySchema,
+  marketingAudiencePreviewSchema,
   updateAppointmentMessagingSettingsSchema,
   createMarketingCampaignSchema,
   finishGamePlaySchema,
@@ -75,6 +78,19 @@ export function createEngagementResource(client: ApiClient) {
         ),
       templates: () =>
         client.request("/api/admin/communications/templates", communicationTemplatesSchema),
+      marketingPolicy: () =>
+        client.request("/api/admin/communications/marketing-policy",
+          marketingCommunicationPolicySchema),
+      saveMarketingPolicy: (
+        input: z.input<typeof updateMarketingCommunicationPolicySchema>,
+      ) => client.mutation("/api/admin/communications/marketing-policy",
+        marketingCommunicationPolicySchema,
+        updateMarketingCommunicationPolicySchema.parse(input), { method: "PUT" }),
+      previewCampaign: (
+        input: z.input<typeof queueMarketingMessageTemplateSchema>,
+      ) => client.mutation("/api/admin/communications/campaign-templates/preview",
+        marketingAudiencePreviewSchema,
+        queueMarketingMessageTemplateSchema.parse(input)),
       campaignTemplates: () =>
         client.request("/api/admin/communications/campaign-templates",
           marketingMessageTemplatesSchema),
