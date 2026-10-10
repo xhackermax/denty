@@ -351,6 +351,16 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
       const patient = patientById.get(document.patientId);
       if (!patient) throw new Error("No se encontró al paciente de este documento.");
       if (!template?.body) throw new Error("Este documento no tiene una plantilla imprimible.");
+      let signatureImageDataUrl: string | undefined;
+      if (template.code === "DEBT_ACKNOWLEDGEMENT" && document.signedAt && document.id) {
+        const image = await getBrowserApi().documents.signatureImage(document.id);
+        signatureImageDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error("No se pudo preparar la firma original."));
+          reader.onload = () => resolve(String(reader.result));
+          reader.readAsDataURL(image);
+        });
+      }
       await printClinicalDocument({
         title: document.title,
         templateCode: template.code,
@@ -364,6 +374,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
             : null,
         createdAt: document.createdAt,
         reference: document.id?.slice(0, 8),
+        ...(signatureImageDataUrl ? { signatureImageDataUrl } : {}),
       });
     });
   const signingTemplate = signing?.templateId ? templateById.get(signing.templateId) : undefined;
@@ -680,7 +691,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>
-          {mode === "consents" ? "Consentimientos" : "Documentos"}
+          {mode === "consents" ? "Consentimientos y reconocimientos de deuda" : "Documentos"}
         </h3>
         <div className={styles.rowList}>
           {visibleDocuments.map((document) => {
@@ -804,6 +815,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
               <Select
                 label="Profesional responsable"
                 value={signingDoctorId}
+                disabled={signing.data?.documentKind === "DEBT_ACKNOWLEDGEMENT"}
                 onChange={(value) =>
                   setSigning({ ...signing, data: { ...signing.data, doctorId: value } })
                 }
@@ -846,6 +858,7 @@ export function DocumentsModule({ mode = "archive" }: { mode?: "archive" | "cons
           ) : null}
           <TextInput
             label="Nombre de quien firma"
+            disabled={signing?.data?.documentKind === "DEBT_ACKNOWLEDGEMENT"}
             value={signerName}
             onChange={(event) => setSignerName(event.currentTarget.value)}
           />
