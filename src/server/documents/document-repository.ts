@@ -27,6 +27,7 @@ interface DocumentRow {
   file_size_bytes: number | null;
   signer_name?: string | null;
   signed_at?: string | null;
+  metadata_json?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -305,6 +306,12 @@ export class DocumentRepository {
   async sign(id: string, input: { signerName: string; file: File }): Promise<DocumentView> {
     const current = await this.get(id);
     if (!current) throw new Error("Documento no encontrado.");
+    if (current.type === "DEBT_ACKNOWLEDGEMENT" &&
+      (typeof current.data_json.paciente !== "string" ||
+        input.signerName.trim().toLocaleLowerCase("es-ES") !==
+        current.data_json.paciente.trim().toLocaleLowerCase("es-ES"))) {
+      throw new Error("La firma debe corresponder al titular de la deuda registrado en el documento.");
+    }
     if (input.file.type !== "image/png" && input.file.type !== "image/jpeg")
       throw new Error("La firma debe ser PNG o JPEG.");
     const stored = await this.storage.uploadClinicalDocument(
@@ -325,6 +332,24 @@ export class DocumentRepository {
       await this.storage.remove(CLINICAL_DOCUMENTS_BUCKET, stored.path).catch(() => undefined);
       throw error;
     }
+  }
+
+  async signatureImage(id: string): Promise<{ blob: Blob; mimeType: string }> {
+    const doc = await this.get(id);
+    if (!doc || doc.status !== "SIGNED")
+      throw new Error("No existe un reconocimiento firmado.");
+    const signature = doc.metadata_json?.signature;
+    if (!signature || typeof signature !== "object" || Array.isArray(signature))
+      throw new Error("La firma original no está disponible.");
+    const record = signature as Record<string, unknown>;
+    const path = record.path;
+    if (typeof path !== "string" ||
+        !path.startsWith(`${this.clinicId}/${doc.patient_id}/`))
+      throw new Error("No se encuentra la firma en la clínica.");
+    const blob = await this.storage.download(CLINICAL_DOCUMENTS_BUCKET, path);
+    if (blob.type !== "image/png" && blob.type !== "image/jpeg")
+      throw new Error("Formato de firma no reconocido.");
+    return { blob, mimeType: blob.type };
   }
 
   async downloadFile(id: string): Promise<{ blob: Blob; fileName: string; mimeType: string }> {
