@@ -159,7 +159,24 @@ begin
     if new.type <> 'DEBT_ACKNOWLEDGEMENT'
        or v_template_code <> 'DEBT_ACKNOWLEDGEMENT'
        or coalesce(new.data_json ->> 'documentKind','') <> 'DEBT_ACKNOWLEDGEMENT'
-       or coalesce(new.data_json ->> 'importe_deuda_centimos','') !~ '^[1-9][0-9]*
+       or coalesce(new.data_json ->> 'importe_deuda_centimos','') !~ '^[1-9][0-9]* btrim(coalesce(new.data_json ->> 'dni','')) = ''
+       or btrim(coalesce(new.data_json ->> 'nif_acreedor','')) = ''
+       or btrim(coalesce(new.data_json ->> 'doctor','')) = ''
+       or btrim(coalesce(new.data_json ->> 'sede','')) = ''
+       or btrim(coalesce(new.data_json ->> 'vencimiento','')) = ''
+    then
+      raise exception 'INVALID_DEBT_ACKNOWLEDGEMENT' using errcode = '23514';
+    end if;
+  end if;
+  return new;
+end;
+$;
+revoke all on function private.guard_debt_document() from public,anon,authenticated;
+drop trigger if exists documents_guard_debt on public.documents;
+create trigger documents_guard_debt
+before insert or update on public.documents for each row
+execute function private.guard_debt_document();
+commit;
 
        or btrim(coalesce(new.data_json ->> 'dni','')) = ''
        or btrim(coalesce(new.data_json ->> 'nif_acreedor','')) = ''
