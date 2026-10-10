@@ -8,7 +8,7 @@ const patientId = "patient-1";
 const staff = { id: "doctor-1", display_name: "Dra. Marta", role: "DENTIST", active: true };
 const patient = { id: patientId, first_name: "Ana", last_name: "Sanz", dni: "12345678Z" };
 const site = { id: "site-1", name: "Sede Centro", address: "Calle Mayor 1", city: "Zaragoza" };
-const fiscal = { fiscal_legal_name: "Centro Dental Ejemplo SL", fiscal_tax_id: "B12345678" };
+const fiscal = { fiscal_legal_name: "Centro Dental Ejemplo SL", fiscal_tax_id: "B12345678", fiscal_address: "Calle Mayor 1, Zaragoza" };
 
 function repository(options: { dni?: string | null; site?: boolean } = {}) {
   const insert = vi.fn(async (_table: string, row: Record<string, unknown>) => ({
@@ -24,7 +24,7 @@ function repository(options: { dni?: string | null; site?: boolean } = {}) {
       sites: options.site === false ? [] : [site],
       staff_members: [staff],
       clinics: [{ name: "Centro Dental Ejemplo" }],
-      document_templates: [{ id: "template-1", version: 1, body: "Reconocimiento" }],
+      document_templates: [{ id: "template-1", version: 2, body: "Información RGPD" }],
       billing_settings: [fiscal],
       budgets: [{ id: "budget-1", code: "P-2026-10", status: "SIGNED",
         total_cents: 120000, title: "Prótesis" }],
@@ -71,6 +71,34 @@ describe("recognition of debt", () => {
     await expect(missingSite.repo.createDebtAcknowledgement(form)).rejects.toThrow("sede");
     expect(missingSite.insert).not.toHaveBeenCalled();
   });
+  it("generates a separate RGPD delivery notice with full legal controller identification", async () => {
+    const { repo, insert } = repository();
+    const doc = await repo.createPrivacyNotice({
+      patientId, siteId: "site-1", doctorId: "doctor-1",
+    });
+    expect(doc.type).toBe("PRIVACY_NOTICE");
+    expect(doc.data).toMatchObject({
+      documentKind: "PRIVACY_NOTICE",
+      privacyPurpose: "ACKNOWLEDGEMENT_OF_INFORMATION_ONLY",
+      paciente: "Ana Sanz", dni: "12345678Z",
+      doctor: "Dra. Marta", sede: "Sede Centro",
+      acreedor: fiscal.fiscal_legal_name,
+      nif_acreedor: fiscal.fiscal_tax_id,
+      direccion_fiscal: fiscal.fiscal_address,
+    });
+    expect(insert).toHaveBeenCalledWith("documents", expect.objectContaining({
+      type: "PRIVACY_NOTICE", status: "DRAFT",
+    }));
+  });
+
+  it("does not allow privacy acknowledgement without verified patient identification", async () => {
+    const { repo, insert } = repository({ dni: null });
+    await expect(repo.createPrivacyNotice({
+      patientId, siteId: "site-1", doctorId: "doctor-1",
+    })).rejects.toThrow("DNI/NIE");
+    expect(insert).not.toHaveBeenCalled();
+  });
+
   it("does not permit generic documents.create to forge a financial acknowledgement", async () => {
     const { repo, insert } = repository();
     await expect(repo.create({
