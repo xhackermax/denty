@@ -156,10 +156,10 @@ function Editor({ template }: { template: Template }) {
               : "María García")}
           </Text>
         </div>
-        <Alert color="blue">
-          Los mensajes se preparan en la cola de Denty, pero no se enviarán realmente
-          hasta conectar y activar el proveedor autorizado. Solo se admiten destinatarios
-          con consentimiento comercial vigente para el canal seleccionado.
+        <Alert color="yellow">
+          Los mensajes se guardan en la cola de Denty. Si la clínica tiene un proveedor
+          de envíos conectado y el procesador activo, podrían enviarse en cuanto se encolen.
+          Comprueba la configuración del proveedor y los permisos antes de confirmarlo.
         </Alert>
         {save.isError ? <Alert color="red">
           No se pudo guardar. Revisa los datos y las condiciones de la oferta.
@@ -197,12 +197,12 @@ function Editor({ template }: { template: Template }) {
           <Button variant="light" disabled={!template.enabled || changed ||
               (template.kind !== "BIRTHDAY" && (!patientId || !granted))}
             onClick={() => setConfirmOpen(true)}>
-            {template.kind === "BIRTHDAY" ? "Preparar cumpleaños de hoy" : "Preparar mensaje"}
+            {template.kind === "BIRTHDAY" ? "Encolar cumpleaños de hoy" : "Encolar mensaje"}
           </Button>
         </Group>
         {queue.data ? (
           <Alert color="green">
-            Preparados: {queue.data.queued}. Sin autorización/contacto: {queue.data.skipped}.
+            Encolados: {queue.data.queued}. Sin autorización/contacto: {queue.data.skipped}.
             Ya preparados anteriormente: {queue.data.alreadyQueued}.
           </Alert>
         ) : null}
@@ -217,7 +217,7 @@ function Editor({ template }: { template: Template }) {
             Vas a preparar {template.kind === "BIRTHDAY"
               ? "los cumpleaños de hoy de pacientes con permiso comercial"
               : `una promoción para ${selectedPatient?.firstName ?? "el paciente seleccionado"}`}.
-            Se registrará en la cola, sin efectuar un envío directo.
+            Se registrará en la cola y podrá enviarse automáticamente si el proveedor está activo.
           </Text>
           <Group justify="flex-end">
             <Button variant="default" onClick={() => setConfirmOpen(false)}>Cancelar</Button>
