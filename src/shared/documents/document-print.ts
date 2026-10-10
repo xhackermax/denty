@@ -7,7 +7,7 @@ import { parseTemplate, shortDate, type TemplateValues } from "./template-render
  */
 
 export interface DocumentPrintData {
-  kind: "consent" | "certificate" | "debt";
+  kind: "consent" | "certificate" | "debt" | "privacy";
   clinicName: string;
   site?: {
     name: string;
@@ -68,16 +68,16 @@ export function buildDocumentPrintHtml(data: DocumentPrintData): string {
       : ""
   }`;
   const signatures =
-    data.kind === "debt"
+    data.kind === "debt" || data.kind === "privacy"
       ? `<section class="signatures single">
           <div class="signature">
             <div class="box">${data.signatureImageDataUrl?.match(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/)
               ? `<img class="signatureImage" src="${escapeHtml(data.signatureImageDataUrl)}" alt="Firma manuscrita digitalizada del deudor">`
               : ""}${data.signed
-              ? `<span class="esign">Firma electrónica simple ·
+              ? `<span class="esign">${data.kind === "privacy" ? "Firma de recepción de información ·" : "Firma electrónica simple ·"}
               ${escapeHtml(data.signed.signerName)} · ${escapeHtml(shortDate(data.signed.signedAt))}</span>`
               : ""}</div>
-            <b>Paciente/deudor</b>
+            <b>${data.kind === "privacy" ? "Paciente que recibe la información" : "Paciente/deudor"}</b>
             ${escapeHtml(data.signed?.signerName ?? data.patient.name)}
           </div>
         </section>`
