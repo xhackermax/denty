@@ -1,7 +1,9 @@
 import { createDocumentSchema } from "@/shared/api";
+import { createDebtAcknowledgementSchema } from "@/shared/api/contracts";
 import type { z } from "zod";
 
 type CreateDocument = z.input<typeof createDocumentSchema>;
+type CreateDebtAcknowledgement = z.infer<typeof createDebtAcknowledgementSchema>;
 
 import type { SupabaseRestClient } from "../supabase/rest-client";
 import { CLINICAL_DOCUMENTS_BUCKET, type StorageRepository } from "../storage/storage-repository";
@@ -77,6 +79,8 @@ export class DocumentRepository {
   }
 
   async create(payload: CreateDocument): Promise<DocumentView> {
+    if (payload.type === "DEBT_ACKNOWLEDGEMENT")
+      throw new Error("Utiliza el formulario de reconocimiento de deuda para verificar los datos.");
     const patients = await this.rest.select<{ id: string }>("patients", {
       select: "id",
       clinic_id: `eq.${this.clinicId}`,
@@ -94,6 +98,135 @@ export class DocumentRepository {
       status: "DRAFT",
     });
     return toView(row);
+  }
+
+  /**
+   * Financial acknowledgement. Resolve all personal/site/doctor fields from the
+   * authenticated clinic on the server, never from client-provided names.
+   */
+  async createDebtAcknowledgement(input: CreateDebtAcknowledgement): Promise<DocumentView> {
+    const [patientRows, siteRows, doctorRows, clinicRows, templates] = await Promise.all([
+      this.rest.select<{ id: string; first_name: string; last_name: string; dni: string | null }>(
+        "patients", { select: "id,first_name,last_name,dni", clinic_id: `eq.${this.clinicId}`, id: `eq.${input.patientId}`, limit: 1 },
+      ),
+      this.rest.select<{ id: string; name: string; address: string | null; city: string | null }>(
+        "sites", { select: "id,name,address,city", clinic_id: `eq.${this.clinicId}`, id: `eq.${input.siteId}`, limit: 1 },
+      ),
+      this.rest.select<{ id: string; display_name: string; role: string; active: boolean }>(
+        "staff_members", { select: "id,display_name,role,active", clinic_id: `eq.${this.clinicId}`, id: `eq.${input.doctorId}`, limit: 1 },
+      ),
+      this.rest.select<{ name: string }>("clinics", {
+        select: "name", id: `eq.${this.clinicId}`, limit: 1,
+      }),
+      this.rest.select<{ id: string; body: string; version: number }>(
+        "document_templates", {
+          select: "id,body,version", clinic_id: `eq.${this.clinicId}`,
+          code: "eq.DEBT_ACKNOWLEDGEMENT", active: "eq.true",
+          order: "version.desc", limit: 1,
+        },
+      ),
+    ]);
+    const patient = patientRows[0];
+    const site = siteRows[0];
+    const doctor = doctorRows[0];
+    const clinic = clinicRows[0];
+    const template = templates[0];
+    if (!patient || !patient.dni?.trim())
+      throw new Error("El paciente debe tener DNI/NIE registrado antes de firmar.");
+    if (!site || !doctor || !doctor.active || doctor.role !== "DENTIST" || !clinic || !template)
+      throw new Error("No hay sede, doctor activo o plantilla de deuda válida en esta clínica.");
+
+    const euro = (cents: number) =>
+      (cents / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    let amountCents = input.amountCents ?? 0;
+    let totalCents = amountCents;
+    let paidCents = 0;
+    let reference = "Importe pendiente confirmado con el paciente";
+    if (input.budgetId) {
+      const budgets = await this.rest.select<{
+        id: string; code: string; status: string; total_cents: number; title: string | null;
+      }>("budgets", {
+        select: "id,code,status,total_cents,title", clinic_id: `eq.${this.clinicId}`,
+        patient_id: `eq.${input.patientId}`, id: `eq.${input.budgetId}`, limit: 1,
+      });
+      const budget = budgets[0];
+      if (!budget || budget.status !== "SIGNED" || budget.total_cents <= 0)
+        throw new Error("Selecciona un presupuesto firmado de este paciente.");
+      const [payments, allocations] = await Promise.all([
+        this.rest.select<{
+          id: string; amount_cents: number; status: string; budget_id: string | null;
+        }>("payments", {
+          select: "id,amount_cents,status,budget_id",
+          clinic_id: `eq.${this.clinicId}`, patient_id: `eq.${input.patientId}`,
+          limit: 10000,
+        }),
+        this.rest.select<{ payment_id: string; amount_cents: number }>(
+          "payment_allocations", {
+            select: "payment_id,amount_cents", budget_id: `eq.${budget.id}`,
+            limit: 10000,
+          },
+        ),
+      ]);
+      const validPayments = new Map(payments
+        .filter(payment => payment.status === "COMPLETED")
+        .map(payment => [payment.id, payment]));
+      if (payments.some(payment => payment.budget_id === budget.id &&
+            payment.status === "PARTIALLY_REFUNDED"))
+        throw new Error("Existen abonos parcialmente devueltos. Verifica el saldo en Finanzas.");
+      const allocated = allocations.reduce((sum, a) =>
+        sum + (validPayments.has(a.payment_id) ? Number(a.amount_cents) : 0), 0);
+      const allocatedPaymentIds = new Set(allocations.map(a => a.payment_id));
+      const direct = payments.reduce((sum, p) =>
+        sum + (p.status === "COMPLETED" && p.budget_id === budget.id &&
+          !allocatedPaymentIds.has(p.id) ? Number(p.amount_cents) : 0), 0);
+      paidCents = allocated + direct;
+      totalCents = budget.total_cents;
+      amountCents = totalCents - paidCents;
+      reference = `Presupuesto ${budget.code}${budget.title ? ` · ${budget.title}` : ""}`;
+    }
+    if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > 100_000_000)
+      throw new Error("No existe saldo pendiente positivo o el importe no es válido.");
+    const date = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+    if (input.dueMode === "FIXED_DATE" &&
+        (!input.dueDate || input.dueDate < date))
+      throw new Error("La fecha de pago debe ser hoy o posterior.");
+    const dueText = input.dueMode === "END_OF_TREATMENT"
+      ? "al finalizar el tratamiento odontológico descrito, cuando se comunique su finalización"
+      : `como máximo el ${input.dueDate!.slice(8,10)}/${input.dueDate!.slice(5,7)}/${input.dueDate!.slice(0,4)}`;
+    const snapshot = {
+      documentKind: "DEBT_ACKNOWLEDGEMENT",
+      fecha: date,
+      doctorId: doctor.id,
+      doctor: doctor.display_name,
+      siteId: site.id,
+      sede: site.name,
+      direccion_sede: [site.address,site.city].filter(Boolean).join(", "),
+      ciudad: site.city ?? "",
+      clinica: clinic.name,
+      acreedor: clinic.name,
+      paciente: [patient.first_name,patient.last_name].join(" ").trim(),
+      dni: patient.dni.trim(),
+      concepto: input.concept,
+      referencia: reference,
+      importe_deuda: euro(amountCents),
+      importe_total: euro(totalCents),
+      importe_pagado: euro(paidCents),
+      importe_deuda_centimos: amountCents,
+      vencimiento: dueText,
+      dueMode: input.dueMode,
+      dueDate: input.dueDate ?? null,
+      budgetId: input.budgetId ?? null,
+    };
+    const result = await this.rest.insert<DocumentRow>("documents", {
+      clinic_id: this.clinicId,
+      patient_id: patient.id,
+      template_id: template.id,
+      type: "DEBT_ACKNOWLEDGEMENT",
+      title: "Reconocimiento de deuda",
+      data_json: snapshot,
+      status: "DRAFT",
+    });
+    return toView(result);
   }
 
   async finalize(id: string): Promise<DocumentView> {
