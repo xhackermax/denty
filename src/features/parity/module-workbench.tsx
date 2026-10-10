@@ -19,6 +19,7 @@ export type ParityModuleKey =
   | "laboratory"
   | "prescriptions"
   | "communications"
+  | "recovery"
   | "documents"
   | "finance"
   | "analysis"
@@ -43,6 +44,10 @@ const TITLES: Record<ParityModuleKey, { title: string; description: string }> = 
   communications: {
     title: "Comunicaciones",
     description: "Mensajes y seguimiento.",
+  },
+  recovery: {
+    title: "Recuperación de pacientes",
+    description: "Revisiones pendientes, tratamientos sin cita y presupuestos por responder.",
   },
   documents: {
     title: "Documentos",
@@ -82,6 +87,8 @@ function renderModule(module: ParityModuleKey) {
       return <PrescriptionsModule />;
     case "communications":
       return <CommunicationsModule />;
+    case "recovery":
+      return <RecoveryModule />;
     case "documents":
       return <DocumentsModule />;
     case "finance":
