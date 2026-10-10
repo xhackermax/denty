@@ -2581,7 +2581,15 @@ export async function handleSupabaseDentyRoute(
       // Stage 13: consents are signed in the clinic (tablet/firma manuscrita) by staff.
       if (identity.actor.role === "PATIENT")
         return error(403, "FORBIDDEN", "La firma de documentos se realiza en la clínica.");
-      const denied = requireActorPermission(identity, "documents.sign");
+      const documentId = decodeURIComponent(parts[2] ?? "");
+      const documentToSign = await documentRepository(identity).get(documentId);
+      if (!documentToSign)
+        return error(404, "DOCUMENT_NOT_FOUND", "No se encuentra el documento del paciente.");
+      const isAdministrativeAcknowledgement =
+        ["DEBT_ACKNOWLEDGEMENT","PRIVACY_NOTICE"].includes(documentToSign.type);
+      const denied = isAdministrativeAcknowledgement
+        ? requireActorPermission(identity, "documents.write")
+        : requireActorPermission(identity, "documents.sign");
       if (denied) return denied;
       const form = await request.formData();
       const file = form.get("file");
@@ -2590,7 +2598,7 @@ export async function handleSupabaseDentyRoute(
       const payload = signDocumentMetadataSchema.parse({ signerName: form.get("signerName") });
       return json(
         200,
-        await documentRepository(identity).sign(decodeURIComponent(parts[2] ?? ""), {
+        await documentRepository(identity).sign(documentId, {
           signerName: payload.signerName,
           file,
         }),
