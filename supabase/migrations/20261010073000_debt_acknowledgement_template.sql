@@ -72,15 +72,14 @@ declare
   v_kind text;
 begin
   if tg_op = 'UPDATE' then
-    if old.type = 'DEBT_ACKNOWLEDGEMENT'
-      and old.status = 'SIGNED'
+    if (old.type = 'DEBT_ACKNOWLEDGEMENT' or new.type = 'DEBT_ACKNOWLEDGEMENT')
       and (new.data_json is distinct from old.data_json
         or new.template_id is distinct from old.template_id
         or new.patient_id is distinct from old.patient_id
         or new.type is distinct from old.type
         or new.title is distinct from old.title)
     then
-      raise exception 'SIGNED_DEBT_TERMS_IMMUTABLE' using errcode = '42501';
+      raise exception 'DEBT_TERMS_IMMUTABLE' using errcode = '42501';
     end if;
     return new;
   end if;
