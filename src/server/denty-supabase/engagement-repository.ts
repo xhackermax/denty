@@ -181,6 +181,44 @@ export class EngagementRepository {
     );
     return appointmentMessagingSettings(row);
   }
+  async listMarketingMessageTemplates() {
+    return this.client.rpc<{items: Record<string, unknown>[]}>(
+      "list_marketing_message_templates", { p_clinic_id: this.clinicId },
+    );
+  }
+  async saveMarketingMessageTemplate(input: {
+    kind: string;
+    channel: string;
+    enabled: boolean;
+    subject: string;
+    body: string;
+    offerDetails: string;
+    discountPercent: number | null;
+    validUntil: string | null;
+    contactEmail: string;
+  }) {
+    return this.client.rpc<Record<string, unknown>>("save_marketing_message_template", {
+      p_clinic_id: this.clinicId,
+      p_kind: input.kind,
+      p_channel: input.channel,
+      p_enabled: input.enabled,
+      p_subject: input.subject,
+      p_body: input.body,
+      p_offer_details: input.offerDetails,
+      p_discount_percent: input.discountPercent,
+      p_valid_until: input.validUntil,
+      p_contact_email: input.contactEmail,
+    });
+  }
+  async queueMarketingMessageTemplate(input: {kind: string; patientId?: string}) {
+    return this.client.rpc<{queued: number; skipped: number; alreadyQueued: number}>(
+      "queue_marketing_message_templates", {
+        p_clinic_id: this.clinicId,
+        p_kind: input.kind,
+        p_patient_id: input.patientId ?? null,
+      },
+    );
+  }
   async queueAppointmentConfirmationReminders() {
     return this.client.rpc<{ queued: number; skipped: number }>(
       "queue_appointment_confirmation_reminders",
