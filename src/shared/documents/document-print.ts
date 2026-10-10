@@ -22,6 +22,7 @@ export interface DocumentPrintData {
   patient: { name: string; dni?: string | null; recordNumber?: string | null };
   doctor: { name: string; collegiateNumber?: string | null };
   signed?: { signerName: string; signedAt: string } | null;
+  signatureImageDataUrl?: string | undefined;
   reference?: string;
 }
 
@@ -70,8 +71,10 @@ export function buildDocumentPrintHtml(data: DocumentPrintData): string {
     data.kind === "debt"
       ? `<section class="signatures single">
           <div class="signature">
-            <div class="box">${data.signed
-              ? `<span class="esign">Firma electrónica simple registrada<br>
+            <div class="box">${data.signatureImageDataUrl?.match(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/)
+              ? `<img class="signatureImage" src="${escapeHtml(data.signatureImageDataUrl)}" alt="Firma manuscrita digitalizada del deudor">`
+              : ""}${data.signed
+              ? `<span class="esign">Firma electrónica simple ·
               ${escapeHtml(data.signed.signerName)} · ${escapeHtml(shortDate(data.signed.signedAt))}</span>`
               : ""}</div>
             <b>Paciente/deudor</b>
@@ -133,7 +136,8 @@ export function buildDocumentPrintHtml(data: DocumentPrintData): string {
   .signature { width: 75mm; text-align: center; font-size: 9.5pt; }
   .signature .box { position: relative; height: 26mm; border-bottom: 1px solid #111; }
   .signature b { display: block; margin-top: 6px; font-size: 10pt; }
-  .esign { position: absolute; inset: auto 0 6px; font-size: 8.5pt; color: #0b5; }
+  .esign { position: absolute; inset: auto 0 2px; font-size: 8pt; color: #075a45; }
+  .signatureImage { display:block;max-height:18mm;max-width:70mm;margin:auto;object-fit:contain; }
   .revoke { margin-top: 26px; padding-top: 8px; border-top: 1px dashed #888; font-size: 9pt; color: #333; break-inside: avoid; }
   .revoke h2 { font-size: 10pt; }
   .reference { margin-top: 14px; font-size: 7.5pt; color: #777; }
