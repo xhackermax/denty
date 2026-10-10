@@ -348,6 +348,13 @@ export const createDebtAcknowledgementSchema = z.object({
   message: "Indica la fecha pactada de pago.",
 });
 
+/** Signature acknowledges receiving GDPR information, not consent for care or marketing. */
+export const createPrivacyNoticeSchema = z.object({
+  patientId: idSchema,
+  siteId: idSchema,
+  doctorId: idSchema,
+});
+
 export const signDocumentSchema = z.object({
   signerName: z.string().trim().min(2),
   /** PNG/JPEG data URL captured by SignaturePad; sent to the server as multipart. */
