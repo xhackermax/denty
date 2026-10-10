@@ -94,7 +94,7 @@ $privacy$,
   )
   on conflict (clinic_id, code, version) do nothing;
 end;
-$;
+$$;
 revoke all on function private.seed_debt_acknowledgement_template(uuid) from public,anon,authenticated;
 
 create or replace function private.seed_debt_acknowledgement_on_new_clinic()
@@ -114,82 +114,58 @@ execute function private.seed_debt_acknowledgement_on_new_clinic();
 
 select private.seed_debt_acknowledgement_template(c.id) from public.clinics c;
 
--- Prevent generic documents and direct table clients from forging an empty
--- financial acknowledgement, and keep the signed terms immutable.
+
+-- Keep the identities, debt amounts and terms immutable after document creation.
 create or replace function private.guard_debt_document()
-returns trigger language plpgsql security definer set search_path = '' as $
+returns trigger language plpgsql security definer set search_path = '' as $$
 declare
   v_template_code text;
-  v_kind text;
 begin
   if tg_op = 'UPDATE' then
     if (old.type in ('DEBT_ACKNOWLEDGEMENT','PRIVACY_NOTICE')
         or new.type in ('DEBT_ACKNOWLEDGEMENT','PRIVACY_NOTICE'))
-      and (new.data_json is distinct from old.data_json
-        or new.template_id is distinct from old.template_id
-        or new.patient_id is distinct from old.patient_id
-        or new.type is distinct from old.type
-        or new.title is distinct from old.title)
-    then
-      raise exception 'DEBT_TERMS_IMMUTABLE' using errcode = '42501';
+       and (new.data_json is distinct from old.data_json
+         or new.template_id is distinct from old.template_id
+         or new.patient_id is distinct from old.patient_id
+         or new.type is distinct from old.type
+         or new.title is distinct from old.title) then
+      raise exception 'SIGNABLE_TERMS_IMMUTABLE' using errcode = '42501';
     end if;
     return new;
   end if;
 
-  select code into v_template_code from public.document_templates dt
-  where dt.id = new.template_id and dt.clinic_id = new.clinic_id;
+  select dt.code into v_template_code from public.document_templates dt
+   where dt.id = new.template_id and dt.clinic_id = new.clinic_id;
 
-  if new.type = 'PRIVACY_NOTICE'
-     or (v_template_code = 'DATA_PROTECTION' and new.type = 'PRIVACY_NOTICE') then
-    if new.type <> 'PRIVACY_NOTICE'
-       or v_template_code <> 'DATA_PROTECTION'
+  if new.type = 'PRIVACY_NOTICE' then
+    if v_template_code <> 'DATA_PROTECTION'
        or coalesce(new.data_json ->> 'documentKind','') <> 'PRIVACY_NOTICE'
        or btrim(coalesce(new.data_json ->> 'dni','')) = ''
        or btrim(coalesce(new.data_json ->> 'acreedor','')) = ''
        or btrim(coalesce(new.data_json ->> 'nif_acreedor','')) = ''
        or btrim(coalesce(new.data_json ->> 'direccion_fiscal','')) = ''
        or btrim(coalesce(new.data_json ->> 'sede','')) = ''
-       or btrim(coalesce(new.data_json ->> 'doctor','')) = ''
-    then
+       or btrim(coalesce(new.data_json ->> 'doctor','')) = '' then
       raise exception 'INVALID_PRIVACY_NOTICE' using errcode = '23514';
     end if;
   end if;
-  if new.type = 'DEBT_ACKNOWLEDGEMENT'
-     or v_template_code = 'DEBT_ACKNOWLEDGEMENT' then
+
+  if new.type = 'DEBT_ACKNOWLEDGEMENT' or v_template_code = 'DEBT_ACKNOWLEDGEMENT' then
     if new.type <> 'DEBT_ACKNOWLEDGEMENT'
        or v_template_code <> 'DEBT_ACKNOWLEDGEMENT'
        or coalesce(new.data_json ->> 'documentKind','') <> 'DEBT_ACKNOWLEDGEMENT'
-       or coalesce(new.data_json ->> 'importe_deuda_centimos','') !~ '^[1-9][0-9]* btrim(coalesce(new.data_json ->> 'dni','')) = ''
-       or btrim(coalesce(new.data_json ->> 'nif_acreedor','')) = ''
-       or btrim(coalesce(new.data_json ->> 'doctor','')) = ''
-       or btrim(coalesce(new.data_json ->> 'sede','')) = ''
-       or btrim(coalesce(new.data_json ->> 'vencimiento','')) = ''
-    then
-      raise exception 'INVALID_DEBT_ACKNOWLEDGEMENT' using errcode = '23514';
-    end if;
-  end if;
-  return new;
-end;
-$;
-revoke all on function private.guard_debt_document() from public,anon,authenticated;
-drop trigger if exists documents_guard_debt on public.documents;
-create trigger documents_guard_debt
-before insert or update on public.documents for each row
-execute function private.guard_debt_document();
-commit;
-
+       or coalesce(new.data_json ->> 'importe_deuda_centimos','') !~ '^[1-9][0-9]*$'
        or btrim(coalesce(new.data_json ->> 'dni','')) = ''
        or btrim(coalesce(new.data_json ->> 'nif_acreedor','')) = ''
        or btrim(coalesce(new.data_json ->> 'doctor','')) = ''
        or btrim(coalesce(new.data_json ->> 'sede','')) = ''
-       or btrim(coalesce(new.data_json ->> 'vencimiento','')) = ''
-    then
+       or btrim(coalesce(new.data_json ->> 'vencimiento','')) = '' then
       raise exception 'INVALID_DEBT_ACKNOWLEDGEMENT' using errcode = '23514';
     end if;
   end if;
   return new;
 end;
-$;
+$$;
 revoke all on function private.guard_debt_document() from public,anon,authenticated;
 drop trigger if exists documents_guard_debt on public.documents;
 create trigger documents_guard_debt
