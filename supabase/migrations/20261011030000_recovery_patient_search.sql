@@ -288,7 +288,9 @@ begin
    select q.* from pending q
    join public.patients p
      on p.id=q.patient_id and p.clinic_id=p_clinic_id and p.archived_at is null
-   where p_kind='ALL' or q.kind=p_kind
+   where (p_kind='ALL' or q.kind=p_kind)
+     and (q.kind <> 'BUDGET' or
+       (select private.stage11_has_permission(p_clinic_id,'finance.read')))
  ),
  reasons as (
    select patient_id, jsonb_agg(distinct kind) as kinds
@@ -323,7 +325,9 @@ begin
        'phone',page_rows.phone,
        'kind',page_rows.kind,'referenceId',page_rows.reference_id,
        'label',page_rows.label,'dueAt',page_rows.due_at,
-       'amountCents',page_rows.amount_cents,'kinds',page_rows.kinds
+       'amountCents',(case when
+         (select private.stage11_has_permission(p_clinic_id,'finance.read'))
+          then page_rows.amount_cents else null end),'kinds',page_rows.kinds
      ) order by page_rows.priority,page_rows.due_at,page_rows.patient_id
    ),'[]'::jsonb) from page_rows),
    (select coalesce(jsonb_object_agg(t.kind,t.total),'{}'::jsonb)
