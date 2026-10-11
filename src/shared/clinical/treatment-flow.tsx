@@ -60,6 +60,7 @@ import {
 } from "./treatment-flow-steps";
 
 import { BudgetOptions, type BudgetView } from "./budget-options";
+import { FinancingCalculator } from "./financing-calculator";
 import { RetainedFlowStep } from "./retained-flow-step";
 import { TreatmentPlanDocumentButton } from "./treatment-plan-document-view";
 
@@ -390,6 +391,14 @@ function TreatmentFlow({
             selectedId={budget?.id ?? null}
             onSelect={setChosenBudget}
             existingCustomBudgets={existingCustomBudgets}
+          />
+        ) : null}
+        {step === "budget" ? (
+          <FinancingCalculator
+            budgets={budget
+              ? [budget, ...(budgetHistory.data?.items ?? []).filter((candidate) => candidate.id !== budget.id)]
+              : (budgetHistory.data?.items ?? [])}
+            preferredBudgetId={budget?.id ?? null}
           />
         ) : null}
       </RetainedFlowStep>
