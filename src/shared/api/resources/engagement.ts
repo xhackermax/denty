@@ -12,6 +12,8 @@ import {
   communicationConsentsSchema,
   communicationsSchema,
   recoveryWorklistSchema,
+  recoveryPatientSearchResultSchema,
+  recoveryPatientSearchFiltersSchema,
   recoveryKindSchema,
   communicationTemplatesSchema,
   createCommunicationSchema,
@@ -57,6 +59,21 @@ const notificationsSchema = z.object({
 export function createEngagementResource(client: ApiClient) {
   return {
     communications: {
+      recoveryPatientSearch: (
+        filters: z.input<typeof recoveryPatientSearchFiltersSchema>,
+      ) => {
+        const input = recoveryPatientSearchFiltersSchema.parse(filters);
+        return client.request(withQuery("/api/recovery/search", {
+          patient: input.patient || undefined,
+          budgeted: input.budgeted || undefined,
+          performed: input.performed || undefined,
+          minDays: input.minDays !== null ? String(input.minDays) : undefined,
+          maxDays: input.maxDays !== null ? String(input.maxDays) : undefined,
+          onlyNoVisit: input.onlyNoVisit ? "true" : undefined,
+          page: String(input.page),
+          pageSize: String(input.pageSize),
+        }), recoveryPatientSearchResultSchema);
+      },
       recoveryWorklist: (options: {
         kind?: z.infer<typeof recoveryKindSchema>;
         page?: number;
