@@ -10,6 +10,7 @@ import { useState } from "react";
 import type { z } from "zod";
 
 import { getBrowserApi } from "@/shared/api/browser";
+import { useActiveTenant } from "@/shared/tenancy/active-context";
 import type { recoveryPatientSearchItemSchema } from "@/shared/api/schemas/engagement";
 
 type Patient = z.infer<typeof recoveryPatientSearchItemSchema>;
@@ -95,6 +96,9 @@ function suggestedAction(patient: Patient): { type: ActionType; reason: string }
 /** Análisis para recepción. Las tareas se crean expresamente, nunca se envían mensajes. */
 export function RecoveryExplorer() {
   const qc = useQueryClient();
+  const { permissions, role, activeClinicId } = useActiveTenant();
+  const canReadFinance = permissions.includes("finance.read");
+  const canReadClinical = permissions.includes("clinical.read");
   const [draft, setDraft] = useState<SearchCriteria>(EMPTY);
   const [criteria, setCriteria] = useState<SearchCriteria>(EMPTY);
   const [page, setPage] = useState(1);
@@ -106,11 +110,11 @@ export function RecoveryExplorer() {
   const [createdFor, setCreatedFor] = useState<string | null>(null);
 
   const results = useQuery({
-    queryKey: ["recovery", "explorer", criteria, page],
+    queryKey: ["recovery", "explorer", activeClinicId, role, criteria, page],
     queryFn: () => getBrowserApi().engagement.communications.recoveryPatientSearch({
       patient: criteria.patient.trim(),
-      budgeted: criteria.budgeted.trim(),
-      performed: criteria.performed.trim(),
+      budgeted: canReadFinance ? criteria.budgeted.trim() : "",
+      performed: canReadClinical ? criteria.performed.trim() : "",
       minDays: criteria.absence === "ALL" || criteria.absence === "NEVER"
         ? null : Number(criteria.absence),
       maxDays: null,
@@ -209,7 +213,7 @@ export function RecoveryExplorer() {
             ]}
             onChange={value => setDraft(d => ({ ...d, absence: value ?? "ALL" }))}
           />
-          <TextInput
+          {canReadFinance ? <TextInput
             label="Tratamiento presupuestado"
             placeholder="Ej.: implante, corona, endodoncia"
             value={draft.budgeted}
@@ -218,8 +222,8 @@ export function RecoveryExplorer() {
             onChange={event => setDraft(d => ({
               ...d, budgeted: event.currentTarget.value,
             }))}
-          />
-          <TextInput
+          /> : <Text size="sm" c="dimmed">La búsqueda por presupuestos requiere acceso financiero.</Text>}
+          {canReadClinical ? <TextInput
             label="Tratamiento realizado"
             placeholder="Ej.: obturación, implante, ortodoncia"
             value={draft.performed}
@@ -228,7 +232,7 @@ export function RecoveryExplorer() {
             onChange={event => setDraft(d => ({
               ...d, performed: event.currentTarget.value,
             }))}
-          />
+          /> : <Text size="sm" c="dimmed">El historial de tratamientos realizados requiere permiso clínico.</Text>}
         </SimpleGrid>
         <Group mt="md" justify="flex-end">
           <Button variant="default" onClick={() => {
@@ -276,7 +280,7 @@ export function RecoveryExplorer() {
                     </Badge>
                   ) : null}
                   <SimpleGrid cols={{ base: 1, md: 2 }} mt="sm" spacing="sm">
-                    <Stack gap={2}>
+                    {canReadFinance ? <Stack gap={2}>
                       <Text fw={600} size="sm">Presupuestado</Text>
                       {patient.budgetedTreatments.length ? patient.budgetedTreatments.map((t, i) => (
                         <Text key={`${t.budgetId}-${i}`} size="xs">
@@ -284,15 +288,15 @@ export function RecoveryExplorer() {
                             t.status === "DRAFT" ? "Borrador" : t.status}
                         </Text>
                       )) : <Text size="xs" c="dimmed">Sin conceptos coincidentes</Text>}
-                    </Stack>
-                    <Stack gap={2}>
+                    </Stack> : null}
+                    {canReadClinical ? <Stack gap={2}>
                       <Text fw={600} size="sm">Realizado y registrado</Text>
                       {patient.performedTreatments.length ? patient.performedTreatments.map((t, i) => (
                         <Text key={`${t.code}-${i}`} size="xs">
                           {t.label} · {dateMadrid(t.executedAt)}
                         </Text>
                       )) : <Text size="xs" c="dimmed">Sin ejecuciones coincidentes registradas</Text>}
-                    </Stack>
+                    </Stack> : null}
                   </SimpleGrid>
                   <Text size="sm" mt="sm">
                     <Text span fw={600}>Acción sugerida: </Text>{suggestion.reason}
