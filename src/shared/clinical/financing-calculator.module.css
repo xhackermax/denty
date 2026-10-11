@@ -33,3 +33,33 @@
   .section { padding: 14px; }
   .fields, .metrics { grid-template-columns: 1fr; }
 }
+
+.schedule { min-width: 0; }
+.schedule summary {
+  cursor: pointer;
+  font-weight: 650;
+  padding-block: 8px;
+}
+.installmentRows {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.scheduleRow {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-sm);
+}
+.scheduleRow > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+  .scheduleRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
