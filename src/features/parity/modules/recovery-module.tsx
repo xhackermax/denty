@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { getBrowserApi } from "@/shared/api/browser";
 import styles from "@/shared/ui/parity.module.css";
+import { RecoveryExplorer } from "./recovery-explorer";
 
 type RecoveryKind = "ALL" | "RECALL" | "PLAN" | "BUDGET";
 
@@ -77,8 +78,10 @@ export function RecoveryModule() {
         </Group>
       </section>
 
+      <RecoveryExplorer />
+
       <section className={styles.section}>
-        <Text fw={600} mb="sm">Lista de trabajo</Text>
+        <Text fw={600} mb="sm">Casos pendientes de recuperación</Text>
         <Group gap="xs" wrap="wrap" aria-label="Filtro de recuperación">
           {([
             ["ALL", "Todos"],
@@ -149,9 +152,9 @@ export function RecoveryModule() {
         ) : null}
       </section>
       <Alert color="blue">
-        Primera fase: identificación y priorización. Las acciones «Llamar», «Posponer»,
-        «Reservar cita» y el registro de cada intento de contacto se incorporarán
-        cuando el seguimiento tenga trazabilidad y permisos en Supabase.
+        El plan de acción permite crear tareas internas para recepción y el equipo.
+        Las llamadas realizadas, respuestas del paciente y citas recuperadas necesitan
+        registrarse por separado para disponer de estadísticas fiables.
       </Alert>
     </Stack>
   );
