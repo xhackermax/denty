@@ -139,6 +139,10 @@ begin
             on pi.id=bi.clinical_plan_item_id and pi.clinic_id=b.clinic_id
           where b.clinic_id=p_clinic_id and b.patient_id=pr.id
             and b.status not in ('CANCELLED','SUPERSEDED')
+            and (nullif(btrim(coalesce(p_budget_query,'')),'') is null or
+              position(lower(btrim(p_budget_query)) in lower(coalesce(bi.description,'')))>0 or
+              position(lower(btrim(p_budget_query)) in
+                lower(coalesce(pi.treatment_code_snapshot,pi.treatment_code,'')))>0)
           order by b.created_at desc,bi.id
           limit 5
         ) items
@@ -158,6 +162,10 @@ begin
           left join public.treatment_catalog tc
             on tc.clinic_id=e.clinic_id and tc.code=e.treatment_code
           where e.clinic_id=p_clinic_id and e.patient_id=pr.id
+            and (nullif(btrim(coalesce(p_performed_query,'')),'') is null or
+              position(lower(btrim(p_performed_query)) in lower(coalesce(e.treatment_code,'')))>0 or
+              position(lower(btrim(p_performed_query)) in lower(coalesce(tc.name,'')))>0 or
+              position(lower(btrim(p_performed_query)) in lower(coalesce(pi.label_snapshot,pi.label,'')))>0)
           order by e.executed_at desc,e.id
           limit 5
         ) executed
