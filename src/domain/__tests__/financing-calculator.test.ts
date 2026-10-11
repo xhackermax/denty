@@ -50,6 +50,57 @@ describe("calculadora de financiación de presupuestos", () => {
     expect(withOpening.approximateTaePercent).toBeGreaterThan(free.approximateTaePercent);
   });
 
+  it("incorpora gastos mensuales obligatorios al coste y a la TAE", () => {
+    const base = {
+      budgetTotalCents: 120_000,
+      downPaymentCents: 20_000,
+      months: 12,
+      tinPercent: 0,
+      openingFeePercent: 0,
+    };
+    const free = calculateFinancing(base);
+    const withFees = calculateFinancing({ ...base, monthlyFeeCents: 250 });
+    expect(free.approximateTaePercent).toBe(0);
+    expect(withFees.monthlyFeeCents).toBe(250);
+    expect(withFees.monthlyPaymentsCents[0]).toBe(free.monthlyInstallmentsCents[0]! + 250);
+    expect(withFees.totalMonthlyPaymentsCents).toBe(free.totalInstallmentsCents + 3_000);
+    expect(withFees.financeCostCents).toBe(free.financeCostCents + 3_000);
+    expect(withFees.customerTotalCents).toBe(free.customerTotalCents + 3_000);
+    expect(withFees.approximateTaePercent).toBeGreaterThan(0);
+  });
+
+  it("muestra la amortización completa, cerrando a saldo cero exactamente", () => {
+    const result = calculateFinancing({
+      budgetTotalCents: 175_999,
+      downPaymentCents: 10_001,
+      months: 24,
+      tinPercent: 8.25,
+      openingFeePercent: 1.5,
+      monthlyFeeCents: 125,
+    });
+    expect(result.amortizationSchedule).toHaveLength(24);
+    expect(result.amortizationSchedule.at(-1)?.remainingBalanceCents).toBe(0);
+    expect(result.amortizationSchedule.reduce((a, m) => a + m.principalCents, 0))
+      .toBe(result.financedCents);
+    expect(result.amortizationSchedule.reduce((a, m) => a + m.interestCents, 0))
+      .toBe(result.interestCents);
+    expect(result.amortizationSchedule.reduce((a, m) => a + m.actualPaymentCents, 0))
+      .toBe(result.totalMonthlyPaymentsCents);
+    expect(result.amortizationSchedule.every(m => m.remainingBalanceCents >= 0))
+      .toBe(true);
+    expect(result.customerTotalCents).toBe(result.budgetTotalCents + result.financeCostCents);
+  });
+
+  it("rechaza gastos recurrentes negativos, fraccionarios o excesivos", () => {
+    const base = {
+      budgetTotalCents: 125_000, downPaymentCents: 0, months: 24,
+      tinPercent: 0, openingFeePercent: 0,
+    };
+    expect(() => calculateFinancing({ ...base, monthlyFeeCents: -1 })).toThrow(RangeError);
+    expect(() => calculateFinancing({ ...base, monthlyFeeCents: 1.5 })).toThrow(RangeError);
+    expect(() => calculateFinancing({ ...base, monthlyFeeCents: 100_001 })).toThrow(RangeError);
+  });
+
   it.each([
     { budgetTotalCents: 0, downPaymentCents: 0, months: 12, tinPercent: 3, openingFeePercent: 0 },
     { budgetTotalCents: 100_000, downPaymentCents: 100_000, months: 12, tinPercent: 3, openingFeePercent: 0 },
