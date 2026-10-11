@@ -24,6 +24,48 @@ export const recoveryWorklistSchema = z.object({
   pageSize: z.number().int().min(1).max(50),
 });
 
+export const recoverySearchBudgetItemSchema = z.object({
+  label: z.string(),
+  status: z.string(),
+  budgetId: idSchema,
+  code: z.string().nullable(),
+});
+export const recoverySearchExecutedItemSchema = z.object({
+  label: z.string(),
+  code: z.string(),
+  executedAt: z.string(),
+});
+export const recoveryPatientSearchItemSchema = z.object({
+  patientId: idSchema,
+  patientName: z.string(),
+  recordNumber: z.string().nullable(),
+  phone: z.string().nullable(),
+  lastVisitAt: z.string().nullable(),
+  daysSinceVisit: z.number().int().nonnegative().nullable(),
+  nextAppointmentAt: z.string().nullable(),
+  budgetedTreatments: z.array(recoverySearchBudgetItemSchema),
+  performedTreatments: z.array(recoverySearchExecutedItemSchema),
+});
+export const recoveryPatientSearchResultSchema = z.object({
+  items: z.array(recoveryPatientSearchItemSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  pageSize: z.number().int().min(1).max(50),
+});
+export const recoveryPatientSearchFiltersSchema = z.object({
+  patient: z.string().trim().max(100).default(""),
+  budgeted: z.string().trim().max(100).default(""),
+  performed: z.string().trim().max(100).default(""),
+  minDays: z.number().int().min(0).max(36500).nullable().default(null),
+  maxDays: z.number().int().min(0).max(36500).nullable().default(null),
+  onlyNoVisit: z.boolean().default(false),
+  page: z.number().int().min(1).max(100000).default(1),
+  pageSize: z.number().int().min(1).max(50).default(20),
+}).refine(input => input.minDays === null || input.maxDays === null ||
+  input.minDays <= input.maxDays, {
+  path: ["maxDays"], message: "El límite superior debe superar el inferior.",
+});
+
 export const communicationChannelSchema = z.enum(["WHATSAPP", "SMS", "EMAIL"]);
 export const communicationCategorySchema = z.enum([
   "APPOINTMENT_REMINDER",
