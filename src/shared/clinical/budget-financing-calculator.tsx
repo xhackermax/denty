@@ -11,7 +11,7 @@ import calculatorStyles from "./budget-financing-calculator.module.css";
 interface BudgetOption {
   id: string;
   code: string;
-  title?: string | null;
+  title?: string | null | undefined;
   status: string;
   totalCents: number;
 }
