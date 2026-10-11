@@ -40,6 +40,7 @@ import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
 import { DragHandle } from "@/shared/drag/drag-handle";
 import styles from "@/shared/ui/parity.module.css";
 import type { BudgetView } from "./budget-options";
+import { FinancingCalculator } from "./financing-calculator";
 import { ClinicalPlanBranchBuilder } from "./clinical-plan-branch-builder";
 import { comparableBudgets } from "./budget-comparison";
 
@@ -719,6 +720,10 @@ export function ClinicalWorkspace({
             </Text>
           )}
         </section>
+      ) : null}
+
+      {showBudget && budgets.length > 0 ? (
+        <FinancingCalculator budgets={budgets} />
       ) : null}
 
       {showBudget ? (
