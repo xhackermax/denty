@@ -3,6 +3,26 @@ import { z } from "zod";
 import { idSchema } from "../contracts";
 
 /** Read-only phase 1 recovery board: one row per patient even with multiple reasons. */
+export const recoveryInactivitySchema = z.enum([
+  "ALL", "THREE_MONTHS", "SIX_MONTHS", "TWELVE_MONTHS",
+  "TWENTY_FOUR_MONTHS", "UNKNOWN",
+]);
+export const recoveryBudgetStatusSchema = z.enum(["ALL","SIGNED","DRAFT"]);
+export const recoveryPatientSearchSchema = z.object({
+  patientId: idSchema,
+  patientName: z.string(),
+  recordNumber: z.string().nullable(),
+  phone: z.string().nullable(),
+  lastVisitAt: z.string().nullable(),
+  nextAppointmentAt: z.string().nullable(),
+});
+export const recoveryPatientSearchResultSchema = z.object({
+  items: z.array(recoveryPatientSearchSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  pageSize: z.number().int().min(1).max(50),
+});
+
 export const recoveryKindSchema = z.enum(["ALL", "RECALL", "PLAN", "BUDGET"]);
 export const recoveryWorklistItemSchema = z.object({
   patientId: idSchema,
