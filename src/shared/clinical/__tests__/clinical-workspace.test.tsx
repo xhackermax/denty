@@ -204,7 +204,14 @@ describe("patient budget history", () => {
 
     expect(screen.getAllByText("Presupuestos y plan de tratamiento").length).toBeGreaterThan(0);
     expect(screen.getByRole("list", { name: "Tratamientos a realizar" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Presupuestos" })).toBeInTheDocument();
+    const budgets = screen.getByRole("region", { name: "Presupuestos" });
+    const financing = screen.getByRole("region", { name: "Simulador de financiación" });
+    expect(budgets).toBeInTheDocument();
+    expect(financing).toBeInTheDocument();
+    expect(budgets.compareDocumentPosition(financing) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+    expect(within(financing).getByText("Cuota mensual estimada")).toBeInTheDocument();
+    expect(within(financing).getByText("TAE aproximada")).toBeInTheDocument();
   });
 
   it("uses direct drag handles instead of subir y bajar controls", () => {
