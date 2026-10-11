@@ -27,10 +27,12 @@ export function FinancingCalculator({
   const [months, setMonths] = useState(24);
   const [tin, setTin] = useState<number | string>(0);
   const [openingFee, setOpeningFee] = useState<number | string>(0);
+  const [monthlyFeeEuro, setMonthlyFeeEuro] = useState<number | string>(0);
 
   const summary = useMemo(() => {
     if (!selected || typeof downPaymentEuro !== "number" ||
-        typeof tin !== "number" || typeof openingFee !== "number") return null;
+        typeof tin !== "number" || typeof openingFee !== "number" ||
+        typeof monthlyFeeEuro !== "number") return null;
     try {
       return calculateFinancing({
         budgetTotalCents: selected.totalCents,
@@ -38,11 +40,12 @@ export function FinancingCalculator({
         months,
         tinPercent: tin,
         openingFeePercent: openingFee,
+        monthlyFeeCents: Math.round(monthlyFeeEuro * 100),
       });
     } catch {
       return null;
     }
-  }, [selected, downPaymentEuro, months, tin, openingFee]);
+  }, [selected, downPaymentEuro, months, tin, openingFee, monthlyFeeEuro]);
 
   if (options.length === 0) return null;
 
@@ -67,7 +70,7 @@ export function FinancingCalculator({
             label: `${budget.title || budget.code} · ${formatEUR(budget.totalCents)} · ${budget.status === "SIGNED" ? "Firmado" : "No firmado"}`,
           }))}
           value={selected?.id ?? null}
-          onChange={setChosenId}
+          onChange={(id) => { setChosenId(id); setDownPaymentEuro(0); }}
         />
         <div className={styles.fields}>
           <NumberInput
@@ -107,14 +110,25 @@ export function FinancingCalculator({
             value={openingFee}
             onChange={setOpeningFee}
           />
+          <NumberInput
+            label="Gastos mensuales obligatorios (€)"
+            description="Ej.: mantenimiento o administración, si aparecen en la oferta."
+            min={0}
+            max={1000}
+            decimalScale={2}
+            value={monthlyFeeEuro}
+            onChange={setMonthlyFeeEuro}
+          />
         </div>
         {summary ? (
           <>
             <div className={styles.highlight} aria-live="polite">
               <Text size="sm">Cuota mensual orientativa</Text>
-              <div className={styles.installment}>{formatEUR(summary.regularInstallmentCents)}</div>
+              <div className={styles.installment}>{formatEUR(summary.monthlyPaymentsCents[0] ?? 0)}</div>
               <Text size="xs">
-                {months} cuotas. Última cuota ajustada: {formatEUR(summary.lastInstallmentCents)}
+                {months} cuotas. Última cuota, incluidos gastos: {formatEUR(
+                  summary.monthlyPaymentsCents[months - 1] ?? 0,
+                )}
               </Text>
             </div>
             <div className={styles.metrics}>
@@ -123,10 +137,31 @@ export function FinancingCalculator({
               <div><Text size="xs" c="dimmed">Entrada</Text><Text fw={700}>{formatEUR(summary.downPaymentCents)}</Text></div>
               <div><Text size="xs" c="dimmed">Intereses</Text><Text fw={700}>{formatEUR(summary.interestCents)}</Text></div>
               <div><Text size="xs" c="dimmed">Apertura al inicio</Text><Text fw={700}>{formatEUR(summary.openingFeeCents)}</Text></div>
+              <div><Text size="xs" c="dimmed">Gastos mensuales totales</Text><Text fw={700}>{formatEUR(summary.monthlyFeeCents * months)}</Text></div>
+              <div><Text size="xs" c="dimmed">Suma de cuotas y gastos mensuales</Text><Text fw={700}>{formatEUR(summary.totalMonthlyPaymentsCents)}</Text></div>
               <div><Text size="xs" c="dimmed">TAE teórica</Text><Text fw={700}>{summary.approximateTaePercent.toFixed(2).replace(".", ",")} %</Text></div>
               <div><Text size="xs" c="dimmed">Coste financiero total</Text><Text fw={700}>{formatEUR(summary.financeCostCents)}</Text></div>
               <div><Text size="xs" c="dimmed">Total pagado, entrada incluida</Text><Text fw={700}>{formatEUR(summary.customerTotalCents)}</Text></div>
             </div>
+            <details className={styles.schedule}>
+              <summary>Ver desglose de las {months} cuotas</summary>
+              <Text size="xs" c="dimmed" mt="sm">
+                La comisión de apertura se abona al inicio y no está repartida entre las cuotas.
+                El saldo pendiente no incluye gastos mensuales.
+              </Text>
+              <div className={styles.installmentRows}>
+                {summary.amortizationSchedule.map((row) => (
+                  <div className={styles.scheduleRow} key={row.month}>
+                    <Text fw={700} size="sm">Cuota {row.month}</Text>
+                    <div><Text size="xs" c="dimmed">Capital</Text><Text size="sm">{formatEUR(row.principalCents)}</Text></div>
+                    <div><Text size="xs" c="dimmed">Interés</Text><Text size="sm">{formatEUR(row.interestCents)}</Text></div>
+                    <div><Text size="xs" c="dimmed">Gastos</Text><Text size="sm">{formatEUR(row.monthlyFeeCents)}</Text></div>
+                    <div><Text size="xs" c="dimmed">Pago total</Text><Text size="sm" fw={700}>{formatEUR(row.actualPaymentCents)}</Text></div>
+                    <div><Text size="xs" c="dimmed">Saldo pendiente</Text><Text size="sm">{formatEUR(row.remainingBalanceCents)}</Text></div>
+                  </div>
+                ))}
+              </div>
+            </details>
           </>
         ) : (
           <Alert color="orange">
@@ -136,7 +171,8 @@ export function FinancingCalculator({
         <Text size="xs" c="dimmed">
           Ejemplo financiero basado en amortización francesa: cuotas mensuales, sin carencia,
           primera cuota al mes y comisión de apertura pagada al inicio. La TAE es teórica y
-          no incluye seguros ni otros gastos no introducidos. Si el TIN está en 0 %, la simulación
+          incluye los gastos mensuales indicados, pero no seguros ni otros gastos no introducidos.
+          Si el TIN está en 0 %, la simulación
           supone interés cero, sin afirmar que exista una oferta a ese tipo. La entidad financiera
           debe confirmar condiciones, TAE contractual, documentación y aprobación.
         </Text>
