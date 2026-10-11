@@ -22,10 +22,19 @@ create or replace function public.recovery_patient_search(
 language plpgsql security definer set search_path=''
 as $$
 declare v_total integer; v_items jsonb;
+  v_can_clinical boolean;
 begin
-  if not (select private.stage11_has_permission(p_clinic_id,'communications.read'))
-     or not (select private.stage11_has_permission(p_clinic_id,'patients.read')) then
+  if not (select private.stage11_has_permission(p_clinic_id,'patients.read'))
+    or not (
+      (select private.stage11_has_permission(p_clinic_id,'communications.read'))
+      or (select private.stage11_has_permission(p_clinic_id,'clinical.read'))
+    ) then
     raise exception 'FORBIDDEN' using errcode='42501';
+  end if;
+  v_can_clinical := (select private.stage11_has_permission(p_clinic_id,'clinical.read'));
+  if nullif(btrim(coalesce(p_performed_query,'')),'') is not null
+     and not v_can_clinical then
+    raise exception 'CLINICAL_READ_REQUIRED' using errcode='42501';
   end if;
   if length(coalesce(p_patient_query,'')) > 100
      or length(coalesce(p_budget_query,'')) > 100
@@ -161,7 +170,7 @@ begin
             on pi.id=e.clinical_plan_item_id and pi.clinic_id=e.clinic_id
           left join public.treatment_catalog tc
             on tc.clinic_id=e.clinic_id and tc.code=e.treatment_code
-          where e.clinic_id=p_clinic_id and e.patient_id=pr.id
+          where e.clinic_id=p_clinic_id and e.patient_id=pr.id and v_can_clinical
             and (nullif(btrim(coalesce(p_performed_query,'')),'') is null or
               position(lower(btrim(p_performed_query)) in lower(coalesce(e.treatment_code,'')))>0 or
               position(lower(btrim(p_performed_query)) in lower(coalesce(tc.name,'')))>0 or
