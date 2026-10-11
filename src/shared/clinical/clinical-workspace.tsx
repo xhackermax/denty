@@ -42,6 +42,7 @@ import styles from "@/shared/ui/parity.module.css";
 import type { BudgetView } from "./budget-options";
 import { ClinicalPlanBranchBuilder } from "./clinical-plan-branch-builder";
 import { comparableBudgets } from "./budget-comparison";
+import { BudgetFinancingCalculator } from "./budget-financing-calculator";
 
 type ClinicalWorkspaceMode = "plan" | "budget" | "combined";
 
@@ -719,6 +720,10 @@ export function ClinicalWorkspace({
             </Text>
           )}
         </section>
+      ) : null}
+
+      {showBudget && !budgetHistory.isLoading && !budgetHistory.isError ? (
+        <BudgetFinancingCalculator budgets={budgets} />
       ) : null}
 
       {showBudget ? (
