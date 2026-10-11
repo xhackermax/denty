@@ -102,6 +102,7 @@ import {
   saveMarketingMessageTemplateSchema,
   updateMarketingCommunicationPolicySchema,
   queueMarketingMessageTemplateSchema,
+  recoveryPatientSearchFiltersSchema,
   updateMarketingCampaignSchema,
 } from "@/shared/api/schemas/engagement";
 import {
@@ -631,11 +632,44 @@ export async function handleSupabaseDentyRoute(
     const prescriptions = prescriptionRepository(identity);
     if (
       parts.length === 3 && parts[0] === "api" &&
+      parts[1] === "recovery" && parts[2] === "search" && method === "GET"
+    ) {
+      const permission = requireActorPermission(identity, "patients.read");
+      if (permission) return permission;
+      if (!identity.actor.permissions.includes("communications.read") &&
+          !identity.actor.permissions.includes("clinical.read")) {
+        return error(403, "FORBIDDEN", "No tienes permisos para consultar recuperación.");
+      }
+      const search = new URL(request.url).searchParams;
+      const integerOrNull = (key: string) => {
+        const value = search.get(key);
+        return value === null || value === "" ? null : Number(value);
+      };
+      const parsed = recoveryPatientSearchFiltersSchema.safeParse({
+        patient: search.get("patient") ?? "",
+        budgeted: search.get("budgeted") ?? "",
+        performed: search.get("performed") ?? "",
+        minDays: integerOrNull("minDays"),
+        maxDays: integerOrNull("maxDays"),
+        onlyNoVisit: search.get("onlyNoVisit") === "true",
+        page: Number(search.get("page") ?? "1"),
+        pageSize: Number(search.get("pageSize") ?? "20"),
+      });
+      if (!parsed.success) {
+        return error(400, "INVALID_RECOVERY_SEARCH", "Filtros de búsqueda no válidos.");
+      }
+      return json(200, await engagement.recoveryPatientSearch(parsed.data), headers);
+    }
+    if (
+      parts.length === 3 && parts[0] === "api" &&
       parts[1] === "recovery" && parts[2] === "worklist" && method === "GET"
     ) {
-      const denied = requireActorPermission(identity, "communications.read") ??
-        requireActorPermission(identity, "patients.read");
+      const denied = requireActorPermission(identity, "patients.read");
       if (denied) return denied;
+      if (!identity.actor.permissions.includes("communications.read") &&
+          !identity.actor.permissions.includes("clinical.read")) {
+        return error(403, "FORBIDDEN", "No tienes permisos para consultar recuperación.");
+      }
       const url = new URL(request.url);
       const kind = url.searchParams.get("kind") ?? "ALL";
       const page = Number(url.searchParams.get("page") ?? 1);

@@ -331,6 +331,28 @@ export class EngagementRepository {
       p_occurred_at: new Date().toISOString(),
     });
   }
+  async recoveryPatientSearch(input: {
+    patient: string;
+    budgeted: string;
+    performed: string;
+    minDays: number | null;
+    maxDays: number | null;
+    onlyNoVisit: boolean;
+    page: number;
+    pageSize: number;
+  }) {
+    return this.client.rpc<Record<string, unknown>>("recovery_patient_search", {
+      p_clinic_id: this.clinicId,
+      p_patient_query: input.patient,
+      p_budget_query: input.budgeted,
+      p_performed_query: input.performed,
+      p_min_days: input.minDays,
+      p_max_days: input.maxDays,
+      p_only_no_visit: input.onlyNoVisit,
+      p_page: input.page,
+      p_page_size: input.pageSize,
+    });
+  }
   async recoveryWorklist(input: { kind: string; page: number; pageSize: number }) {
     return this.client.rpc<Record<string, unknown>>("recovery_worklist", {
       p_clinic_id: this.clinicId,
