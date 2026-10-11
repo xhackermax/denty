@@ -664,9 +664,12 @@ export async function handleSupabaseDentyRoute(
       parts.length === 3 && parts[0] === "api" &&
       parts[1] === "recovery" && parts[2] === "worklist" && method === "GET"
     ) {
-      const denied = requireActorPermission(identity, "communications.read") ??
-        requireActorPermission(identity, "patients.read");
+      const denied = requireActorPermission(identity, "patients.read");
       if (denied) return denied;
+      if (!identity.actor.permissions.includes("communications.read") &&
+          !identity.actor.permissions.includes("clinical.read")) {
+        return error(403, "FORBIDDEN", "No tienes permisos para consultar recuperación.");
+      }
       const url = new URL(request.url);
       const kind = url.searchParams.get("kind") ?? "ALL";
       const page = Number(url.searchParams.get("page") ?? 1);
