@@ -47,6 +47,8 @@ describe("explorador de recuperación y tratamientos", () => {
     expect(sql).toContain("v_can_finance");
     expect(sql).toContain("CLINICAL_READ_REQUIRED");
     expect(sql).toContain("FINANCE_READ_REQUIRED");
+    expect(sql).toContain("q.kind <> 'BUDGET'");
+    expect(sql).toContain("then page_rows.amount_cents else null end");
     expect(sql).toContain("private.stage11_has_permission(p_clinic_id,'patients.read')");
     expect(sql).toContain("revoke all on function public.recovery_patient_search");
   });
