@@ -634,9 +634,12 @@ export async function handleSupabaseDentyRoute(
       parts.length === 3 && parts[0] === "api" &&
       parts[1] === "recovery" && parts[2] === "search" && method === "GET"
     ) {
-      const permission = requireActorPermission(identity, "communications.read") ??
-        requireActorPermission(identity, "patients.read");
+      const permission = requireActorPermission(identity, "patients.read");
       if (permission) return permission;
+      if (!identity.actor.permissions.includes("communications.read") &&
+          !identity.actor.permissions.includes("clinical.read")) {
+        return error(403, "FORBIDDEN", "No tienes permisos para consultar recuperación.");
+      }
       const search = new URL(request.url).searchParams;
       const integerOrNull = (key: string) => {
         const value = search.get(key);
