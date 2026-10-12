@@ -65,7 +65,8 @@ export function FinancingCalculator({
         typeof openingFee !== "number") return;
     try {
       await navigator.clipboard.writeText(formatFinancingEstimate({
-        budgetCode: selected.code, budgetTitle: selected.title,
+        budgetCode: selected.code,
+        ...(selected.title ? { budgetTitle: selected.title } : {}),
         months, tinPercent: tin, openingFeePercent: openingFee,
         result: summary,
       }));
