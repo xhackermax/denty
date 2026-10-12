@@ -63,3 +63,50 @@
 @media (max-width: 520px) {
   .scheduleRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+
+.termSelection {
+  min-width: 0;
+}
+.termGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+  gap: 8px;
+}
+.termCard {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--mantine-color-body);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.termCard:hover,
+.termCard:focus-visible {
+  border-color: var(--mantine-primary-color-filled);
+}
+.termCard:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+}
+.termCard[data-selected="true"] {
+  border-color: var(--mantine-primary-color-filled);
+  background: var(--mantine-color-default-hover);
+}
+.termLabel {
+  color: var(--mantine-color-dimmed);
+  font-size: 0.79rem;
+}
+.termCard strong {
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+.termMeta {
+  color: var(--mantine-color-dimmed);
+  font-size: 0.73rem;
+}
