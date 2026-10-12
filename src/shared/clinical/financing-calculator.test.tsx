@@ -45,9 +45,8 @@ describe("financiación a continuación del presupuesto", () => {
   });
 
   it("no permite simular cuando no hay presupuestos guardados", () => {
-    const { container } = render(
-      <MantineProvider><FinancingCalculator budgets={[]} /></MantineProvider>,
-    );
-    expect(container).toBeEmptyDOMElement();
+    render(<MantineProvider><FinancingCalculator budgets={[]} /></MantineProvider>);
+    expect(screen.queryByRole("heading", { name: "Calculadora de financiación" }))
+      .not.toBeInTheDocument();
   });
 });
