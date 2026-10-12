@@ -43,7 +43,7 @@ jobs:
       - name: Focused tests
         run: npx vitest run src/shared/clinical/__tests__/clinical-workspace.test.tsx src/shared/clinical/__tests__/deferred-budget-follow-up.test.tsx src/server/denty-supabase/__tests__/scoped-budgets.test.ts src/shared/clinical/__tests__/budget-options.test.tsx src/shared/clinical/budget-comparison.test.ts src/shared/clinical/patient-budget-comparison-page.test.tsx
       - name: Financing simulator accuracy
-        run: npx vitest run src/domain/__tests__/financing-calculator.test.ts
+        run: npx vitest run src/domain/__tests__/financing-calculator.test.ts src/domain/__tests__/financing-scenarios.test.ts src/shared/clinical/financing-calculator.test.tsx
       - name: Recovery worklist safety and eligibility
         run: npx vitest run src/domain/__tests__/recovery-worklist.test.ts src/domain/__tests__/recovery-patient-search.test.ts
       - name: Marketing message templates and consent checks
