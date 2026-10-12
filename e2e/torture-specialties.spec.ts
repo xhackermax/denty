@@ -132,32 +132,14 @@ test("SP-003: applying a completed restoration updates the same surface's visibl
   expect(failures).toEqual([]);
 });
 
-test("SP-004: a whole-tooth tool on a hidden layer cannot register an invisible mark", async ({
-  page,
-}) => {
+test("SP-004: selecting a tool reveals its layer and saves the mark", async ({ page }) => {
   const failures = await isolatePage(page);
   await page.goto(url);
   await expect(face(page)).toBeVisible();
-  const clockStart = new Date();
-  await page.clock.install({ time: clockStart });
-  await page.clock.pauseAt(new Date(clockStart.getTime() + 1000));
-  await page
-    .getByRole("button", { name: "Corona. Realizada. Se aplica a Diente.", exact: true })
-    .click();
-  await expect(
-    page.getByText("La herramienta activa pertenece a una capa oculta", { exact: true }),
-  ).toBeVisible();
-  // The UI explicitly requires reactivating the layer before registering a mark.
-  // aria-disabled alone does not suppress a real pointer click on a native button.
-  // Bypass Playwright's ARIA actionability check, while still sending pointer events.
-  const tooth = page.getByRole("button", { name: "Diente 46", exact: true });
-  await expect(tooth).toHaveAttribute("aria-disabled", "true");
-  await tooth.click({ force: true });
-  await page.clock.runFor(1300);
-  expect((await fakeSupabase.state()).dental_entities).toHaveLength(0);
-  await expect(page.getByRole("button", { name: "Guardar", exact: true })).toBeDisabled();
-  expect(
-    (await fakeSupabase.log()).filter((entry) => entry.name === "save_odontogram_batch"),
-  ).toHaveLength(0);
+  await page.getByRole("button", { name: "Corona. Realizada. Se aplica a Diente.", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Mostrar capa Prótesis" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("La herramienta activa pertenece a una capa oculta")).toHaveCount(0);
+  await page.getByRole("button", { name: "Diente 46", exact: true }).click();
+  await expect.poll(async () => (await fakeSupabase.state()).dental_entities.length).toBeGreaterThan(0);
   expect(failures).toEqual([]);
 });
