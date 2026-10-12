@@ -109,7 +109,7 @@ export function FinancingCalculator({
             decimalScale={2}
             fixedDecimalScale
             value={downPaymentEuro}
-            onChange={setDownPaymentEuro}
+            onChange={value => { setDownPaymentEuro(value); setCopyStatus(null); }}
           />
           <Select
             label="Plazo de devolución"
@@ -126,7 +126,7 @@ export function FinancingCalculator({
             step={0.25}
             decimalScale={2}
             value={tin}
-            onChange={setTin}
+            onChange={value => { setTin(value); setCopyStatus(null); }}
           />
           <NumberInput
             label="Comisión de apertura (%)"
@@ -136,7 +136,7 @@ export function FinancingCalculator({
             step={0.25}
             decimalScale={2}
             value={openingFee}
-            onChange={setOpeningFee}
+            onChange={value => { setOpeningFee(value); setCopyStatus(null); }}
           />
           <NumberInput
             label="Gastos mensuales obligatorios (€)"
@@ -145,7 +145,7 @@ export function FinancingCalculator({
             max={1000}
             decimalScale={2}
             value={monthlyFeeEuro}
-            onChange={setMonthlyFeeEuro}
+            onChange={value => { setMonthlyFeeEuro(value); setCopyStatus(null); }}
           />
         </div>
         {summary ? (
