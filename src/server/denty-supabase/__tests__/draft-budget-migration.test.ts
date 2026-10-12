@@ -33,9 +33,9 @@ describe("draft budget SQL migration", () => {
       create role anon;
       create schema private;
       create function private.is_clinic_staff(uuid) returns boolean
-        language sql as $ select true $;
+        language sql as $$ select true $$;
       create function private.is_clinic_admin(uuid) returns boolean
-        language sql as $ select false $;
+        language sql as $$ select false $$;
       create table public.budgets (
         id uuid primary key,
         patient_id uuid not null,
