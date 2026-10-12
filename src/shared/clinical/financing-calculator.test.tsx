@@ -19,6 +19,7 @@ afterEach(() => {
 describe("financiación a continuación del presupuesto", () => {
   it("compara varios plazos, recalcula al pulsar y no permite enviar préstamos", () => {
     render(<MantineProvider><FinancingCalculator budgets={BUDGETS} /></MantineProvider>);
+    fireEvent.click(screen.getByText("Calculadora de financiación · Simular cuotas"));
     const comparison = screen.getByRole("region", { name: "Comparar plazos de financiación" });
     expect(within(comparison).getByRole("button", { name: /12 meses/ })).toBeInTheDocument();
     expect(within(comparison).getByRole("button", { name: /36 meses/ })).toBeInTheDocument();
@@ -35,6 +36,7 @@ describe("financiación a continuación del presupuesto", () => {
       configurable: true, value: { writeText: copy },
     });
     render(<MantineProvider><FinancingCalculator budgets={BUDGETS} /></MantineProvider>);
+    fireEvent.click(screen.getByText("Calculadora de financiación · Simular cuotas"));
     fireEvent.click(screen.getByRole("button", { name: "Copiar simulación para el paciente" }));
     await waitFor(() => expect(copy).toHaveBeenCalledOnce());
     const summary = String(copy.mock.calls[0]?.[0]);
@@ -42,6 +44,23 @@ describe("financiación a continuación del presupuesto", () => {
     expect(summary).toContain("TAE teórica aproximada");
     expect(summary).toContain("no oferta vinculante");
     expect(screen.getByText(/Simulación copiada/)).toBeInTheDocument();
+  });
+
+  it("starts collapsed and prints a clean finance simulation", () => {
+    const print = vi.fn();
+    const documentWrite = vi.fn();
+    const popup = { document: { open: vi.fn(), write: documentWrite, close: vi.fn() }, focus: vi.fn(), print };
+    const open = vi.spyOn(window, "open").mockReturnValue(popup as unknown as Window);
+    render(<MantineProvider><FinancingCalculator budgets={BUDGETS} /></MantineProvider>);
+    const details = screen.getByTestId("financing-calculator") as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    fireEvent.click(screen.getByText("Calculadora de financiación · Simular cuotas"));
+    expect(details.open).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Imprimir PDF" }));
+    expect(open).toHaveBeenCalledWith("", "_blank");
+    expect(documentWrite.mock.calls[0]?.[0]).toContain("P-2026-1");
+    expect(documentWrite.mock.calls[0]?.[0]).toContain("Simulación de financiación");
+    expect(print).toHaveBeenCalledOnce();
   });
 
   it("no permite simular cuando no hay presupuestos guardados", () => {
