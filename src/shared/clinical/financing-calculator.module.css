@@ -110,3 +110,17 @@
   color: var(--mantine-color-dimmed);
   font-size: 0.73rem;
 }
+
+.calculatorToggle {
+  cursor: pointer;
+  font-weight: 700;
+  list-style-position: inside;
+  padding-block: 2px;
+}
+.calculatorToggle:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 4px;
+}
+.calculatorContent {
+  margin-top: 18px;
+}
