@@ -100,7 +100,6 @@ import {
   resetOdontogramView,
   revealLayerForTool,
   restoreOdontogramViewPreference,
-  subfilterForToothStatus,
   toggleOdontogramLayer,
   toggleOdontogramSubfilter,
   toggleShowAllLayers,
