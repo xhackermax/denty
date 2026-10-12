@@ -20,17 +20,10 @@ export async function pick(page: Page, label: string, option: string) {
   await page.getByRole("option", { name: option, exact: true }).click();
 }
 
-/** Turns the active tool's layer on when the chart says it is hidden. */
-export async function reactivateLayerIfHidden(page: Page) {
-  const reactivate = page.getByRole("button", { name: "Reactivar capa" });
-  if (await reactivate.isVisible()) await reactivate.click();
-}
-
 /** Applies a tool to a tooth through "Más herramientas", as a user would. */
 export async function applyTool(page: Page, toolLabel: string, tooth: string) {
   await openMoreTools(page);
   await pick(page, "Herramienta", toolLabel);
-  await reactivateLayerIfHidden(page);
   await pick(page, "Diente", tooth);
   await page.getByRole("button", { name: "Aplicar al diente seleccionado" }).click();
 }
