@@ -14,6 +14,10 @@ const migration = readFileSync(
   resolve("supabase/migrations/20261005120000_manage_draft_budgets.sql"),
   "utf8",
 );
+const adminDeleteMigration = readFileSync(
+  resolve("supabase/migrations/20261012231500_admin_delete_budgets.sql"),
+  "utf8",
+);
 let db: PGlite;
 
 async function resultStatus(query: string, params: unknown[]) {
@@ -29,7 +33,9 @@ describe("draft budget SQL migration", () => {
       create role anon;
       create schema private;
       create function private.is_clinic_staff(uuid) returns boolean
-        language sql as $$ select true $$;
+        language sql as $ select true $;
+      create function private.is_clinic_admin(uuid) returns boolean
+        language sql as $ select false $;
       create table public.budgets (
         id uuid primary key,
         patient_id uuid not null,
@@ -161,4 +167,29 @@ describe("draft budget SQL migration", () => {
 
     expect(status).toBe("not_found");
   });
+  it("lets an administrator delete unlinked non-draft budgets", async () => {
+    await db.exec(adminDeleteMigration);
+    await db.exec(`
+      create or replace function private.is_clinic_admin(uuid) returns boolean
+        language sql as $$ select true $$;
+      update public.budgets set status='SIGNED' where id='00000000-0000-0000-0000-000000000001';
+    `);
+    expect(await resultStatus("select public.delete_draft_budget($1,$2,$3) result",
+      [ids.budget, ids.patient, 1])).toBe("deleted");
+  });
+
+  it("rejects non-admin deletion of non-drafts and linked administrator budgets", async () => {
+    await db.exec(adminDeleteMigration);
+    await db.exec(`update public.budgets set status='SIGNED' where id='00000000-0000-0000-0000-000000000001';`);
+    expect(await resultStatus("select public.delete_draft_budget($1,$2,$3) result",
+      [ids.budget, ids.patient, 1])).toBe("not_editable");
+    await db.exec(`
+      create or replace function private.is_clinic_admin(uuid) returns boolean
+        language sql as $$ select true $$;
+      insert into public.invoices values ('00000000-0000-0000-0000-000000000001');
+    `);
+    expect(await resultStatus("select public.delete_draft_budget($1,$2,$3) result",
+      [ids.budget, ids.patient, 1])).toBe("linked");
+  });
+
 });
