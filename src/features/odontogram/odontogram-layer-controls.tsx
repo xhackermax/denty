@@ -81,6 +81,7 @@ const PRESETS: readonly { id: OdontogramPresetId; label: string }[] = [
 interface OdontogramLayerControlsProps {
   state: OdontogramViewState;
   focusedLayer: OdontogramLayerId | null;
+  highlightLayer?: OdontogramLayerId | null;
   onFocusLayer: (layerId: OdontogramLayerId) => void;
   onToggleLayer: (layerId: OdontogramLayerId) => void;
   onToggleSubfilter: (layerId: OdontogramLayerId, subfilterId: string) => void;
@@ -94,12 +95,14 @@ function LayerButton({
   layerId,
   state,
   focused,
+  highlighted,
   onToggle,
   onFocus,
 }: {
   layerId: OdontogramLayerId;
   state: OdontogramViewState;
   focused: boolean;
+  highlighted: boolean;
   onToggle: (layerId: OdontogramLayerId) => void;
   onFocus: (layerId: OdontogramLayerId) => void;
 }) {
@@ -112,6 +115,7 @@ function LayerButton({
         type="button"
         className={styles.layerToggle}
         data-active={active}
+        data-auto-revealed={highlighted}
         data-filtered={active && hasPartialFilters}
         aria-pressed={active}
         aria-label={`Mostrar capa ${ODONTOGRAM_LAYER_LABELS[layerId]}`}
@@ -120,8 +124,7 @@ function LayerButton({
         {ODONTOGRAM_LAYER_LABELS[layerId]}
         {active && hasPartialFilters ? <span aria-label="Filtros activos"> ·</span> : null}
       </button>
-      {active ? (
-        <button
+      <button
           type="button"
           className={styles.layerFocusAction}
           data-active={focused}
@@ -131,7 +134,6 @@ function LayerButton({
         >
           Editar
         </button>
-      ) : null}
     </span>
   );
 }
@@ -139,6 +141,7 @@ function LayerButton({
 export function OdontogramLayerControls({
   state,
   focusedLayer,
+  highlightLayer,
   onFocusLayer,
   onToggleLayer,
   onToggleSubfilter,
@@ -161,6 +164,7 @@ export function OdontogramLayerControls({
               layerId={layerId}
               state={state}
               focused={focusedLayer === layerId}
+              highlighted={highlightLayer === layerId}
               onToggle={onToggleLayer}
               onFocus={onFocusLayer}
             />

@@ -194,6 +194,26 @@ export function createInitialOdontogramViewState(): OdontogramViewState {
   };
 }
 
+/** Reveal a tool without ever hiding an existing layer or enabled subfilter. */
+export function revealLayerForTool(
+  state: OdontogramViewState,
+  status: string,
+): OdontogramViewState {
+  const layerId = layerForToothState(status);
+  if (!layerId) return state;
+  const filterId = subfilterForToothStatus(status);
+  const needsLayer = !state.visibleLayerIds.includes(layerId);
+  const needsFilter = Boolean(filterId && !state.subfiltersByLayer[layerId].includes(filterId));
+  if (!needsLayer && !needsFilter) return state;
+  const subfiltersByLayer = needsFilter ? copyFilters(state.subfiltersByLayer) : state.subfiltersByLayer;
+  if (needsFilter && filterId) subfiltersByLayer[layerId] = [...subfiltersByLayer[layerId], filterId];
+  return withVisualChange(state, {
+    visibleLayerIds: needsLayer ? [...state.visibleLayerIds, layerId] : state.visibleLayerIds,
+    subfiltersByLayer,
+    presetId: null,
+  });
+}
+
 export function toggleOdontogramLayer(
   state: OdontogramViewState,
   layerId: OdontogramLayerId,

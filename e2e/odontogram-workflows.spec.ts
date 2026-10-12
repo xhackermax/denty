@@ -7,7 +7,6 @@ import {
   openMoreTools,
   openOdontogram,
   pick,
-  reactivateLayerIfHidden,
   ruleMessage,
   savedEntities,
   savedEntity,
@@ -24,13 +23,11 @@ test("legend tools mark faces and whole teeth by clicking the chart", async ({ p
   await openOdontogram(page);
 
   await page.getByRole("button", { name: /^Obturación\. .*Se aplica a Cara\.$/ }).click();
-  await reactivateLayerIfHidden(page);
   await page.getByRole("button", { name: "Diente 16 superficie mesial" }).click();
   await expectSaved(page, "16", "RESTORATION", "Obturación en la cara mesial del 16");
   expect((await savedEntity("16", "RESTORATION"))?.surfaces_json).toEqual(["M"]);
 
   await page.getByRole("button", { name: /^Exodoncia\. .*Se aplica a Diente\.$/ }).click();
-  await reactivateLayerIfHidden(page);
   await page.getByRole("button", { name: "Diente 18", exact: true }).click();
   await expectSaved(page, "18", "EXTRACTION", "Exodoncia del 18");
   expect(failures).toEqual([]);
@@ -61,7 +58,6 @@ test("a fixed bridge is placed across a range of the same arch", async ({ page }
   await openMoreTools(page);
 
   await page.getByRole("button", { name: "Seleccionar prótesis / puente" }).click();
-  await reactivateLayerIfHidden(page);
   await pick(page, "Diente inicial", "34");
   await pick(page, "Diente final", "36");
   await page.getByRole("button", { name: "Aplicar prótesis / puente" }).click();
@@ -156,7 +152,6 @@ test("endodontics is refused on a tooth replaced by a removable prosthesis", asy
   await openOdontogram(page);
   const removable = page.getByRole("button", { name: /^Prótesis removible\. Realizada\./ });
   await removable.click();
-  await reactivateLayerIfHidden(page);
   await page.getByRole("button", { name: "Diente 46", exact: true }).click();
   await expectSaved(page, "46", "REMOVABLE", "Removible en 46");
 
@@ -164,7 +159,6 @@ test("endodontics is refused on a tooth replaced by a removable prosthesis", asy
     .getByRole("button", { name: /^Endodoncia\. / })
     .first()
     .click();
-  await reactivateLayerIfHidden(page);
   await page.getByRole("button", { name: "Diente 46", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: /prótesis removible/ })).toBeVisible();
   await page.waitForTimeout(2_000);
@@ -181,7 +175,6 @@ test("a bridge picked on the chart is confirmed beside it and marks both ends", 
   const failures = await isolatePage(page);
   await openOdontogram(page);
   await page.getByRole("button", { name: /^Prótesis fija \/ puente\. / }).click();
-  await reactivateLayerIfHidden(page);
   await page.getByRole("button", { name: "Diente 34", exact: true }).click();
   await page.getByRole("button", { name: "Diente 36", exact: true }).click();
   await page.getByRole("button", { name: "Aplicar puente 34 → 36" }).click();

@@ -7,6 +7,7 @@ import {
   isToothStatusVisible,
   restoreOdontogramViewPreference,
   resetOdontogramView,
+  revealLayerForTool,
   toggleOdontogramLayer,
   toggleOdontogramSubfilter,
   toggleShowAllLayers,
@@ -20,6 +21,27 @@ describe("odontogram visual view state", () => {
     expect(state.visibleLayerIds).toEqual(["general"]);
     expect(state.presetId).toBe("exploration");
     expect(state.mode).toBe("normal");
+  });
+
+  it("reveals a hidden tool layer and preserves previously visible layers", () => {
+    const before = createInitialOdontogramViewState();
+    const result = revealLayerForTool(before, "crown");
+    expect(result.visibleLayerIds).toEqual(["general", "prosthetics"]);
+    expect(result.subfiltersByLayer.prosthetics).toContain("fija");
+    expect(result.visibleLayerIds).toContain("general");
+  });
+
+  it("restores only the required filter and remains idempotent", () => {
+    const before = toggleOdontogramSubfilter(
+      toggleOdontogramLayer(createInitialOdontogramViewState(), "prosthetics"),
+      "prosthetics", "fija",
+    );
+    const after = revealLayerForTool(before, "crown");
+    expect(after.visibleLayerIds).toEqual(before.visibleLayerIds);
+    expect(after.subfiltersByLayer.prosthetics).toContain("fija");
+    expect(revealLayerForTool(after, "crown")).toBe(after);
+    expect(revealLayerForTool(after, "missing")).toBe(after);
+    expect(restoreOdontogramViewPreference(createOdontogramViewPreference(after)).visibleLayerIds).toContain("prosthetics");
   });
 
   it("combines layer toggles without hiding other active layers", () => {

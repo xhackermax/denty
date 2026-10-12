@@ -49,8 +49,8 @@ test("a crown on an untouched natural tooth is recorded without a clinical-rule 
   await page.goto(`/app/patients/${PATIENT_ID}/odontogram`);
 
   await page.getByRole("button", { name: /^Corona\. .*Se aplica a Diente\.$/ }).click();
-  // Crowns live on the prosthetics layer, hidden in the default view: turn it on as a user would.
-  await page.getByRole("button", { name: "Reactivar capa" }).click();
+  // Selecting a crown automatically reveals the prosthetics layer.
+  await expect(page.getByRole("button", { name: "Mostrar capa Prótesis" })).toHaveAttribute("aria-pressed", "true");
   // Whole-tooth tools act on the tooth itself; its faces stay disabled.
   await page.getByRole("button", { name: "Diente 46", exact: true }).click();
 

@@ -139,13 +139,13 @@ test("caries found on a filled face stays visible as the finding to treat", () =
   client.clear();
 });
 
-test("a whole-tooth tool on a hidden layer does not mark the tooth when it is clicked", async () => {
+test("a whole-tooth tool automatically reveals its layer and marks the tooth", async () => {
   const client = renderChart([]);
   fireEvent.click(screen.getByRole("button", { name: "Corona. Realizada. Se aplica a Diente." }));
-  expect(screen.getByText("La herramienta activa pertenece a una capa oculta")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Mostrar capa Prótesis" })).toHaveAttribute("aria-pressed", "true");
   fireEvent.click(screen.getByRole("button", { name: "Diente 46" }));
   await new Promise((resolve) => setTimeout(resolve, 1500));
-  expect(api.batch).not.toHaveBeenCalled();
+  expect(api.batch).toHaveBeenCalled();
   client.clear();
 }, 15_000);
 
@@ -175,8 +175,6 @@ test("a filling on one face of a multi-face caries leaves the other faces cariou
 test("a bridge picked on the chart is confirmed right there, both ends marked", async () => {
   const client = renderChart([]);
   fireEvent.click(screen.getByRole("button", { name: /^Prótesis fija \/ puente\. / }));
-  const reactivate = screen.queryByRole("button", { name: "Reactivar capa" });
-  if (reactivate) fireEvent.click(reactivate);
   fireEvent.click(screen.getByRole("button", { name: "Diente 34" }));
   fireEvent.click(screen.getByRole("button", { name: "Diente 36" }));
   expect(screen.getByRole("button", { name: "Diente 36, pilar del puente" })).toHaveAttribute(
@@ -219,8 +217,6 @@ test("a bridge picked on the chart is confirmed right there, both ends marked", 
 test("a bridge in progress can be cancelled from the chart", () => {
   const client = renderChart([]);
   fireEvent.click(screen.getByRole("button", { name: /^Prótesis fija \/ puente\. / }));
-  const reactivate = screen.queryByRole("button", { name: "Reactivar capa" });
-  if (reactivate) fireEvent.click(reactivate);
   fireEvent.click(screen.getByRole("button", { name: "Diente 34" }));
   fireEvent.click(screen.getByRole("button", { name: "Cancelar puente" }));
   expect(screen.getByRole("button", { name: "Diente 34" })).toHaveAttribute(
