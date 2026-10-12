@@ -98,6 +98,7 @@ import {
   ODONTOGRAM_LAYER_LABELS,
   type OdontogramLayerId,
   resetOdontogramView,
+  revealLayerForTool,
   restoreOdontogramViewPreference,
   subfilterForToothStatus,
   toggleOdontogramLayer,
@@ -583,6 +584,7 @@ function OdontogramEditor({
   // On compact viewports, both areas occupy one fixed-height workspace: no stacked pages.
   const [workspacePane, setWorkspacePane] = useState<"chart" | "tools">("chart");
   const [viewState, setViewState] = useState(createInitialOdontogramViewState);
+  const [highlightLayer, setHighlightLayer] = useState<OdontogramLayerId | null>(null);
   const [orthodonticPreview, setOrthodonticPreview] = useState<OrthodonticVisualDraft | null>(null);
   const [viewPreferenceLoaded, setViewPreferenceLoaded] = useState(false);
   const [viewPreferenceError, setViewPreferenceError] = useState(false);
@@ -639,6 +641,17 @@ function OdontogramEditor({
   const activeToolLayer = layerForToothState(tool);
   const activeToolFilter = subfilterForToothStatus(tool);
   const activeToolVisible = isToothStatusVisible(tool, viewState);
+  const revealTool = (status: ToothState) => {
+    if (historical) return;
+    const layer = layerForToothState(status);
+    if (layer && !isToothStatusVisible(status, viewState)) setHighlightLayer(layer);
+    setViewState((current) => revealLayerForTool(current, status));
+  };
+  useEffect(() => {
+    if (!highlightLayer) return;
+    const timeout = window.setTimeout(() => setHighlightLayer(null), 1000);
+    return () => window.clearTimeout(timeout);
+  }, [highlightLayer]);
   // Every edit is saved on its own a moment later; plan and budget follow (see the workspace).
   const patient = usePatientQuery(patientId).data;
   const autosave = useAutosave({
@@ -779,12 +792,13 @@ function OdontogramEditor({
   };
   const applyWhole = (tooth: string, status = tool) => {
     // A tool whose layer is hidden would leave a mark nobody can see.
-    if (!isToothStatusVisible(status, viewState)) return;
+    revealTool(status);
     commit(createStateEntity(tooth, status));
   };
   const selectTool = (nextTool: ToothState, nextPlacement?: "tooth" | "bridge") => {
     const placement = nextPlacement ?? (nextTool.startsWith("prosthesis") ? "bridge" : "tooth");
     setTool(nextTool);
+    revealTool(nextTool);
     if (placement === "bridge" && placementMode !== "bridge") {
       setBridgeFrom(null);
       setBridgeTo(null);
@@ -847,7 +861,7 @@ function OdontogramEditor({
       applyWhole(tooth);
       return;
     }
-    if (!activeToolVisible) return;
+    revealTool(tool);
     const applied = createStateEntity(tooth, tool, [surface]);
     if (tool !== "filling") {
       commit(applied);
@@ -955,7 +969,7 @@ function OdontogramEditor({
             viewState.subfiltersByLayer.prosthetics.includes("fija") &&
             (tooth === bridgeFrom || tooth === bridgeTo || persistedBridgeEndpoints.has(tooth))
           }
-          readOnly={historical || !activeToolVisible || inspectorLayer !== "general"}
+          readOnly={historical || inspectorLayer !== "general"}
           pendingNext={nextVisitMode && pendingToothSet.has(tooth)}
           pickedNext={nextVisitMode && pickedNext.has(tooth)}
           onSelect={() => {
@@ -1213,7 +1227,7 @@ function OdontogramEditor({
                     {bridgeReady && bridgeFrom && bridgeTo ? (
                       <Button
                         size="xs"
-                        disabled={historical || !activeToolVisible}
+                        disabled={historical}
                         onClick={() => applyTemplate("bridge")}
                       >
                         {`Aplicar puente ${bridgeFrom} → ${bridgeTo}`}
@@ -1278,27 +1292,7 @@ function OdontogramEditor({
             navegador para conservar esta configuración.
           </Alert>
         ) : null}
-        {!activeToolVisible && activeToolLayer ? (
-          <Alert color="yellow" title="La herramienta activa pertenece a una capa oculta">
-            Reactiva {ODONTOGRAM_LAYER_LABELS[activeToolLayer]} o cambia de herramienta antes de
-            registrar una marca.
-            <Button
-              size="xs"
-              ml="sm"
-              onClick={() =>
-                setViewState((current) => {
-                  if (!current.visibleLayerIds.includes(activeToolLayer))
-                    return toggleOdontogramLayer(current, activeToolLayer);
-                  return activeToolFilter
-                    ? toggleOdontogramSubfilter(current, activeToolLayer, activeToolFilter)
-                    : current;
-                })
-              }
-            >
-              Reactivar capa
-            </Button>
-          </Alert>
-        ) : null}
+
 
           </div>
           <section className={styles.unifiedInspector} aria-label="Herramientas del área odontológica">
@@ -1320,7 +1314,10 @@ function OdontogramEditor({
               <OdontogramLayerControls
           state={viewState}
           focusedLayer={inspectorLayer}
+          highlightLayer={highlightLayer}
           onFocusLayer={(layerId) => {
+            setViewState((current) => current.visibleLayerIds.includes(layerId) ? current : { ...current, visibleLayerIds: [...current.visibleLayerIds, layerId], presetId: null });
+            if (!viewState.visibleLayerIds.includes(layerId)) setHighlightLayer(layerId);
             setInspectorLayer(layerId);
             setWorkspacePane("tools");
           }}
@@ -1366,9 +1363,6 @@ function OdontogramEditor({
                 <Text size="sm" c="dimmed">
                   Selecciona varias capas y pulsa «Editar» en el área de interés. Todas se proyectan sobre los mismos dientes.
                 </Text>
-              ) : null}
-              {inspectorLayer && !viewState.visibleLayerIds.includes(inspectorLayer) ? (
-                <Text size="sm" c="dimmed">Activa esta capa para trabajar con sus herramientas.</Text>
               ) : null}
         {(inspectorLayer === "general" || inspectorLayer === "prosthetics") ? (
           <details
@@ -1438,7 +1432,7 @@ function OdontogramEditor({
                         setBridgeError(null);
                       }}
                       data={chartTeeth}
-                      disabled={historical || !activeToolVisible}
+                      disabled={historical}
                     />
                     <Select
                       label="Diente final"
@@ -1469,7 +1463,7 @@ function OdontogramEditor({
                         }
                       }}
                       data={chartTeeth}
-                      disabled={historical || !activeToolVisible || !bridgeFrom}
+                      disabled={historical || !bridgeFrom}
                     />
                   </SimpleGrid>
                   <Group justify="space-between" mt="sm">
@@ -1482,7 +1476,7 @@ function OdontogramEditor({
                     </Text>
                     <Button
                       size="xs"
-                      disabled={historical || !activeToolVisible || !bridgeReady}
+                      disabled={historical || !bridgeReady}
                       onClick={() => applyTemplate("bridge")}
                     >
                       Aplicar prótesis / puente
@@ -1498,7 +1492,7 @@ function OdontogramEditor({
               <Group mt="md">
                 <Button
                   size="xs"
-                  disabled={historical || !activeToolVisible || placementMode === "bridge"}
+                  disabled={historical || placementMode === "bridge"}
                   onClick={() => applyWhole(selectedTooth)}
                 >
                   Aplicar al diente seleccionado
@@ -1513,7 +1507,7 @@ function OdontogramEditor({
                   aria-pressed={
                     lastMacro?.template === "implant" && lastMacro.tooth === selectedTooth
                   }
-                  disabled={historical || !activeToolVisible}
+                  disabled={historical}
                   onClick={() => applyTemplate("implant")}
                 >
                   Implante + pilar + corona
@@ -1526,7 +1520,7 @@ function OdontogramEditor({
                       : "light"
                   }
                   aria-pressed={lastMacro?.template === "endo" && lastMacro.tooth === selectedTooth}
-                  disabled={historical || !activeToolVisible}
+                  disabled={historical}
                   onClick={() => applyTemplate("endo")}
                 >
                   Endo + perno + corona
@@ -1535,7 +1529,7 @@ function OdontogramEditor({
                   size="xs"
                   variant={placementMode === "bridge" ? "filled" : "light"}
                   aria-pressed={placementMode === "bridge"}
-                  disabled={historical || !activeToolVisible}
+                  disabled={historical}
                   onClick={() => selectTool("prosthesis_pending", "bridge")}
                 >
                   Seleccionar prótesis / puente
@@ -1555,7 +1549,7 @@ function OdontogramEditor({
                       key={`${appliance}-${arch}`}
                       size="xs"
                       variant="light"
-                      disabled={historical || !activeToolVisible}
+                      disabled={historical}
                       onClick={() => applyAppliance(appliance, arch)}
                     >
                       {archApplianceLabel(appliance, arch)}
