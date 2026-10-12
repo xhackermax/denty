@@ -40,7 +40,7 @@ describe("Comparador de plazos de financiación", () => {
       openingFeePercent: base.openingFeePercent, result,
     });
     expect(text).toContain("Presupuesto: P-2026-42 · Rehabilitación oral");
-    expect(text).toContain("2.800,00");
+    expect(text).toContain("Importe presupuestado: 2800,00");
     expect(text).toContain("6,25 %");
     expect(text).toContain("Coste financiero total:");
     expect(text).toContain("TAE teórica aproximada:");
