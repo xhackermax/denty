@@ -638,9 +638,6 @@ function OdontogramEditor({
   }, [bridgeFrom, bridgeTo, placementMode]);
   const bridgeReady = bridgePreviewTeeth.length >= 2 && Boolean(bridgeFrom && bridgeTo);
   const legendSelection: OdontogramLegendSelection = { state: tool, placement: placementMode };
-  const activeToolLayer = layerForToothState(tool);
-  const activeToolFilter = subfilterForToothStatus(tool);
-  const activeToolVisible = isToothStatusVisible(tool, viewState);
   const revealTool = (status: ToothState) => {
     if (historical) return;
     const layer = layerForToothState(status);
@@ -992,12 +989,12 @@ function OdontogramEditor({
             if (inspectorLayer === "general" && !isSurfaceOnlyTool(tool)) applyWhole(tooth);
           }}
           onWholeAction={() => {
-            if (!activeToolVisible || historical || inspectorLayer !== "general") return;
+            if (historical || inspectorLayer !== "general") return;
             if (placementMode !== "bridge") cycleWholeTreatment(tooth);
           }}
           onSurfaceAction={(surface) => applySurface(tooth, surface)}
           onSurfaceCycle={(surface) =>
-            activeToolVisible && !historical && placementMode !== "bridge"
+            !historical && placementMode !== "bridge"
               ? cycleSurfaceTreatment(tooth, surface)
               : undefined
           }
