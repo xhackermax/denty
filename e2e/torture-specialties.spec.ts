@@ -140,6 +140,6 @@ test("SP-004: selecting a tool reveals its layer and saves the mark", async ({ p
   await expect(page.getByRole("button", { name: "Mostrar capa Prótesis" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("La herramienta activa pertenece a una capa oculta")).toHaveCount(0);
   await page.getByRole("button", { name: "Diente 46", exact: true }).click();
-  await expect.poll(async () => (await fakeSupabase.state()).dental_entities.length).toBeGreaterThan(0);
+  await expect.poll(async () => ((await fakeSupabase.state()).dental_entities ?? []).length).toBeGreaterThan(0);
   expect(failures).toEqual([]);
 });
