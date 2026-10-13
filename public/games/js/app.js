@@ -200,5 +200,7 @@
   function showInfo(title,text){const overlay=document.getElementById('overlay');if(!overlay)return;const wasPaused=paused;setPaused(true);overlay.hidden=false;overlay.innerHTML=`<section class="sheet" role="dialog" aria-modal="true"><div class="sheet-icon">${shared.icon(currentMeta?.icon||'memory',24)}</div><h2>${esc(title)}</h2><p>${esc(text)}</p><div class="sheet-actions one"><button type="button" class="primary-button" id="infoClose">Entendido</button></div></section>`;document.getElementById('infoClose').addEventListener('click',()=>{overlay.hidden=true;if(!wasPaused)setPaused(false);});}
   function destroyCurrent(){if(current){try{current.destroy?.();}catch(_){}current=null;}currentMeta=null;paused=false;menuOpen=false;finishConsumed=false;}
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&current)setPaused(true);});
-  const params=new URLSearchParams(global.location.search);DG.serverSession.init(params.get('patientId')||'');void renderHub();
+  const params=new URLSearchParams(global.location.search);
+  const patientId=params.get('patientId')||'',recordNumber=params.get('recordNumber')||'';
+  DG.serverSession.init(patientId,recordNumber);void renderHub();
 })(window);

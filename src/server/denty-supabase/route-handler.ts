@@ -99,6 +99,8 @@ import {
   setCommunicationConsentSchema,
   snoozeAlertSchema,
   updateAppointmentMessagingSettingsSchema,
+  finishGamePlaySchema,
+  startGamePlaySchema,
   saveMarketingMessageTemplateSchema,
   updateMarketingCommunicationPolicySchema,
   queueMarketingMessageTemplateSchema,
@@ -133,6 +135,7 @@ import { LaboratoryRepository } from "./laboratory-repository";
 import { AlertsRepository } from "./alerts-repository";
 import { StaffPrivacyRepository } from "./staff-privacy-repository";
 import { EngagementRepository } from "./engagement-repository";
+import { GameRepository } from "./game-repository";
 import { TaskRepository, mapTaskRpcError } from "./task-repository";
 import { PrescriptionRepository } from "./prescription-repository";
 import { buildPrescriptionPdf } from "./prescription-pdf";
@@ -342,6 +345,9 @@ function staffPrivacyRepository(identity: RequestIdentity): StaffPrivacyReposito
 function engagementRepository(identity: RequestIdentity): EngagementRepository {
   return new EngagementRepository(identity.restClient, identity.actor.clinicId);
 }
+function gameRepository(identity: RequestIdentity): GameRepository {
+  return new GameRepository(identity.restClient, identity.actor.clinicId);
+}
 function taskRepository(identity: RequestIdentity): TaskRepository {
   return new TaskRepository(identity.restClient, identity.actor.clinicId);
 }
@@ -376,6 +382,7 @@ export const LOCALLY_HANDLED_SECTIONS: ReadonlySet<string> = new Set([
   "users",
   "patients",
   "patient",
+  "game-vouchers",
   "documents",
   "document-templates",
   "security",
@@ -628,6 +635,7 @@ export async function handleSupabaseDentyRoute(
     const alerts = alertsRepository(identity);
     const staffPrivacy = staffPrivacyRepository(identity);
     const engagement = engagementRepository(identity);
+    const games = gameRepository(identity);
     const tasks = taskRepository(identity);
     const prescriptions = prescriptionRepository(identity);
     if (
@@ -971,6 +979,73 @@ export async function handleSupabaseDentyRoute(
         ),
         headers,
       );
+    }
+    if (
+      parts.length === 5 &&
+      parts[0] === "api" &&
+      parts[1] === "patient" &&
+      parts[3] === "games" &&
+      parts[4] === "dashboard" &&
+      method === "GET"
+    ) {
+      return json(200, await games.dashboard(decodeURIComponent(parts[2] ?? "")), headers);
+    }
+    if (
+      parts.length === 6 &&
+      parts[0] === "api" &&
+      parts[1] === "patient" &&
+      parts[3] === "games" &&
+      parts[4] === "plays" &&
+      parts[5] === "start" &&
+      method === "POST"
+    ) {
+      const payload = await parseJson(request, startGamePlaySchema);
+      return json(
+        201,
+        await games.start(decodeURIComponent(parts[2] ?? ""), payload.gameId),
+        headers,
+      );
+    }
+    if (
+      parts.length === 7 &&
+      parts[0] === "api" &&
+      parts[1] === "patient" &&
+      parts[3] === "games" &&
+      parts[4] === "plays" &&
+      parts[6] === "finish" &&
+      method === "POST"
+    ) {
+      const payload = await parseJson(request, finishGamePlaySchema);
+      return json(
+        200,
+        await games.finish(
+          decodeURIComponent(parts[2] ?? ""),
+          decodeURIComponent(parts[5] ?? ""),
+          payload,
+        ),
+        headers,
+      );
+    }
+    if (
+      parts.length === 5 &&
+      parts[0] === "api" &&
+      parts[1] === "patient" &&
+      parts[3] === "games" &&
+      parts[4] === "voucher" &&
+      method === "POST"
+    ) {
+      return json(201, await games.createVoucher(decodeURIComponent(parts[2] ?? "")), headers);
+    }
+    if (
+      parts.length === 4 &&
+      parts[0] === "api" &&
+      parts[1] === "game-vouchers" &&
+      parts[3] === "apply" &&
+      method === "POST"
+    ) {
+      const d = requireActorPermission(identity, "finance.write");
+      if (d) return d;
+      return json(200, await games.applyVoucher(decodeURIComponent(parts[2] ?? "")), headers);
     }
     if (
       parts.length === 4 &&

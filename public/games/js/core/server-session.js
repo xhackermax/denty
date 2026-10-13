@@ -4,6 +4,7 @@
   const root = global.DentyGames = global.DentyGames || { games: {} };
   const BFF_PREFIX = '/api/denty';
   let patientId = '';
+  let fallbackRecordLabel = 'Ficha ••----';
   let cachedDashboard = null;
   const activePlays = new Map();
 
@@ -37,8 +38,9 @@
     return recordLabel(patient?.recordNumber);
   }
 
-  function init(id) {
+  function init(id, recordNumber) {
     patientId = String(id || '').trim();
+    fallbackRecordLabel = recordLabel(recordNumber);
     cachedDashboard = null;
     activePlays.clear();
   }
@@ -58,7 +60,7 @@
       patientId: dashboardData?.patientId || patientId,
       profile: {
         ...(dashboardData?.profile || {}),
-        label: canonicalLabel || serverLabel || 'Ficha ••----',
+        label: canonicalLabel || serverLabel || fallbackRecordLabel,
       },
     };
     return cachedDashboard;
@@ -94,7 +96,7 @@
   }
 
   function profileLabel() {
-    return String(cachedDashboard?.profile?.label || 'Ficha ••----');
+    return String(cachedDashboard?.profile?.label || fallbackRecordLabel);
   }
 
   root.serverSession = {
