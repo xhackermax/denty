@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 
+import { recallReasonLabel } from "@/domain/treatment-reviews";
 import { getBrowserApi } from "@/shared/api/browser";
 import styles from "@/shared/ui/parity.module.css";
 import { RecoveryExplorer } from "./recovery-explorer";
@@ -22,7 +23,10 @@ function dateLabel(value: string) {
   const ms = Date.parse(value);
   return Number.isFinite(ms)
     ? new Date(ms).toLocaleDateString("es-ES", {
-        timeZone: "Europe/Madrid", day: "2-digit", month: "short", year: "numeric",
+        timeZone: "Europe/Madrid",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
       })
     : "Fecha no disponible";
 }
@@ -33,16 +37,22 @@ export function RecoveryModule() {
 
   const totals = useQuery({
     queryKey: ["recovery", "overview"],
-    queryFn: () => getBrowserApi().engagement.communications.recoveryWorklist({
-      kind: "ALL", page: 1, pageSize: 1,
-    }),
+    queryFn: () =>
+      getBrowserApi().engagement.communications.recoveryWorklist({
+        kind: "ALL",
+        page: 1,
+        pageSize: 1,
+      }),
     staleTime: 30_000,
   });
   const worklist = useQuery({
     queryKey: ["recovery", "worklist", kind, page],
-    queryFn: () => getBrowserApi().engagement.communications.recoveryWorklist({
-      kind, page, pageSize: PAGE_SIZE,
-    }),
+    queryFn: () =>
+      getBrowserApi().engagement.communications.recoveryWorklist({
+        kind,
+        page,
+        pageSize: PAGE_SIZE,
+      }),
   });
 
   const changeKind = (next: string) => {
@@ -55,12 +65,14 @@ export function RecoveryModule() {
       <section className={styles.section}>
         <Text fw={600}>Cola de seguimiento de pacientes</Text>
         <Text c="dimmed" size="sm" mt="xs">
-          Una ficha por paciente, aunque tenga varios motivos de seguimiento.
-          Los importes indicados son referencias del plan o presupuesto,
-          no facturación ni dinero recuperado. No se envían mensajes automáticamente.
+          Una ficha por paciente, aunque tenga varios motivos de seguimiento. Los importes indicados
+          son referencias del plan o presupuesto, no facturación ni dinero recuperado. No se envían
+          mensajes automáticamente.
         </Text>
         {totals.isError ? (
-          <Alert color="red" mt="md">No se pudieron consultar los contadores.</Alert>
+          <Alert color="red" mt="md">
+            No se pudieron consultar los contadores.
+          </Alert>
         ) : null}
         <Group gap="sm" mt="md" wrap="wrap">
           <Badge size="lg" variant="light">
@@ -81,14 +93,18 @@ export function RecoveryModule() {
       <RecoveryExplorer />
 
       <section className={styles.section}>
-        <Text fw={600} mb="sm">Casos pendientes de recuperación</Text>
+        <Text fw={600} mb="sm">
+          Casos pendientes de recuperación
+        </Text>
         <Group gap="xs" wrap="wrap" aria-label="Filtro de recuperación">
-          {([
-            ["ALL", "Todos"],
-            ["RECALL", "Revisiones"],
-            ["PLAN", "Tratamientos"],
-            ["BUDGET", "Presupuestos"],
-          ] as const).map(([value, label]) => (
+          {(
+            [
+              ["ALL", "Todos"],
+              ["RECALL", "Revisiones"],
+              ["PLAN", "Tratamientos"],
+              ["BUDGET", "Presupuestos"],
+            ] as const
+          ).map(([value, label]) => (
             <Button
               size="xs"
               key={value}
@@ -101,7 +117,9 @@ export function RecoveryModule() {
           ))}
         </Group>
         {worklist.isPending ? (
-          <Text mt="md" c="dimmed">Consultando revisiones y tratamientos pendientes…</Text>
+          <Text mt="md" c="dimmed">
+            Consultando revisiones y tratamientos pendientes…
+          </Text>
         ) : worklist.isError ? (
           <Alert mt="md" color="red">
             No se pudo cargar la lista. Comprueba los permisos y la conexión con Supabase.
@@ -117,14 +135,18 @@ export function RecoveryModule() {
                 <div className={styles.rowMain}>
                   <span className={styles.rowTitle}>{patient.patientName}</span>
                   <span className={styles.rowMeta}>
-                    {KIND_LABELS[patient.kind]} · {patient.label} · {dateLabel(patient.dueAt)}
+                    {KIND_LABELS[patient.kind]} ·{" "}
+                    {patient.kind === "RECALL" ? recallReasonLabel(patient.label) : patient.label} ·{" "}
+                    {dateLabel(patient.dueAt)}
                   </span>
                   <Group gap={4} mt={4}>
-                    {patient.kinds.length > 1 ? patient.kinds.map((reason) => (
-                      <Badge key={reason} size="xs" variant="outline">
-                        {KIND_LABELS[reason]}
-                      </Badge>
-                    )) : null}
+                    {patient.kinds.length > 1
+                      ? patient.kinds.map((reason) => (
+                          <Badge key={reason} size="xs" variant="outline">
+                            {KIND_LABELS[reason]}
+                          </Badge>
+                        ))
+                      : null}
                   </Group>
                 </div>
                 <div className={styles.rowActions}>
@@ -152,9 +174,9 @@ export function RecoveryModule() {
         ) : null}
       </section>
       <Alert color="blue">
-        El plan de acción permite crear tareas internas para recepción y el equipo.
-        Las llamadas realizadas, respuestas del paciente y citas recuperadas necesitan
-        registrarse por separado para disponer de estadísticas fiables.
+        El plan de acción permite crear tareas internas para recepción y el equipo. Las llamadas
+        realizadas, respuestas del paciente y citas recuperadas necesitan registrarse por separado
+        para disponer de estadísticas fiables.
       </Alert>
     </Stack>
   );
