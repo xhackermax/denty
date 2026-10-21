@@ -1667,6 +1667,16 @@
       "kind": "browser"
     },
     {
+      "method": "POST",
+      "path": "/api/supplier-invoices/:id/document",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supplier-invoices/:id/document",
+      "kind": "browser"
+    },
+    {
       "method": "GET",
       "path": "/api/supplier-payments",
       "source": "apps/api/src/modules/laboratory/routes.ts",

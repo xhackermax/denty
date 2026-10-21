@@ -277,6 +277,19 @@ export function createCoreResource(client: ApiClient) {
             supplierInvoiceSchema,
             recordSupplierInvoiceSchema.parse(payload),
           ),
+        attachDocument: (id: string, file: File) => {
+          const form = new FormData();
+          form.set("file", file, file.name);
+          return client.upload(
+            `/api/supplier-invoices/${encodeId(id)}/document`,
+            supplierInvoiceSchema,
+            form,
+          );
+        },
+        downloadDocument: (id: string) =>
+          client.requestBlob(`/api/supplier-invoices/${encodeId(id)}/document`, {
+            headers: { accept: "application/octet-stream" },
+          }),
       },
       supplierPayments: {
         list: () => client.request("/api/supplier-payments", supplierPaymentsSchema),

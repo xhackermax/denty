@@ -80,6 +80,8 @@ interface SupplierInvoiceRow {
   total_cents: number;
   status: string;
   document_path: string | null;
+  document_file_name?: string | null;
+  document_mime_type?: string | null;
   version: number;
   created_at: string;
   updated_at: string;
@@ -213,6 +215,8 @@ const supplierInvoice = (r: SupplierInvoiceRow) => ({
   totalCents: Number(r.total_cents),
   status: r.status,
   documentPath: r.document_path ?? null,
+  documentFileName: r.document_file_name ?? null,
+  documentMimeType: r.document_mime_type ?? null,
   version: r.version,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -564,6 +568,31 @@ export class LaboratoryRepository {
       order: "issued_at.desc",
     });
     return { items: rows.map(supplierInvoice) };
+  }
+
+  async supplierInvoiceRow(id: string) {
+    const rows = await this.client.select<SupplierInvoiceRow>("supplier_invoices", {
+      select: "*",
+      id: `eq.${id}`,
+      clinic_id: `eq.${this.clinicId}`,
+      limit: 1,
+    });
+    return rows[0] ?? null;
+  }
+
+  async attachSupplierInvoiceDocument(
+    id: string,
+    stored: { path: string; mimeType: string },
+    fileName: string,
+  ) {
+    return supplierInvoice(
+      await this.client.rpc<SupplierInvoiceRow>("attach_supplier_invoice_document", {
+        p_supplier_invoice_id: id,
+        p_storage_path: stored.path,
+        p_file_name: fileName,
+        p_mime_type: stored.mimeType,
+      }),
+    );
   }
 
   async recordSupplierPayment(input: SupplierPaymentInput) {
