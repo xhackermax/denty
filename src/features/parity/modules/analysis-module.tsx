@@ -39,6 +39,8 @@ import { dentyQueryKeys } from "@/shared/query";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import styles from "@/shared/ui/parity.module.css";
 
+import { mergeHistoryWithNewPatients } from "./analysis-history";
+
 type AnalysisPeriod = ReportingPeriod | "custom";
 
 const MONTHS = [
@@ -269,6 +271,10 @@ export function AnalysisModule() {
     queryKey: dentyQueryKeys.analytics.treatments(query),
     queryFn: () => getBrowserApi().analytics.treatments(query),
   });
+  const newPatients = useQuery({
+    queryKey: dentyQueryKeys.analytics.newPatients({ start: query.start, end: query.end }),
+    queryFn: () => getBrowserApi().analytics.newPatients({ start: query.start, end: query.end }),
+  });
   const waitTimes = useQuery({
     queryKey: dentyQueryKeys.analytics.waitTimes(query),
     queryFn: () =>
@@ -291,6 +297,16 @@ export function AnalysisModule() {
     queryKey: dentyQueryKeys.analytics.periods(historyScope),
     queryFn: () => getBrowserApi().analytics.periods(historyScope),
   });
+  // Patients have no site, so the registration history is clinic-wide.
+  const newPatientsHistoryScope = { granularity: historyGranularity, limit: 120 };
+  const newPatientsHistory = useQuery({
+    queryKey: dentyQueryKeys.analytics.newPatients(newPatientsHistoryScope),
+    queryFn: () => getBrowserApi().analytics.newPatients(newPatientsHistoryScope),
+  });
+  const historyItems = mergeHistoryWithNewPatients(
+    history.data?.items ?? [],
+    newPatientsHistory.data?.items ?? [],
+  );
 
   const preset = period === "custom" ? null : period;
   const nextAnchor = preset ? shiftAnchor(preset, anchor, 1) : null;
@@ -380,7 +396,7 @@ export function AnalysisModule() {
         </div>
       </section>
 
-      {(summary.isError || treatments.isError || waitTimes.isError) && (
+      {(summary.isError || treatments.isError || waitTimes.isError || newPatients.isError) && (
         <Alert color="red">No se pudo cargar la analítica real.</Alert>
       )}
 
@@ -475,7 +491,11 @@ export function AnalysisModule() {
         </>
       </MotionScrollReveal>
 
-      <SimpleGrid cols={{ base: 2, md: 4 }}>
+      <SimpleGrid cols={{ base: 2, md: 5 }}>
+        <div className={styles.metric}>
+          <span className={styles.metricLabel}>Pacientes nuevos</span>
+          <strong className={styles.metricValue}>{newPatients.data?.count ?? 0}</strong>
+        </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Espera media</span>
           <strong className={styles.metricValue}>
@@ -529,26 +549,22 @@ export function AnalysisModule() {
           />
         </div>
 
-        {history.isError ? (
+        {history.isError || newPatientsHistory.isError ? (
           <Alert color="red" mb="sm">
             No se pudo cargar el histórico.
           </Alert>
         ) : null}
 
         <div className={styles.rowList}>
-          {(history.data?.items ?? []).map((item) => (
-            <div
-              className={styles.row}
-              key={`${historyGranularity}-${item.periodStart ?? "unknown"}`}
-            >
+          {historyItems.map((item) => (
+            <div className={styles.row} key={`${historyGranularity}-${item.periodStart}`}>
               <div className={styles.rowMain}>
                 <span className={styles.rowTitle}>
-                  {item.periodStart
-                    ? historyLabel(historyGranularity, item.periodStart)
-                    : "Periodo"}
+                  {historyLabel(historyGranularity, item.periodStart)}
                 </span>
                 <span className={styles.rowMeta}>
-                  Producción {formatEUR(item.producedCents ?? 0)} · Facturado{" "}
+                  {item.newPatients} pacientes nuevos · Producción{" "}
+                  {formatEUR(item.producedCents ?? 0)} · Facturado{" "}
                   {formatEUR(item.invoicedCents ?? 0)} · Cobrado{" "}
                   {formatEUR(item.collectedCents ?? 0)}
                 </span>
@@ -563,7 +579,7 @@ export function AnalysisModule() {
               </div>
             </div>
           ))}
-          {!history.isLoading && (history.data?.items.length ?? 0) === 0 ? (
+          {!history.isLoading && !newPatientsHistory.isLoading && historyItems.length === 0 ? (
             <Text c="dimmed">Aún no hay datos históricos para mostrar.</Text>
           ) : null}
         </div>
