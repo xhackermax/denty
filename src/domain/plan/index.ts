@@ -240,6 +240,7 @@ export * from "./tradeoff-context.ts";
 export * from "./tradeoff-selection.ts";
 export * from "./tradeoff-library.ts";
 export * from "./treatment-comparison-record.ts";
+export * from "./tradeoff-implications.ts";
 export * from "./tradeoff-catalog/types.ts";
 export {
   TRADEOFF_CATALOG_VERSION,
@@ -250,3 +251,12 @@ export type {
   ScenarioOption,
 } from "./tradeoff-catalog/comparison-scenarios.ts";
 export type { ClinicalGuard, DeferralConsequence } from "./tradeoff-catalog/continuity.ts";
+export {
+  CATALOG_QUALITY_RULES,
+  CLINICAL_SOURCES,
+  type ClinicalSource,
+} from "./tradeoff-catalog/clinical-sources.ts";
+export type {
+  ComparisonCriterion,
+  CriteriaComparison,
+} from "./tradeoff-catalog/criteria-comparisons.ts";

@@ -21,7 +21,6 @@ import {
   buildComparisonContent,
   comparisonConsequences,
   validateComparisonDecision,
-  type ComparisonBudget,
   type ComparisonDecision,
 } from "@/domain/plan";
 import { DentyApiError } from "@/shared/api/errors";
@@ -29,28 +28,11 @@ import type { TreatmentComparisonRecord } from "@/shared/api/schemas/clinical-ar
 import { useDocumentContext } from "@/shared/documents/document-context";
 import { PrintNotice } from "@/shared/print/print-notice";
 
-import { comparisonItemKey } from "./budget-comparison";
+import { comparisonBudget } from "./budget-comparison";
 import type { BudgetView } from "./budget-options";
 import { useSaveComparisonMutation } from "./clinical-arguments-data";
 import { useComparisonPrinter } from "./use-comparison-printer";
 import styles from "./patient-budget-comparison.module.css";
-
-function comparisonBudget(budget: BudgetView): ComparisonBudget {
-  return {
-    id: budget.id,
-    code: budget.code,
-    title: budget.title ?? null,
-    totalCents: budget.totalCents,
-    advantages: budget.branch?.advantages ?? null,
-    disadvantages: budget.branch?.disadvantages ?? null,
-    items: budget.items.map((item) => ({
-      key: comparisonItemKey(item),
-      description: item.description,
-      tooth: item.tooth ?? null,
-      totalCents: item.totalCents,
-    })),
-  };
-}
 
 function errorText(error: unknown): string {
   return error instanceof DentyApiError || error instanceof Error

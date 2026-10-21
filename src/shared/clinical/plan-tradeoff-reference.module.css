@@ -48,3 +48,30 @@
   border-left: 3px solid var(--mantine-color-orange-5);
   padding-left: 10px;
 }
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.criteria {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.criteria th,
+.criteria td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--denty-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.criteria thead th {
+  font-weight: 700;
+}
+
+.criteria tbody th {
+  font-weight: 600;
+  white-space: nowrap;
+}

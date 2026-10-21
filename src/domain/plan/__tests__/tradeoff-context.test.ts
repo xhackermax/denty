@@ -95,6 +95,31 @@ describe("planTradeoffContext", () => {
       deferral: { options: [], consequences: [] },
       guards: [],
       notes: [],
+      criteria: [],
+      sources: [],
     });
+  });
+
+  it("adds the worked comparison of part I when keeping a tooth is weighed against an implant", () => {
+    const context = planTradeoffContext(
+      comparePlanAlternatives(
+        [{ id: "p1", treatmentCode: "ENDODONTICS", label: "Endodoncia", tooth: "36" }],
+        [
+          {
+            id: "b1",
+            title: "Implante",
+            items: [
+              { id: "i1", description: "Extracción", tooth: "36" },
+              { id: "i2", description: "Implante", tooth: "36" },
+            ],
+          },
+        ],
+      ),
+    );
+    expect(context.criteria.map((item) => item.scenarioId)).toContain("S02");
+    expect(context.criteria[0]?.criteria.length).toBeGreaterThan(3);
+    expect(context.sources.map((source) => source.id)).toEqual(
+      expect.arrayContaining(["R01", "R02"]),
+    );
   });
 });

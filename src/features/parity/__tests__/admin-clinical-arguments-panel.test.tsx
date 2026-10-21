@@ -47,6 +47,16 @@ async function openCrown() {
 }
 
 describe("AdminClinicalArgumentsPanel", () => {
+  test("recuerda los criterios de calidad y las fuentes para validar las frases", () => {
+    mount();
+    expect(screen.getByRole("list", { name: "Criterios de calidad" })).toHaveTextContent(
+      "No comparar únicamente precios",
+    );
+    expect(
+      within(screen.getByRole("list", { name: "Fuentes para validar" })).getAllByRole("link"),
+    ).toHaveLength(5);
+  });
+
   test("busca tratamientos y muestra sus frases por tipo", async () => {
     mount();
     const pros = await openCrown();
