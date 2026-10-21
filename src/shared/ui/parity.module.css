@@ -204,6 +204,32 @@
   box-shadow: 0 10px 28px rgb(15 35 55 / 10%);
 }
 
+/* Plan rows use fixed columns so every slot lines up down the list. */
+.planRow {
+  display: grid;
+  grid-template-columns: 28px 2rem minmax(0, 1fr) 7.5rem 6.5rem 10.5rem;
+  justify-content: stretch;
+}
+
+.planRowStatus {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.planRowPrice {
+  text-align: right;
+}
+
+.planRowAction {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.planRow[data-closed] .rowMain,
+.planRow[data-closed] .planRowPrice {
+  opacity: 0.55;
+}
+
 .planSequenceNumber {
   min-width: 1.35rem;
   color: var(--denty-muted);
@@ -564,6 +590,40 @@
   }
 
   .rowActions {
+    justify-content: flex-start;
+  }
+
+  .planRow {
+    grid-template-areas:
+      "handle number main main"
+      ". . status price"
+      ". . action action";
+    grid-template-columns: 28px 2rem 1fr auto;
+    flex-direction: initial;
+  }
+
+  .planRow > :nth-child(1) {
+    grid-area: handle;
+  }
+
+  .planRow > :nth-child(2) {
+    grid-area: number;
+  }
+
+  .planRow > .rowMain {
+    grid-area: main;
+  }
+
+  .planRowStatus {
+    grid-area: status;
+  }
+
+  .planRowPrice {
+    grid-area: price;
+  }
+
+  .planRowAction {
+    grid-area: action;
     justify-content: flex-start;
   }
 
@@ -2061,7 +2121,6 @@ html[data-mantine-color-scheme="dark"] .disclosure {
   border-radius: 10px;
   background: color-mix(in srgb, var(--denty-card-solid) 94%, var(--denty-blue) 6%);
 }
-
 
 /* Analysis: compact time navigation and reusable calendar-like range picker. */
 .analysisPeriodBar {

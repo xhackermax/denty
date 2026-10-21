@@ -83,6 +83,16 @@ function reorderIds(ids: readonly string[], activeId: string, overId: string): s
   return next;
 }
 
+const PLAN_ITEM_STATUS: Readonly<Record<string, { label: string; color: string }>> = {
+  PLANNED: { label: "Planificado", color: "blue" },
+  ACTIVE: { label: "En curso", color: "teal" },
+  DEFERRED: { label: "Aplazado", color: "yellow" },
+  COMPLETED: { label: "Hecho", color: "green" },
+  CANCELLED: { label: "Cancelado", color: "gray" },
+  SUPERSEDED: { label: "Sustituido", color: "gray" },
+};
+const CLOSED_PLAN_STATUSES = new Set(["CANCELLED", "SUPERSEDED"]);
+
 function SortablePlanRow({
   item,
   index,
@@ -108,8 +118,9 @@ function SortablePlanRow({
     <li
       ref={sortable.setNodeRef}
       style={dragStyle}
-      className={`${styles.row} ${styles.draggablePlanRow}`}
+      className={`${styles.row} ${styles.draggablePlanRow} ${styles.planRow}`}
       data-dragging={sortable.isDragging || undefined}
+      data-closed={CLOSED_PLAN_STATUSES.has(item.status) || undefined}
     >
       <DragHandle
         label={`Mover ${item.label}`}
@@ -124,12 +135,19 @@ function SortablePlanRow({
       <div className={styles.rowMain}>
         <span className={styles.rowTitle}>{item.label}</span>
         <span className={styles.rowMeta}>
-          Fase {item.phase} · {item.tooth ?? "General"} · {item.treatmentCode}
+          {item.tooth ? `Diente ${item.tooth}` : "General"} · {item.treatmentCode}
         </span>
       </div>
-      <div className={styles.rowActions}>
-        <Badge variant="light">{item.status}</Badge>
-        {item.priceCents != null ? <Text fw={700}>{formatEUR(item.priceCents)}</Text> : null}
+      {/* Fixed slots keep status, price and lab action aligned even when a row lacks one. */}
+      <span className={styles.planRowStatus}>
+        <Badge variant="light" color={PLAN_ITEM_STATUS[item.status]?.color ?? "blue"}>
+          {PLAN_ITEM_STATUS[item.status]?.label ?? item.status}
+        </Badge>
+      </span>
+      <Text fw={700} className={`${styles.rowAmount} ${styles.planRowPrice}`}>
+        {item.priceCents != null ? formatEUR(item.priceCents) : "—"}
+      </Text>
+      <span className={styles.planRowAction}>
         {requiresLab ? (
           <Button
             component={Link}
@@ -140,7 +158,7 @@ function SortablePlanRow({
             Enviar a laboratorio
           </Button>
         ) : null}
-      </div>
+      </span>
     </li>
   );
 }
@@ -439,7 +457,7 @@ export function ClinicalWorkspace({
                           className={`${styles.rowList} ${styles.sequenceList}`}
                           aria-label="Tratamientos a realizar"
                         >
-                          {phaseItems.map((item) => {
+                          {phaseItems.map((item, phaseIndex) => {
                             const catalogItem = activeCatalog.find(
                               (entry) => entry.id === item.treatmentCatalogId,
                             );
@@ -447,7 +465,7 @@ export function ClinicalWorkspace({
                               <SortablePlanRow
                                 key={item.id}
                                 item={item}
-                                index={sequencedItems.indexOf(item)}
+                                index={phaseIndex}
                                 patientId={patientId}
                                 requiresLab={catalogItem?.requiresLab ?? false}
                                 disabled={reorderPlan.isPending}
