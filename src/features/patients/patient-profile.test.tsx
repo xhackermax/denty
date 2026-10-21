@@ -57,6 +57,11 @@ const workflowQuery = {
   isError: false,
 };
 const navigation = vi.hoisted(() => ({ query: "" }));
+const dossier = vi.hoisted(() => ({
+  print: vi.fn(),
+  printing: false,
+  notice: { error: null as string | null, clear: () => undefined },
+}));
 
 const mutation = {
   mutate: vi.fn(),
@@ -103,6 +108,7 @@ vi.mock("./patient-medical-history", () => ({ PatientMedicalHistory: () => null 
 vi.mock("./patient-clinical-summary", () => ({ PatientClinicalSummary: () => null }));
 vi.mock("./patient-edit-modal", () => ({ PatientEditModal: () => null }));
 vi.mock("./patient-photo-capture", () => ({ PatientPhotoCapture: () => null }));
+vi.mock("./dossier/use-patient-dossier", () => ({ usePatientDossierPrinter: () => dossier }));
 
 import { PatientProfile } from "./patient-profile";
 
@@ -213,5 +219,33 @@ describe("PatientProfile next visit context", () => {
         reason: "Pide cambiar de día",
       }),
     );
+  });
+
+  it("prints the whole patient dossier from a single header button", () => {
+    render(
+      <MantineProvider>
+        <PatientProfile patientId="patient-1" />
+      </MantineProvider>,
+    );
+    const buttons = screen.getAllByRole("button", { name: /dossier/i });
+    expect(buttons).toHaveLength(1);
+    fireEvent.click(buttons[0]!);
+    expect(dossier.print).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "patient-1", firstName: "Lucía" }),
+      [],
+    );
+  });
+
+  it("shows why the dossier could not be printed", () => {
+    dossier.notice.error = "No se pudo abrir el diálogo de impresión.";
+    render(
+      <MantineProvider>
+        <PatientProfile patientId="patient-1" />
+      </MantineProvider>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "No se pudo abrir el diálogo de impresión.",
+    );
+    dossier.notice.error = null;
   });
 });

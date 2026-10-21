@@ -13,11 +13,7 @@ type Context = {
 
 const text = (value: unknown) => (typeof value === "string" && value.trim() ? value : undefined);
 
-/**
- * Prints a consent, authorisation or certificate from its template and the data
- * saved with the document (doctor, treatment, times…).
- */
-export function printClinicalDocument(input: {
+export interface ClinicalDocumentInput {
   title: string;
   templateCode?: string | null | undefined;
   templateBody: string;
@@ -33,7 +29,13 @@ export function printClinicalDocument(input: {
   signatureImageDataUrl?: string | undefined;
   createdAt?: string | undefined;
   reference?: string | undefined;
-}): Promise<void> {
+}
+
+/**
+ * The printable page of a consent, authorisation or certificate, from its template and the data
+ * saved with the document (doctor, treatment, times…).
+ */
+export function buildClinicalDocumentHtml(input: ClinicalDocumentInput): string {
   const data = input.data ?? {};
   const doctor =
     input.context.doctorById(text(data.doctorId)) ??
@@ -74,35 +76,38 @@ export function printClinicalDocument(input: {
       } : {}),
     },
   });
-  return printHtml(
-    buildDocumentPrintHtml({
-      kind: input.templateCode === "ATTENDANCE_CERTIFICATE" ? "certificate" :
-        debt ? "debt" : privacy ? "privacy" : "consent",
-      clinicName: frozen ? text(data.clinica) ?? input.context.clinicName : input.context.clinicName,
-      ...(frozen ? {
-        site: {
-          name: text(data.sede) ?? input.context.site?.name ?? "",
-          address: text(data.direccion_sede) ?? "",
-          city: text(data.ciudad) ?? "",
-        },
-      } : input.context.site ? { site: input.context.site } : {}),
-      title: input.title,
-      body: input.templateBody,
-      values,
-      date,
-      patient: {
-        name: frozen ? text(data.paciente) ?? `${input.patient.firstName} ${input.patient.lastName}`.trim()
-          : `${input.patient.firstName} ${input.patient.lastName}`.trim(),
-        dni: frozen ? text(data.dni) ?? null : input.patient.dni ?? null,
-        recordNumber: input.patient.recordNumber ?? null,
+  return buildDocumentPrintHtml({
+    kind: input.templateCode === "ATTENDANCE_CERTIFICATE" ? "certificate" :
+      debt ? "debt" : privacy ? "privacy" : "consent",
+    clinicName: frozen ? text(data.clinica) ?? input.context.clinicName : input.context.clinicName,
+    ...(frozen ? {
+      site: {
+        name: text(data.sede) ?? input.context.site?.name ?? "",
+        address: text(data.direccion_sede) ?? "",
+        city: text(data.ciudad) ?? "",
       },
-      doctor: {
-        name: frozen ? text(data.doctor) ?? "" : doctor?.displayName ?? "",
-        collegiateNumber: doctor?.collegiateNumber ?? null,
-      },
-      signed: input.signed ?? null,
-      ...(input.signatureImageDataUrl ? { signatureImageDataUrl: input.signatureImageDataUrl } : {}),
-      ...(input.reference ? { reference: input.reference } : {}),
-    }),
-  );
+    } : input.context.site ? { site: input.context.site } : {}),
+    title: input.title,
+    body: input.templateBody,
+    values,
+    date,
+    patient: {
+      name: frozen ? text(data.paciente) ?? `${input.patient.firstName} ${input.patient.lastName}`.trim()
+        : `${input.patient.firstName} ${input.patient.lastName}`.trim(),
+      dni: frozen ? text(data.dni) ?? null : input.patient.dni ?? null,
+      recordNumber: input.patient.recordNumber ?? null,
+    },
+    doctor: {
+      name: frozen ? text(data.doctor) ?? "" : doctor?.displayName ?? "",
+      collegiateNumber: doctor?.collegiateNumber ?? null,
+    },
+    signed: input.signed ?? null,
+    ...(input.signatureImageDataUrl ? { signatureImageDataUrl: input.signatureImageDataUrl } : {}),
+    ...(input.reference ? { reference: input.reference } : {}),
+  });
+}
+
+/** Prints a consent, authorisation or certificate. */
+export function printClinicalDocument(input: ClinicalDocumentInput): Promise<void> {
+  return printHtml(buildClinicalDocumentHtml(input));
 }
