@@ -2231,3 +2231,62 @@ html[data-mantine-color-scheme="dark"] .disclosure {
     justify-content: space-between;
   }
 }
+
+/* Lab work cards: the border colour tells the status at a glance. */
+.labWorkRow {
+  --lab-accent: var(--denty-line);
+  padding: 10px 12px;
+  border: 2px solid var(--lab-accent);
+  border-radius: 12px;
+}
+
+.labWorkRow:last-child {
+  border-bottom: 2px solid var(--lab-accent);
+}
+
+.labWorkRow[data-tone="done"],
+.labLegendItem[data-tone="done"] {
+  --lab-accent: var(--denty-green);
+}
+
+.labWorkRow[data-tone="sent"],
+.labLegendItem[data-tone="sent"] {
+  --lab-accent: var(--denty-blue);
+}
+
+.labWorkRow[data-tone="pending"],
+.labLegendItem[data-tone="pending"] {
+  --lab-accent: var(--denty-amber);
+}
+
+.labWorkRow[data-tone="incident"],
+.labLegendItem[data-tone="incident"] {
+  --lab-accent: var(--denty-danger);
+}
+
+.labWorkRow[data-tone="cancelled"] {
+  opacity: 0.7;
+}
+
+.labLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  color: var(--denty-muted);
+  font-size: 0.74rem;
+}
+
+.labLegendItem {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.labLegendItem::before {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--lab-accent);
+  border-radius: 3px;
+  content: "";
+}
