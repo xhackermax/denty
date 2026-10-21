@@ -11,6 +11,7 @@ import {
   IconDeviceGamepad2,
   IconPencil,
   IconPill,
+  IconPrinter,
   IconReceipt,
   IconRestore,
 } from "@tabler/icons-react";
@@ -37,7 +38,9 @@ import {
   useUploadPatientPhotoMutation,
 } from "@/shared/patients/patient-data";
 import { PatientPipelineNav, PatientPipelineStepper } from "@/shared/patients/patient-pipeline-nav";
+import { PrintNotice } from "@/shared/print/print-notice";
 import { HorizontalSnapNav, PageHeader, PatientAvatar } from "@/shared/ui";
+import { usePatientDossierPrinter } from "./dossier/use-patient-dossier";
 import { PatientMedicalHistory } from "./patient-medical-history";
 import { PatientEditModal } from "./patient-edit-modal";
 import { PatientUpcomingAppointments, upcomingAppointments } from "./patient-upcoming-appointments";
@@ -120,6 +123,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const restorePatientMutation = useRestorePatientMutation();
   const uploadPhotoMutation = useUploadPatientPhotoMutation();
   const cancelAppointmentMutation = useCancelPatientAppointmentMutation(patientId);
+  const dossier = usePatientDossierPrinter(patientId);
   const [now] = useState(() => Date.now());
   const [activeTab, setActiveTab] = useState<string | null>(initialTab);
   const [treatmentFlowOpen, setTreatmentFlowOpen] = useState(false);
@@ -252,6 +256,20 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         description={`Ficha ${recordNumber} · ${phone} · ${email}`}
         actions={
           <Group gap="xs">
+            <Button
+              variant="default"
+              leftSection={<IconPrinter size={16} />}
+              loading={dossier.printing}
+              title={`Imprime en un solo documento el dossier de ${fullName || "este paciente"}`}
+              onClick={() =>
+                void dossier.print(
+                  patient,
+                  medicalItems.map((item) => item.label),
+                )
+              }
+            >
+              Dossier
+            </Button>
             <Menu position="bottom-end" withinPortal>
               <Menu.Target>
                 <Button variant="default" px="sm" aria-label="Más acciones">
@@ -319,6 +337,8 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           </Group>
         }
       />
+
+      <PrintNotice error={dossier.notice.error} onClose={dossier.notice.clear} />
 
       <section className={styles.patientHero}>
         <PatientAvatar name={fullName || "Paciente"} size={58} src={patient.photoUrl} />
