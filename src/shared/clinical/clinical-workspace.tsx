@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { formatEUR } from "@/domain/money";
+import { comparePlanAlternatives } from "@/domain/plan";
 import {
   useAddClinicalPlanItemMutation,
   useDeleteDraftBudgetMutation,
@@ -43,6 +44,8 @@ import type { BudgetView } from "./budget-options";
 import { FinancingCalculator } from "./financing-calculator";
 import { ClinicalPlanBranchBuilder } from "./clinical-plan-branch-builder";
 import { comparableBudgets } from "./budget-comparison";
+import { ClinicalPhaseAccordion } from "./clinical-phase-accordion";
+import { PlanAlternativesBoard } from "./plan-alternatives-board";
 
 type ClinicalWorkspaceMode = "plan" | "budget" | "combined";
 
@@ -208,8 +211,10 @@ export function ClinicalWorkspace({
   const selectedIsSigned = selectedPlanBudget?.status === "SIGNED";
   // Alternative-only catalogue items have no canonical plan item yet. The signature
   // RPC intentionally blocks them until clinically formalized and consented.
-  const selectedNeedsFormalization = Boolean(selectedPlanBudget?.branch &&
-    selectedPlanBudget.items.some((item) => item.clinicalPlanItemId == null));
+  const selectedNeedsFormalization = Boolean(
+    selectedPlanBudget?.branch &&
+    selectedPlanBudget.items.some((item) => item.clinicalPlanItemId == null),
+  );
   const selectedPlanLetter =
     selectedPlanAlternativeId === null
       ? "A"
@@ -239,6 +244,17 @@ export function ClinicalWorkspace({
     const serverIds = serverSequencedItems.map((item) => item.id);
     if (serverIds.join("|") === optimisticOrder.join("|")) setOptimisticOrder(null);
   }, [optimisticOrder, serverSequencedItems]);
+
+  const planComparison = comparePlanAlternatives(
+    sequencedItems,
+    planAlternativeBudgets.map((budget) => ({
+      id: budget.id,
+      title: budget.title,
+      advantages: budget.branch?.advantages,
+      disadvantages: budget.branch?.disadvantages,
+      items: budget.items,
+    })),
+  );
 
   const editedBudgetTotal = openBudget?.items.reduce((sum, item) => {
     if (item.billingMode && item.billingMode !== "separate") return sum;
@@ -393,50 +409,57 @@ export function ClinicalWorkspace({
 
             {selectedNeedsFormalization ? (
               <Alert color="blue" mb="sm">
-                Esta rama contiene tratamientos exclusivos que todavía no pertenecen
-                al plan clínico activo. Puede compararse y presupuestarse, pero no firmarse
-                hasta formalizar dichos tratamientos y sus consentimientos clínicos.
+                Esta rama contiene tratamientos exclusivos que todavía no pertenecen al plan clínico
+                activo. Puede compararse y presupuestarse, pero no firmarse hasta formalizar dichos
+                tratamientos y sus consentimientos clínicos.
               </Alert>
             ) : null}
 
             {sequencedItems.length ? (
-              <ClinicalDragContext
-                keyboardCoordinates={sortableKeyboardCoordinates}
-                onDragStart={(event) => setDragId(String(event.active.id))}
-                onDragCancel={() => setDragId(null)}
-                onDragEnd={(event) => {
-                  const activeId = String(event.active.id);
-                  const overId = event.over ? String(event.over.id) : null;
-                  setDragId(null);
-                  if (overId) applyPlanOrder(activeId, overId);
-                }}
-              >
-                <SortableContext
-                  items={sequencedItems.map((item) => item.id)}
-                  strategy={verticalListSortingStrategy}
+              <div role="region" aria-label="Plan de tratamiento por fases">
+                <ClinicalDragContext
+                  keyboardCoordinates={sortableKeyboardCoordinates}
+                  onDragStart={(event) => setDragId(String(event.active.id))}
+                  onDragCancel={() => setDragId(null)}
+                  onDragEnd={(event) => {
+                    const activeId = String(event.active.id);
+                    const overId = event.over ? String(event.over.id) : null;
+                    setDragId(null);
+                    if (overId) applyPlanOrder(activeId, overId);
+                  }}
                 >
-                  <ol
-                    className={`${styles.rowList} ${styles.sequenceList}`}
-                    aria-label="Tratamientos a realizar"
+                  <SortableContext
+                    items={sequencedItems.map((item) => item.id)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    {sequencedItems.map((item, index) => {
-                      const catalogItem = activeCatalog.find(
-                        (entry) => entry.id === item.treatmentCatalogId,
-                      );
-                      return (
-                        <SortablePlanRow
-                          key={item.id}
-                          item={item}
-                          index={index}
-                          patientId={patientId}
-                          requiresLab={catalogItem?.requiresLab ?? false}
-                          disabled={reorderPlan.isPending}
-                        />
-                      );
-                    })}
-                  </ol>
-                </SortableContext>
-              </ClinicalDragContext>
+                    <ClinicalPhaseAccordion
+                      items={sequencedItems}
+                      renderItems={(phaseItems) => (
+                        <ol
+                          className={`${styles.rowList} ${styles.sequenceList}`}
+                          aria-label="Tratamientos a realizar"
+                        >
+                          {phaseItems.map((item) => {
+                            const catalogItem = activeCatalog.find(
+                              (entry) => entry.id === item.treatmentCatalogId,
+                            );
+                            return (
+                              <SortablePlanRow
+                                key={item.id}
+                                item={item}
+                                index={sequencedItems.indexOf(item)}
+                                patientId={patientId}
+                                requiresLab={catalogItem?.requiresLab ?? false}
+                                disabled={reorderPlan.isPending}
+                              />
+                            );
+                          })}
+                        </ol>
+                      )}
+                    />
+                  </SortableContext>
+                </ClinicalDragContext>
+              </div>
             ) : !plan.isLoading ? (
               <Text c="dimmed">Todavía no hay tratamientos en el plan.</Text>
             ) : null}
@@ -458,8 +481,8 @@ export function ClinicalWorkspace({
               <div>
                 <h3 className={styles.sectionTitle}>Opciones del plan</h3>
                 <p className={styles.sectionDescription}>
-                  Plan A es el plan base. Ramifica tratamientos conservando pasos comunes
-                  y añade intervenciones exclusivas al Plan B, C u otras opciones.
+                  Compara los planes a la vez: qué se hace siempre, qué cambia en cada uno y sus
+                  ventajas y desventajas. Ramifica para añadir el Plan B, C…
                 </p>
               </div>
               <Button
@@ -471,63 +494,14 @@ export function ClinicalWorkspace({
                 Ramificar · Plan {String.fromCharCode(66 + planAlternativeBudgets.length)}
               </Button>
             </div>
-            <div className={styles.rowList}>
-              <div className={styles.row}>
-                <div className={styles.rowMain}>
-                  <span className={styles.rowTitle}>Plan A · Plan completo</span>
-                  <span className={styles.rowMeta}>
-                    {sequencedItems.length} tratamientos · secuencia clínica completa
-                  </span>
-                </div>
-                <Group gap="xs">
-                  {selectedPlanAlternativeId === null ? (
-                    <Badge color="teal">Elegido</Badge>
-                  ) : (
-                    <Badge color="teal" variant="light">
-                      Base
-                    </Badge>
-                  )}
-                  <Button
-                    size="xs"
-                    variant={selectedPlanAlternativeId === null ? "filled" : "light"}
-                    color="teal"
-                    onClick={() => setSelectedPlanAlternativeId(null)}
-                  >
-                    Elegir Plan A
-                  </Button>
-                </Group>
-              </div>
-              {planAlternativeBudgets.map((budget, index) => (
-                <div className={styles.row} key={budget.id}>
-                  <div className={styles.rowMain}>
-                    <span className={styles.rowTitle}>
-                      Plan {String.fromCharCode(66 + index)} · {budget.title || "Alternativa"}
-                    </span>
-                    <span className={styles.rowMeta}>
-                      {budget.items.map((item) => item.description).join(" · ") ||
-                        "Sin tratamientos"}
-                    </span>
-                  </div>
-                  <Group gap="xs">
-                    {budget.status === "SIGNED" ? (
-                      <Badge color="green">Firmado</Badge>
-                    ) : selectedPlanAlternativeId === budget.id ? (
-                      <Badge color="teal">Elegido</Badge>
-                    ) : (
-                      <Badge variant="light">{budget.items.length} tratamientos</Badge>
-                    )}
-                    <Button
-                      size="xs"
-                      variant={selectedPlanAlternativeId === budget.id ? "filled" : "light"}
-                      color="teal"
-                      onClick={() => setSelectedPlanAlternativeId(budget.id)}
-                    >
-                      Elegir Plan {String.fromCharCode(66 + index)}
-                    </Button>
-                  </Group>
-                </div>
-              ))}
-            </div>
+            <PlanAlternativesBoard
+              comparison={planComparison}
+              selectedLetter={selectedPlanLetter}
+              signedAlternativeIds={planAlternativeBudgets
+                .filter((budget) => budget.status === "SIGNED")
+                .map((budget) => budget.id)}
+              onSelect={setSelectedPlanAlternativeId}
+            />
           </section>
 
           {alternativeOpen ? (
@@ -657,17 +631,21 @@ export function ClinicalWorkspace({
                 const canManage = budget.status === "DRAFT" && budget.version !== undefined;
                 return (
                   <div className={styles.row} key={budget.id}>
-                    {compareSelectMode && comparisonCandidates.some((option) => option.id === budget.id) ? (
+                    {compareSelectMode &&
+                    comparisonCandidates.some((option) => option.id === budget.id) ? (
                       <Checkbox
                         aria-label={`Seleccionar presupuesto ${budget.title || budget.code}`}
                         checked={comparisonIds.includes(budget.id)}
                         disabled={!comparisonIds.includes(budget.id) && comparisonIds.length >= 8}
                         onChange={(event) => {
                           const checked = event.currentTarget.checked;
-                          setComparisonIds((current) => checked
-                            ? (current.includes(budget.id) || current.length >= 8
-                              ? current : [...current, budget.id])
-                            : current.filter((id) => id !== budget.id));
+                          setComparisonIds((current) =>
+                            checked
+                              ? current.includes(budget.id) || current.length >= 8
+                                ? current
+                                : [...current, budget.id]
+                              : current.filter((id) => id !== budget.id),
+                          );
                         }}
                       />
                     ) : null}
@@ -722,9 +700,7 @@ export function ClinicalWorkspace({
         </section>
       ) : null}
 
-      {showBudget && budgets.length > 0 ? (
-        <FinancingCalculator budgets={budgets} />
-      ) : null}
+      {showBudget && budgets.length > 0 ? <FinancingCalculator budgets={budgets} /> : null}
 
       {showBudget ? (
         <>

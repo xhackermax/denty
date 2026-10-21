@@ -232,3 +232,6 @@ export function suggestKennedyClass(missingTeeth: readonly string[]): KennedyCla
   if (crossesAnteriorMidline) return "IV";
   return "III";
 }
+
+export * from "./clinical-phase-groups.ts";
+export * from "./plan-alternatives-comparison.ts";

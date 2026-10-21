@@ -198,19 +198,31 @@ function renderWorkspace() {
   );
 }
 
+function expandPlanPhases() {
+  const sequence = screen.getByRole("region", { name: "Plan de tratamiento por fases" });
+  for (const control of within(sequence).getAllByRole("button", { name: /^Fase / })) {
+    fireEvent.click(control);
+  }
+}
+
 describe("patient budget history", () => {
-  it("renames the workspace around budgets and treatment plan sequencing", () => {
+  it("renames the workspace around budgets and treatment plan sequencing", async () => {
     renderWorkspace();
 
     expect(screen.getAllByText("Presupuestos y plan de tratamiento").length).toBeGreaterThan(0);
-    expect(screen.getByRole("list", { name: "Tratamientos a realizar" })).toBeInTheDocument();
+    expandPlanPhases();
+    expect(
+      (await screen.findAllByRole("list", { name: "Tratamientos a realizar" })).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByRole("region", { name: "Presupuestos" })).toBeInTheDocument();
   });
 
-  it("uses direct drag handles instead of subir y bajar controls", () => {
+  it("uses direct drag handles instead of subir y bajar controls", async () => {
     renderWorkspace();
-    const sequence = screen.getByRole("list", { name: "Tratamientos a realizar" });
-    const rows = within(sequence).getAllByRole("listitem");
+    expandPlanPhases();
+    const rows = (await screen.findAllByRole("list", { name: "Tratamientos a realizar" })).flatMap(
+      (list) => within(list).getAllByRole("listitem"),
+    );
     expect(within(rows[0]!).getByText("1")).toBeInTheDocument();
     expect(within(rows[0]!).getByText("Obturación")).toBeInTheDocument();
     expect(within(rows[1]!).getByText("2")).toBeInTheDocument();
@@ -227,7 +239,9 @@ describe("patient budget history", () => {
         <ClinicalWorkspace patientId="patient-1" mode="plan" />
       </MantineProvider>,
     );
-    expect(screen.getByRole("list", { name: "Tratamientos a realizar" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Plan de tratamiento por fases" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Presupuestos" })).not.toBeInTheDocument();
 
     rerender(
@@ -235,7 +249,9 @@ describe("patient budget history", () => {
         <ClinicalWorkspace patientId="patient-1" mode="budget" />
       </MantineProvider>,
     );
-    expect(screen.queryByRole("list", { name: "Tratamientos a realizar" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Plan de tratamiento por fases" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Presupuestos" })).toBeInTheDocument();
   });
 
@@ -254,9 +270,7 @@ describe("patient budget history", () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Elegir Plan B" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continuar con Plan B a consentimientos" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Continuar con Plan B a consentimientos" }));
     expect(openFlow).toHaveBeenCalledWith("draft-1");
   });
 
@@ -282,15 +296,18 @@ describe("patient budget history", () => {
   it("selects several real budgets and opens a separate comparison page", () => {
     renderWorkspace();
     fireEvent.click(screen.getByRole("button", { name: "Seleccionar y comparar" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Seleccionar presupuesto Conservar el diente" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Seleccionar presupuesto Conservar el diente" }),
+    );
     fireEvent.click(screen.getByRole("checkbox", { name: "Seleccionar presupuesto Implante" }));
     const link = screen.getByRole("link", { name: "Comparar 2 en página aparte" });
     expect(link).toHaveAttribute(
       "href",
       "/app/patients/patient-1/budgets/compare?ids=draft-1,draft-2",
     );
-    expect(screen.queryByRole("dialog", { name: "Comparar opciones de tratamiento" }))
-      .not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Comparar opciones de tratamiento" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens a real treatment branch editor with steps copied from Plan A", async () => {
@@ -301,19 +318,23 @@ describe("patient budget history", () => {
     fireEvent.change(within(dialog).getByRole("textbox", { name: /Nombre del nuevo plan/ }), {
       target: { value: "Tratamiento periodontal común + prótesis" },
     });
-    fireEvent.click(within(dialog).getByRole("checkbox", { name: /Fase 1 · Diente 46 · Obturación/ }));
+    fireEvent.click(
+      within(dialog).getByRole("checkbox", { name: /Fase 1 · Diente 46 · Obturación/ }),
+    );
     fireEvent.change(within(dialog).getByLabelText("Ventajas de esta alternativa"), {
       target: { value: "Permite una opción removible después del tratamiento periodontal." },
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Crear rama y presupuesto" }));
-    await waitFor(() => expect(mocks.createAlternative).toHaveBeenCalledWith({
-      expectedPlanVersion: 1,
-      title: "Tratamiento periodontal común + prótesis",
-      sharedPlanItemIds: ["plan-a"],
-      exclusiveTreatments: [],
-      advantages: "Permite una opción removible después del tratamiento periodontal.",
-      disadvantages: "",
-    }));
+    await waitFor(() =>
+      expect(mocks.createAlternative).toHaveBeenCalledWith({
+        expectedPlanVersion: 1,
+        title: "Tratamiento periodontal común + prótesis",
+        sharedPlanItemIds: ["plan-a"],
+        exclusiveTreatments: [],
+        advantages: "Permite una opción removible después del tratamiento periodontal.",
+        disadvantages: "",
+      }),
+    );
   });
 
   it("saves draft edits with the expected version and updated line items", async () => {
@@ -359,5 +380,16 @@ describe("patient budget history", () => {
         expectedVersion: 2,
       }),
     );
+  });
+
+  it("folds the plan into clinical phases, collapsed by default", () => {
+    renderWorkspace();
+    const sequence = screen.getByRole("region", { name: "Plan de tratamiento por fases" });
+    const conservative = within(sequence).getByRole("button", { name: /Fase conservadora/ });
+    const prosthetic = within(sequence).getByRole("button", { name: /Fase prostodóncica/ });
+    expect(conservative).toHaveAttribute("aria-expanded", "false");
+    expect(prosthetic).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(prosthetic);
+    expect(prosthetic).toHaveAttribute("aria-expanded", "true");
   });
 });

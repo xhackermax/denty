@@ -1,0 +1,132 @@
+.board {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Plans sit side by side like a split screen; on narrow screens they swipe horizontally. */
+.columns {
+  display: grid;
+  grid-auto-columns: minmax(260px, 1fr);
+  grid-auto-flow: column;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
+}
+
+.column {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  scroll-snap-align: start;
+  border: 1px solid var(--denty-line);
+  border-radius: 16px;
+  background: var(--denty-card-solid);
+  padding: 12px;
+}
+
+.column[data-selected] {
+  border-color: var(--mantine-color-teal-6);
+}
+
+.dentigram {
+  width: 100%;
+  height: auto;
+}
+
+.tooth {
+  fill: var(--denty-card-solid);
+  stroke: var(--denty-line);
+}
+
+.toothLabel {
+  fill: var(--denty-muted);
+  font-size: 8px;
+  font-weight: 700;
+}
+
+[data-phase="periodontal"] .tooth {
+  fill: var(--mantine-color-pink-2);
+}
+
+[data-phase="surgical"] .tooth {
+  fill: var(--mantine-color-red-3);
+}
+
+[data-phase="conservative"] .tooth {
+  fill: var(--mantine-color-blue-2);
+}
+
+[data-phase="prosthetic"] .tooth {
+  fill: var(--mantine-color-yellow-3);
+}
+
+[data-phase="orthodontic"] .tooth {
+  fill: var(--mantine-color-violet-2);
+}
+
+[data-phase="maintenance"] .tooth,
+[data-phase="other"] .tooth {
+  fill: var(--mantine-color-teal-2);
+}
+
+[data-phase]:not([data-phase="none"]) .toothLabel {
+  fill: var(--mantine-color-dark-7);
+}
+
+.treatments {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 0.875rem;
+}
+
+.differences {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.panel {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  border: 1px solid var(--denty-line);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.alternative {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--denty-line);
+  padding-top: 8px;
+}
+
+.prosCons {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 8px;
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+}
+
+.prosCons dt {
+  font-weight: 700;
+}
+
+.prosCons dd {
+  margin: 0;
+}
+
+@media (width <= 760px) {
+  .columns {
+    grid-auto-columns: 86%;
+  }
+
+  .differences {
+    grid-template-columns: 1fr;
+  }
+}

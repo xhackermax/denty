@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { AdminTreatmentCatalogPanel } from "./admin-treatment-catalog-panel";
 const api = vi.hoisted(() => ({ update: vi.fn(), create: vi.fn(), requiresLab: false }));
@@ -120,6 +120,9 @@ test("enabling the requirement exposes the patient's linked laboratory action af
     </QueryClientProvider>,
   );
   fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+  // The plan folds treatments into collapsed clinical phases; open the crown's phase.
+  const sequence = await screen.findByRole("region", { name: "Plan de tratamiento por fases" });
+  fireEvent.click(within(sequence).getByRole("button", { name: /Fase prostodóncica/ }));
   expect(screen.queryByRole("link", { name: "Enviar a laboratorio" })).toBeNull();
   fireEvent.click(screen.getByRole("switch", { name: "Requiere laboratorio CROWN" }));
   fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
