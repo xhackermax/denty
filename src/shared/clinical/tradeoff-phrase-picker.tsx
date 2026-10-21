@@ -4,10 +4,12 @@ import { Accordion, Alert, Badge, Checkbox, Group, Stack, Text } from "@mantine/
 import { useMemo } from "react";
 
 import {
+  applyArgumentOverrides,
   clinicalGuards,
   hasPhrase,
   togglePhrase,
   tradeoffEntriesForPlan,
+  type ArgumentOverride,
   type TradeoffClassifiable,
   type TreatmentArgument,
 } from "@/domain/plan";
@@ -46,9 +48,12 @@ function PhraseChecks({
   );
 }
 
+const NO_OVERRIDES: readonly ArgumentOverride[] = [];
+
 /**
- * Lets the dentist tick catalog phrases for the treatments that make this plan different.
- * Ticks only edit the free text below, which stays the single record of what was explained.
+ * Lets the dentist tick catalog phrases for the treatments that make this plan different, in
+ * the clinic's own wording. Ticks only edit the free text below, which stays the single record
+ * of what was explained.
  */
 export function TradeoffPhrasePicker({
   treatments,
@@ -56,14 +61,20 @@ export function TradeoffPhrasePicker({
   disadvantages,
   onAdvantagesChange,
   onDisadvantagesChange,
+  overrides = NO_OVERRIDES,
 }: {
   treatments: readonly TradeoffClassifiable[];
   advantages: string;
   disadvantages: string;
   onAdvantagesChange: (text: string) => void;
   onDisadvantagesChange: (text: string) => void;
+  overrides?: readonly ArgumentOverride[];
 }) {
-  const entries = useMemo(() => tradeoffEntriesForPlan(treatments), [treatments]);
+  const entries = useMemo(
+    () =>
+      tradeoffEntriesForPlan(treatments).map((entry) => applyArgumentOverrides(entry, overrides)),
+    [treatments, overrides],
+  );
   const guards = useMemo(() => (entries.length ? clinicalGuards(entries) : []), [entries]);
   if (!entries.length) return null;
   return (

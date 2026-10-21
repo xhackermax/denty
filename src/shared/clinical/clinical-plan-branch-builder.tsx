@@ -15,6 +15,7 @@ import {
 } from "@mantine/core";
 import { useMemo, useState } from "react";
 import { formatEUR } from "@/domain/money";
+import { useArgumentOverrides } from "./clinical-arguments-data";
 import { useCreateClinicalPlanBranchMutation } from "./clinical-data";
 import styles from "./clinical-plan-branch-builder.module.css";
 import { TradeoffPhrasePicker } from "./tradeoff-phrase-picker";
@@ -59,6 +60,7 @@ export function ClinicalPlanBranchBuilder({
   onCreated?: (budgetId: string) => void;
 }) {
   const create = useCreateClinicalPlanBranchMutation(patientId);
+  const argumentOverrides = useArgumentOverrides();
   const [title, setTitle] = useState("");
   const [sharedIds, setSharedIds] = useState<string[]>([]);
   const [catalogId, setCatalogId] = useState<string | null>(null);
@@ -217,6 +219,7 @@ export function ClinicalPlanBranchBuilder({
             disadvantages={disadvantages}
             onAdvantagesChange={setAdvantages}
             onDisadvantagesChange={setDisadvantages}
+            overrides={argumentOverrides}
           />
           <Textarea
             label="Ventajas de esta alternativa"

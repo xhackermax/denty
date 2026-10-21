@@ -9,6 +9,7 @@ import { AdminUsersPanel } from "./admin-users-panel";
 import { AdminPaymentTerminalsPanel } from "./admin-payment-terminals-panel";
 import { AdminSitesPanel } from "./admin-sites-panel";
 import { AdminTreatmentCatalogPanel } from "./admin-treatment-catalog-panel";
+import { AdminClinicalArgumentsPanel } from "./admin-clinical-arguments-panel";
 import { AdminLaboratoriesPanel } from "./admin-laboratories-panel";
 import { AdminCommunicationsPanel } from "./admin-communications-panel";
 
@@ -19,6 +20,7 @@ export function AdminPage({
     | "home"
     | "users"
     | "catalog"
+    | "clinical-arguments"
     | "laboratories"
     | "sites"
     | "payments"
@@ -43,7 +45,9 @@ export function AdminPage({
                       ? "Laboratorios"
                       : section === "export"
                         ? "Exportar datos"
-                        : "Catálogo"
+                        : section === "clinical-arguments"
+                          ? "Ventajas y desventajas"
+                          : "Catálogo"
         }
         description="Usuarios, sedes y configuración."
       />
@@ -71,6 +75,12 @@ export function AdminPage({
             <span className={styles.cardLinkTitle}>Catálogo clínico</span>
             <span className={styles.cardLinkDescription}>Tratamientos, costes y precios</span>
           </Link>
+          <Link className={styles.cardLink} href="/app/admin/clinical-arguments">
+            <span className={styles.cardLinkTitle}>Ventajas y desventajas</span>
+            <span className={styles.cardLinkDescription}>
+              Frases que se explican al paciente al comparar planes
+            </span>
+          </Link>
           <Link className={styles.cardLink} href="/app/admin/laboratories">
             <span className={styles.cardLinkTitle}>Laboratorios</span>
             <span className={styles.cardLinkDescription}>
@@ -91,6 +101,7 @@ export function AdminPage({
       ) : null}
       {section === "users" ? <AdminUsersPanel /> : null}
       {section === "catalog" ? <AdminTreatmentCatalogPanel /> : null}
+      {section === "clinical-arguments" ? <AdminClinicalArgumentsPanel /> : null}
       {section === "laboratories" ? <AdminLaboratoriesPanel /> : null}
       {section === "sites" ? <AdminSitesPanel /> : null}
       {section === "payments" ? <AdminPaymentTerminalsPanel /> : null}

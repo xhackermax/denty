@@ -1,5 +1,9 @@
 import { handlePerioDraftsRoute } from "./perio-drafts-route";
 import { handleDiagnosesRoute } from "./diagnoses-route";
+import {
+  handleClinicalArgumentsRoute,
+  isClinicalArgumentsRoute,
+} from "./clinical-arguments-route";
 import { handleNavigationRoute } from "./navigation-route";
 import { handleNextSlotsRoute } from "./next-slots-route";
 import { ExportRepository } from "./export-repository";
@@ -626,6 +630,8 @@ export async function handleSupabaseDentyRoute(
     const identity = await resolveRequestIdentity(request);
     if (!identity) return error(401, "UNAUTHENTICATED", "No hay sesión activa.");
     const headers = responseHeadersForIdentity(request, identity);
+    if (isClinicalArgumentsRoute(parts))
+      return await handleClinicalArgumentsRoute(request, parts, identity, headers);
     const repo = patientRepository(identity);
     const clinical = clinicalRepository(identity);
     const agenda = agendaRepository(identity);
