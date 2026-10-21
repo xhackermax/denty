@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { formatEUR } from "@/domain/money";
 import { usePatientBudgetsQuery } from "./clinical-data";
-import { comparableBudgets, compareBudgetTreatments } from "./budget-comparison";
+import { budgetImplications, implicationLines } from "@/domain/plan";
+import { comparableBudgets, comparisonBudget, compareBudgetTreatments } from "./budget-comparison";
 import type { BudgetView } from "./budget-options";
 import styles from "./patient-budget-comparison.module.css";
 import { TreatmentComparisonDecision } from "./treatment-comparison-decision";
@@ -117,6 +118,14 @@ export function PatientBudgetComparisonPage({
                       <section className={styles.columnSection}>
                         <Title order={4}>Tratamientos propios</Title>
                         <TreatmentRows items={result.uniqueByBudget[budget.id] ?? []} />
+                      </section>
+                      <section className={styles.columnSection} aria-label={`Qué implica ${title(budget)}`}>
+                        <Title order={4}>Qué implica</Title>
+                        <ul className={styles.implications}>
+                          {implicationLines(budgetImplications(comparisonBudget(budget))).map((line) => (
+                            <li key={line}>{line}</li>
+                          ))}
+                        </ul>
                       </section>
                       <section className={styles.columnSection}>
                         <Title order={4}>Ventajas</Title>

@@ -31,6 +31,15 @@
 .amount { color: var(--denty-teal); font-variant-numeric: tabular-nums; }
 .columnSection { display: grid; align-content: start; gap: 12px; padding: 20px; border-bottom: 1px solid var(--denty-line); }
 .columnSection h4 { font-size: .94rem; }
+
+.implications {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.87rem;
+}
+
 .clinicalNote { white-space: pre-wrap; overflow-wrap: anywhere; }
 .columnFooter { margin-top: auto; padding: 18px 20px; }
 @media print {

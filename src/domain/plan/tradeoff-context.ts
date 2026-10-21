@@ -10,6 +10,11 @@ import {
   type ClinicalGuard,
   type DeferralConsequence,
 } from "./tradeoff-catalog/continuity.ts";
+import { CLINICAL_SOURCES, type ClinicalSource } from "./tradeoff-catalog/clinical-sources.ts";
+import {
+  CRITERIA_COMPARISONS,
+  type CriteriaComparison,
+} from "./tradeoff-catalog/criteria-comparisons.ts";
 import { TRADEOFF_SPECIALTIES } from "./tradeoff-catalog/treatment-matrix.ts";
 import type { TradeoffEntry, TradeoffSpecialty } from "./tradeoff-catalog/types.ts";
 import type { PlanAlternativesComparison } from "./plan-alternatives-comparison.ts";
@@ -78,11 +83,29 @@ export function specialtyNotes(entries: readonly TradeoffEntry[]): TradeoffSpeci
   );
 }
 
+/** Worked aspect-by-aspect comparisons (part I) for the scenarios that apply. */
+export function criteriaComparisons(
+  scenarios: readonly ComparisonScenario[],
+): CriteriaComparison[] {
+  const ids = new Set(scenarios.map((scenario) => scenario.id));
+  return CRITERIA_COMPARISONS.filter((item) => ids.has(item.scenarioId));
+}
+
+/** Guidelines behind the specialties involved, for the dentist to check the wording against. */
+export function clinicalSources(entries: readonly TradeoffEntry[]): ClinicalSource[] {
+  const involved = new Set(entries.map((entry) => entry.specialty));
+  return CLINICAL_SOURCES.filter((source) =>
+    source.specialties.some((specialty) => involved.has(specialty)),
+  );
+}
+
 export interface PlanTradeoffContext {
   scenarios: ComparisonScenario[];
   deferral: DeferralAdvice;
   guards: ClinicalGuard[];
   notes: TradeoffSpecialty[];
+  criteria: CriteriaComparison[];
+  sources: ClinicalSource[];
 }
 
 /**
@@ -92,10 +115,15 @@ export interface PlanTradeoffContext {
 export function planTradeoffContext(comparison: PlanAlternativesComparison): PlanTradeoffContext {
   const rowsOf = (items: readonly TradeoffClassifiable[]) => items.flatMap(tradeoffEntriesFor);
   const everything = rowsOf(comparison.columns.flatMap((column) => column.treatments));
+  const scenarios = matchingScenarios(
+    comparison.alternatives.map((plan) => rowsOf(plan.exclusive)),
+  );
   return {
-    scenarios: matchingScenarios(comparison.alternatives.map((plan) => rowsOf(plan.exclusive))),
+    scenarios,
     deferral: deferralAdvice(everything),
     guards: everything.length ? clinicalGuards(everything) : [],
     notes: specialtyNotes(everything),
+    criteria: criteriaComparisons(scenarios),
+    sources: clinicalSources(everything),
   };
 }

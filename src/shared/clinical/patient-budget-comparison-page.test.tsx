@@ -62,6 +62,10 @@ describe("full-page multi-budget comparison", () => {
     expect(columns[1]).toHaveTextContent("Prótesis removible");
     expect(columns[1]).toHaveTextContent("Evita cirugía implantológica");
     expect(columns[1]).toHaveTextContent("Mantenimiento removible");
+    expect(within(columns[0]!).getByRole("region", { name: "Qué implica Periodoncia + implantes" }))
+      .toHaveTextContent("Incluye cirugía");
+    expect(within(columns[1]!).getByRole("region", { name: "Qué implica Periodoncia + removible" }))
+      .not.toHaveTextContent("Incluye cirugía");
     expect(screen.queryByRole("checkbox", { name: /Fase de saneamiento/ })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Decisión del paciente" })).toHaveTextContent(
       "implants,removable",

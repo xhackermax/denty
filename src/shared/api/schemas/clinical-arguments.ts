@@ -71,6 +71,14 @@ export const treatmentComparisonContentSchema = z.object({
         treatments: z.array(treatmentLineSchema).max(200),
         advantages: z.array(z.string().min(1).max(500)).max(60),
         disadvantages: z.array(z.string().min(1).max(500)).max(60),
+        implications: z
+          .object({
+            procedures: z.number().int().nonnegative(),
+            surgery: z.boolean(),
+            irreversible: z.boolean(),
+            maintenance: z.array(z.string().min(1).max(300)).max(10),
+          })
+          .optional(),
       }),
     )
     .min(2)

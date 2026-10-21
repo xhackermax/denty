@@ -4,6 +4,8 @@ import { Text } from "@mantine/core";
 
 import {
   TRADEOFF_CATALOG_VERSION,
+  type ComparisonScenario,
+  type CriteriaComparison,
   type PlanTradeoffContext,
   type TradeoffEntry,
 } from "@/domain/plan";
@@ -33,13 +35,63 @@ function PhraseList({ entry }: { entry: TradeoffEntry }) {
   );
 }
 
+function CriteriaTable({
+  comparison,
+  scenario,
+}: {
+  comparison: CriteriaComparison;
+  scenario: ComparisonScenario | undefined;
+}) {
+  const [first, second] = scenario?.options ?? [];
+  return (
+    <div className={styles.option}>
+      <Text size="xs" c="dimmed">
+        Supone: {comparison.assumption}
+      </Text>
+      <div className={styles.tableScroll}>
+        <table
+          className={styles.criteria}
+          aria-label={`Comparación detallada · ${scenario?.title ?? ""}`}
+        >
+          <thead>
+            <tr>
+              <th scope="col">Aspecto</th>
+              <th scope="col">{first?.label ?? "Opción A"}</th>
+              <th scope="col">{second?.label ?? "Opción B"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparison.criteria.map((row) => (
+              <tr key={row.aspect}>
+                <th scope="row">{row.aspect}</th>
+                <td>{row.values[0]}</td>
+                <td>{row.values[1]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {comparison.patientMessage ? (
+        <Text size="sm">
+          <strong>Para el paciente:</strong> «{comparison.patientMessage}»
+        </Text>
+      ) : null}
+      {comparison.caveat ? (
+        <Text size="xs" c="dimmed">
+          <strong>Matiz:</strong> {comparison.caveat}
+        </Text>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Chairside reference from the clinical catalog, folded by default so the comparison stays
  * short: what happens if the patient postpones, which reference scenario applies, and the
  * cautions the dentist checks before explaining.
  */
 export function PlanTradeoffReference({ context }: { context: PlanTradeoffContext }) {
-  const { scenarios, deferral, guards, notes } = context;
+  const { scenarios, deferral, guards, notes, criteria, sources } = context;
   const postponing = deferral.options.length + deferral.consequences.length;
   if (!postponing && !scenarios.length && !guards.length) return null;
   return (
@@ -85,6 +137,20 @@ export function PlanTradeoffReference({ context }: { context: PlanTradeoffContex
             </ul>
           </section>
         ) : null}
+        {criteria.length ? (
+          <section aria-label="Comparación detallada">
+            <Text fw={800} size="sm">
+              Comparación detallada
+            </Text>
+            {criteria.map((item) => (
+              <CriteriaTable
+                key={item.scenarioId}
+                comparison={item}
+                scenario={scenarios.find((scenario) => scenario.id === item.scenarioId)}
+              />
+            ))}
+          </section>
+        ) : null}
         {guards.length ? (
           <section aria-label="Avisos clínicos" className={styles.guards}>
             <Text fw={800} size="sm">
@@ -100,6 +166,23 @@ export function PlanTradeoffReference({ context }: { context: PlanTradeoffContex
               {notes.flatMap((specialty) =>
                 specialty.notes.map((note) => <li key={`${specialty.id}-${note}`}>{note}</li>),
               )}
+            </ul>
+          </section>
+        ) : null}
+        {sources.length ? (
+          <section aria-label="Fuentes clínicas">
+            <Text fw={800} size="sm">
+              Fuentes para validar
+            </Text>
+            <ul className={styles.list}>
+              {sources.map((source) => (
+                <li key={source.id}>
+                  <a href={source.url} target="_blank" rel="noreferrer">
+                    {source.organisation}
+                  </a>
+                  . {source.citation}
+                </li>
+              ))}
             </ul>
           </section>
         ) : null}

@@ -1,5 +1,5 @@
 import { formatEUR } from "@/domain/money";
-import { decisionSummary, type ComparisonTreatmentLine } from "@/domain/plan";
+import { decisionSummary, implicationLines, type ComparisonTreatmentLine } from "@/domain/plan";
 import type { TreatmentComparisonRecord } from "@/shared/api/schemas/clinical-arguments";
 
 import { escapeHtml } from "./document-print";
@@ -39,6 +39,7 @@ export function buildTreatmentComparisonPrintHtml(
       (option) => `<section class="option${option.id === record.chosenOptionId ? " chosen" : ""}">
   <h2>${escapeHtml(`${option.label} · ${option.title}`)}</h2>
   <p class="total">${escapeHtml(formatEUR(option.totalCents))}</p>
+  ${option.implications ? `<p class="implications">${implicationLines(option.implications).map(escapeHtml).join(" · ")}</p>` : ""}
   ${option.treatments.length ? treatments(option.treatments) : '<p class="muted">Solo los tratamientos comunes.</p>'}
   <div class="columns">${list(option.advantages, "Ventajas")}${list(option.disadvantages, "Desventajas y limitaciones")}</div>
 </section>`,
@@ -67,6 +68,7 @@ export function buildTreatmentComparisonPrintHtml(
   .option { break-inside: avoid; border: 1px solid #e5e5ea; border-radius: 8pt; padding: 4pt 12pt 8pt; margin-top: 10pt; }
   .option.chosen { border-color: #0f766e; border-width: 2px; }
   .total { font-weight: 700; font-size: 13pt; margin: 0; }
+  .implications { color: #424245; font-size: 11pt; margin: 2pt 0 0; }
   .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12pt; }
   .treatments { list-style: none; padding: 0; }
   .treatments li { display: flex; justify-content: space-between; gap: 12pt; }

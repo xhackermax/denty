@@ -1,11 +1,15 @@
+import type { ComparisonBudget } from "@/domain/plan";
+
 import type { BudgetView } from "./budget-options";
 
 /** Only complete proposals, not complementary phase-1/phase-2 invoices, compete. */
 export function comparableBudgets(budgets: readonly BudgetView[]): BudgetView[] {
-  return budgets.filter((budget) =>
-    ["DRAFT", "SIGNED"].includes(budget.status) &&
-    budget.scope !== "primary" && budget.scope !== "secondary" &&
-    budget.items.length > 0,
+  return budgets.filter(
+    (budget) =>
+      ["DRAFT", "SIGNED"].includes(budget.status) &&
+      budget.scope !== "primary" &&
+      budget.scope !== "secondary" &&
+      budget.items.length > 0,
   );
 }
 
@@ -32,9 +36,29 @@ export function compareBudgetTreatments(budgets: readonly BudgetView[]) {
   return {
     sharedKeys,
     shared: budgets[0]?.items.filter((item) => sharedKeys.has(comparisonItemKey(item))) ?? [],
-    uniqueByBudget: Object.fromEntries(budgets.map((budget) => [
-      budget.id,
-      budget.items.filter((item) => !sharedKeys.has(comparisonItemKey(item))),
-    ])),
+    uniqueByBudget: Object.fromEntries(
+      budgets.map((budget) => [
+        budget.id,
+        budget.items.filter((item) => !sharedKeys.has(comparisonItemKey(item))),
+      ]),
+    ),
+  };
+}
+
+/** The budget as the clinical comparison sees it: its lines and the branch pros and cons. */
+export function comparisonBudget(budget: BudgetView): ComparisonBudget {
+  return {
+    id: budget.id,
+    code: budget.code,
+    title: budget.title ?? null,
+    totalCents: budget.totalCents,
+    advantages: budget.branch?.advantages ?? null,
+    disadvantages: budget.branch?.disadvantages ?? null,
+    items: budget.items.map((item) => ({
+      key: comparisonItemKey(item),
+      description: item.description,
+      tooth: item.tooth ?? null,
+      totalCents: item.totalCents,
+    })),
   };
 }

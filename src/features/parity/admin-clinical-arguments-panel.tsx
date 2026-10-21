@@ -16,6 +16,8 @@ import { IconArrowDown, IconArrowUp, IconEye, IconEyeOff } from "@tabler/icons-r
 import { useMemo, useState } from "react";
 
 import {
+  CATALOG_QUALITY_RULES,
+  CLINICAL_SOURCES,
   TRADEOFF_CATALOG_VERSION,
   TRADEOFF_ENTRIES,
   TRADEOFF_SPECIALTIES,
@@ -366,6 +368,24 @@ export function AdminClinicalArgumentsPanel() {
         Frases de ventajas y desventajas que el odontólogo puede marcar al comparar planes.
         Plantilla clínica v{TRADEOFF_CATALOG_VERSION}, pendiente de revisión profesional.
       </Text>
+      <details className={styles.rules}>
+        <summary>Criterios de calidad y fuentes</summary>
+        <ul aria-label="Criterios de calidad">
+          {CATALOG_QUALITY_RULES.map((rule) => (
+            <li key={rule}>{rule}</li>
+          ))}
+        </ul>
+        <ul aria-label="Fuentes para validar">
+          {CLINICAL_SOURCES.map((source) => (
+            <li key={source.id}>
+              <a href={source.url} target="_blank" rel="noreferrer">
+                {source.organisation}
+              </a>
+              . {source.citation}
+            </li>
+          ))}
+        </ul>
+      </details>
       {query.isError ? (
         <Alert color="red">No se pudieron cargar los cambios de la clínica.</Alert>
       ) : null}

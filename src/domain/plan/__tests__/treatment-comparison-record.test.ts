@@ -68,8 +68,14 @@ describe("buildComparisonContent", () => {
         ],
         advantages: ["Conserva tu diente natural.", "Evita dejar un espacio."],
         disadvantages: ["Puede reinfectarse."],
+        implications: expect.objectContaining({ procedures: 3, surgery: false }),
       },
-      expect.objectContaining({ id: "budget-implant", label: "Opción 2", title: "P-2" }),
+      expect.objectContaining({
+        id: "budget-implant",
+        label: "Opción 2",
+        title: "P-2",
+        implications: expect.objectContaining({ surgery: true, irreversible: true }),
+      }),
     ]);
     expect(content.consequences).toHaveLength(1);
   });

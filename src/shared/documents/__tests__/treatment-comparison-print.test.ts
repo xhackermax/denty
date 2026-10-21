@@ -25,6 +25,7 @@ const record: TreatmentComparisonRecord = {
         totalCents: 84_000,
         treatments: [{ description: "Endodoncia", tooth: "36", totalCents: 34_000 }],
         advantages: ["Conserva tu diente natural."],
+        implications: { procedures: 2, surgery: false, irreversible: true, maintenance: [] },
         disadvantages: ["Puede producirse una reinfección."],
       },
       {
@@ -77,6 +78,9 @@ describe("buildTreatmentComparisonPrintHtml", () => {
     expect(html).toMatch(/840,00\s€/);
     expect(html.match(/Limpieza dental/g)).toHaveLength(1);
     expect(html).toContain("Diente 36 · Endodoncia");
+    expect(html).toContain("2 procedimientos · Incluye pasos irreversibles");
+    // Comparisons saved before implications existed still print.
+    expect(html.match(/class="implications"/g)).toHaveLength(1);
   });
 
   test("recoge la decisión, la nota y las consecuencias explicadas", () => {

@@ -11,3 +11,17 @@
   margin: 0;
   padding-left: 18px;
 }
+
+.rules {
+  font-size: 0.8125rem;
+}
+
+.rules > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.rules ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}

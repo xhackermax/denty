@@ -1,4 +1,5 @@
 import { deferralAdvice } from "./tradeoff-context.ts";
+import { optionImplications, type OptionImplications } from "./tradeoff-implications.ts";
 import { tradeoffEntriesFor } from "./treatment-tradeoffs.ts";
 import type { TradeoffEntry } from "./tradeoff-catalog/types.ts";
 
@@ -40,6 +41,8 @@ export interface ComparisonOptionSnapshot {
   treatments: ComparisonTreatmentLine[];
   advantages: string[];
   disadvantages: string[];
+  /** What the option involves besides its price; absent in comparisons saved before it existed. */
+  implications?: OptionImplications | undefined;
 }
 
 export interface ComparisonConsequenceSnapshot {
@@ -85,6 +88,13 @@ const line = ({ description, tooth, totalCents }: ComparisonTreatmentLine) => ({
   totalCents,
 });
 
+/** Implications of the whole option, common steps included: the patient goes through all of them. */
+export function budgetImplications(budget: ComparisonBudget): OptionImplications {
+  return optionImplications(
+    budget.items.map((item) => ({ treatmentCode: "", label: item.description, tooth: item.tooth })),
+  );
+}
+
 export function buildComparisonContent(
   budgets: readonly ComparisonBudget[],
   sharedKeys: ReadonlySet<string>,
@@ -100,6 +110,7 @@ export function buildComparisonContent(
       treatments: budget.items.filter((item) => !sharedKeys.has(item.key)).map(line),
       advantages: textPhrases(budget.advantages),
       disadvantages: textPhrases(budget.disadvantages),
+      implications: budgetImplications(budget),
     })),
     common: (budgets[0]?.items ?? []).filter((item) => sharedKeys.has(item.key)).map(line),
     consequences: consequences.map(({ id, decision, consequence }) => ({
