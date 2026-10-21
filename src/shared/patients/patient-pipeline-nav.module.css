@@ -1,0 +1,68 @@
+.frame {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.step {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--denty-line);
+  border-radius: 14px;
+  background: var(--denty-card-solid);
+  color: var(--denty-text);
+  padding: 0 12px;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+}
+
+.step[data-active="true"] {
+  border-color: var(--mantine-color-blue-6);
+  background: var(--mantine-color-blue-light);
+  color: var(--mantine-color-blue-light-color);
+}
+
+.stepIndex {
+  color: var(--denty-muted);
+  font-size: 0.75rem;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* El "siguiente" se queda en la esquina derecha aunque no haya "anterior". */
+.next {
+  margin-left: auto;
+}
+
+@media (width <= 760px) {
+  .steps {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .step {
+    flex: 0 0 auto;
+  }
+
+  .stepper {
+    position: sticky;
+    bottom: 12px;
+    z-index: 5;
+  }
+}

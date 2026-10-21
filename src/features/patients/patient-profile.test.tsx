@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { MantineProvider } from "@mantine/core";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const patientQuery = {
@@ -30,6 +30,7 @@ const projectionQuery = {
         status: "CONFIRMED",
         reason: "Operatoria",
         title: "Cita clínica",
+        version: 2,
       },
     ],
     budgets: [],
@@ -75,6 +76,7 @@ vi.mock("@/shared/patients/patient-data", () => ({
   useArchivePatientMutation: () => mutation,
   useRestorePatientMutation: () => mutation,
   useUploadPatientPhotoMutation: () => mutation,
+  useCancelPatientAppointmentMutation: () => mutation,
 }));
 
 vi.mock("@/shared/clinical/clinical-data", () => ({
@@ -89,7 +91,9 @@ vi.mock("@/shared/clinical/clinical-pipeline-card", () => ({
 vi.mock("@/shared/clinical/clinical-sync-card", () => ({ ClinicalSyncCard: () => null }));
 vi.mock("@/shared/clinical/clinical-workspace", () => ({
   ClinicalWorkspace: ({ mode }: { mode?: string }) => (
-    <div>{mode === "plan" ? "PLAN-STAGE" : mode === "budget" ? "BUDGET-STAGE" : "CLINICAL-STAGE"}</div>
+    <div>
+      {mode === "plan" ? "PLAN-STAGE" : mode === "budget" ? "BUDGET-STAGE" : "CLINICAL-STAGE"}
+    </div>
   ),
 }));
 vi.mock("@/shared/clinical/treatment-flow", () => ({
@@ -120,9 +124,6 @@ describe("PatientProfile next visit context", () => {
       <MantineProvider>
         <PatientProfile patientId="patient-1" />
       </MantineProvider>,
-    );
-    expect(screen.getByRole("link", { name: /Seguimiento clínico/ })).toHaveAttribute(
-      "href", "/app/patients/patient-1?view=clinical",
     );
     expect(screen.queryByTestId("patient-clinical-pipeline")).not.toBeInTheDocument();
     unmount();
@@ -177,6 +178,40 @@ describe("PatientProfile next visit context", () => {
 
     expect(screen.getByText("Previsto para hoy")).toBeInTheDocument();
     expect(screen.getByText("Reconstrucción 36 y valorar endodoncia.")).toBeInTheDocument();
-    expect(screen.getByText("05/10/2026 · 10:30")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "05/10/2026 · 10:30" })).toBeInTheDocument();
+  });
+
+  it("links each pipeline stage once, without duplicated shortcuts", () => {
+    render(
+      <MantineProvider>
+        <PatientProfile patientId="patient-1" />
+      </MantineProvider>,
+    );
+    expect(screen.getAllByRole("link", { name: /Odontograma/ })).toHaveLength(1);
+    expect(screen.getAllByRole("link", { name: /Presupuesto/ })).toHaveLength(1);
+    expect(screen.queryByRole("tab", { name: "Plan" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Presupuestos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Documentos" })).not.toBeInTheDocument();
+  });
+
+  it("cancels an upcoming appointment from the next-visit tile", async () => {
+    mutation.mutateAsync.mockResolvedValue(undefined);
+    render(
+      <MantineProvider>
+        <PatientProfile patientId="patient-1" />
+      </MantineProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar cita del 05/10/2026 · 10:30" }));
+    fireEvent.change(screen.getByLabelText("Motivo de cancelación"), {
+      target: { value: "Pide cambiar de día" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar cancelación" }));
+    await vi.waitFor(() =>
+      expect(mutation.mutateAsync).toHaveBeenCalledWith({
+        id: "appointment-today",
+        expectedVersion: 2,
+        reason: "Pide cambiar de día",
+      }),
+    );
   });
 });

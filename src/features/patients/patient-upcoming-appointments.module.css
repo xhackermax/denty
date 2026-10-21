@@ -1,0 +1,30 @@
+.list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  border-top: 1px solid var(--denty-line);
+  padding-top: 6px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.copy {
+  display: grid;
+  min-width: 0;
+}
+
+.confirm {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}

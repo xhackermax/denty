@@ -109,3 +109,17 @@ export function useRestorePatientMutation() {
     },
   });
 }
+
+export function useCancelPatientAppointmentMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: string; expectedVersion: number; reason: string }) =>
+      getBrowserApi().appointments.cancel(input.id, input.expectedVersion, input.reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: dentyQueryKeys.patients.projection(patientId),
+      });
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.appointments.root });
+    },
+  });
+}
