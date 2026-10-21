@@ -5,12 +5,18 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { TradeoffClassifiable } from "@/domain/plan";
+import { tradeoffEntry, type ArgumentOverride, type TradeoffClassifiable } from "@/domain/plan";
 import { TradeoffPhrasePicker } from "../tradeoff-phrase-picker";
 
 afterEach(cleanup);
 
-function Harness({ treatments }: { treatments: TradeoffClassifiable[] }) {
+function Harness({
+  treatments,
+  overrides,
+}: {
+  treatments: TradeoffClassifiable[];
+  overrides?: ArgumentOverride[];
+}) {
   const [advantages, setAdvantages] = useState("Valorado en consulta.");
   const [disadvantages, setDisadvantages] = useState("");
   return (
@@ -21,6 +27,7 @@ function Harness({ treatments }: { treatments: TradeoffClassifiable[] }) {
         disadvantages={disadvantages}
         onAdvantagesChange={setAdvantages}
         onDisadvantagesChange={setDisadvantages}
+        {...(overrides ? { overrides } : {})}
       />
       <output aria-label="Ventajas escritas">{advantages}</output>
       <output aria-label="Desventajas escritas">{disadvantages}</output>
@@ -31,6 +38,32 @@ function Harness({ treatments }: { treatments: TradeoffClassifiable[] }) {
 const implant = [{ treatmentCode: "IMPLANT", label: "Implante", tooth: "36" }];
 
 describe("TradeoffPhrasePicker", () => {
+  it("uses the clinic's wording and leaves out the phrases it hid", () => {
+    const [first, second] = tradeoffEntry("b.implante-unitario")!.advantages;
+    const base = { entryId: "b.implante-unitario", kind: "advantage" as const, position: null };
+    render(
+      <Harness
+        treatments={implant}
+        overrides={[
+          {
+            ...base,
+            phraseId: first!.id,
+            text: "Diente fijo sin tocar los vecinos.",
+            hidden: false,
+            custom: false,
+          },
+          { ...base, phraseId: second!.id, text: null, hidden: true, custom: false },
+        ]}
+      />,
+    );
+    const pros = screen.getByRole("group", { name: "Ventajas · Implante unitario" });
+    expect(
+      within(pros).getByRole("checkbox", { name: "Diente fijo sin tocar los vecinos." }),
+    ).toBeInTheDocument();
+    expect(within(pros).queryByRole("checkbox", { name: first!.text })).toBeNull();
+    expect(within(pros).queryByRole("checkbox", { name: second!.text })).toBeNull();
+  });
+
   it("adds and removes a ticked phrase in the plan's free text", () => {
     render(<Harness treatments={implant} />);
     const pros = screen.getByRole("group", { name: "Ventajas · Implante unitario" });

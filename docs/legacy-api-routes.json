@@ -1211,6 +1211,42 @@
       "kind": "browser"
     },
     {
+      "method": "GET",
+      "path": "/api/admin/clinical-arguments",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/clinical-arguments",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clinical-arguments/restore",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/clinical-arguments/history",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:id/treatment-comparisons",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/treatment-comparisons",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
       "method": "POST",
       "path": "/api/patients/:id/patient-photo",
       "source": "src/server/denty-supabase/route-handler.ts",

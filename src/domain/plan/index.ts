@@ -238,6 +238,8 @@ export * from "./plan-alternatives-comparison.ts";
 export * from "./treatment-tradeoffs.ts";
 export * from "./tradeoff-context.ts";
 export * from "./tradeoff-selection.ts";
+export * from "./tradeoff-library.ts";
+export * from "./treatment-comparison-record.ts";
 export * from "./tradeoff-catalog/types.ts";
 export {
   TRADEOFF_CATALOG_VERSION,

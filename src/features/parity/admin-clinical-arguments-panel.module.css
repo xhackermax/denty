@@ -1,0 +1,13 @@
+.grow {
+  flex: 1;
+}
+
+.search {
+  flex: 1;
+  min-width: 200px;
+}
+
+.history {
+  margin: 0;
+  padding-left: 18px;
+}
