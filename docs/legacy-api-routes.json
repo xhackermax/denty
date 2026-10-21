@@ -439,6 +439,13 @@
     },
     {
       "method": "GET",
+      "path": "/api/analytics/new-patients",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser",
+      "note": "Pacientes nuevos por fecha de alta, agrupados por periodo sobre Supabase."
+    },
+    {
+      "method": "GET",
       "path": "/api/analytics/profitability",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
