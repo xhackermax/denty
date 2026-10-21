@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   createAlternative: vi.fn(),
 }));
 
+// The branch editor reads the clinic's phrase changes; the template is enough here.
+vi.mock("../clinical-arguments-data", () => ({ useArgumentOverrides: () => [] }));
+
 vi.mock("../clinical-data", () => ({
   useClinicalWorkflowQuery: () => ({ data: {}, isError: false }),
   useClinicalPlanQuery: () => ({

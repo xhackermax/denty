@@ -77,7 +77,7 @@ export const dentyQueryKeys = {
   },
   quality: {
     root: root("quality"),
-    incidents: [ "denty", "quality", "incidents" ] as const,
+    incidents: ["denty", "quality", "incidents"] as const,
   },
   analytics: {
     root: root("analytics"),
@@ -110,6 +110,13 @@ export const dentyQueryKeys = {
     root: root("treatment-catalog"),
     all: ["denty", "treatment-catalog", "list"] as const,
     detail: (treatmentId: string) => ["denty", "treatment-catalog", "detail", treatmentId] as const,
+  },
+  clinicalArguments: {
+    root: root("clinical-arguments"),
+    overrides: ["denty", "clinical-arguments", "overrides"] as const,
+    history: (entryId: string) => ["denty", "clinical-arguments", "history", entryId] as const,
+    comparisons: (patientId: string) =>
+      ["denty", "clinical-arguments", "comparisons", patientId] as const,
   },
 
   security: {

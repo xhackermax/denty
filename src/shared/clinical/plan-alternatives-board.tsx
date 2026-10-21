@@ -2,9 +2,14 @@
 
 import { Badge, Button, Group, Text } from "@mantine/core";
 
-import type { ComparedTreatment, PlanAlternativesComparison } from "@/domain/plan";
+import {
+  planTradeoffContext,
+  type ComparedTreatment,
+  type PlanAlternativesComparison,
+} from "@/domain/plan";
 import { ClinicalPhaseAccordion } from "./clinical-phase-accordion";
 import { PlanDentigram } from "./plan-dentigram";
+import { PlanTradeoffReference } from "./plan-tradeoff-reference";
 import styles from "./plan-alternatives-board.module.css";
 
 function treatmentText(item: ComparedTreatment): string {
@@ -179,6 +184,8 @@ export function PlanAlternativesBoard({
           )}
         </div>
       </div>
+
+      <PlanTradeoffReference context={planTradeoffContext(comparison)} />
     </section>
   );
 }

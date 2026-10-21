@@ -236,3 +236,17 @@ export function suggestKennedyClass(missingTeeth: readonly string[]): KennedyCla
 export * from "./clinical-phase-groups.ts";
 export * from "./plan-alternatives-comparison.ts";
 export * from "./treatment-tradeoffs.ts";
+export * from "./tradeoff-context.ts";
+export * from "./tradeoff-selection.ts";
+export * from "./tradeoff-library.ts";
+export * from "./treatment-comparison-record.ts";
+export * from "./tradeoff-catalog/types.ts";
+export {
+  TRADEOFF_CATALOG_VERSION,
+  TRADEOFF_SPECIALTIES,
+} from "./tradeoff-catalog/treatment-matrix.ts";
+export type {
+  ComparisonScenario,
+  ScenarioOption,
+} from "./tradeoff-catalog/comparison-scenarios.ts";
+export type { ClinicalGuard, DeferralConsequence } from "./tradeoff-catalog/continuity.ts";

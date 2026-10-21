@@ -36,6 +36,14 @@ vi.mock("./clinical-data", () => ({
     ] },
   }),
 }));
+vi.mock("./treatment-comparison-decision", () => ({
+  TreatmentComparisonDecision: ({ budgets }: { budgets: Array<{ id: string }> }) => (
+    <section aria-label="Decisión del paciente">{budgets.map((budget) => budget.id).join(",")}</section>
+  ),
+}));
+vi.mock("./treatment-comparison-history", () => ({
+  TreatmentComparisonHistory: () => <section aria-label="Comparaciones guardadas" />,
+}));
 import { PatientBudgetComparisonPage } from "./patient-budget-comparison-page";
 afterEach(cleanup);
 
@@ -55,11 +63,17 @@ describe("full-page multi-budget comparison", () => {
     expect(columns[1]).toHaveTextContent("Evita cirugía implantológica");
     expect(columns[1]).toHaveTextContent("Mantenimiento removible");
     expect(screen.queryByRole("checkbox", { name: /Fase de saneamiento/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Decisión del paciente" })).toHaveTextContent(
+      "implants,removable",
+    );
+    expect(screen.getByRole("region", { name: "Comparaciones guardadas" })).toBeInTheDocument();
   });
   it("requires two distinct checked proposals to render columns", () => {
     render(<MantineProvider><PatientBudgetComparisonPage
       patientId="patient-1" initialSelectedIds={["implants"]}/></MantineProvider>);
     expect(screen.getByText(/Selecciona al menos dos presupuestos/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Decisión del paciente" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Comparaciones guardadas" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: /Periodoncia \+ removible/ }));
     expect(within(screen.getByRole("region", { name: "Comparación de presupuestos por columnas" }))
       .getAllByRole("article")).toHaveLength(2);

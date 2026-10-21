@@ -91,7 +91,7 @@ describe("PlanAlternativesBoard", () => {
     expect(screen.queryByText("Sin indicar")).toBeNull();
     const planA = screen.getByRole("group", { name: "Ventajas del Plan A" });
     expect(planA).toHaveTextContent("Sugerido");
-    expect(planA).toHaveTextContent("Reposición fija que no desgasta los dientes vecinos");
+    expect(planA).toHaveTextContent("No requiere tallar los dientes vecinos.");
     const written = screen.getByRole("group", { name: "Ventajas del Plan B" });
     expect(written).toHaveTextContent("Sin cirugía de implante");
     expect(written).not.toHaveTextContent("Sugerido");

@@ -8,6 +8,8 @@ import { usePatientBudgetsQuery } from "./clinical-data";
 import { comparableBudgets, compareBudgetTreatments } from "./budget-comparison";
 import type { BudgetView } from "./budget-options";
 import styles from "./patient-budget-comparison.module.css";
+import { TreatmentComparisonDecision } from "./treatment-comparison-decision";
+import { TreatmentComparisonHistory } from "./treatment-comparison-history";
 
 function title(budget: BudgetView) {
   return budget.title?.trim() || budget.code;
@@ -143,8 +145,15 @@ export function PatientBudgetComparisonPage({
                 No se deducen automáticamente del precio. La indicación definitiva,
                 los consentimientos y la aceptación se revisan individualmente.
               </Text>
+              <TreatmentComparisonDecision
+                key={selected.map((budget) => budget.id).join("|")}
+                patientId={patientId}
+                budgets={selected}
+                sharedKeys={result.sharedKeys}
+              />
             </>
           )}
+          <TreatmentComparisonHistory patientId={patientId} />
         </>
       ) : null}
     </main>
