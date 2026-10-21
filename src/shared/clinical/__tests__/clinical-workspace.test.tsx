@@ -225,7 +225,8 @@ describe("patient budget history", () => {
     );
     expect(within(rows[0]!).getByText("1")).toBeInTheDocument();
     expect(within(rows[0]!).getByText("Obturación")).toBeInTheDocument();
-    expect(within(rows[1]!).getByText("2")).toBeInTheDocument();
+    // Each phase numbers its own steps, so the crown is step 1 of the prosthetic phase.
+    expect(within(rows[1]!).getByText("1")).toBeInTheDocument();
     expect(within(rows[1]!).getByText("Corona")).toBeInTheDocument();
     expect(within(rows[0]!).getByRole("button", { name: "Mover Obturación" })).toBeInTheDocument();
     expect(within(rows[1]!).getByRole("button", { name: "Mover Corona" })).toBeInTheDocument();
@@ -391,5 +392,17 @@ describe("patient budget history", () => {
     expect(prosthetic).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(prosthetic);
     expect(prosthetic).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("shows each plan row with readable status and tooth, without the old phase number", async () => {
+    renderWorkspace();
+    expandPlanPhases();
+    const rows = (await screen.findAllByRole("list", { name: "Tratamientos a realizar" })).flatMap(
+      (list) => within(list).getAllByRole("listitem"),
+    );
+    expect(within(rows[0]!).getByText("Planificado")).toBeInTheDocument();
+    expect(within(rows[0]!).getByText("Diente 46 · FILLING")).toBeInTheDocument();
+    expect(within(rows[0]!).queryByText(/Fase 1/)).not.toBeInTheDocument();
+    expect(within(rows[0]!).queryByText("PLANNED")).not.toBeInTheDocument();
   });
 });
