@@ -8,24 +8,12 @@ import { useMemo, useState } from "react";
 
 import { addDaysMadrid, dateYMDMadrid, madridLocalDateTime, todayMadrid, toMadridISO } from "@/domain/dates";
 import { formatEUR } from "@/domain/money";
+import { specialtyLabel } from "@/domain/treatment-specialty";
 import { dentyQueryKeys } from "@/shared/query";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import { PageHeader } from "@/shared/ui";
 import { qualityApi } from "./quality-api";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  RESTORATION: "Obturaciones",
-  ENDODONTICS: "Endodoncias",
-  ORTHODONTICS: "Ortodoncia",
-  IMPLANTOLOGY: "Implantes",
-  IMPLANT: "Implantes",
-  SURGERY: "Cirugía",
-  PERIODONTICS: "Periodoncia",
-  PREVENTION: "Prevención / limpiezas",
-  PROSTHESIS: "Prótesis",
-  PROSTHODONTICS: "Prótesis",
-};
-const nameOf = (category: string) => CATEGORY_LABELS[category] ?? category.replaceAll("_", " ");
+import { sumSpecialtyCounts, TreatmentSpecialtyCharts } from "./treatment-specialty-charts";
 
 export function DoctorAnalysisPage() {
   const today = todayMadrid();
@@ -69,12 +57,13 @@ export function DoctorAnalysisPage() {
   const all = query.data?.items ?? [];
   const shown = doctorId ? all.filter(d => d.doctorId === doctorId) : all;
   const visits = shown.reduce((sum, doctor) => sum + doctor.completedVisits, 0);
-  const executed = shown.reduce((sum, doctor) => sum + doctor.recordedExecutions, 0);
+  const executed = Object.values(sumSpecialtyCounts(shown))
+    .reduce((sum, count) => sum + (count ?? 0), 0);
   const incidents = shown.reduce((sum, doctor) => sum + doctor.reportedIncidents, 0);
 
   return <Stack gap="lg">
     <PageHeader title="Análisis por doctores"
-      description="Actividad clínica verificada, incidencias, implantes y fichajes por profesional." />
+      description="Tratamientos realizados por especialidad, incidencias, implantes y fichajes por profesional." />
     <Group gap="sm" wrap="wrap">
       <Button component={Link} href="/app/analysis" variant="light"
         leftSection={<IconArrowLeft size={16}/>}>Volver a Análisis</Button>
@@ -107,10 +96,11 @@ export function DoctorAnalysisPage() {
       </Alert>
       <SimpleGrid cols={{base:2,md:4}}>
         <section><Text size="xs" c="dimmed">Citas terminadas</Text><Text size="xl" fw={800}>{visits}</Text></section>
-        <section><Text size="xs" c="dimmed">Tratamientos ejecutados</Text><Text size="xl" fw={800}>{executed}</Text></section>
+        <section><Text size="xs" c="dimmed">Tratamientos realizados</Text><Text size="xl" fw={800}>{executed}</Text></section>
         <section><Text size="xs" c="dimmed">Incidencias registradas</Text><Text size="xl" fw={800}>{incidents}</Text></section>
         <section><Text size="xs" c="dimmed">Doctores</Text><Text size="xl" fw={800}>{shown.length}</Text></section>
       </SimpleGrid>
+      <TreatmentSpecialtyCharts doctors={shown} />
       {!shown.length ? <Alert color="gray">No hay doctores disponibles para los filtros seleccionados.</Alert> :
         <ScrollArea>
           <Table striped highlightOnHover verticalSpacing="md" aria-label="Resultados por doctor">
@@ -125,10 +115,10 @@ export function DoctorAnalysisPage() {
                 {d.recordedExecutions} ejecuciones confirmadas</Text></Table.Td>
               <Table.Td>{d.completedVisits}</Table.Td>
               <Table.Td>{d.uniquePatients}</Table.Td>
-              <Table.Td>{Object.entries(d.treatmentCounts).length ?
-                Object.entries(d.treatmentCounts).sort((a,b)=>b[1]-a[1])
-                  .map(([cat,count])=><Text key={cat} size="sm">{nameOf(cat)}: {count}</Text>)
-                : <Text size="xs" c="dimmed">Sin ejecuciones registradas</Text>}</Table.Td>
+              <Table.Td>{Object.entries(d.specialtyCounts).length ?
+                Object.entries(d.specialtyCounts).sort((a,b)=>(b[1] ?? 0)-(a[1] ?? 0))
+                  .map(([key,count])=><Text key={key} size="sm">{specialtyLabel(key)}: {count}</Text>)
+                : <Text size="xs" c="dimmed">Sin tratamientos realizados</Text>}</Table.Td>
               <Table.Td>{d.averageTicketCents === null ?
                 <Text c="dimmed" size="sm">No disponible</Text> : formatEUR(d.averageTicketCents)}
                 <Text size="xs" c="dimmed">Cobertura:

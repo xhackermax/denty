@@ -144,3 +144,43 @@ describe("doctor analytics period and clinic scope", () => {
     expect(result.items[0]?.completedVisits).toBe(1);
   });
 });
+
+describe("treatments by specialty", () => {
+  const start = "2026-10-09T00:00:00+02:00";
+  const end = "2026-10-10T00:00:00+02:00";
+  const withExecution = (execution: Row, planItems: () => Promise<Row[]>) => {
+    const tables: Record<string, Row[]> = {
+      ...rows, clinical_treatment_executions: [execution], implant_placement_outcomes: [],
+    };
+    const selectAll = vi.fn(async (table: string, _query: Record<string, string> = {}) =>
+      table === "clinical_plan_items" ? planItems() : tables[table] ?? []);
+    return {
+      selectAll,
+      client: { select: vi.fn(async (table: string) => tables[table] ?? []), selectAll } as
+        unknown as SupabaseRestClient,
+    };
+  };
+  const unclassified = {
+    id:"e9",appointment_id:"a1",clinical_plan_item_id:"plan9",doctor_id:"dr1",patient_id:"p1",
+    treatment_code:"ADHOC",treatment_category:"UNSPECIFIED",tooth_position:"16",
+    attributed_revenue_cents:null,executed_at:"2026-10-09T09:30:00+02:00",
+  };
+
+  it("uses the plan item name when the frozen category is missing", async () => {
+    const { client, selectAll } = withExecution(unclassified, async () => [
+      { id:"plan9", label:"Tratamiento", label_snapshot:"Raspado y alisado", specialty_snapshot:"UNSPECIFIED" },
+    ]);
+    const result = await new QualityRepository(client, "clinic1").scorecards(start, end);
+    expect(result.items[0]?.specialtyCounts).toEqual({ periodontics:1 });
+    const planQuery = selectAll.mock.calls.find(([table]) => table === "clinical_plan_items");
+    expect(planQuery?.[1]).toMatchObject({ clinic_id:"eq.clinic1", id:"in.(plan9)" });
+  });
+
+  it("still returns the analysis when plan items cannot be read", async () => {
+    const { client } = withExecution(unclassified, async () => {
+      throw new Error("permission denied");
+    });
+    const result = await new QualityRepository(client, "clinic1").scorecards(start, end);
+    expect(result.items[0]?.specialtyCounts).toEqual({ other:1 });
+  });
+});

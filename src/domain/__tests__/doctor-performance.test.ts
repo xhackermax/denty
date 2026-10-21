@@ -2,6 +2,27 @@ import { describe, expect, it } from "vitest";
 import { doctorScorecard } from "../doctor-performance";
 
 describe("doctor production source-of-truth", () => {
+  it("groups every completed treatment by specialty without double counting implants", () => {
+    const execution = (treatmentCategory: string, extra: Record<string, string> = {}) => ({
+      doctorId:"dr1", patientId:"p1", appointmentId:"a1", treatmentCategory,
+      attributedRevenueCents:null, ...extra,
+    });
+    const score = doctorScorecard("dr1", [
+      execution("PERIODONTICS"), execution("PERIODONTICS"), execution("SURGERY"),
+      execution("ORTHODONTICS"), execution("RESTORATION", { tooth:"85" }),
+      execution("IMPLANTOLOGY", { tooth:"36" }),
+      execution("IMPLANTOLOGY", { tooth:"46" }),
+    ], [], [], [
+      { doctorId:"dr1", outcome:"PLACED", appointmentId:"a1", toothPosition:"36" },
+      { doctorId:"dr1", outcome:"PLACED", appointmentId:"a9", toothPosition:"11" },
+      { doctorId:"dr1", outcome:"FAILED", failureKind:"PLACEMENT_ATTEMPT" },
+    ]);
+    expect(score.specialtyCounts).toEqual({
+      periodontics:2, surgery:1, orthodontics:1, pediatrics:1, implants:3,
+    });
+  });
+
+
   it("counts performed procedures and excludes unfinished visits", () => {
     const score = doctorScorecard("dr1", [
       { doctorId:"dr1", patientId:"p1", appointmentId:"a1",
@@ -25,6 +46,7 @@ describe("doctor production source-of-truth", () => {
     expect(score).toMatchObject({
       completedVisits:2, uniquePatients:1, recordedExecutions:2,
       treatmentCounts:{ENDODONTICS:1,RESTORATION:1},
+      specialtyCounts:{endodontics:1,conservative:1,implants:1},
       attributedRevenueCents:25000, attributedRevenueCoverage:0.5,
       averageTicketCents:25000, reportedIncidents:1,
       repeatedTreatmentIncidents:1,placedImplants:1,

@@ -1,4 +1,5 @@
 import type { implantOutcomePayload } from "@/domain/implant-placement-outcome";
+import type { TreatmentSpecialty } from "@/domain/treatment-specialty";
 
 export interface QualityStaff {
   id: string; display_name: string; role: string; active: boolean;
@@ -18,6 +19,7 @@ export interface QualityIncident {
 export interface QualityDoctor {
   doctorId: string; doctorName: string; completedVisits: number; uniquePatients: number;
   treatmentCounts: Record<string, number>; recordedExecutions: number;
+  specialtyCounts: Partial<Record<TreatmentSpecialty, number>>;
   attributedRevenueCents: number; attributedRevenueCoverage: number;
   averageTicketCents: number | null; repeatedTreatmentIncidents: number;
   reportedIncidents: number; placedImplants: number; failedPlacementAttempts: number;

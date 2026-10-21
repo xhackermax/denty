@@ -5,6 +5,8 @@ import type { SupabaseRestClient } from "@/server/supabase/rest-client";
 
 type Row = Record<string, unknown>;
 const id = (row: Row, key: string) => String(row[key] ?? "");
+const optional = (row: Row, key: string) =>
+  typeof row[key] === "string" && row[key] !== "" ? row[key] : null;
 const number = (row: Row, key: string) => typeof row[key] === "number" ? row[key] as number : null;
 
 export class QualityRepository {
@@ -141,7 +143,7 @@ export class QualityRepository {
         ...(siteId ? {site_id: `eq.${siteId}`} : {}),
       }),
       this.db.selectAll<Row>("clinical_treatment_executions", {
-        select: "id,doctor_id,patient_id,appointment_id,clinical_plan_item_id,treatment_category,attributed_revenue_cents,executed_at",
+        select: "id,doctor_id,patient_id,appointment_id,clinical_plan_item_id,treatment_code,treatment_category,tooth_position,attributed_revenue_cents,executed_at",
         ...this.where(), and: `(executed_at.gte.${start},executed_at.lt.${end})`,
       }),
       this.db.selectAll<Row>("clinical_incidents", {
@@ -149,7 +151,7 @@ export class QualityRepository {
         ...this.where(), and: `(occurred_at.gte.${start},occurred_at.lt.${end})`,
       }),
       this.db.selectAll<Row>("implant_placement_outcomes", {
-        select: "doctor_id,appointment_id,outcome,failure_kind,recorded_at",
+        select: "doctor_id,appointment_id,tooth_position,outcome,failure_kind,recorded_at",
         ...this.where(), and: `(recorded_at.gte.${start},recorded_at.lt.${end})`,
       }),
       canReadAttendance && !siteId
@@ -203,6 +205,13 @@ export class QualityRepository {
         ...this.where(), clinical_plan_item_id: `in.(${ids.join(",")})`,
       })));
     const invoiceLines = invoiceLineChunks.flat();
+    // Name and catalogue specialty only refine the chart grouping when the frozen category is
+    // missing; analytics must still load if the plan items cannot be read.
+    const planItems = new Map((await Promise.all(chunks(executedItemIds).map(ids =>
+      this.db.selectAll<Row>("clinical_plan_items", {
+        select: "id,label,label_snapshot,specialty_snapshot",
+        ...this.where(), id: `in.(${ids.join(",")})`,
+      }).catch(() => [] as Row[])))).flat().map(row => [id(row, "id"), row]));
     const invoiceIds = [...new Set(invoiceLines.map(line => id(line, "invoice_id")).filter(Boolean))];
     const invoiceChunks = await Promise.all(chunks(invoiceIds).map(ids =>
       this.db.selectAll<Row>("invoices", {
@@ -227,13 +236,20 @@ export class QualityRepository {
     const items = staff.filter(s => /DENTIST|DOCTOR|ODONTO|CLINICIAN/i.test(id(s, "role"))).map(s => {
       const doctorId = id(s, "id");
       const card = doctorScorecard(doctorId,
-        performed.map(e => ({
+        performed.map(e => {
+          const item = planItems.get(id(e, "clinical_plan_item_id")) ?? {};
+          return {
           doctorId: id(e, "doctor_id"), patientId: id(e, "patient_id"),
           appointmentId: id(e, "appointment_id"),
           treatmentCategory: id(e, "treatment_category"),
+          treatmentCode: optional(e, "treatment_code"),
+          tooth: optional(e, "tooth_position"),
+          label: optional(item, "label_snapshot") ?? optional(item, "label"),
+          specialty: optional(item, "specialty_snapshot"),
           attributedRevenueCents: invoicedAmounts.get(id(e, "clinical_plan_item_id"))
             ?? number(e, "attributed_revenue_cents"),
-        })),
+          };
+        }),
         completed.map(a => ({
           doctorId: id(a, "staff_id"), patientId: id(a, "patient_id"),
           appointmentId: id(a, "id"), status: id(a, "status"),
@@ -246,6 +262,8 @@ export class QualityRepository {
         implantRows.map(i => ({
           doctorId: id(i, "doctor_id"), outcome: id(i, "outcome") as "PLACED" | "FAILED" | "DEFERRED",
           failureKind: i.failure_kind ? id(i, "failure_kind") : null,
+          appointmentId: optional(i, "appointment_id"),
+          toothPosition: optional(i, "tooth_position"),
         })));
       const doctorPunches = punches.filter(p => id(p, "staff_member_id") === doctorId)
         .map(p => ({
