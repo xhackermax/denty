@@ -151,6 +151,9 @@ import {
   PATIENT_PHOTOS_BUCKET,
   PRESCRIPTION_EVIDENCE_BUCKET,
   StorageRepository,
+  SUPPLIER_INVOICE_DOCUMENT_RULE,
+  SUPPLIER_INVOICE_DOCUMENTS_BUCKET,
+  supplierInvoiceDocumentMimeType,
 } from "../storage/storage-repository";
 import {
   SupabaseAuthClient,
@@ -1698,6 +1701,74 @@ export async function handleSupabaseDentyRoute(
         if (d) return d;
         const payload = await parseJson(request, recordSupplierInvoiceSchema);
         return json(201, await laboratory.recordSupplierInvoice(payload), headers);
+      }
+    }
+    if (
+      parts.length === 4 &&
+      parts[0] === "api" &&
+      parts[1] === "supplier-invoices" &&
+      parts[3] === "document"
+    ) {
+      const invoiceId = decodeURIComponent(parts[2] ?? "");
+      if (method === "POST") {
+        const d =
+          requireActorPermission(identity, "lab.write") ??
+          requireActorPermission(identity, "finance.write");
+        if (d) return d;
+        const form = await request.formData();
+        const file = form.get("file");
+        if (!(file instanceof File) || !supplierInvoiceDocumentMimeType(file))
+          return error(400, "SUPPLIER_INVOICE_DOCUMENT_INVALID", SUPPLIER_INVOICE_DOCUMENT_RULE);
+        const invoice = await laboratory.supplierInvoiceRow(invoiceId);
+        if (!invoice)
+          return error(404, "SUPPLIER_INVOICE_NOT_FOUND", "Factura de proveedor no encontrada.");
+        const storage = storageRepository(identity);
+        const stored = await storage.uploadSupplierInvoiceDocument(
+          identity.actor.clinicId,
+          invoiceId,
+          file,
+        );
+        let updated;
+        try {
+          updated = await laboratory.attachSupplierInvoiceDocument(invoiceId, stored, file.name);
+        } catch (caught) {
+          await storage
+            .remove(SUPPLIER_INVOICE_DOCUMENTS_BUCKET, stored.path)
+            .catch(() => undefined);
+          throw caught;
+        }
+        // A replaced scan is no longer referenced; drop it so it doesn't linger in storage.
+        if (invoice.document_path && invoice.document_path !== stored.path)
+          await storage
+            .remove(SUPPLIER_INVOICE_DOCUMENTS_BUCKET, invoice.document_path)
+            .catch(() => undefined);
+        return json(201, updated, headers);
+      }
+      if (method === "GET") {
+        const d =
+          requireActorPermission(identity, "lab.read") ??
+          requireActorPermission(identity, "finance.read");
+        if (d) return d;
+        const invoice = await laboratory.supplierInvoiceRow(invoiceId);
+        if (!invoice?.document_path)
+          return error(
+            404,
+            "SUPPLIER_INVOICE_DOCUMENT_NOT_FOUND",
+            "La factura no tiene archivo adjunto.",
+          );
+        const blob = await storageRepository(identity).download(
+          SUPPLIER_INVOICE_DOCUMENTS_BUCKET,
+          invoice.document_path,
+        );
+        const fileName = invoice.document_file_name ?? `factura-${invoice.invoice_number}`;
+        return new Response(blob, {
+          status: 200,
+          headers: {
+            ...Object.fromEntries(headers.entries()),
+            "content-type": invoice.document_mime_type ?? "application/octet-stream",
+            "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+          },
+        });
       }
     }
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "supplier-payments") {

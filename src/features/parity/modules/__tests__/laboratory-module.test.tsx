@@ -10,6 +10,8 @@ const tenant = vi.hoisted(() => ({
   permissions: ["lab.read", "lab.write", "finance.read", "finance.write"],
 }));
 
+const invoices = vi.hoisted(() => ({ items: [] as Array<Record<string, unknown>> }));
+
 vi.mock("@/shared/tenancy/active-context", () => ({
   useActiveTenant: () => tenant,
 }));
@@ -19,6 +21,8 @@ vi.mock("@/shared/patients/patient-data", () => ({
 }));
 
 vi.mock("../laboratory-data", () => ({
+  downloadSupplierInvoiceDocument: vi.fn(),
+  useAttachSupplierInvoiceDocumentMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAllocateSupplierPaymentMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCreateLaboratoryMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useCreateLabWorkMutation: () => ({ mutate: vi.fn(), isPending: false }),
@@ -69,7 +73,7 @@ vi.mock("../laboratory-data", () => ({
   useRecordSupplierInvoiceMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useRecordSupplierPaymentMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSupplierInvoicesQuery: (enabled: boolean) => ({
-    data: enabled ? { items: [] } : undefined,
+    data: enabled ? { items: invoices.items } : undefined,
     isError: false,
   }),
   useUpdateLaboratoryMutation: () => ({ mutate: vi.fn(), isPending: false }),
@@ -100,6 +104,7 @@ afterEach(cleanup);
 beforeEach(() => {
   tenant.role = "ADMIN";
   tenant.permissions = ["lab.read", "lab.write", "finance.read", "finance.write"];
+  invoices.items = [];
 });
 
 describe("LaboratoryModule", () => {
@@ -108,7 +113,9 @@ describe("LaboratoryModule", () => {
 
     expect(screen.getByRole("heading", { name: "Uso diario del laboratorio" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Facturas y pagos" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Configuracion de laboratorios" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Configuracion de laboratorios" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Corona zirconio")).toBeInTheDocument();
   });
 
@@ -124,5 +131,39 @@ describe("LaboratoryModule", () => {
       screen.queryByRole("heading", { name: "Configuracion de laboratorios" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Corona zirconio")).not.toBeInTheDocument();
+  });
+
+  it("permite adjuntar la factura escaneada al registrar y verla despues", () => {
+    invoices.items = [
+      {
+        id: "inv-1",
+        laboratoryId: "lab-1",
+        invoiceNumber: "F-001",
+        issuedAt: "2026-10-01T10:00:00.000Z",
+        totalCents: 12000,
+        status: "OPEN",
+        documentPath: "c/inv-1/scan.pdf",
+        documentFileName: "F-001.pdf",
+        version: 2,
+      },
+      {
+        id: "inv-2",
+        laboratoryId: "lab-1",
+        invoiceNumber: "F-002",
+        issuedAt: "2026-10-02T10:00:00.000Z",
+        totalCents: 5000,
+        status: "OPEN",
+        documentPath: null,
+        version: 1,
+      },
+    ];
+
+    renderModule();
+
+    expect(screen.getByText("Factura escaneada")).toBeInTheDocument();
+    expect(screen.getByText("F-001 · Ceramica Norte")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Ver archivo" })).toHaveLength(1);
+    expect(screen.getByText("Reemplazar archivo")).toBeInTheDocument();
+    expect(screen.getByText("Adjuntar archivo")).toBeInTheDocument();
   });
 });

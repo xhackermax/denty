@@ -175,6 +175,29 @@ export function useRecordSupplierInvoiceMutation() {
   });
 }
 
+export function useAttachSupplierInvoiceDocumentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: string; file: File }) =>
+      getBrowserApi().laboratory.supplierInvoices.attachDocument(input.id, input.file),
+    onSuccess: () => invalidateLaboratory(queryClient),
+  });
+}
+
+export async function downloadSupplierInvoiceDocument(invoice: {
+  id: string;
+  invoiceNumber: string;
+  documentFileName?: string | null | undefined;
+}) {
+  const blob = await getBrowserApi().laboratory.supplierInvoices.downloadDocument(invoice.id);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = invoice.documentFileName || `factura-${invoice.invoiceNumber}`;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 export function useRecordSupplierPaymentMutation() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -150,6 +150,8 @@ export const supplierInvoiceSchema = z
     totalCents: z.number().int().nonnegative(),
     status: z.enum(["OPEN", "PARTIALLY_PAID", "PAID", "VOID"]),
     documentPath: z.string().nullable().optional(),
+    documentFileName: z.string().nullable().optional(),
+    documentMimeType: z.string().nullable().optional(),
     version: z.number().int().positive(),
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema,

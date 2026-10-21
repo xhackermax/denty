@@ -4,6 +4,7 @@ import {
   Alert,
   Badge,
   Button,
+  FileInput,
   Group,
   NumberInput,
   Select,
@@ -21,7 +22,9 @@ import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
 import styles from "@/shared/ui/parity.module.css";
 import {
+  downloadSupplierInvoiceDocument,
   useAllocateSupplierPaymentMutation,
+  useAttachSupplierInvoiceDocumentMutation,
   useCreateLabWorkMutation,
   useLabAttachmentMutation,
   useLabCallPatientTaskMutation,
@@ -71,6 +74,8 @@ export function LaboratoryModule() {
   const rework = useLabReworkMutation();
   const addAttachment = useLabAttachmentMutation();
   const recordInvoice = useRecordSupplierInvoiceMutation();
+  const attachInvoiceDocument = useAttachSupplierInvoiceDocumentMutation();
+  const [invoiceDocumentError, setInvoiceDocumentError] = useState<string | null>(null);
   const recordPayment = useRecordSupplierPaymentMutation();
   const allocatePayment = useAllocateSupplierPaymentMutation();
 
@@ -88,6 +93,7 @@ export function LaboratoryModule() {
   const [invoiceLabId, setInvoiceLabId] = useState<string | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceTotalEuros, setInvoiceTotalEuros] = useState<number | string>(0);
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [paymentLabId, setPaymentLabId] = useState<string | null>(null);
   const [paymentInvoiceId, setPaymentInvoiceId] = useState<string | null>(null);
   const [paymentEuros, setPaymentEuros] = useState<number | string>(0);
@@ -112,6 +118,21 @@ export function LaboratoryModule() {
       value: invoice.id,
       label: `${invoice.invoiceNumber} · ${formatEUR(invoice.totalCents)}`,
     }));
+  const labNameById = new Map(
+    (laboratories.data?.items ?? []).map((lab) => [lab.id, lab.name] as const),
+  );
+  const attachDocument = (invoiceId: string, file: File) => {
+    setInvoiceDocumentError(null);
+    return attachInvoiceDocument
+      .mutateAsync({ id: invoiceId, file })
+      .then(() => true)
+      .catch(() => {
+        setInvoiceDocumentError(
+          "No se pudo adjuntar el archivo escaneado. Debe ser un PDF o DOCX de hasta 25 MB.",
+        );
+        return false;
+      });
+  };
   const activePriceItems = (priceList.data?.items ?? []).filter((item) => item.active);
   const priceOptions = activePriceItems
     .filter((item) => !laboratoryId || item.laboratoryId === laboratoryId)
@@ -487,6 +508,60 @@ export function LaboratoryModule() {
             </div>
           </section>
 
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Facturas de laboratorio</h3>
+            {invoiceDocumentError ? <Alert color="red">{invoiceDocumentError}</Alert> : null}
+            <div className={styles.rowList}>
+              {(supplierInvoices.data?.items ?? []).map((invoice) => (
+                <div className={styles.row} key={invoice.id}>
+                  <div className={styles.rowMain}>
+                    <span className={styles.rowTitle}>
+                      {invoice.invoiceNumber} · {labNameById.get(invoice.laboratoryId) ?? "—"}
+                    </span>
+                    <span className={styles.rowMeta}>
+                      {new Date(invoice.issuedAt).toLocaleDateString("es-ES")} ·{" "}
+                      {formatEUR(invoice.totalCents)}
+                      {invoice.documentPath ? " · archivo escaneado adjunto" : ""}
+                    </span>
+                  </div>
+                  <div className={styles.rowActions}>
+                    {invoice.documentPath ? (
+                      <Button
+                        size="xs"
+                        variant="light"
+                        onClick={() =>
+                          downloadSupplierInvoiceDocument(invoice).catch(() =>
+                            setInvoiceDocumentError("No se pudo descargar el archivo escaneado."),
+                          )
+                        }
+                      >
+                        Ver archivo
+                      </Button>
+                    ) : null}
+                    {canWriteFinance ? (
+                      <Button size="xs" variant="subtle" component="label">
+                        {invoice.documentPath ? "Reemplazar archivo" : "Adjuntar archivo"}
+                        <input
+                          hidden
+                          type="file"
+                          accept=".pdf,.docx"
+                          onChange={(event) => {
+                            const file = event.currentTarget.files?.[0];
+                            if (file) void attachDocument(invoice.id, file);
+                            event.currentTarget.value = "";
+                          }}
+                        />
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {!supplierInvoices.isLoading && (supplierInvoices.data?.items.length ?? 0) === 0 ? (
+              <Text c="dimmed">Sin facturas registradas.</Text>
+            ) : null}
+          </section>
+
           {canWriteFinance ? (
             <>
               <section className={styles.section}>
@@ -510,13 +585,21 @@ export function LaboratoryModule() {
                     value={invoiceTotalEuros}
                     onChange={setInvoiceTotalEuros}
                   />
+                  <FileInput
+                    label="Factura escaneada"
+                    placeholder="PDF o DOCX"
+                    accept=".pdf,.docx"
+                    clearable
+                    value={invoiceFile}
+                    onChange={setInvoiceFile}
+                  />
                   <Button
                     disabled={
                       !invoiceLabId ||
                       !invoiceNumber.trim() ||
                       centsFromEuros(invoiceTotalEuros) <= 0
                     }
-                    loading={recordInvoice.isPending}
+                    loading={recordInvoice.isPending || attachInvoiceDocument.isPending}
                     onClick={() => {
                       if (!invoiceLabId) return;
                       recordInvoice.mutate(
@@ -528,9 +611,11 @@ export function LaboratoryModule() {
                           items: [],
                         },
                         {
-                          onSuccess: () => {
+                          onSuccess: async (invoice) => {
                             setInvoiceNumber("");
                             setInvoiceTotalEuros(0);
+                            if (invoiceFile && (await attachDocument(invoice.id, invoiceFile)))
+                              setInvoiceFile(null);
                           },
                         },
                       );
