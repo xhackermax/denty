@@ -24,6 +24,8 @@ export interface AgendaAppointmentCardProps {
   contextLabel?: string | undefined;
   /** Site is intentionally visible on the card in multi-site agendas. */
   siteLabel?: string | undefined;
+  /** Site colour slot; when set the card is bordered in its site's colour. */
+  siteColor?: number | undefined;
   menu: ReactNode;
   onOpen: () => void;
   onCopy: () => void;
@@ -39,6 +41,7 @@ export function AgendaAppointmentCard({
   dimmed,
   contextLabel,
   siteLabel,
+  siteColor,
   menu,
   onOpen,
   onCopy,
@@ -87,6 +90,7 @@ export function AgendaAppointmentCard({
         data-selected={selected}
         data-dimmed={dimmed}
         data-urgent={urgent}
+        data-site-color={siteColor}
         draggable
         style={dragStyle}
         tabIndex={0}

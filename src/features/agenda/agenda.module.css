@@ -244,6 +244,62 @@
   opacity: 0.7;
 }
 
+/* All-sites view: the border tells which site each appointment belongs to. Declared
+   after the status rules so it wins over their border colour; urgent still marks the left edge. */
+.card[data-site-color] {
+  border-width: 2px;
+  border-color: var(--agenda-site-color);
+}
+
+.card[data-site-color="1"],
+.siteSwatch[data-site-color="1"] {
+  --agenda-site-color: var(--denty-site-1);
+}
+
+.card[data-site-color="2"],
+.siteSwatch[data-site-color="2"] {
+  --agenda-site-color: var(--denty-site-2);
+}
+
+.card[data-site-color="3"],
+.siteSwatch[data-site-color="3"] {
+  --agenda-site-color: var(--denty-site-3);
+}
+
+.card[data-site-color="4"],
+.siteSwatch[data-site-color="4"] {
+  --agenda-site-color: var(--denty-site-4);
+}
+
+.card[data-site-color="5"],
+.siteSwatch[data-site-color="5"] {
+  --agenda-site-color: var(--denty-site-5);
+}
+
+.card[data-site-color="6"],
+.siteSwatch[data-site-color="6"] {
+  --agenda-site-color: var(--denty-site-6);
+}
+
+.card[data-site-color="7"],
+.siteSwatch[data-site-color="7"] {
+  --agenda-site-color: var(--denty-site-7);
+}
+
+.card[data-site-color="8"],
+.siteSwatch[data-site-color="8"] {
+  --agenda-site-color: var(--denty-site-8);
+}
+
+.siteSwatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 4px;
+  background: var(--agenda-site-color, var(--denty-line-strong));
+}
+
 .card[data-urgent="true"] {
   border-left-color: var(--denty-danger);
 }

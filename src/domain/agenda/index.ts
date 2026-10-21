@@ -202,6 +202,7 @@ export function waitingVisualState(input: {
 
 export * from "./clinical-glyph";
 export * from "./rota";
+export * from "./site-colors";
 export * from "./view";
 
 export * from "./treatment-options";

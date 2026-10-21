@@ -82,6 +82,7 @@ import {
   planVisitDates,
   rangeStartFor,
   shiftRange,
+  siteColorSlots,
   staffForSiteDay,
   visibleDates,
   weekdayOfDate,
@@ -125,6 +126,7 @@ import { ClinicalGlyph, ClinicalGlyphs } from "@/shared/odontogram/clinical-glyp
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { PageHeader } from "@/shared/ui";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
+import { useAgendaSiteView } from "./agenda-site-view";
 import { slotMinuteFromOffset } from "@/domain/agenda/slot-selection";
 
 const PIPELINE = [
@@ -267,6 +269,10 @@ export function AgendaPage() {
   const requestedPlanItemHandled = useRef(false);
   const isMobile = useMediaQuery("(max-width: 48em)") ?? false;
   const { activeClinicId, activeSiteId, setActiveSiteId } = useActiveTenant();
+  const { viewSiteId, allSites, showAllSites, showSite } = useAgendaSiteView(
+    activeSiteId,
+    setActiveSiteId,
+  );
   const queryClient = useQueryClient();
 
   // Navigation & presentation.
@@ -350,8 +356,8 @@ export function AgendaPage() {
   const dayHeight = DAY_MINUTES * pxPerMinute;
   const today = todayMadrid(nowTick);
 
-  const appointmentsQuery = useAppointmentsRangeQuery(dates, activeSiteId);
-  const blocks = useAgendaBlocksRangeQuery(dates, activeSiteId);
+  const appointmentsQuery = useAppointmentsRangeQuery(dates, viewSiteId);
+  const blocks = useAgendaBlocksRangeQuery(dates, viewSiteId);
   const patientsQuery = usePatientsQuery();
   const contextQuery = useAgendaContextQuery();
   const catalogQuery = useTreatmentCatalogQuery();
@@ -375,13 +381,13 @@ export function AgendaPage() {
   useEffect(() => {
     prefetchDays(
       visibleDates(shiftRange(rangeStart, effectiveDayCount, 1), effectiveDayCount),
-      activeSiteId,
+      viewSiteId,
     );
     prefetchDays(
       visibleDates(shiftRange(rangeStart, effectiveDayCount, -1), effectiveDayCount),
-      activeSiteId,
+      viewSiteId,
     );
-  }, [rangeStart, effectiveDayCount, activeSiteId]);
+  }, [rangeStart, effectiveDayCount, viewSiteId]);
 
   const patients = useMemo(() => patientsQuery.data?.items ?? [], [patientsQuery.data]);
   const patientsById = useMemo(
@@ -415,23 +421,24 @@ export function AgendaPage() {
   const cabinets = useMemo(
     () =>
       projectApiCabinets(contextQuery.data).filter(
-        (cabinet) => !activeSiteId || cabinet.siteId === activeSiteId,
+        (cabinet) => !viewSiteId || cabinet.siteId === viewSiteId,
       ),
-    [contextQuery.data, activeSiteId],
+    [contextQuery.data, viewSiteId],
   );
   const patientOptions = useMemo(() => projectApiPatients(patients), [patients]);
   const staffNames = useMemo(() => new Map(staff.map((m) => [m.id, m.displayName])), [staff]);
   const siteNames = useMemo(() => new Map(sites.map((site) => [site.id, site.name])), [sites]);
+  const siteColors = useMemo(() => siteColorSlots(sites.map((site) => site.id)), [sites]);
   // Doctors of the selected site: those whose rota puts them there on the visible
   // days (a doctor can rotate between sites), plus anyone already booked there.
   const siteStaff = useMemo(() => {
-    if (!activeSiteId) return staff;
+    if (!viewSiteId) return staff;
     const booked = new Set(appointments.map((appointment) => appointment.staffId));
     const working = staff.filter((member) =>
-      dates.some((date) => staffForSiteDay([member], activeSiteId, date, booked).length > 0),
+      dates.some((date) => staffForSiteDay([member], viewSiteId, date, booked).length > 0),
     );
     return working.length ? working : staff;
-  }, [activeSiteId, appointments, dates, staff]);
+  }, [viewSiteId, appointments, dates, staff]);
   const cabinetNames = useMemo(() => new Map(cabinets.map((c) => [c.id, c.name])), [cabinets]);
   const actorStaffId = contextQuery.data?.actor.staffId ?? null;
   const effectivePatientId = patientId || patientOptions[0]?.id || "";
@@ -519,7 +526,7 @@ export function AgendaPage() {
               staffId: null as string | null,
               cabinetId: cabinet.id as string | null,
               label: cabinet.name,
-              sublabel: sites.length > 1 && !activeSiteId ? cabinet.siteName : undefined,
+              sublabel: sites.length > 1 && !viewSiteId ? cabinet.siteName : undefined,
             })),
             ...(appointments.some((appointment) => !appointment.cabinetId)
               ? [
@@ -542,7 +549,7 @@ export function AgendaPage() {
     }
     return all;
   }, [
-    activeSiteId,
+    viewSiteId,
     appointments,
     cabinets,
     isMobile,
@@ -567,13 +574,13 @@ export function AgendaPage() {
             dates.length > 1
               ? resources.length > 1
                 ? resource.label
-                : resource.staffId && !activeSiteId
+                : resource.staffId && !viewSiteId
                   ? sitesForStaffDay(resource.staffId, columnDate)
                   : undefined
               : resource.sublabel,
         })),
       ),
-    [activeSiteId, dates, resources, sitesForStaffDay],
+    [viewSiteId, dates, resources, sitesForStaffDay],
   );
   const columnById = useMemo(
     () => new Map(columns.map((column) => [column.id, column])),
@@ -1346,20 +1353,29 @@ export function AgendaPage() {
                 leftSection={<IconMapPin size={14} />}
                 rightSection={<IconChevronDown size={14} />}
               >
-                {sites.find((site) => site.id === activeSiteId)?.name ?? "Todas las sedes"}
+                {allSites
+                  ? "Todas las sedes"
+                  : (sites.find((site) => site.id === activeSiteId)?.name ?? "Todas las sedes")}
               </Button>
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Label>Vista de sedes</Menu.Label>
-              <Menu.Item fw={!activeSiteId ? 700 : undefined} onClick={() => setActiveSiteId(null)}>
+              <Menu.Item fw={allSites ? 700 : undefined} onClick={showAllSites}>
                 Todas las sedes
               </Menu.Item>
               <Menu.Divider />
               {sites.map((site) => (
                 <Menu.Item
                   key={site.id}
-                  fw={site.id === activeSiteId ? 700 : undefined}
-                  onClick={() => setActiveSiteId(site.id)}
+                  fw={!allSites && site.id === activeSiteId ? 700 : undefined}
+                  leftSection={
+                    <span
+                      aria-hidden="true"
+                      className={styles.siteSwatch}
+                      data-site-color={siteColors.get(site.id)}
+                    />
+                  }
+                  onClick={() => showSite(site.id)}
                 >
                   {site.name}
                 </Menu.Item>
@@ -1776,6 +1792,12 @@ export function AgendaPage() {
                           : staffNames.get(appointment.staffId)
                       }
                       siteLabel={appointment.siteId ? siteNames.get(appointment.siteId) : undefined}
+                      siteColor={
+                        // Site borders only matter when several sites share the grid.
+                        !viewSiteId && appointment.siteId
+                          ? siteColors.get(appointment.siteId)
+                          : undefined
+                      }
                       menu={renderAppointmentMenu(appointment)}
                       onCopy={() => copyAppointment(appointment)}
                       onOpen={() => {
@@ -2041,7 +2063,7 @@ export function AgendaPage() {
               {slotSearchOpened ? (
                 <NextSlotFinder
                   today={today}
-                  siteId={activeSiteId}
+                  siteId={viewSiteId}
                   doctors={doctorOptions}
                   initialStaffId={pending.staffId}
                   initialDurationMin={pending.durationMinutes}
@@ -2431,7 +2453,7 @@ export function AgendaPage() {
         >
           <NextSlotFinder
             today={today}
-            siteId={activeSiteId}
+            siteId={viewSiteId}
             doctors={doctorOptions}
             onPick={(slot, durationMin) => {
               setSlotFinderOpened(false);
