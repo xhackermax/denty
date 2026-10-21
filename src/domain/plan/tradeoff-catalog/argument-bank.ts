@@ -1,4 +1,4 @@
-// Generated from "DENTY · Matriz maestra de tratamientos odontológicos" v1.0 (21/10/2026).
+// Source: «DENTY · Matriz maestra de tratamientos odontológicos» v1.0 (21/10/2026).
 // The source is a working draft pending professional review: edit wording there first so the
 // catalog and the document stay in step. Phrase ids are stable; never reuse a retired id.
 

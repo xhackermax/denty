@@ -1,4 +1,4 @@
-// From "DENTY · Matriz maestra de tratamientos odontológicos" v1.0, parts V and VI. Triggers
+// Source: «DENTY · Matriz maestra de tratamientos odontológicos» v1.0, parts V and VI. Triggers
 // say which planned treatments make each item relevant; nothing here is shown unconditionally
 // to the patient, because the source asks for consequences "pertinentes al caso".
 import type { TradeoffSpecialtyId } from "./types.ts";

@@ -1,4 +1,4 @@
-// From "DENTY · Matriz maestra de tratamientos odontológicos" v1.0, part III. Each option
+// Source: «DENTY · Matriz maestra de tratamientos odontológicos» v1.0, part III. Each option
 // lists the catalog entries that represent it, so a plan built from clinic treatments can be
 // recognised as one side of a scenario.
 
