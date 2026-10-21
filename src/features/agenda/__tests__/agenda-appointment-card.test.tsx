@@ -12,7 +12,11 @@ afterEach(cleanup);
 
 const cardStyle = {};
 const reason = "Implante 46; Corona 11; Raspado Q1; Extracción 28";
-function showCard(heightPx = 90, reason = "Implante 46; Corona 11; Raspado Q1; Extracción 28") {
+function showCard(
+  heightPx = 90,
+  reason = "Implante 46; Corona 11; Raspado Q1; Extracción 28",
+  siteColor?: number,
+) {
   const glyphs = agendaClinicalGlyphs({ label: reason });
   const appointment: AgendaAppointmentView = {
     id: "appointment",
@@ -37,6 +41,7 @@ function showCard(heightPx = 90, reason = "Implante 46; Corona 11; Raspado Q1; E
         heightPx={heightPx}
         selected={false}
         dimmed={false}
+        siteColor={siteColor}
         menu={null}
         onOpen={onOpen}
         onCopy={onCopy}
@@ -200,4 +205,11 @@ it("drag grip keyboard activation does not open appointment details", () => {
   expect(onOpen).not.toHaveBeenCalled();
   fireEvent.keyDown(screen.getByRole("article"), { key: "Enter" });
   expect(onOpen).toHaveBeenCalledTimes(1);
+});
+it("marca el borde con el color de su sede solo cuando se indica", () => {
+  showCard(90, "Revisión", 3);
+  expect(screen.getByRole("article")).toHaveAttribute("data-site-color", "3");
+  cleanup();
+  showCard(90, "Revisión");
+  expect(screen.getByRole("article")).not.toHaveAttribute("data-site-color");
 });
