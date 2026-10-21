@@ -2404,6 +2404,7 @@ export async function handleSupabaseDentyRoute(
         "doctors",
         "monthly",
         "periods",
+        "new-patients",
         "profitability",
         "specialties",
       ].includes(parts[2] ?? "")
@@ -2417,6 +2418,8 @@ export async function handleSupabaseDentyRoute(
       if (parts[2] === "doctors") return json(200, await analytics.doctors(query), headers);
       if (parts[2] === "monthly") return json(200, await analytics.monthly(query), headers);
       if (parts[2] === "periods") return json(200, await analytics.periods(query), headers);
+      if (parts[2] === "new-patients")
+        return json(200, await analytics.newPatients(query), headers);
       if (parts[2] === "profitability")
         return json(200, await analytics.profitability(query), headers);
       return json(200, await analytics.specialties(query), headers);

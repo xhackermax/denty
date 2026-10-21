@@ -92,6 +92,8 @@ export const dentyQueryKeys = {
       ["denty", "analytics", "monthly", scope] as const,
     periods: (scope: Record<string, unknown> = {}) =>
       ["denty", "analytics", "periods", scope] as const,
+    newPatients: (scope: Record<string, unknown> = {}) =>
+      ["denty", "analytics", "new-patients", scope] as const,
     profitability: (scope: Record<string, unknown> = {}) =>
       ["denty", "analytics", "profitability", scope] as const,
     waitTimes: (scope: Record<string, unknown> = {}) =>

@@ -68,6 +68,16 @@ export class AnalyticsRepository {
     });
   }
 
+  newPatients(query: AnalyticsQuery) {
+    return this.client.rpc<Record<string, unknown>>("analytics_new_patients", {
+      p_clinic_id: this.clinicId,
+      p_start: query.start ?? null,
+      p_end: query.end ?? null,
+      p_granularity: query.granularity ?? "month",
+      p_limit: query.limit ?? 120,
+    });
+  }
+
   specialties(query: AnalyticsQuery) {
     return this.client.rpc<{ items: Record<string, unknown>[] }>("analytics_specialties", {
       ...rpcScope(this.clinicId, query),

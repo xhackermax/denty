@@ -72,6 +72,21 @@ export const analyticsMetricItemsSchema = z
   .object({ kpiVersion: z.string().min(1), items: z.array(analyticsItemSchema) })
   .strict();
 
+export const analyticsNewPatientsSchema = z
+  .object({
+    kpiVersion: z.string().min(1),
+    count: z.number().int().nonnegative(),
+    items: z.array(
+      z
+        .object({
+          periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          count: z.number().int().nonnegative(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
 export const supplierInvoiceItemSchema = z
   .object({
     category: z.string().min(1),
