@@ -29,6 +29,7 @@ import { PatientClinicalSummary } from "./patient-clinical-summary";
 import styles from "@/shared/ui/parity.module.css";
 import {
   useArchivePatientMutation,
+  useCancelPatientAppointmentMutation,
   usePatientProjectionQuery,
   usePatientQuery,
   useRestorePatientMutation,
@@ -39,6 +40,7 @@ import { PatientPipelineNav, PatientPipelineStepper } from "@/shared/patients/pa
 import { HorizontalSnapNav, PageHeader, PatientAvatar } from "@/shared/ui";
 import { PatientMedicalHistory } from "./patient-medical-history";
 import { PatientEditModal } from "./patient-edit-modal";
+import { PatientUpcomingAppointments, upcomingAppointments } from "./patient-upcoming-appointments";
 import { PatientPhotoCapture } from "./patient-photo-capture";
 import {
   optionLabels,
@@ -117,6 +119,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const archivePatientMutation = useArchivePatientMutation();
   const restorePatientMutation = useRestorePatientMutation();
   const uploadPhotoMutation = useUploadPatientPhotoMutation();
+  const cancelAppointmentMutation = useCancelPatientAppointmentMutation(patientId);
   const [now] = useState(() => Date.now());
   const [activeTab, setActiveTab] = useState<string | null>(initialTab);
   const [treatmentFlowOpen, setTreatmentFlowOpen] = useState(false);
@@ -172,13 +175,8 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   };
 
   const projection = projectionQuery.data;
-  const upcoming = [...(projection?.appointments ?? [])]
-    .filter(
-      (appointment) =>
-        !["CANCELLED", "NO_SHOW", "COMPLETED"].includes(appointment.status) &&
-        epochMillis(appointment.startsAt) >= now,
-    )
-    .sort((left, right) => epochMillis(left.startsAt) - epochMillis(right.startsAt))[0];
+  const upcomingList = upcomingAppointments(projection?.appointments ?? [], now);
+  const upcoming = upcomingList[0];
   const completed = [...(projection?.appointments ?? [])]
     .filter((appointment) => appointment.status === "COMPLETED")
     .sort((left, right) => epochMillis(right.startsAt) - epochMillis(left.startsAt))[0];
@@ -254,13 +252,6 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         description={`Ficha ${recordNumber} · ${phone} · ${email}`}
         actions={
           <Group gap="xs">
-            <Button
-              component={Link}
-              href={`/app/patients/${patientId}/odontogram`}
-              leftSection={<IconHeartbeat size={17} />}
-            >
-              Odontograma
-            </Button>
             <Menu position="bottom-end" withinPortal>
               <Menu.Target>
                 <Button variant="default" px="sm" aria-label="Más acciones">
@@ -276,20 +267,6 @@ export function PatientProfile({ patientId }: { patientId: string }) {
                     Editar datos
                   </Menu.Item>
                 ) : null}
-                <Menu.Item
-                  component={Link}
-                  href={`/app/agenda?patientId=${patientId}`}
-                  leftSection={<IconCalendar size={16} />}
-                >
-                  Dar cita
-                </Menu.Item>
-                <Menu.Item
-                  component={Link}
-                  href={`/app/documents?patientId=${patientId}`}
-                  leftSection={<IconFileText size={16} />}
-                >
-                  Documentos
-                </Menu.Item>
                 <Menu.Item
                   component={Link}
                   href="/app/prescriptions"
@@ -443,6 +420,25 @@ export function PatientProfile({ patientId }: { patientId: string }) {
           <Text c="dimmed" size="sm">
             {nextVisitDescription}
           </Text>
+          <PatientUpcomingAppointments
+            appointments={upcomingList.slice(0, 5)}
+            cancelling={cancelAppointmentMutation.isPending}
+            {...(cancelAppointmentMutation.isError
+              ? {
+                  error:
+                    cancelAppointmentMutation.error instanceof Error
+                      ? cancelAppointmentMutation.error.message
+                      : "No se pudo cancelar la cita.",
+                }
+              : {})}
+            onCancel={async (appointment, reason) => {
+              await cancelAppointmentMutation.mutateAsync({
+                id: appointment.id,
+                expectedVersion: appointment.version,
+                reason,
+              });
+            }}
+          />
           {completed ? (
             <Text c="dimmed" size="xs">
               Última visita: {dateDMY(completed.startsAt)} · {hhmm(completed.startsAt)}
@@ -472,11 +468,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         value={activeTab ?? "summary"}
         onChange={setActiveTab}
         items={[
-          { value: "summary", label: "Resumen" },
           { value: "clinical", label: "Clínica" },
-          { value: "plan", label: "Plan" },
-          { value: "budgets", label: "Presupuestos" },
-          { value: "documents", label: "Documentos" },
           { value: "finance", label: "Cobros" },
           { value: "more", label: "Más" },
         ]}
@@ -488,17 +480,6 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         className={styles.patientTabs}
         keepMounted={false}
       >
-        <Tabs.Panel value="summary" pt="lg">
-          <div className={styles.patientRouteGrid}>
-            <PatientRouteCard
-              href={`/app/patients/${patientId}?view=clinical`}
-              icon={IconFileText}
-              title="Seguimiento clínico"
-              description="Diagnóstico, plan, consentimientos, firma y citas"
-            />
-          </div>
-        </Tabs.Panel>
-
         <Tabs.Panel value="clinical" pt="lg">
           <div className={styles.grid}>
             <PatientMedicalHistory
@@ -536,23 +517,6 @@ export function PatientProfile({ patientId }: { patientId: string }) {
             }}
           />
           <PatientPipelineStepper patientId={patientId} current="budget" />
-        </Tabs.Panel>
-
-        <Tabs.Panel value="documents" pt="lg">
-          <div className={styles.patientRouteGrid}>
-            <PatientRouteCard
-              href={`/app/documents?patientId=${patientId}`}
-              icon={IconFileText}
-              title="Documentos"
-              description="Firmados, pendientes y archivo"
-            />
-            <PatientRouteCard
-              href="/app/prescriptions"
-              icon={IconPill}
-              title="Recetas"
-              description="Prescripción y firma"
-            />
-          </div>
         </Tabs.Panel>
 
         <Tabs.Panel value="finance" pt="lg">
