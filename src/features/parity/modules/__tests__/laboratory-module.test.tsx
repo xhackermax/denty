@@ -10,6 +10,8 @@ const tenant = vi.hoisted(() => ({
   permissions: ["lab.read", "lab.write", "finance.read", "finance.write"],
 }));
 
+const labWorks = vi.hoisted(() => ({ items: [] as Array<Record<string, unknown>> }));
+
 vi.mock("@/shared/tenancy/active-context", () => ({
   useActiveTenant: () => tenant,
 }));
@@ -62,7 +64,7 @@ vi.mock("../laboratory-data", () => ({
     },
     isError: false,
   }),
-  useLaboratoryQuery: () => ({ data: { items: [] }, isError: false, isLoading: false }),
+  useLaboratoryQuery: () => ({ data: labWorks, isError: false, isLoading: false }),
   useLabReworkMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useLabTransitionMutation: () => ({ mutate: vi.fn(), isPending: false }),
   usePatientClinicalPlanQuery: () => ({ data: { items: [] } }),
@@ -100,7 +102,25 @@ afterEach(cleanup);
 beforeEach(() => {
   tenant.role = "ADMIN";
   tenant.permissions = ["lab.read", "lab.write", "finance.read", "finance.write"];
+  labWorks.items = [];
 });
+
+function labWork(id: string, status: string) {
+  return {
+    id,
+    title: `Trabajo ${id}`,
+    status,
+    version: 1,
+    costCents: 0,
+    patient: null,
+    lab: null,
+    clinicalPlanItemId: null,
+    appointmentId: null,
+    attachments: [],
+    statusEvents: [],
+    reworks: [],
+  };
+}
 
 describe("LaboratoryModule", () => {
   it("separa uso diario, finanzas y configuracion para administracion", () => {
@@ -108,7 +128,9 @@ describe("LaboratoryModule", () => {
 
     expect(screen.getByRole("heading", { name: "Uso diario del laboratorio" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Facturas y pagos" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Configuracion de laboratorios" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Configuracion de laboratorios" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Corona zirconio")).toBeInTheDocument();
   });
 
@@ -124,5 +146,24 @@ describe("LaboratoryModule", () => {
       screen.queryByRole("heading", { name: "Configuracion de laboratorios" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Corona zirconio")).not.toBeInTheDocument();
+  });
+
+  it("colorea el borde de cada trabajo segun su estado", () => {
+    labWorks.items = [
+      labWork("a", "PLACED"),
+      labWork("b", "SENT"),
+      labWork("c", "SCANNED"),
+      labWork("d", "INCIDENT"),
+    ];
+
+    renderModule();
+
+    const tone = (title: string) =>
+      screen.getByText(title).closest("[data-tone]")?.getAttribute("data-tone");
+    expect(tone("Trabajo a")).toBe("done");
+    expect(tone("Trabajo b")).toBe("sent");
+    expect(tone("Trabajo c")).toBe("pending");
+    expect(tone("Trabajo d")).toBe("incident");
+    expect(screen.getByText("Pendiente de enviar")).toBeInTheDocument();
   });
 });
