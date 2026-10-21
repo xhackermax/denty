@@ -1,4 +1,4 @@
-import { mentions, normalized } from "./treatment-phase";
+import { mentions, normalized } from "./treatment-phase.ts";
 
 /**
  * Clinical phases used to fold a long treatment plan into collapsible groups. Unlike the

@@ -233,5 +233,5 @@ export function suggestKennedyClass(missingTeeth: readonly string[]): KennedyCla
   return "III";
 }
 
-export * from "./clinical-phase-groups";
-export * from "./plan-alternatives-comparison";
+export * from "./clinical-phase-groups.ts";
+export * from "./plan-alternatives-comparison.ts";

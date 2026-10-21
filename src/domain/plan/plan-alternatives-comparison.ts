@@ -1,4 +1,4 @@
-import { normalized } from "./treatment-phase";
+import { normalized } from "./treatment-phase.ts";
 
 export interface ComparablePlanItem {
   id: string;
