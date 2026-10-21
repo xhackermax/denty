@@ -48,6 +48,12 @@ describe("comparePlanAlternatives", () => {
         exclusive: [expect.objectContaining({ label: "Implante", tooth: "36" })],
         advantages: null,
         disadvantages: null,
+        suggestedAdvantages: expect.arrayContaining([
+          "Reposición fija que no desgasta los dientes vecinos",
+        ]),
+        suggestedDisadvantages: expect.arrayContaining([
+          "Requiere cirugía y unos meses de integración",
+        ]),
       },
       {
         letter: "B",
@@ -55,6 +61,8 @@ describe("comparePlanAlternatives", () => {
         exclusive: [expect.objectContaining({ label: "Puente 35-37", tooth: "35" })],
         advantages: "Sin cirugía de implante",
         disadvantages: "Talla dientes vecinos",
+        suggestedAdvantages: expect.arrayContaining(["Fijo y sin cirugía"]),
+        suggestedDisadvantages: expect.arrayContaining(["Hay que tallar los dientes vecinos"]),
       },
     ]);
   });

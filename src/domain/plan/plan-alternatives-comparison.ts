@@ -1,4 +1,5 @@
 import { normalized } from "./treatment-phase.ts";
+import { suggestedTradeoffs } from "./treatment-tradeoffs.ts";
 
 export interface ComparablePlanItem {
   id: string;
@@ -41,6 +42,9 @@ export interface PlanAlternativeDifference {
   exclusive: ComparedTreatment[];
   advantages: string | null;
   disadvantages: string | null;
+  /** Generic pros and cons of the exclusive treatments, for when none were written. */
+  suggestedAdvantages: string[];
+  suggestedDisadvantages: string[];
 }
 
 export interface PlanAlternativesComparison {
@@ -134,12 +138,16 @@ export function comparePlanAlternatives(
         const source = column.alternativeId
           ? alternativesById.get(column.alternativeId)
           : undefined;
+        const exclusive = column.treatments.filter((item) => !commonKeys.has(item.key));
+        const suggested = suggestedTradeoffs(exclusive);
         return {
           letter: column.letter,
           title: column.title,
-          exclusive: column.treatments.filter((item) => !commonKeys.has(item.key)),
+          exclusive,
           advantages: source?.advantages?.trim() || null,
           disadvantages: source?.disadvantages?.trim() || null,
+          suggestedAdvantages: suggested.advantages,
+          suggestedDisadvantages: suggested.disadvantages,
         };
       })
     : [];

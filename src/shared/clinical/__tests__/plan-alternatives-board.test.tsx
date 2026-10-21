@@ -86,6 +86,17 @@ describe("PlanAlternativesBoard", () => {
     expect(screen.getByText("Talla dientes vecinos")).toBeInTheDocument();
   });
 
+  it("suggests pros and cons when the plan has none written, and never shows 'Sin indicar'", () => {
+    renderBoard();
+    expect(screen.queryByText("Sin indicar")).toBeNull();
+    const planA = screen.getByRole("group", { name: "Ventajas del Plan A" });
+    expect(planA).toHaveTextContent("Sugerido");
+    expect(planA).toHaveTextContent("Reposición fija que no desgasta los dientes vecinos");
+    const written = screen.getByRole("group", { name: "Ventajas del Plan B" });
+    expect(written).toHaveTextContent("Sin cirugía de implante");
+    expect(written).not.toHaveTextContent("Sugerido");
+  });
+
   it("lets the dentist choose a plan from its column", () => {
     const onSelect = renderBoard();
     expect(
