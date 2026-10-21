@@ -21,6 +21,44 @@ function TreatmentList({ items, label }: { items: readonly ComparedTreatment[]; 
   );
 }
 
+// What the dentist wrote for the branch wins; otherwise generic points for its treatments.
+function ProsCons({
+  title,
+  letter,
+  written,
+  suggested,
+}: {
+  title: string;
+  letter: string;
+  written: string | null;
+  suggested: readonly string[];
+}) {
+  if (!written && !suggested.length) return null;
+  return (
+    <div className={styles.prosCons} role="group" aria-label={`${title} del Plan ${letter}`}>
+      <Group gap={6}>
+        <Text size="xs" fw={700}>
+          {title}
+        </Text>
+        {!written ? (
+          <Badge size="xs" variant="light" color="gray">
+            Sugerido
+          </Badge>
+        ) : null}
+      </Group>
+      {written ? (
+        <Text size="xs">{written}</Text>
+      ) : (
+        <ul className={styles.prosConsList}>
+          {suggested.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function PlanAlternativesBoard({
   comparison,
   selectedLetter,
@@ -120,12 +158,18 @@ export function PlanAlternativesBoard({
                     Solo los tratamientos comunes.
                   </Text>
                 )}
-                <dl className={styles.prosCons}>
-                  <dt>Ventajas</dt>
-                  <dd>{alternative.advantages ?? "Sin indicar"}</dd>
-                  <dt>Desventajas</dt>
-                  <dd>{alternative.disadvantages ?? "Sin indicar"}</dd>
-                </dl>
+                <ProsCons
+                  title="Ventajas"
+                  letter={alternative.letter}
+                  written={alternative.advantages}
+                  suggested={alternative.suggestedAdvantages}
+                />
+                <ProsCons
+                  title="Desventajas"
+                  letter={alternative.letter}
+                  written={alternative.disadvantages}
+                  suggested={alternative.suggestedDisadvantages}
+                />
               </div>
             ))
           ) : (
