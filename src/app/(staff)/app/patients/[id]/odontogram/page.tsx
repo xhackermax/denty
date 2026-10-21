@@ -1,4 +1,5 @@
 import { OdontogramWorkspace } from "@/features/odontogram/odontogram-workspace";
+import { PatientPipelineFrame } from "@/shared/patients/patient-pipeline-nav";
 
 interface OdontogramPageProps {
   params: Promise<{ id: string }>;
@@ -6,5 +7,9 @@ interface OdontogramPageProps {
 
 export default async function OdontogramPage({ params }: OdontogramPageProps) {
   const { id } = await params;
-  return <OdontogramWorkspace patientId={id} />;
+  return (
+    <PatientPipelineFrame patientId={id} current="odontogram">
+      <OdontogramWorkspace patientId={id} />
+    </PatientPipelineFrame>
+  );
 }

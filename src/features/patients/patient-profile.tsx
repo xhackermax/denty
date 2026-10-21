@@ -35,6 +35,7 @@ import {
   useUpdatePatientMutation,
   useUploadPatientPhotoMutation,
 } from "@/shared/patients/patient-data";
+import { PatientPipelineNav, PatientPipelineStepper } from "@/shared/patients/patient-pipeline-nav";
 import { HorizontalSnapNav, PageHeader, PatientAvatar } from "@/shared/ui";
 import { PatientMedicalHistory } from "./patient-medical-history";
 import { PatientEditModal } from "./patient-edit-modal";
@@ -457,6 +458,15 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         </section>
       </SimpleGrid>
 
+      <PatientPipelineNav
+        patientId={patientId}
+        {...(activeTab === "plan"
+          ? { current: "plan" as const }
+          : activeTab === "budgets"
+            ? { current: "budget" as const }
+            : {})}
+      />
+
       <HorizontalSnapNav
         ariaLabel="Ficha del paciente"
         value={activeTab ?? "summary"}
@@ -481,40 +491,10 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         <Tabs.Panel value="summary" pt="lg">
           <div className={styles.patientRouteGrid}>
             <PatientRouteCard
-              href={`/app/patients/${patientId}/odontogram`}
-              icon={IconHeartbeat}
-              title="Clínica"
-              description="Odontograma y especialidades"
-            />
-            <PatientRouteCard
               href={`/app/patients/${patientId}?view=clinical`}
               icon={IconFileText}
               title="Seguimiento clínico"
               description="Diagnóstico, plan, consentimientos, firma y citas"
-            />
-            <PatientRouteCard
-              href={`/app/patients/${patientId}?view=plan`}
-              icon={IconFileText}
-              title="Plan de tratamiento"
-              description="Qué vamos a hacer y en qué orden"
-            />
-            <PatientRouteCard
-              href={`/app/patients/${patientId}?view=budgets`}
-              icon={IconReceipt}
-              title="Presupuestos"
-              description="Opciones, comparación, precios y firma"
-            />
-            <PatientRouteCard
-              href={`/app/agenda?patientId=${patientId}`}
-              icon={IconCalendar}
-              title="Citas"
-              description="Citas y cambios"
-            />
-            <PatientRouteCard
-              href={`/app/documents?patientId=${patientId}`}
-              icon={IconFileText}
-              title="Documentos"
-              description="Firmados y pendientes"
             />
           </div>
         </Tabs.Panel>
@@ -542,6 +522,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
               setTreatmentFlowOpen(true);
             }}
           />
+          <PatientPipelineStepper patientId={patientId} current="plan" />
         </Tabs.Panel>
 
         <Tabs.Panel value="budgets" pt="lg">
@@ -554,6 +535,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
               setTreatmentFlowOpen(true);
             }}
           />
+          <PatientPipelineStepper patientId={patientId} current="budget" />
         </Tabs.Panel>
 
         <Tabs.Panel value="documents" pt="lg">
