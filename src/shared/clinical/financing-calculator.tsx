@@ -29,6 +29,7 @@ export function FinancingCalculator({
   const [openingFee, setOpeningFee] = useState<number | string>(0);
   const [monthlyFeeEuro, setMonthlyFeeEuro] = useState<number | string>(0);
   const [copyStatus, setCopyStatus] = useState<"copied" | "failed" | null>(null);
+  const [printError, setPrintError] = useState(false);
 
   const summary = useMemo(() => {
     if (!selected || typeof downPaymentEuro !== "number" ||
@@ -76,10 +77,43 @@ export function FinancingCalculator({
     }
   };
 
+  const printEstimate = () => {
+    if (!selected || !summary || typeof tin !== "number" || typeof openingFee !== "number") return;
+    const printable = formatFinancingEstimate({
+      budgetCode: selected.code,
+      ...(selected.title ? { budgetTitle: selected.title } : {}),
+      months,
+      tinPercent: tin,
+      openingFeePercent: openingFee,
+      result: summary,
+    });
+    const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[char] ?? char);
+    const popup = window.open("", "_blank");
+    if (!popup) {
+      setPrintError(true);
+      return;
+    }
+    setPrintError(false);
+    popup.document.open();
+    popup.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8">
+      <title>Simulación de financiación - ${escapeHtml(selected.code)}</title>
+      <style>body{font:15px/1.65 Arial,sans-serif;margin:40px;color:#17212b}
+      h1{font-size:22px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
+      @page{size:A4;margin:18mm}</style></head><body>
+      <h1>Simulación de financiación</h1><pre>${escapeHtml(printable)}</pre></body></html>`);
+    popup.document.close();
+    popup.focus();
+    popup.print();
+  };
+
   if (options.length === 0) return null;
 
   return (
-    <section className={styles.section} aria-labelledby="patient-financing-title">
+    <details className={styles.section} data-testid="financing-calculator">
+      <summary className={styles.calculatorToggle}>Calculadora de financiación · Simular cuotas</summary>
+      <div className={styles.calculatorContent}>
       <Group justify="space-between" align="center" mb="xs">
         <Title order={3} id="patient-financing-title">Calculadora de financiación</Title>
         <Badge variant="light">Simulación</Badge>
@@ -239,6 +273,12 @@ export function FinancingCalculator({
             Para calcular la cuota, indica una entrada inferior al presupuesto y condiciones válidas.
           </Alert>
         )}
+        {summary ? (
+          <Group justify="flex-end">
+            <Button onClick={printEstimate}>Imprimir PDF</Button>
+          </Group>
+        ) : null}
+        {printError ? <Alert color="orange" role="alert">Permite las ventanas emergentes para imprimir o guardar el PDF.</Alert> : null}
         <Text size="xs" c="dimmed">
           Ejemplo financiero basado en amortización francesa: cuotas mensuales, sin carencia,
           primera cuota al mes y comisión de apertura pagada al inicio. La TAE es teórica y
@@ -248,6 +288,7 @@ export function FinancingCalculator({
           debe confirmar condiciones, TAE contractual, documentación y aprobación.
         </Text>
       </Stack>
-    </section>
+      </div>
+    </details>
   );
 }
