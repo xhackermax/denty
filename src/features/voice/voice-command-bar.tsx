@@ -191,9 +191,7 @@ function invalidateAfterVoiceExecution(
     return typeof patientId === "string" && patientId.length > 0 ? patientId : null;
   };
   const patientIds = new Set(
-    calls
-      .map(patientIdFromCall)
-      .filter((patientId): patientId is string => patientId !== null),
+    calls.map(patientIdFromCall).filter((patientId): patientId is string => patientId !== null),
   );
   const hasOdontogramChange = calls.some((call) =>
     [
@@ -209,10 +207,12 @@ function invalidateAfterVoiceExecution(
   const hasAppointmentChange = calls.some((call) => call.name.startsWith("appointment."));
   const hasPaymentChange = calls.some((call) => call.name === "payment.record");
 
-  if (hasPatientChange) void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.root });
+  if (hasPatientChange)
+    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.root });
   if (hasAppointmentChange)
     void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.appointments.root });
-  if (hasPaymentChange) void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.finance.root });
+  if (hasPaymentChange)
+    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.finance.root });
   if (hasOdontogramChange) {
     for (const patientId of patientIds) {
       void queryClient.invalidateQueries({
@@ -287,7 +287,6 @@ function VoiceCommandBarInner({
   const patchAssistantContext = useOptionalAssistantContextPatch();
   const queryClient = useQueryClient();
   const reducedMotion = useReducedMotion();
-  const patientsQuery = usePatientsQuery();
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
@@ -301,6 +300,7 @@ function VoiceCommandBarInner({
   const [error, setError] = useState<string | null>(null);
   const [lastDone, setLastDone] = useState<string | null>(null);
   const [keyboardDictationHint, setKeyboardDictationHint] = useState(false);
+  const patientsQuery = usePatientsQuery(panelOpened || capture !== "idle");
   const executingRef = useRef(false);
   // Turned off for the session once the server says Claude isn't configured.
   const claudeAvailableRef = useRef(true);

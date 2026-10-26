@@ -1,6 +1,6 @@
 import "@mantine/core/styles.css";
 
-import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core";
+import { mantineHtmlProps } from "@mantine/core";
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import type { ReactNode } from "react";
@@ -72,7 +72,6 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="es" data-density="comfortable" {...mantineHtmlProps}>
       <head>
-        <ColorSchemeScript defaultColorScheme="light" />
         <script dangerouslySetInnerHTML={{ __html: timeColorSchemeScript }} />
         <script dangerouslySetInnerHTML={{ __html: visualPreferenceScript }} />
       </head>

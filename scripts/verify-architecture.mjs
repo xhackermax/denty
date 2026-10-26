@@ -9,6 +9,9 @@ const LOCAL_STORAGE_ALLOWLIST = new Set([
   path.normalize("src/features/parity/modules/documents-module.tsx"),
   path.normalize("src/features/parity/modules/laboratory-module.tsx"),
   path.normalize("src/features/parity/modules/settings-module.tsx"),
+  // Mantine reads the single Denty appearance preference through this adapter.
+  path.normalize("src/app/_components/shell/denty-color-scheme-manager.ts"),
+  path.normalize("src/app/_components/shell/denty-color-scheme-manager.test.ts"),
   path.normalize("src/app/_components/shell/time-color-scheme-provider.tsx"),
   path.normalize("src/app/_components/shell/time-color-scheme-provider.test.tsx"),
   path.normalize("src/app/layout.tsx"),

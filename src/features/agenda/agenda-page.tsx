@@ -98,6 +98,7 @@ import {
   useCreateAgendaBlockMutation,
   useCreateAppointmentMutation,
   useMoveAppointmentMutation,
+  agendaPrefetchDates,
   usePrefetchAppointmentDays,
 } from "./agenda-data";
 import {
@@ -334,7 +335,9 @@ export function AgendaPage() {
   const [implantRows, setImplantRows] = useState<ReturnType<typeof implantOutcomePayload>[]>([]);
   const [implantEntryIndex, setImplantEntryIndex] = useState(0);
   const [implantCompleting, setImplantCompleting] = useState(false);
-  const [treatmentAppointment, setTreatmentAppointment] = useState<AgendaAppointmentView | null>(null);
+  const [treatmentAppointment, setTreatmentAppointment] = useState<AgendaAppointmentView | null>(
+    null,
+  );
   const [treatmentCompleting, setTreatmentCompleting] = useState(false);
   const [treatmentError, setTreatmentError] = useState<string | null>(null);
   const [implantError, setImplantError] = useState<string | null>(null);
@@ -379,14 +382,7 @@ export function AgendaPage() {
   }, []);
 
   useEffect(() => {
-    prefetchDays(
-      visibleDates(shiftRange(rangeStart, effectiveDayCount, 1), effectiveDayCount),
-      viewSiteId,
-    );
-    prefetchDays(
-      visibleDates(shiftRange(rangeStart, effectiveDayCount, -1), effectiveDayCount),
-      viewSiteId,
-    );
+    prefetchDays(agendaPrefetchDates(rangeStart, effectiveDayCount), viewSiteId);
   }, [rangeStart, effectiveDayCount, viewSiteId]);
 
   const patients = useMemo(() => patientsQuery.data?.items ?? [], [patientsQuery.data]);
@@ -399,8 +395,10 @@ export function AgendaPage() {
     [appointmentsQuery.data, patients],
   );
   useEffect(() => {
-    if (requestedAppointmentId &&
-        appointments.some(appointment => appointment.id === requestedAppointmentId)) {
+    if (
+      requestedAppointmentId &&
+      appointments.some((appointment) => appointment.id === requestedAppointmentId)
+    ) {
       setQuickViewId(requestedAppointmentId);
     }
   }, [requestedAppointmentId, appointments]);
@@ -2135,54 +2133,85 @@ export function AgendaPage() {
           <Stack gap="md">
             <Text fw={700}>{treatmentAppointment?.patientName}</Text>
             <Text size="sm">
-              Esta cita está vinculada a un tratamiento del plan. ¿Ha quedado
-              realmente terminado o se trata de una sesión intermedia?
+              Esta cita está vinculada a un tratamiento del plan. ¿Ha quedado realmente terminado o
+              se trata de una sesión intermedia?
             </Text>
             <Alert color="blue">
-              Solo «Tratamiento terminado» lo incorporará a las estadísticas
-              del doctor. El mismo tratamiento no volverá a contabilizarse.
+              Solo «Tratamiento terminado» lo incorporará a las estadísticas del doctor. El mismo
+              tratamiento no volverá a contabilizarse.
             </Alert>
             {treatmentError && <Alert color="red">{treatmentError}</Alert>}
             <Group gap="sm" justify="flex-end">
-              <Button variant="default" disabled={treatmentCompleting}
-                onClick={() => setTreatmentAppointment(null)}>
+              <Button
+                variant="default"
+                disabled={treatmentCompleting}
+                onClick={() => setTreatmentAppointment(null)}
+              >
                 Volver
               </Button>
-              <Button variant="light" loading={treatmentCompleting}
+              <Button
+                variant="light"
+                loading={treatmentCompleting}
                 onClick={async () => {
                   if (!treatmentAppointment) return;
                   setTreatmentCompleting(true);
                   setTreatmentError(null);
                   try {
                     await qualityApi.completeClinicalVisit(
-                      treatmentAppointment.id, treatmentAppointment.version, false);
+                      treatmentAppointment.id,
+                      treatmentAppointment.version,
+                      false,
+                    );
                     setTreatmentAppointment(null);
                     setAgendaNotice("Sesión finalizada; el tratamiento continúa pendiente.");
                     setQuickViewId(null);
-                    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.appointments.root });
+                    void queryClient.invalidateQueries({
+                      queryKey: dentyQueryKeys.appointments.root,
+                    });
                   } catch (error) {
-                    setTreatmentError(error instanceof Error ? error.message : "Error al cerrar la cita.");
-                  } finally { setTreatmentCompleting(false); }
-                }}>Solo finalizar cita</Button>
-              <Button loading={treatmentCompleting}
+                    setTreatmentError(
+                      error instanceof Error ? error.message : "Error al cerrar la cita.",
+                    );
+                  } finally {
+                    setTreatmentCompleting(false);
+                  }
+                }}
+              >
+                Solo finalizar cita
+              </Button>
+              <Button
+                loading={treatmentCompleting}
                 onClick={async () => {
                   if (!treatmentAppointment) return;
                   setTreatmentCompleting(true);
                   setTreatmentError(null);
                   try {
                     await qualityApi.completeClinicalVisit(
-                      treatmentAppointment.id, treatmentAppointment.version, true);
+                      treatmentAppointment.id,
+                      treatmentAppointment.version,
+                      true,
+                    );
                     setTreatmentAppointment(null);
                     setAgendaNotice("Tratamiento y cita finalizados. Estadísticas actualizadas.");
                     setQuickViewId(null);
-                    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.appointments.root });
+                    void queryClient.invalidateQueries({
+                      queryKey: dentyQueryKeys.appointments.root,
+                    });
                     void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.clinical.root });
                     void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.analytics.root });
                   } catch (error) {
-                    setTreatmentError(error instanceof Error ? error.message :
-                      "No se completó la operación; no se ha contabilizado el tratamiento.");
-                  } finally { setTreatmentCompleting(false); }
-                }}>Tratamiento terminado</Button>
+                    setTreatmentError(
+                      error instanceof Error
+                        ? error.message
+                        : "No se completó la operación; no se ha contabilizado el tratamiento.",
+                    );
+                  } finally {
+                    setTreatmentCompleting(false);
+                  }
+                }}
+              >
+                Tratamiento terminado
+              </Button>
             </Group>
           </Stack>
         </Modal>
@@ -2204,16 +2233,27 @@ export function AgendaPage() {
               Los datos se guardarán en Supabase conjuntamente con el cierre de la cita.
             </Alert>
             {implantAppointment && (
-              <Text fw={700}>{implantAppointment.patientName} · {implantAppointment.reason}</Text>
+              <Text fw={700}>
+                {implantAppointment.patientName} · {implantAppointment.reason}
+              </Text>
             )}
             {implantRows.map((item, index) => (
               <Group key={item.tooth_position} justify="space-between">
                 <Badge variant="light">
-                  {item.tooth_position} · {item.outcome === "PLACED" ? "Colocado" :
-                    item.outcome === "FAILED" ? "Fracaso" : "Diferido"}
+                  {item.tooth_position} ·{" "}
+                  {item.outcome === "PLACED"
+                    ? "Colocado"
+                    : item.outcome === "FAILED"
+                      ? "Fracaso"
+                      : "Diferido"}
                 </Badge>
-                <Button size="xs" color="red" variant="subtle" disabled={implantCompleting}
-                  onClick={() => setImplantRows(rows => rows.filter((_, i) => i !== index))}>
+                <Button
+                  size="xs"
+                  color="red"
+                  variant="subtle"
+                  disabled={implantCompleting}
+                  onClick={() => setImplantRows((rows) => rows.filter((_, i) => i !== index))}
+                >
                   Quitar
                 </Button>
               </Group>
@@ -2228,40 +2268,63 @@ export function AgendaPage() {
                 readOnly={implantCompleting}
                 onSave={async (payload) => {
                   const position = payload.tooth_position.trim().toUpperCase();
-                  if (implantRows.some(item => item.tooth_position.trim().toUpperCase() === position))
+                  if (
+                    implantRows.some(
+                      (item) => item.tooth_position.trim().toUpperCase() === position,
+                    )
+                  )
                     throw new Error("Ya se ha registrado esa posición. No se admiten duplicados.");
-                  setImplantRows(rows => [...rows, payload]);
-                  setImplantEntryIndex(index => index + 1);
+                  setImplantRows((rows) => [...rows, payload]);
+                  setImplantEntryIndex((index) => index + 1);
                   setImplantError(null);
                 }}
               />
             ) : (
-              <Alert color="orange">La clínica activa es necesaria para guardar los implantes.</Alert>
+              <Alert color="orange">
+                La clínica activa es necesaria para guardar los implantes.
+              </Alert>
             )}
             {implantError ? <Alert color="red">{implantError}</Alert> : null}
             <Group justify="flex-end">
-              <Button variant="default" disabled={implantCompleting}
-                onClick={() => { setImplantAppointment(null); setImplantRows([]); }}>
+              <Button
+                variant="default"
+                disabled={implantCompleting}
+                onClick={() => {
+                  setImplantAppointment(null);
+                  setImplantRows([]);
+                }}
+              >
                 Cancelar cierre
               </Button>
-              <Button loading={implantCompleting} disabled={!implantRows.length || !activeClinicId}
+              <Button
+                loading={implantCompleting}
+                disabled={!implantRows.length || !activeClinicId}
                 onClick={async () => {
                   if (!implantAppointment || !implantRows.length) return;
                   setImplantCompleting(true);
                   setImplantError(null);
                   try {
                     await qualityApi.completeImplantAppointment(
-                      implantAppointment.id, implantAppointment.version, implantRows);
+                      implantAppointment.id,
+                      implantAppointment.version,
+                      implantRows,
+                    );
                     setAgendaNotice(
-                      `Cirugía de ${implantAppointment.patientName} finalizada: ${implantRows.length} resultado(s) registrado(s).`);
+                      `Cirugía de ${implantAppointment.patientName} finalizada: ${implantRows.length} resultado(s) registrado(s).`,
+                    );
                     setImplantAppointment(null);
                     setImplantRows([]);
                     setQuickViewId(null);
-                    void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.appointments.root });
+                    void queryClient.invalidateQueries({
+                      queryKey: dentyQueryKeys.appointments.root,
+                    });
                     void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.analytics.root });
                   } catch (error) {
-                    setImplantError(error instanceof Error ? error.message :
-                      "No se pudo cerrar la cirugía. No se han guardado resultados parciales.");
+                    setImplantError(
+                      error instanceof Error
+                        ? error.message
+                        : "No se pudo cerrar la cirugía. No se han guardado resultados parciales.",
+                    );
                   } finally {
                     setImplantCompleting(false);
                   }

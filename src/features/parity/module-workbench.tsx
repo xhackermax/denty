@@ -1,19 +1,11 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import type { ComponentType } from "react";
+
 import { PageHeader } from "@/shared/ui";
 
 import styles from "@/shared/ui/parity.module.css";
-import { AlertsModule } from "./modules/alerts-module";
-import { AnalysisModule } from "./modules/analysis-module";
-import { AttendanceModule } from "./modules/attendance-module";
-import { CampaignsModule } from "./modules/campaigns-module";
-import { CommunicationsModule } from "./modules/communications-module";
-import { RecoveryModule } from "./modules/recovery-module";
-import { DocumentsModule } from "./modules/documents-module";
-import { FinanceModule } from "./modules/finance-module";
-import { LaboratoryModule } from "./modules/laboratory-module";
-import { PrescriptionsModule } from "./modules/prescriptions-module";
-import { SettingsModule } from "./modules/settings-module";
 
 export type ParityModuleKey =
   | "laboratory"
@@ -31,6 +23,38 @@ export type ParityModuleKey =
 interface ModuleWorkbenchProps {
   module: ParityModuleKey;
 }
+
+const MODULE_COMPONENTS = {
+  laboratory: dynamic(() =>
+    import("./modules/laboratory-module").then((value) => value.LaboratoryModule),
+  ),
+  prescriptions: dynamic(() =>
+    import("./modules/prescriptions-module").then((value) => value.PrescriptionsModule),
+  ),
+  communications: dynamic(() =>
+    import("./modules/communications-module").then((value) => value.CommunicationsModule),
+  ),
+  recovery: dynamic(() =>
+    import("./modules/recovery-module").then((value) => value.RecoveryModule),
+  ),
+  documents: dynamic(() =>
+    import("./modules/documents-module").then((value) => value.DocumentsModule),
+  ),
+  finance: dynamic(() => import("./modules/finance-module").then((value) => value.FinanceModule)),
+  analysis: dynamic(() =>
+    import("./modules/analysis-module").then((value) => value.AnalysisModule),
+  ),
+  campaigns: dynamic(() =>
+    import("./modules/campaigns-module").then((value) => value.CampaignsModule),
+  ),
+  alerts: dynamic(() => import("./modules/alerts-module").then((value) => value.AlertsModule)),
+  attendance: dynamic(() =>
+    import("./modules/attendance-module").then((value) => value.AttendanceModule),
+  ),
+  settings: dynamic(() =>
+    import("./modules/settings-module").then((value) => value.SettingsModule),
+  ),
+} satisfies Record<ParityModuleKey, ComponentType>;
 
 const TITLES: Record<ParityModuleKey, { title: string; description: string }> = {
   laboratory: {
@@ -79,39 +103,13 @@ const TITLES: Record<ParityModuleKey, { title: string; description: string }> = 
   },
 };
 
-function renderModule(module: ParityModuleKey) {
-  switch (module) {
-    case "laboratory":
-      return <LaboratoryModule />;
-    case "prescriptions":
-      return <PrescriptionsModule />;
-    case "communications":
-      return <CommunicationsModule />;
-    case "recovery":
-      return <RecoveryModule />;
-    case "documents":
-      return <DocumentsModule />;
-    case "finance":
-      return <FinanceModule />;
-    case "analysis":
-      return <AnalysisModule />;
-    case "campaigns":
-      return <CampaignsModule />;
-    case "alerts":
-      return <AlertsModule />;
-    case "attendance":
-      return <AttendanceModule />;
-    case "settings":
-      return <SettingsModule />;
-  }
-}
-
 export function ModuleWorkbench({ module }: ModuleWorkbenchProps) {
   const meta = TITLES[module];
+  const Module = MODULE_COMPONENTS[module];
   return (
     <div className={styles.grid}>
       <PageHeader title={meta.title} description={meta.description} />
-      {renderModule(module)}
+      <Module />
     </div>
   );
 }
