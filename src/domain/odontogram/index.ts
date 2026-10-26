@@ -316,23 +316,36 @@ export function cycleClinicalState(family: TriStateFamily, current: ToothState):
   return TRI_STATE_STATUS[family][nextTriStateKind(kind)];
 }
 
-export function bridgeTeethFromEndpoints(from: string, to: string): string[] {
+/** The teeth of each arch in chart order, as drawn for one patient's mouth. */
+export interface ChartRows {
+  upper: readonly string[];
+  lower: readonly string[];
+}
+
+/**
+ * Teeth from one abutment to the other. Without `rows` both ends must share a dentition;
+ * with the patient's chart rows (mixed dentition) the bridge follows the row on screen,
+ * where primary and permanent teeth sit side by side.
+ */
+export function bridgeTeethFromEndpoints(from: string, to: string, rows?: ChartRows): string[] {
   const arch = archForTooth(from);
   if (archForTooth(to) !== arch) {
     throw new RangeError("Los extremos del puente deben estar en la misma arcada");
   }
   const temporaryDentition = /^[5-8]/.test(from);
   const toIsTemporary = /^[5-8]/.test(to);
-  if (temporaryDentition !== toIsTemporary) {
+  if (!rows && temporaryDentition !== toIsTemporary) {
     throw new RangeError("Los extremos del puente deben pertenecer a la misma dentición");
   }
-  const order: string[] = temporaryDentition
-    ? arch === "upper"
-      ? [...TEMPORARY_UPPER]
-      : [...TEMPORARY_LOWER]
-    : arch === "upper"
-      ? [...PERMANENT_UPPER]
-      : [...PERMANENT_LOWER];
+  const order: readonly string[] = rows
+    ? rows[arch]
+    : temporaryDentition
+      ? arch === "upper"
+        ? TEMPORARY_UPPER
+        : TEMPORARY_LOWER
+      : arch === "upper"
+        ? PERMANENT_UPPER
+        : PERMANENT_LOWER;
   const start = order.indexOf(from);
   const end = order.indexOf(to);
   if (start < 0 || end < 0) {
@@ -381,8 +394,9 @@ export function createBridgeEntities(
   from: string,
   to: string,
   prosthesisState: "prosthesis" | "prosthesis_bad" | "prosthesis_pending" = "prosthesis_pending",
+  rows?: ChartRows,
 ): DentalEntity[] {
-  const teeth = bridgeTeethFromEndpoints(from, to);
+  const teeth = bridgeTeethFromEndpoints(from, to, rows);
   if (teeth.length < 2) throw new RangeError("Un puente requiere al menos dos dientes");
   const bridgeId = `bridge-${from}-${to}`;
   const pillars = [teeth[0], teeth.at(-1)].filter((value): value is string => Boolean(value));

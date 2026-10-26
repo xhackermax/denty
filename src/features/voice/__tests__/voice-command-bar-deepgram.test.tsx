@@ -30,6 +30,8 @@ vi.mock("@/shared/api/browser", () => ({
   getBrowserApi: () => ({
     auth: { session: mocks.session },
     agenda: { context: mocks.agenda },
+    // The bar looks up the open patient's name before running a spoken order.
+    patients: { get: vi.fn().mockResolvedValue(null) },
     voice: { interpret: vi.fn() },
   }),
 }));

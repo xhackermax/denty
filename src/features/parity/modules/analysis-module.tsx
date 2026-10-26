@@ -361,7 +361,12 @@ export function AnalysisModule() {
                 >
                   <IconChevronLeft size={16} />
                 </ActionIcon>
-                <Button variant="subtle" className={styles.analysisPeriodLabel}>
+                <Button
+                  variant="subtle"
+                  className={styles.analysisPeriodLabel}
+                  title="Volver al periodo actual"
+                  onClick={() => setAnchor(today)}
+                >
                   {periodLabel(preset, range.startDate)}
                 </Button>
                 <ActionIcon

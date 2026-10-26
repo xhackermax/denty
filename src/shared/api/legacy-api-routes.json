@@ -1,7 +1,7 @@
 {
   "legacyVersion": "2.3.7",
-  "generatedFrom": "API_CONTRACT.md + rutas din\u00e1micas verificadas en source",
-  "routeCount": 274,
+  "generatedFrom": "API_CONTRACT.md + rutas dinámicas verificadas en source",
+  "routeCount": 291,
   "routes": [
     {
       "method": "GET",
@@ -64,6 +64,12 @@
       "kind": "browser"
     },
     {
+      "method": "POST",
+      "path": "/api/admin/communications/appointment-reminders/queue",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
       "method": "GET",
       "path": "/api/admin/communications/appointment-settings",
       "source": "src/server/denty-supabase/route-handler.ts",
@@ -76,8 +82,38 @@
       "kind": "browser"
     },
     {
+      "method": "GET",
+      "path": "/api/admin/communications/campaign-templates",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/communications/campaign-templates",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
       "method": "POST",
-      "path": "/api/admin/communications/appointment-reminders/queue",
+      "path": "/api/admin/communications/campaign-templates/preview",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/communications/campaign-templates/queue",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/communications/marketing-policy",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/communications/marketing-policy",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
@@ -278,14 +314,6 @@
       "kind": "browser"
     },
     {
-      "method": "POST",
-      "path": "/api/agenda/schedule-plan-item",
-      "source": "apps/api/src/modules/appointments/operations-routes.ts",
-      "kind": "legacy_bug",
-      "correctedPath": "/api/agenda/schedule-plan-item/:planItemId",
-      "note": "El handler 2.3.7 declara Params.planItemId sin incluir :planItemId en la URL."
-    },
-    {
       "method": "GET",
       "path": "/api/agenda/month-summary",
       "source": "src/server/denty-supabase/route-handler.ts",
@@ -298,29 +326,19 @@
       "kind": "browser"
     },
     {
-      "method": "GET",
-      "path": "/api/navigation/layout",
-      "source": "src/server/denty-supabase/navigation-route.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "PUT",
-      "path": "/api/navigation/layout/clinic",
-      "source": "src/server/denty-supabase/navigation-route.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "PUT",
-      "path": "/api/navigation/layout/me",
-      "source": "src/server/denty-supabase/navigation-route.ts",
-      "kind": "browser"
+      "method": "POST",
+      "path": "/api/agenda/schedule-plan-item",
+      "source": "apps/api/src/modules/appointments/operations-routes.ts",
+      "kind": "legacy_bug",
+      "correctedPath": "/api/agenda/schedule-plan-item/:planItemId",
+      "note": "El handler 2.3.7 declara Params.planItemId sin incluir :planItemId en la URL."
     },
     {
       "method": "GET",
       "path": "/api/agenda/settings",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 7: preferencias de separaci\u00f3n entre visitas persistentes."
+      "note": "Stage 7: preferencias de separación entre visitas persistentes."
     },
     {
       "method": "PUT",
@@ -353,7 +371,7 @@
       "path": "/api/agenda/waitlist/:id/fulfill",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 7: recepci\u00f3n cumple la solicitud y puede vincular una cita."
+      "note": "Stage 7: recepción cumple la solicitud y puede vincular una cita."
     },
     {
       "method": "GET",
@@ -384,7 +402,7 @@
       "path": "/api/analytics/doctors",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
@@ -410,7 +428,7 @@
       "path": "/api/analytics/monthly",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
@@ -421,10 +439,17 @@
     },
     {
       "method": "GET",
+      "path": "/api/analytics/new-patients",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser",
+      "note": "Pacientes nuevos por fecha de alta, agrupados por periodo sobre Supabase."
+    },
+    {
+      "method": "GET",
       "path": "/api/analytics/profitability",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
@@ -437,21 +462,21 @@
       "path": "/api/analytics/specialties",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
       "path": "/api/analytics/summary",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
       "path": "/api/analytics/treatments",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 9: KPI can\u00f3nico DENTY-KPI-1 sobre Supabase."
+      "note": "Stage 9: KPI canónico DENTY-KPI-1 sobre Supabase."
     },
     {
       "method": "GET",
@@ -464,7 +489,7 @@
       "path": "/api/analytics/wait-times",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 7: m\u00e9tricas can\u00f3nicas de espera y sill\u00f3n."
+      "note": "Stage 7: métricas canónicas de espera y sillón."
     },
     {
       "method": "GET",
@@ -489,7 +514,7 @@
       "path": "/api/appointments/:id/arrive",
       "source": "apps/api/src/modules/appointments/routes.ts",
       "kind": "browser",
-      "note": "Ruta registrada din\u00e1micamente por statusActions en Denty 2.3.7."
+      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
     },
     {
       "method": "POST",
@@ -508,14 +533,14 @@
       "path": "/api/appointments/:id/chair",
       "source": "apps/api/src/modules/appointments/routes.ts",
       "kind": "browser",
-      "note": "Ruta registrada din\u00e1micamente por statusActions en Denty 2.3.7."
+      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
     },
     {
       "method": "POST",
       "path": "/api/appointments/:id/complete",
       "source": "apps/api/src/modules/appointments/routes.ts",
       "kind": "browser",
-      "note": "Ruta registrada din\u00e1micamente por statusActions en Denty 2.3.7."
+      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
     },
     {
       "method": "POST",
@@ -534,7 +559,7 @@
       "path": "/api/appointments/:id/no-show",
       "source": "apps/api/src/modules/appointments/routes.ts",
       "kind": "browser",
-      "note": "Ruta registrada din\u00e1micamente por statusActions en Denty 2.3.7."
+      "note": "Ruta registrada dinámicamente por statusActions en Denty 2.3.7."
     },
     {
       "method": "POST",
@@ -553,7 +578,7 @@
       "path": "/api/appointments/:id/waiting",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser",
-      "note": "Stage 7: transici\u00f3n expl\u00edcita ARRIVED \u2192 WAITING."
+      "note": "Stage 7: transición explícita ARRIVED → WAITING."
     },
     {
       "method": "GET",
@@ -653,13 +678,13 @@
       "kind": "browser"
     },
     {
-      "method": "PATCH",
+      "method": "DELETE",
       "path": "/api/budgets/:id",
       "source": "stage13-clinical-budget-history",
       "kind": "browser"
     },
     {
-      "method": "DELETE",
+      "method": "PATCH",
       "path": "/api/budgets/:id",
       "source": "stage13-clinical-budget-history",
       "kind": "browser"
@@ -731,6 +756,24 @@
       "kind": "browser"
     },
     {
+      "method": "DELETE",
+      "path": "/api/cv-archive",
+      "source": "src/app/api/cv-archive/route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cv-archive",
+      "source": "src/app/api/cv-archive/route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cv-archive",
+      "source": "src/app/api/cv-archive/route.ts",
+      "kind": "browser"
+    },
+    {
       "method": "GET",
       "path": "/api/document-templates",
       "source": "apps/api/src/modules/documents/routes.ts",
@@ -797,9 +840,27 @@
       "kind": "browser"
     },
     {
+      "method": "GET",
+      "path": "/api/documents/:id/signature",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
       "method": "POST",
       "path": "/api/documents/attendance-certificate",
       "source": "apps/api/src/modules/documents/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents/debt-acknowledgement",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents/privacy-notice",
+      "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
     {
@@ -932,6 +993,24 @@
       "method": "POST",
       "path": "/api/laboratory-price-list",
       "source": "src/shared/api/resources/core.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/navigation/layout",
+      "source": "src/server/denty-supabase/navigation-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/navigation/layout/clinic",
+      "source": "src/server/denty-supabase/navigation-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/navigation/layout/me",
+      "source": "src/server/denty-supabase/navigation-route.ts",
       "kind": "browser"
     },
     {
@@ -1139,6 +1218,42 @@
       "kind": "browser"
     },
     {
+      "method": "GET",
+      "path": "/api/admin/clinical-arguments",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/clinical-arguments",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clinical-arguments/restore",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/clinical-arguments/history",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/:id/treatment-comparisons",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/treatment-comparisons",
+      "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
       "method": "POST",
       "path": "/api/patients/:id/patient-photo",
       "source": "src/server/denty-supabase/route-handler.ts",
@@ -1182,13 +1297,13 @@
     },
     {
       "method": "GET",
-      "path": "/api/patients/:patientId/clinical-plan",
+      "path": "/api/patients/:patientId/budgets",
       "source": "apps/api/src/modules/clinical/routes.ts",
       "kind": "browser"
     },
     {
       "method": "GET",
-      "path": "/api/patients/:patientId/budgets",
+      "path": "/api/patients/:patientId/clinical-plan",
       "source": "apps/api/src/modules/clinical/routes.ts",
       "kind": "browser"
     },
@@ -1206,6 +1321,12 @@
     },
     {
       "method": "POST",
+      "path": "/api/patients/:patientId/clinical-plan/branches",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
       "path": "/api/patients/:patientId/clinical-plan/budget",
       "source": "apps/api/src/modules/clinical/routes.ts",
       "kind": "browser"
@@ -1218,14 +1339,14 @@
     },
     {
       "method": "POST",
-      "path": "/api/patients/:patientId/clinical-plan/reorder",
-      "source": "src/shared/api/resources/clinical.ts",
+      "path": "/api/patients/:patientId/clinical-plan/preferences",
+      "source": "apps/api/src/modules/clinical/routes.ts",
       "kind": "browser"
     },
     {
       "method": "POST",
-      "path": "/api/patients/:patientId/clinical-plan/preferences",
-      "source": "apps/api/src/modules/clinical/routes.ts",
+      "path": "/api/patients/:patientId/clinical-plan/reorder",
+      "source": "src/shared/api/resources/clinical.ts",
       "kind": "browser"
     },
     {
@@ -1385,12 +1506,6 @@
     },
     {
       "method": "GET",
-      "path": "/api/payments/sumup/status",
-      "source": "src/app/api/denty/[...path]/payment-routes.ts",
-      "kind": "browser"
-    },
-    {
-      "method": "GET",
       "path": "/api/prescription-settings",
       "source": "apps/api/src/modules/prescriptions/routes.ts",
       "kind": "browser"
@@ -1469,6 +1584,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/recovery/search",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/recovery/worklist",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/security/audit/verify",
       "source": "apps/api/src/modules/security/routes.ts",
       "kind": "browser"
@@ -1517,6 +1644,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/staff-documents",
+      "source": "src/app/api/staff-documents/route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/staff-documents",
+      "source": "src/app/api/staff-documents/route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/supplier-invoices",
       "source": "apps/api/src/modules/laboratory/routes.ts",
       "kind": "browser"
@@ -1525,6 +1664,16 @@
       "method": "POST",
       "path": "/api/supplier-invoices",
       "source": "apps/api/src/modules/analytics/routes.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/supplier-invoices/:id/document",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/supplier-invoices/:id/document",
       "kind": "browser"
     },
     {
@@ -1570,6 +1719,12 @@
       "kind": "browser"
     },
     {
+      "method": "GET",
+      "path": "/api/tasks/assignees",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
       "method": "POST",
       "path": "/api/tasks/reorder",
       "source": "src/server/denty-supabase/route-handler.ts",
@@ -1588,15 +1743,15 @@
       "kind": "browser"
     },
     {
-      "method": "PATCH",
-      "path": "/api/users/:id",
-      "source": "apps/api/src/modules/users/routes.ts",
-      "kind": "browser"
-    },
-    {
       "method": "DELETE",
       "path": "/api/users/:id",
       "source": "src/shared/api/resources/admin.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/:id",
+      "source": "apps/api/src/modules/users/routes.ts",
       "kind": "browser"
     },
     {
