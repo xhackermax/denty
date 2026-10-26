@@ -16,7 +16,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-import { clinicalPipelineHref } from "@/domain";
+import { clinicalPipelineHref, LABORATORY_STATUS_LABELS, laboratoryStatusTone } from "@/domain";
+import type { LaboratoryState, LaboratoryStatusTone } from "@/domain";
 import { formatEUR } from "@/domain/money";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { useActiveTenant } from "@/shared/tenancy/active-context";
@@ -44,6 +45,13 @@ function centsFromEuros(value: number | string): number {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, Math.round(number * 100)) : 0;
 }
+
+const LAB_LEGEND: ReadonlyArray<{ tone: LaboratoryStatusTone; label: string }> = [
+  { tone: "done", label: "Realizado" },
+  { tone: "sent", label: "Enviado" },
+  { tone: "pending", label: "Pendiente de enviar" },
+  { tone: "incident", label: "Incidencia" },
+];
 
 function nextLabStatus(status: string): "SENT" | "IN_PRODUCTION" | "RECEIVED" | "PLACED" | null {
   if (["PLANNED", "IMPRESSION_TAKEN", "SCANNED"].includes(status)) return "SENT";
@@ -297,6 +305,13 @@ export function LaboratoryModule() {
             <p className={styles.sectionDescription}>
               Timeline persistente y adjuntos privados en Storage.
             </p>
+            <div className={styles.labLegend} aria-label="Leyenda de estados">
+              {LAB_LEGEND.map((item) => (
+                <span className={styles.labLegendItem} data-tone={item.tone} key={item.tone}>
+                  {item.label}
+                </span>
+              ))}
+            </div>
           </div>
           <Badge>{works.data?.items.length ?? 0}</Badge>
         </div>
@@ -304,7 +319,11 @@ export function LaboratoryModule() {
           {(works.data?.items ?? []).map((work) => {
             const nextStatus = nextLabStatus(work.status);
             return (
-              <div className={styles.row} key={work.id}>
+              <div
+                className={`${styles.row} ${styles.labWorkRow}`}
+                data-tone={laboratoryStatusTone(work.status)}
+                key={work.id}
+              >
                 <div className={styles.rowMain}>
                   <span className={styles.rowTitle}>{work.title}</span>
                   <span className={styles.rowMeta}>
@@ -354,7 +373,9 @@ export function LaboratoryModule() {
                   ) : null}
                 </div>
                 <div className={styles.rowActions}>
-                  <Badge variant="light">{work.status}</Badge>
+                  <Badge variant="light">
+                    {LABORATORY_STATUS_LABELS[work.status as LaboratoryState] ?? work.status}
+                  </Badge>
                   {nextStatus ? (
                     <Button
                       size="xs"
