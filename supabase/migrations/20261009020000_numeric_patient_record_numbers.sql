@@ -1,8 +1,10 @@
 -- Keep pre-existing ClinicCloud/Gesden patient numbers unchanged.
 -- Convert only Denty-generated DNT-* numbers into clinic-local, five-digit minimum
 -- identifiers. Keep an audit map of old identifiers for traceability.
-set lock_timeout = '5s';
-set statement_timeout = '120s';
+begin;
+
+set local lock_timeout = '5s';
+set local statement_timeout = '120s';
 
 -- Prevent concurrent numbering writes while calculating replacements.
 lock table public.patients in share row exclusive mode;
@@ -63,3 +65,5 @@ update public.patients p
 set record_number = n.new_record_number
 from denty_patient_renumber n
 where p.id = n.patient_id;
+
+commit;
