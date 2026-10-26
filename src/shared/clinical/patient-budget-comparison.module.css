@@ -114,14 +114,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.implications {
-  margin: 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 4px;
-  font-size: 0.87rem;
-}
-
 .clinicalNote {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

@@ -131,14 +131,13 @@ describe("full-page multi-budget comparison", () => {
     expect(columns[1]).toHaveTextContent("Prótesis removible");
     expect(columns[1]).toHaveTextContent("Evita cirugía implantológica");
     expect(columns[1]).toHaveTextContent("Mantenimiento removible");
-    fireEvent.click(
-      within(columns[0]!).getByRole("button", { name: "Aspectos clínicos a tener en cuenta" }),
-    );
-    fireEvent.click(
-      within(columns[1]!).getByRole("button", { name: "Aspectos clínicos a tener en cuenta" }),
-    );
+    fireEvent.click(within(columns[0]!).getByRole("button", { name: /Tratamientos incluidos/ }));
+    fireEvent.click(within(columns[1]!).getByRole("button", { name: /Tratamientos incluidos/ }));
     expect(columns[0]).toHaveTextContent("Incluye cirugía");
     expect(columns[1]).not.toHaveTextContent("Incluye cirugía");
+    expect(
+      within(columns[0]!).queryByRole("button", { name: "Aspectos clínicos a tener en cuenta" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: /Fase de saneamiento/ })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Decisión del paciente" })).toHaveTextContent(
       "implants,removable",

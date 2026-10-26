@@ -187,7 +187,9 @@ export function PatientBudgetComparisonPage({
 
 function BudgetComparisonColumn({ budget, index }: { budget: BudgetView; index: number }) {
   const estimate = estimateBudgetAppointments(budget);
-  const clinicalLines = implicationLines(budgetImplications(comparisonBudget(budget)));
+  const treatmentHighlights = implicationLines(budgetImplications(comparisonBudget(budget))).filter(
+    (line) => line === "Incluye cirugía" || line === "Incluye pasos irreversibles",
+  );
 
   return (
     <article className={styles.column}>
@@ -222,6 +224,11 @@ function BudgetComparisonColumn({ budget, index }: { budget: BudgetView; index: 
           </Accordion.Control>
           <Accordion.Panel>
             <TreatmentRows items={budget.items} />
+            {treatmentHighlights.length ? (
+              <Text size="xs" c="dimmed" mt="sm">
+                {treatmentHighlights.join(" · ")}
+              </Text>
+            ) : null}
           </Accordion.Panel>
         </Accordion.Item>
         <Accordion.Item value="advantages">
@@ -271,16 +278,6 @@ function BudgetComparisonColumn({ budget, index }: { budget: BudgetView; index: 
                 revisiones se confirman con el profesional.
               </Text>
             </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
-        <Accordion.Item value="clinical">
-          <Accordion.Control>Aspectos clínicos a tener en cuenta</Accordion.Control>
-          <Accordion.Panel>
-            <ul className={styles.implications} aria-label={`Qué implica ${title(budget)}`}>
-              {clinicalLines.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
           </Accordion.Panel>
         </Accordion.Item>
       </Accordion>
