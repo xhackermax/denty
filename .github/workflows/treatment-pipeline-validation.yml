@@ -61,7 +61,7 @@ jobs:
           src/domain/__tests__/implant-surgery-reason.test.ts
           src/features/odontogram/cephalometry-editor.test.tsx
       - name: Patient record-number regression tests
-        run: npx vitest run src/server/denty-supabase/__tests__/record-number.test.ts src/app/api/denty
+        run: npx vitest run src/server/denty-supabase/__tests__/record-number.test.ts src/server/denty-supabase/__tests__/numeric-record-numbers-migration.test.ts src/app/api/denty
       - name: Draft budget SQL deletion and RLS privilege tests
         run: npx vitest run src/server/denty-supabase/__tests__/draft-budget-migration.test.ts
       - name: Dashboard and admin navigation tests
