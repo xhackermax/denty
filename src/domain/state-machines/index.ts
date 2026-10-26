@@ -76,6 +76,39 @@ export function isLaboratoryLate(
   return epochMillis(etaAt) < epochMillis(now);
 }
 
+/** Border colour family shown on a lab work card: green done, blue at the lab, amber not sent yet, red incident. */
+export type LaboratoryStatusTone = "done" | "sent" | "pending" | "incident" | "cancelled";
+
+const LAB_STATUS_TONES: Readonly<Record<LaboratoryState, LaboratoryStatusTone>> = {
+  PLANNED: "pending",
+  IMPRESSION_TAKEN: "pending",
+  SCANNED: "pending",
+  SENT: "sent",
+  IN_PRODUCTION: "sent",
+  TRIAL: "sent",
+  RECEIVED: "done",
+  PLACED: "done",
+  INCIDENT: "incident",
+  CANCELLED: "cancelled",
+};
+
+export const LABORATORY_STATUS_LABELS: Readonly<Record<LaboratoryState, string>> = {
+  PLANNED: "Planificado",
+  IMPRESSION_TAKEN: "Impresión tomada",
+  SCANNED: "Escaneado",
+  SENT: "Enviado",
+  IN_PRODUCTION: "En producción",
+  TRIAL: "En prueba",
+  RECEIVED: "Recibido",
+  PLACED: "Colocado",
+  INCIDENT: "Incidencia",
+  CANCELLED: "Cancelado",
+};
+
+export function laboratoryStatusTone(state: string): LaboratoryStatusTone {
+  return LAB_STATUS_TONES[state as LaboratoryState] ?? "pending";
+}
+
 const INVOICE_TRANSITIONS: Readonly<Record<InvoiceState, readonly InvoiceState[]>> = {
   DRAFT: ["ISSUED"],
   ISSUED: ["RECTIFIED"],
