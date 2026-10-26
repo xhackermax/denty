@@ -132,10 +132,11 @@ describe("LaboratoryModule", () => {
 
     expect(screen.getByRole("heading", { name: "Uso diario del laboratorio" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Facturas y pagos" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Configuracion de laboratorios" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Corona zirconio")).toBeInTheDocument();
+    // Prices and lab setup moved to their own page; the daily view only links to it.
+    expect(screen.getByRole("link", { name: "Configuración de laboratorios" })).toHaveAttribute(
+      "href",
+      "/app/laboratory/configuration",
+    );
   });
 
   it("oculta configuracion y finanzas a perfiles sin permisos administrativos ni financieros", () => {
@@ -147,7 +148,7 @@ describe("LaboratoryModule", () => {
     expect(screen.getByRole("heading", { name: "Uso diario del laboratorio" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Facturas y pagos" })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "Configuracion de laboratorios" }),
+      screen.queryByRole("link", { name: "Configuración de laboratorios" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Corona zirconio")).not.toBeInTheDocument();
   });

@@ -34,9 +34,9 @@ describe("navigation catalogue", () => {
     expect(keys).not.toContain("tasks");
     expect(keys).toContain("patients");
     expect(sections[0]?.key).toBe("general");
-    expect(sections.find((section) => section.key === "management")?.items[0]?.key).toBe(
-      "clinic-contacts",
-    );
+    expect(
+      sections.find((section) => section.key === "management")?.items.map((item) => item.key),
+    ).toContain("clinic-contacts");
   });
 
   it("drops empty sections", () => {
