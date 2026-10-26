@@ -2,7 +2,7 @@
 
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const newPatients = vi.fn();
@@ -73,5 +73,15 @@ describe("AnalysisModule new patients", () => {
     renderModule();
     expect(await screen.findByText(/^7 pacientes nuevos · Producción/)).toBeTruthy();
     expect(screen.getByText(/^2 pacientes nuevos · Producción 100,00/)).toBeTruthy();
+  });
+
+  it("goes back to the current period from the period label", () => {
+    renderModule();
+    const label = screen.getByTitle("Volver al periodo actual");
+    const current = label.textContent;
+    fireEvent.click(screen.getByRole("button", { name: "Periodo anterior" }));
+    expect(label.textContent).not.toBe(current);
+    fireEvent.click(label);
+    expect(label.textContent).toBe(current);
   });
 });

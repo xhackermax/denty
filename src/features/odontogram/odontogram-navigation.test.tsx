@@ -61,9 +61,12 @@ test("switching layers keeps the edit without prompting, then it saves on its ow
   expect(save).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Aplicar al diente seleccionado" }));
   expect(save).toBeEnabled();
-  fireEvent.click(screen.getByRole("button", { name: "Cirugía" }));
+  fireEvent.click(screen.getByRole("button", { name: "Mostrar capa Cirugía" }));
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Cirugía" })).toHaveAttribute("data-active", "true"),
+    expect(screen.getByRole("button", { name: "Mostrar capa Cirugía" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    ),
   );
   expect(screen.queryByRole("dialog")).toBeNull();
   await waitFor(() => expect(state.save).toHaveBeenCalledTimes(1), { timeout: 3000 });

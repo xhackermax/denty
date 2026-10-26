@@ -630,11 +630,11 @@ function OdontogramEditor({
     if (placementMode !== "bridge" || !bridgeFrom) return [] as string[];
     if (!bridgeTo) return [bridgeFrom];
     try {
-      return bridgeTeethFromEndpoints(bridgeFrom, bridgeTo);
+      return bridgeTeethFromEndpoints(bridgeFrom, bridgeTo, arches);
     } catch {
       return [bridgeFrom];
     }
-  }, [bridgeFrom, bridgeTo, placementMode]);
+  }, [arches, bridgeFrom, bridgeTo, placementMode]);
   const bridgeReady = bridgePreviewTeeth.length >= 2 && Boolean(bridgeFrom && bridgeTo);
   const legendSelection: OdontogramLegendSelection = { state: tool, placement: placementMode };
   const revealTool = (status: ToothState) => {
@@ -833,7 +833,7 @@ function OdontogramEditor({
       return;
     }
     try {
-      const range = bridgeTeethFromEndpoints(bridgeFrom, tooth);
+      const range = bridgeTeethFromEndpoints(bridgeFrom, tooth, arches);
       if (range.length < 2) {
         setBridgeError("Elige otro diente final.");
         return;
@@ -919,7 +919,7 @@ function OdontogramEditor({
           ? createImplantStack(selectedTooth)
           : template === "endo"
             ? createEndoPostCrown(selectedTooth)
-            : createBridgeEntities(bridgeFrom!, bridgeTo!, prosthesisState);
+            : createBridgeEntities(bridgeFrom!, bridgeTo!, prosthesisState, arches);
     } catch (error) {
       setBridgeError(error instanceof Error ? error.message : "No se pudo crear la prótesis.");
       return;
@@ -1445,7 +1445,7 @@ function OdontogramEditor({
                           return;
                         }
                         try {
-                          const range = bridgeTeethFromEndpoints(bridgeFrom, value);
+                          const range = bridgeTeethFromEndpoints(bridgeFrom, value, arches);
                           if (range.length < 2) {
                             setBridgeError("Elige otro diente final.");
                             return;
