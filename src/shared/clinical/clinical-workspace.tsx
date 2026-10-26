@@ -35,6 +35,7 @@ import {
   useSyncBudgetFromPlanMutation,
   useSyncPlanFromOdontogramMutation,
   useTreatmentCatalogQuery,
+  useTreatmentStaffTimesQuery,
   useUpdateDraftBudgetMutation,
 } from "@/shared/clinical/clinical-data";
 import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
@@ -46,6 +47,8 @@ import { ClinicalPlanBranchBuilder } from "./clinical-plan-branch-builder";
 import { comparableBudgets } from "./budget-comparison";
 import { ClinicalPhaseAccordion } from "./clinical-phase-accordion";
 import { PlanAlternativesBoard } from "./plan-alternatives-board";
+
+const CLINIC_TIMES = "clinic";
 
 type ClinicalWorkspaceMode = "plan" | "budget" | "combined";
 
@@ -184,6 +187,8 @@ export function ClinicalWorkspace({
   const deleteDraftBudget = useDeleteDraftBudgetMutation(patientId);
   const reorderPlan = useReorderClinicalPlanMutation(patientId);
   const treatmentCatalog = useTreatmentCatalogQuery(showPlan);
+  const staffTimes = useTreatmentStaffTimesQuery(showPlan);
+  const [timeDoctorId, setTimeDoctorId] = useState<string>(CLINIC_TIMES);
   const addItem = useAddClinicalPlanItemMutation(patientId);
   const [treatmentCatalogId, setTreatmentCatalogId] = useState<string | null>(null);
   const [tooth, setTooth] = useState("");
@@ -273,6 +278,38 @@ export function ClinicalWorkspace({
       items: budget.items,
     })),
   );
+
+  // Plan durations use the chosen doctor's recorded times, then the catalog's, then defaults.
+  const catalogById = new Map((treatmentCatalog.data?.items ?? []).map((item) => [item.id, item]));
+  const staffTimeRows = staffTimes.data?.items ?? [];
+  const timeDoctors = [
+    ...new Map(
+      staffTimeRows.map((row) => [row.staffMemberId, row.staffName ?? "Doctor sin nombre"]),
+    ),
+  ].sort(([, left], [, right]) => left.localeCompare(right, "es"));
+  const timeSourcesFor = (treatment: { treatmentCatalogId: string | null }) => {
+    if (!treatment.treatmentCatalogId) return [];
+    const own = staffTimeRows.find(
+      (row) =>
+        row.staffMemberId === timeDoctorId &&
+        row.treatmentCatalogId === treatment.treatmentCatalogId,
+    );
+    return [own ?? null, catalogById.get(treatment.treatmentCatalogId) ?? null];
+  };
+  const timeBasis = timeDoctors.length ? (
+    <Select
+      size="xs"
+      w={240}
+      label="Tiempos según"
+      allowDeselect={false}
+      value={timeDoctorId}
+      onChange={(value) => setTimeDoctorId(value ?? CLINIC_TIMES)}
+      data={[
+        { value: CLINIC_TIMES, label: "Catálogo de la clínica" },
+        ...timeDoctors.map(([id, name]) => ({ value: id, label: name })),
+      ]}
+    />
+  ) : null;
 
   const editedBudgetTotal = openBudget?.items.reduce((sum, item) => {
     if (item.billingMode && item.billingMode !== "separate") return sum;
@@ -519,6 +556,8 @@ export function ClinicalWorkspace({
                 .filter((budget) => budget.status === "SIGNED")
                 .map((budget) => budget.id)}
               onSelect={setSelectedPlanAlternativeId}
+              timeSourcesFor={timeSourcesFor}
+              timeBasis={timeBasis}
             />
           </section>
 

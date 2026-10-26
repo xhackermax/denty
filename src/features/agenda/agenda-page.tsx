@@ -122,7 +122,11 @@ import { AGENDA_STATUS_META } from "./agenda-status";
 import styles from "./agenda.module.css";
 import parityStyles from "@/shared/ui/parity.module.css";
 import { DentyApiError, type CreateAppointment, type UpdateAppointment } from "@/shared/api";
-import { useClinicalPlanQuery, useTreatmentCatalogQuery } from "@/shared/clinical/clinical-data";
+import {
+  useClinicalPlanQuery,
+  useTreatmentCatalogQuery,
+  useTreatmentStaffTimesQuery,
+} from "@/shared/clinical/clinical-data";
 import { ClinicalGlyph, ClinicalGlyphs } from "@/shared/odontogram/clinical-glyph";
 import { usePatientsQuery } from "@/shared/patients/patient-data";
 import { PageHeader } from "@/shared/ui";
@@ -364,6 +368,7 @@ export function AgendaPage() {
   const patientsQuery = usePatientsQuery();
   const contextQuery = useAgendaContextQuery();
   const catalogQuery = useTreatmentCatalogQuery();
+  const staffTimesQuery = useTreatmentStaffTimesQuery(opened);
   const planQuery = useClinicalPlanQuery(patientId || requestedPatientId, opened);
   const createMutation = useCreateAppointmentMutation(date);
   const moveMutation = useMoveAppointmentMutation();
@@ -442,6 +447,17 @@ export function AgendaPage() {
   const effectivePatientId = patientId || patientOptions[0]?.id || "";
   const effectiveStaffId = staffId || actorStaffId || staff[0]?.id || "";
   const effectiveSiteId = appointmentSiteId || activeSiteId || sites[0]?.id || "";
+  // The booking doctor's own minutes for the treatment win over the catalog default.
+  const durationFor = (
+    entry: { id: string; defaultDurationMin?: number | null | undefined } | undefined,
+  ) =>
+    entry
+      ? ((staffTimesQuery.data?.items ?? []).find(
+          (row) => row.treatmentCatalogId === entry.id && row.staffMemberId === effectiveStaffId,
+        )?.durationMin ??
+        entry.defaultDurationMin ??
+        null)
+      : null;
   const formCabinets = useMemo(
     () => cabinets.filter((cabinet) => !effectiveSiteId || cabinet.siteId === effectiveSiteId),
     [cabinets, effectiveSiteId],
@@ -1200,9 +1216,11 @@ export function AgendaPage() {
     requestedPlanItemHandled.current = true;
     setPlanItemId(item.id);
     setReason(item.label);
-    const duration = catalog.find(
-      (entry) => entry.id === item.treatmentCatalogId || entry.code === item.treatmentCode,
-    )?.defaultDurationMin;
+    const duration = durationFor(
+      catalog.find(
+        (entry) => entry.id === item.treatmentCatalogId || entry.code === item.treatmentCode,
+      ),
+    );
     if (duration) setAppointmentDuration(duration);
   }, [requestedPlanItemId, opened, pendingPlanItems, catalog]);
 
@@ -2377,11 +2395,13 @@ export function AgendaPage() {
                           setPlanItemId(selecting ? item.id : null);
                           if (!selecting) return;
                           setReason(item.label);
-                          const duration = catalog.find(
-                            (entry) =>
-                              entry.id === item.treatmentCatalogId ||
-                              entry.code === item.treatmentCode,
-                          )?.defaultDurationMin;
+                          const duration = durationFor(
+                            catalog.find(
+                              (entry) =>
+                                entry.id === item.treatmentCatalogId ||
+                                entry.code === item.treatmentCode,
+                            ),
+                          );
                           if (duration) setAppointmentDuration(duration);
                         }}
                       >
@@ -2399,8 +2419,8 @@ export function AgendaPage() {
               onChange={(value) => {
                 setReason(value);
                 setPlanItemId(null);
-                const entry = catalog.find((item) => item.name === value);
-                if (entry?.defaultDurationMin) setAppointmentDuration(entry.defaultDurationMin);
+                const duration = durationFor(catalog.find((item) => item.name === value));
+                if (duration) setAppointmentDuration(duration);
               }}
               data={agendaTreatmentOptions(catalog)}
               rightSection={createGlyph ? <ClinicalGlyph glyph={createGlyph} mode="micro" /> : null}

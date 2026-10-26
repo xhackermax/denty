@@ -234,6 +234,7 @@ export function suggestKennedyClass(missingTeeth: readonly string[]): KennedyCla
 }
 
 export * from "./clinical-phase-groups.ts";
+export * from "./appointment-estimate.ts";
 export * from "./plan-alternatives-comparison.ts";
 export * from "./treatment-tradeoffs.ts";
 export * from "./tradeoff-context.ts";

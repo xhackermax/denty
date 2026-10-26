@@ -139,6 +139,8 @@ export const treatmentCatalogItemSchema = z.object({
   defaultPriceCents: z.number().int().nonnegative(),
   baseCostCents: z.number().int().nonnegative(),
   defaultDurationMin: z.number().int().positive().nullable().optional(),
+  appointmentsMin: z.number().int().positive().nullable().optional(),
+  appointmentsMax: z.number().int().positive().nullable().optional(),
   requiresLab: z.boolean(),
   active: z.boolean(),
   metadata: z.record(z.string(), z.unknown()).default({}),
@@ -157,6 +159,8 @@ export const treatmentCatalogCreateSchema = z.object({
   defaultPriceCents: z.number().int().nonnegative().default(0),
   baseCostCents: z.number().int().nonnegative().default(0),
   defaultDurationMin: z.number().int().positive().nullable().optional(),
+  appointmentsMin: z.number().int().positive().max(60).nullable().optional(),
+  appointmentsMax: z.number().int().positive().max(60).nullable().optional(),
   requiresLab: z.boolean().default(false),
   active: z.boolean().default(true),
   metadata: z.record(z.string(), z.unknown()).default({}),
@@ -165,6 +169,39 @@ export const treatmentCatalogCreateSchema = z.object({
 export const treatmentCatalogUpdateSchema = treatmentCatalogCreateSchema.partial().extend({
   expectedVersion: z.number().int().positive(),
 });
+
+// A doctor's own minutes per visit and number of visits for one treatment; null falls back
+// to the catalog value.
+export const treatmentStaffTimeSchema = z.object({
+  id: idSchema,
+  treatmentCatalogId: idSchema,
+  staffMemberId: idSchema,
+  staffName: z.string().nullable(),
+  durationMin: z.number().int().positive().nullable(),
+  appointmentsMin: z.number().int().positive().nullable(),
+  appointmentsMax: z.number().int().positive().nullable(),
+  version: z.number().int().positive(),
+});
+
+export const treatmentStaffTimesSchema = z.object({ items: z.array(treatmentStaffTimeSchema) });
+
+export const saveTreatmentStaffTimeSchema = z
+  .object({
+    durationMin: z.number().int().positive().max(600).nullable(),
+    appointmentsMin: z.number().int().positive().max(60).nullable(),
+    appointmentsMax: z.number().int().positive().max(60).nullable(),
+  })
+  .refine(
+    (value) =>
+      value.appointmentsMin === null ||
+      value.appointmentsMax === null ||
+      value.appointmentsMax >= value.appointmentsMin,
+    { message: "El máximo de citas no puede ser menor que el mínimo", path: ["appointmentsMax"] },
+  );
+
+export const treatmentStaffTimeDeletedSchema = z.object({ deleted: z.literal(true) });
+
+export type TreatmentStaffTime = z.infer<typeof treatmentStaffTimeSchema>;
 
 // Sites (sedes), their doctors and the weekly rota per site.
 const clockTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora HH:MM");

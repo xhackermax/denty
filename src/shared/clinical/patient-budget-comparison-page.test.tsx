@@ -116,27 +116,40 @@ describe("full-page multi-budget comparison", () => {
     expect(screen.getByRole("region", { name: "Tratamientos compartidos" })).toHaveTextContent(
       "Tratamiento periodontal",
     );
-    expect(columns[0]).toHaveTextContent("Implante y corona");
-    expect(columns[0]).toHaveTextContent("Rehabilitación fija");
-    expect(columns[0]).toHaveTextContent("Requiere cirugía");
+    const treatments = (option: number) =>
+      screen.getByRole("group", { name: `Tratamientos incluidos de la opción ${option}` });
+    expect(treatments(1)).toHaveTextContent("Implante y corona");
+    expect(treatments(1)).toHaveTextContent("Incluye cirugía");
+    expect(treatments(2)).toHaveTextContent("Prótesis removible");
+    expect(treatments(2)).not.toHaveTextContent("Incluye cirugía");
+
+    // One toggle opens the same aspect for every option, aligned in a single row.
+    expect(screen.queryByRole("group", { name: "Ventajas de la opción 1" })).toBeNull();
+    fireEvent.click(within(region).getByRole("button", { name: /^Ventajas/ }));
+    expect(screen.getByRole("group", { name: "Ventajas de la opción 1" })).toHaveTextContent(
+      "Rehabilitación fija",
+    );
+    expect(screen.getByRole("group", { name: "Ventajas de la opción 2" })).toHaveTextContent(
+      "Evita cirugía implantológica",
+    );
+    fireEvent.click(within(region).getByRole("button", { name: /^Desventajas/ }));
     expect(
-      within(columns[0]!).getByRole("button", { name: /Tiempo aproximado/ }),
-    ).toHaveTextContent("5–9 citas");
+      screen.getByRole("group", { name: "Desventajas y limitaciones de la opción 1" }),
+    ).toHaveTextContent("Requiere cirugía");
     expect(
-      within(columns[1]!).getByRole("button", { name: /Tiempo aproximado/ }),
-    ).toHaveTextContent("6–9 citas");
-    const timePanel = within(columns[0]!).getByRole("button", { name: /Tiempo aproximado/ });
+      screen.getByRole("group", { name: "Desventajas y limitaciones de la opción 2" }),
+    ).toHaveTextContent("Mantenimiento removible");
+
+    const timePanel = within(region).getByRole("button", { name: /^Tiempo aproximado/ });
+    expect(timePanel).toHaveTextContent("≈ 5–9 citas");
+    expect(timePanel).toHaveTextContent("≈ 6–9 citas");
     fireEvent.click(timePanel);
     expect(timePanel).toHaveAttribute("aria-expanded", "true");
-    expect(columns[1]).toHaveTextContent("Prótesis removible");
-    expect(columns[1]).toHaveTextContent("Evita cirugía implantológica");
-    expect(columns[1]).toHaveTextContent("Mantenimiento removible");
-    fireEvent.click(within(columns[0]!).getByRole("button", { name: /Tratamientos incluidos/ }));
-    fireEvent.click(within(columns[1]!).getByRole("button", { name: /Tratamientos incluidos/ }));
-    expect(columns[0]).toHaveTextContent("Incluye cirugía");
-    expect(columns[1]).not.toHaveTextContent("Incluye cirugía");
     expect(
-      within(columns[0]!).queryByRole("button", { name: "Aspectos clínicos a tener en cuenta" }),
+      screen.getByRole("group", { name: "Tiempo aproximado de la opción 1" }),
+    ).toHaveTextContent("Total aproximado5–9 citas");
+    expect(
+      within(region).queryByRole("button", { name: "Aspectos clínicos a tener en cuenta" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: /Fase de saneamiento/ })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Decisión del paciente" })).toHaveTextContent(

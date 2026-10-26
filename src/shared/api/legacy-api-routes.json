@@ -261,6 +261,21 @@
     },
     {
       "method": "GET",
+      "path": "/api/admin/treatment-catalog/staff-times",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/treatment-catalog/:id/staff-times/:staffId",
+      "kind": "browser"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/treatment-catalog/:id/staff-times/:staffId",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/verifactu/status",
       "source": "apps/api/src/modules/billing/routes.ts",
       "kind": "browser"

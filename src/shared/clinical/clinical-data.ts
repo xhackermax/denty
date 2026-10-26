@@ -75,6 +75,14 @@ export function useTreatmentCatalogQuery(enabled = true) {
   });
 }
 
+export function useTreatmentStaffTimesQuery(enabled = true) {
+  return useQuery({
+    queryKey: dentyQueryKeys.treatmentCatalog.staffTimes,
+    queryFn: () => getBrowserApi().admin.treatmentCatalog.staffTimes.list(),
+    enabled,
+  });
+}
+
 export function useClinicalSyncQuery(patientId: string, enabled = true) {
   return useQuery({
     queryKey: dentyQueryKeys.clinical.sync(patientId),

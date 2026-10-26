@@ -1,29 +1,20 @@
 "use client";
 
-import {
-  Accordion,
-  Alert,
-  Badge,
-  Button,
-  Checkbox,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
+import { Alert, Badge, Button, Checkbox, Group, Loader, Stack, Text, Title } from "@mantine/core";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { formatEUR } from "@/domain/money";
 import { usePatientBudgetsQuery } from "./clinical-data";
-import { budgetImplications, implicationLines } from "@/domain/plan";
+import { appointmentRangeLabel, budgetImplications, implicationLines } from "@/domain/plan";
 import {
   comparableBudgets,
   comparisonBudget,
   compareBudgetTreatments,
   estimateBudgetAppointments,
+  type BudgetAppointmentEstimate,
 } from "./budget-comparison";
 import type { BudgetView } from "./budget-options";
+import { MirrorPanels, type MirrorColumn, type MirrorSection } from "./mirror-panels";
 import styles from "./patient-budget-comparison.module.css";
 import { TreatmentComparisonDecision } from "./treatment-comparison-decision";
 import { TreatmentComparisonHistory } from "./treatment-comparison-history";
@@ -52,12 +43,6 @@ function TreatmentRows({ items }: { items: BudgetView["items"] }) {
       ))}
     </ul>
   );
-}
-
-function appointmentRangeLabel(minAppointments: number, maxAppointments: number): string {
-  return minAppointments === maxAppointments
-    ? `${minAppointments} ${minAppointments === 1 ? "cita" : "citas"}`
-    : `${minAppointments}–${maxAppointments} citas`;
 }
 
 /** Independent page: select between two and eight full treatment proposals, side by side. */
@@ -153,18 +138,7 @@ export function PatientBudgetComparisonPage({
                   </Text>
                 )}
               </section>
-              <div
-                className={styles.horizontalScroll}
-                role="region"
-                aria-label="Comparación de presupuestos por columnas"
-                tabIndex={0}
-              >
-                <div className={styles.columns}>
-                  {selected.map((budget, index) => (
-                    <BudgetComparisonColumn key={budget.id} budget={budget} index={index} />
-                  ))}
-                </div>
-              </div>
+              <BudgetMirror budgets={selected} />
               <Text size="xs" c="dimmed">
                 Las ventajas y las limitaciones se registran al crear cada rama clínica. No se
                 deducen automáticamente del precio. La indicación definitiva, los consentimientos y
@@ -185,107 +159,121 @@ export function PatientBudgetComparisonPage({
   );
 }
 
-function BudgetComparisonColumn({ budget, index }: { budget: BudgetView; index: number }) {
-  const estimate = estimateBudgetAppointments(budget);
-  const treatmentHighlights = implicationLines(budgetImplications(comparisonBudget(budget))).filter(
-    (line) => line === "Incluye cirugía" || line === "Incluye pasos irreversibles",
-  );
+interface BudgetColumn extends MirrorColumn {
+  budget: BudgetView;
+  index: number;
+  estimate: BudgetAppointmentEstimate;
+  highlights: string[];
+}
 
+function ClinicalNote({ text }: { text: string | null | undefined }) {
+  return text ? (
+    <Text size="sm" className={styles.clinicalNote}>
+      {text}
+    </Text>
+  ) : (
+    <Text size="sm" c="dimmed">
+      Pendiente de explicar por el odontólogo.
+    </Text>
+  );
+}
+
+const BUDGET_SECTIONS: ReadonlyArray<MirrorSection<BudgetColumn>> = [
+  {
+    id: "treatments",
+    title: "Tratamientos incluidos",
+    summary: ({ budget }) => `${budget.items.length} procedimientos`,
+    render: ({ budget, highlights }) => (
+      <>
+        <TreatmentRows items={budget.items} />
+        {highlights.length ? (
+          <Text size="xs" c="dimmed" mt="sm">
+            {highlights.join(" · ")}
+          </Text>
+        ) : null}
+      </>
+    ),
+  },
+  {
+    id: "advantages",
+    title: "Ventajas",
+    render: ({ budget }) => <ClinicalNote text={budget.branch?.advantages} />,
+  },
+  {
+    id: "disadvantages",
+    title: "Desventajas y limitaciones",
+    render: ({ budget }) => <ClinicalNote text={budget.branch?.disadvantages} />,
+  },
+  {
+    id: "time",
+    title: "Tiempo aproximado",
+    hint: "Suma orientativa de las citas de cada etapa, contando también los pasos comunes. Las esperas clínicas y las revisiones se confirman con el profesional.",
+    summary: ({ estimate }) => `≈ ${appointmentRangeLabel(estimate.total)}`,
+    render: ({ estimate }) => (
+      <Stack gap={8}>
+        {estimate.stages.map((stage) => (
+          <Group key={stage.phase} justify="space-between" gap="sm" wrap="nowrap">
+            <Text size="sm">
+              {stage.phase === "primary"
+                ? "Fase 1 · Salud y urgencias"
+                : "Fase 2 · Reponer y mejorar"}
+            </Text>
+            <Text size="sm" fw={700} className={styles.appointmentCount}>
+              {appointmentRangeLabel(stage)}
+            </Text>
+          </Group>
+        ))}
+        <Group justify="space-between" gap="sm" wrap="nowrap">
+          <Text size="sm" fw={800}>
+            Total aproximado
+          </Text>
+          <Text size="sm" fw={800} className={styles.appointmentCount}>
+            {appointmentRangeLabel(estimate.total)}
+          </Text>
+        </Group>
+      </Stack>
+    ),
+  },
+];
+
+/** Every proposal in its column, with treatments, pros, cons and time folded in mirrored rows. */
+function BudgetMirror({ budgets }: { budgets: readonly BudgetView[] }) {
+  const columns = budgets.map((budget, index): BudgetColumn => ({
+    key: budget.id,
+    label: `Opción ${index + 1}`,
+    ofLabel: `de la opción ${index + 1}`,
+    budget,
+    index,
+    estimate: estimateBudgetAppointments(budget),
+    highlights: implicationLines(budgetImplications(comparisonBudget(budget))).filter(
+      (line) => line === "Incluye cirugía" || line === "Incluye pasos irreversibles",
+    ),
+  }));
   return (
-    <article className={styles.column}>
-      <div className={styles.columnHeader}>
-        <Text size="xs" fw={750} c="dimmed">
-          OPCIÓN {index + 1}
-        </Text>
-        <Title order={3}>{title(budget)}</Title>
-        <Badge variant="outline">{budget.status === "SIGNED" ? "Firmado" : "Borrador"}</Badge>
-        <Title order={2} className={styles.amount}>
-          {formatEUR(budget.totalCents)}
-        </Title>
-        <Text size="xs" c="dimmed">
-          {budget.code}
-        </Text>
-        <div className={styles.headerFacts}>
-          <span>{budget.items.length} procedimientos</span>
-          <strong>
-            {appointmentRangeLabel(estimate.total.minAppointments, estimate.total.maxAppointments)}
-          </strong>
+    <MirrorPanels
+      label="Comparación de presupuestos por columnas"
+      columns={columns}
+      sections={BUDGET_SECTIONS}
+      defaultOpen={["treatments"]}
+      header={({ budget, index, estimate }) => (
+        <div className={styles.columnHeader}>
+          <Text size="xs" fw={750} c="dimmed">
+            OPCIÓN {index + 1}
+          </Text>
+          <Title order={3}>{title(budget)}</Title>
+          <Badge variant="outline">{budget.status === "SIGNED" ? "Firmado" : "Borrador"}</Badge>
+          <Title order={2} className={styles.amount}>
+            {formatEUR(budget.totalCents)}
+          </Title>
+          <Text size="xs" c="dimmed">
+            {budget.code}
+          </Text>
+          <div className={styles.headerFacts}>
+            <span>{budget.items.length} procedimientos</span>
+            <strong>{appointmentRangeLabel(estimate.total)}</strong>
+          </div>
         </div>
-      </div>
-      <Accordion className={styles.optionPanels} chevronPosition="right">
-        <Accordion.Item value="treatments">
-          <Accordion.Control>
-            <div className={styles.panelLabel}>
-              <span>Tratamientos incluidos</span>
-              <Badge size="sm" variant="light">
-                {budget.items.length}
-              </Badge>
-            </div>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <TreatmentRows items={budget.items} />
-            {treatmentHighlights.length ? (
-              <Text size="xs" c="dimmed" mt="sm">
-                {treatmentHighlights.join(" · ")}
-              </Text>
-            ) : null}
-          </Accordion.Panel>
-        </Accordion.Item>
-        <Accordion.Item value="advantages">
-          <Accordion.Control>Ventajas</Accordion.Control>
-          <Accordion.Panel>
-            <Text size="sm" className={styles.clinicalNote}>
-              {budget.branch?.advantages || "Pendiente de explicar por el odontólogo."}
-            </Text>
-          </Accordion.Panel>
-        </Accordion.Item>
-        <Accordion.Item value="disadvantages">
-          <Accordion.Control>Desventajas y limitaciones</Accordion.Control>
-          <Accordion.Panel>
-            <Text size="sm" className={styles.clinicalNote}>
-              {budget.branch?.disadvantages || "Pendiente de explicar por el odontólogo."}
-            </Text>
-          </Accordion.Panel>
-        </Accordion.Item>
-        <Accordion.Item value="time">
-          <Accordion.Control>
-            <div className={styles.panelLabel}>
-              <span>Tiempo aproximado</span>
-              <strong>
-                {appointmentRangeLabel(
-                  estimate.total.minAppointments,
-                  estimate.total.maxAppointments,
-                )}
-              </strong>
-            </div>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap={8}>
-              {estimate.stages.map((stage) => (
-                <Group key={stage.phase} justify="space-between" gap="sm" wrap="nowrap">
-                  <Text size="sm">
-                    {stage.phase === "primary"
-                      ? "Fase 1 · Salud y urgencias"
-                      : "Fase 2 · Reponer y mejorar"}
-                  </Text>
-                  <Text size="sm" fw={700} className={styles.appointmentCount}>
-                    {appointmentRangeLabel(stage.minAppointments, stage.maxAppointments)}
-                  </Text>
-                </Group>
-              ))}
-              <Text size="xs" c="dimmed">
-                Estimación orientativa por tratamientos incluidos. Las esperas clínicas y las
-                revisiones se confirman con el profesional.
-              </Text>
-            </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
-      <div className={styles.columnFooter}>
-        <Text size="xs" c="dimmed">
-          Los pasos comunes también están contabilizados en el importe y en la estimación de citas.
-        </Text>
-      </div>
-    </article>
+      )}
+    />
   );
 }

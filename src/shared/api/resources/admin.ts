@@ -31,6 +31,10 @@ import {
   treatmentCatalogItemSchema,
   treatmentCatalogSchema,
   treatmentCatalogUpdateSchema,
+  saveTreatmentStaffTimeSchema,
+  treatmentStaffTimeSchema,
+  treatmentStaffTimesSchema,
+  treatmentStaffTimeDeletedSchema,
 } from "../schemas/admin";
 import { encodeId } from "./shared";
 import { withQuery } from "./shared";
@@ -120,6 +124,28 @@ export function createAdminResource(client: ApiClient) {
           treatmentCatalogUpdateSchema.parse(payload),
           { method: "PATCH" },
         ),
+      staffTimes: {
+        list: () =>
+          client.request("/api/admin/treatment-catalog/staff-times", treatmentStaffTimesSchema),
+        save: (
+          treatmentId: string,
+          staffId: string,
+          payload: z.input<typeof saveTreatmentStaffTimeSchema>,
+        ) =>
+          client.mutation(
+            `/api/admin/treatment-catalog/${encodeId(treatmentId)}/staff-times/${encodeId(staffId)}`,
+            treatmentStaffTimeSchema,
+            saveTreatmentStaffTimeSchema.parse(payload),
+            { method: "PUT" },
+          ),
+        remove: (treatmentId: string, staffId: string) =>
+          client.mutation(
+            `/api/admin/treatment-catalog/${encodeId(treatmentId)}/staff-times/${encodeId(staffId)}`,
+            treatmentStaffTimeDeletedSchema,
+            undefined,
+            { method: "DELETE" },
+          ),
+      },
     },
     users: {
       list: () => client.request("/api/users", usersSchema),

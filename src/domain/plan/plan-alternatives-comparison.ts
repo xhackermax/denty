@@ -6,6 +6,7 @@ export interface ComparablePlanItem {
   treatmentCode: string;
   label: string;
   tooth?: string | null | undefined;
+  treatmentCatalogId?: string | null | undefined;
 }
 
 export interface ComparableAlternative {
@@ -26,6 +27,8 @@ export interface ComparedTreatment {
   treatmentCode: string;
   label: string;
   tooth: string | null;
+  /** Catalog entry the plan item came from, so its recorded times can be looked up. */
+  treatmentCatalogId: string | null;
 }
 
 export interface ComparedPlanColumn {
@@ -87,6 +90,7 @@ export function comparePlanAlternatives(
     treatmentCode: item.treatmentCode,
     label: item.label,
     tooth: item.tooth ?? null,
+    treatmentCatalogId: item.treatmentCatalogId ?? null,
   }));
 
   const columns: ComparedPlanColumn[] = [
@@ -108,12 +112,14 @@ export function comparePlanAlternatives(
               treatmentCode: planItem.treatmentCode,
               label: planItem.label,
               tooth: planItem.tooth ?? null,
+              treatmentCatalogId: planItem.treatmentCatalogId ?? null,
             }
           : {
               key: `alt:${matchKey(item.tooth, item.description)}`,
               treatmentCode: "",
               label: item.description,
               tooth: item.tooth ?? null,
+              treatmentCatalogId: null,
             };
       });
       return {

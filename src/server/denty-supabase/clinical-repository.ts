@@ -29,12 +29,25 @@ interface TreatmentCatalogRow {
   default_price_cents: number;
   base_cost_cents: number;
   default_duration_min: number | null;
+  appointments_min: number | null;
+  appointments_max: number | null;
   requires_lab: boolean;
   active: boolean;
   metadata: Record<string, unknown>;
   version: number;
   created_at: string;
   updated_at: string;
+}
+
+interface TreatmentStaffTimeRow {
+  id: string;
+  treatment_catalog_id: string;
+  staff_member_id: string;
+  duration_min: number | null;
+  appointments_min: number | null;
+  appointments_max: number | null;
+  version: number;
+  staff_members?: { display_name: string | null } | null;
 }
 
 interface PlanRow {
@@ -226,6 +239,8 @@ export interface TreatmentCatalogInput {
   defaultPriceCents?: number;
   baseCostCents?: number;
   defaultDurationMin?: number | null;
+  appointmentsMin?: number | null;
+  appointmentsMax?: number | null;
   requiresLab?: boolean;
   active?: boolean;
   metadata?: Record<string, unknown>;
@@ -782,6 +797,8 @@ export class ClinicalRepository {
       default_price_cents: input.defaultPriceCents ?? 0,
       base_cost_cents: input.baseCostCents ?? 0,
       default_duration_min: input.defaultDurationMin ?? null,
+      appointments_min: input.appointmentsMin ?? null,
+      appointments_max: input.appointmentsMax ?? null,
       requires_lab: input.requiresLab ?? false,
       active: input.active ?? true,
       metadata: input.metadata ?? {},
@@ -802,6 +819,8 @@ export class ClinicalRepository {
     if (input.baseCostCents !== undefined) body.base_cost_cents = input.baseCostCents;
     if (input.defaultDurationMin !== undefined)
       body.default_duration_min = input.defaultDurationMin;
+    if (input.appointmentsMin !== undefined) body.appointments_min = input.appointmentsMin;
+    if (input.appointmentsMax !== undefined) body.appointments_max = input.appointmentsMax;
     if (input.requiresLab !== undefined) body.requires_lab = input.requiresLab;
     if (input.active !== undefined) body.active = input.active;
     if (input.metadata !== undefined) body.metadata = input.metadata;
@@ -815,6 +834,62 @@ export class ClinicalRepository {
       body,
     );
     return mapTreatmentCatalog(row);
+  }
+
+  async listTreatmentStaffTimes() {
+    const rows = await this.client.select<TreatmentStaffTimeRow>("treatment_catalog_staff_times", {
+      select: "*,staff_members(display_name)",
+      clinic_id: `eq.${this.clinicId}`,
+    });
+    return { items: rows.map(mapTreatmentStaffTime) };
+  }
+
+  /** One row per treatment and doctor: updates the existing override or creates it. */
+  async saveTreatmentStaffTime(
+    treatmentCatalogId: string,
+    staffMemberId: string,
+    input: {
+      durationMin: number | null;
+      appointmentsMin: number | null;
+      appointmentsMax: number | null;
+    },
+  ) {
+    const key = {
+      clinic_id: `eq.${this.clinicId}`,
+      treatment_catalog_id: `eq.${treatmentCatalogId}`,
+      staff_member_id: `eq.${staffMemberId}`,
+    };
+    const body = {
+      duration_min: input.durationMin,
+      appointments_min: input.appointmentsMin,
+      appointments_max: input.appointmentsMax,
+    };
+    const [existing] = await this.client.select<TreatmentStaffTimeRow>(
+      "treatment_catalog_staff_times",
+      { select: "*", ...key, limit: 1 },
+    );
+    const row = existing
+      ? await this.client.patch<TreatmentStaffTimeRow>(
+          "treatment_catalog_staff_times",
+          { ...key, select: "*,staff_members(display_name)" },
+          { ...body, version: existing.version + 1 },
+        )
+      : await this.client.insert<TreatmentStaffTimeRow>("treatment_catalog_staff_times", {
+          clinic_id: this.clinicId,
+          treatment_catalog_id: treatmentCatalogId,
+          staff_member_id: staffMemberId,
+          ...body,
+        });
+    return mapTreatmentStaffTime(row);
+  }
+
+  async deleteTreatmentStaffTime(treatmentCatalogId: string, staffMemberId: string) {
+    await this.client.delete("treatment_catalog_staff_times", {
+      clinic_id: `eq.${this.clinicId}`,
+      treatment_catalog_id: `eq.${treatmentCatalogId}`,
+      staff_member_id: `eq.${staffMemberId}`,
+    });
+    return { deleted: true as const };
   }
 
   private async getBudget(id: string) {
@@ -850,13 +925,17 @@ export class ClinicalRepository {
       createdAt: budget.created_at,
       scope: budget.scope ?? "plan",
       title: budget.title ?? null,
-      ...(branch ? { branch: {
-        id: branch.id,
-        sharedPlanItemIds: branch.shared_item_ids,
-        advantages: branch.advantages,
-        disadvantages: branch.disadvantages,
-        sourcePlanVersion: branch.source_plan_version,
-      }} : {}),
+      ...(branch
+        ? {
+            branch: {
+              id: branch.id,
+              sharedPlanItemIds: branch.shared_item_ids,
+              advantages: branch.advantages,
+              disadvantages: branch.disadvantages,
+              sourcePlanVersion: branch.source_plan_version,
+            },
+          }
+        : {}),
       items: items.map((item) => ({
         id: item.id,
         clinicalPlanItemId: item.clinical_plan_item_id,
@@ -972,6 +1051,19 @@ function mapPlanItem(row: PlanItemRow) {
   };
 }
 
+function mapTreatmentStaffTime(row: TreatmentStaffTimeRow) {
+  return {
+    id: row.id,
+    treatmentCatalogId: row.treatment_catalog_id,
+    staffMemberId: row.staff_member_id,
+    staffName: row.staff_members?.display_name ?? null,
+    durationMin: row.duration_min,
+    appointmentsMin: row.appointments_min,
+    appointmentsMax: row.appointments_max,
+    version: row.version,
+  };
+}
+
 function mapTreatmentCatalog(row: TreatmentCatalogRow) {
   return {
     id: row.id,
@@ -982,6 +1074,8 @@ function mapTreatmentCatalog(row: TreatmentCatalogRow) {
     defaultPriceCents: row.default_price_cents,
     baseCostCents: row.base_cost_cents,
     defaultDurationMin: row.default_duration_min,
+    appointmentsMin: row.appointments_min ?? null,
+    appointmentsMax: row.appointments_max ?? null,
     requiresLab: row.requires_lab,
     active: row.active,
     metadata: row.metadata,
