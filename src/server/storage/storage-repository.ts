@@ -8,6 +8,7 @@ export const LAB_ATTACHMENTS_BUCKET = "lab-attachments";
 export const PRESCRIPTION_EVIDENCE_BUCKET = "prescription-evidence";
 export const STAFF_DOCUMENTS_BUCKET = "staff-documents";
 export const CV_ARCHIVE_BUCKET = "cv-archive";
+export const SUPPLIER_INVOICE_DOCUMENTS_BUCKET = "supplier-invoice-documents";
 
 const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const DOCUMENT_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
@@ -26,6 +27,25 @@ const LAB_ATTACHMENT_TYPES = new Set([
   "model/stl",
   "application/octet-stream",
 ]);
+
+export const SUPPLIER_INVOICE_DOCUMENT_RULE =
+  "La factura escaneada debe ser un PDF o DOCX de hasta 25 MB.";
+
+/** The stored MIME type of a scanned supplier invoice, or null when the file is not accepted. */
+export function supplierInvoiceDocumentMimeType(file: File): string | null {
+  // Some browsers send DOCX without a MIME type, so fall back to the extension.
+  const lowerName = file.name.toLowerCase();
+  const mimeType =
+    file.type ||
+    (lowerName.endsWith(".pdf")
+      ? "application/pdf"
+      : lowerName.endsWith(".docx")
+        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        : "");
+  if (!STAFF_DOCUMENT_TYPES.has(mimeType)) return null;
+  if (file.size <= 0 || file.size > 25 * 1024 * 1024) return null;
+  return mimeType;
+}
 
 export interface StoredObject {
   path: string;
@@ -135,6 +155,22 @@ export class StorageRepository {
     if (file.size <= 0 || file.size > 50 * 1024 * 1024)
       throw new Error("El archivo debe ocupar entre 1 byte y 50 MB.");
     return this.upload(LAB_ATTACHMENTS_BUCKET, clinicId, labWorkId, file, mimeType);
+  }
+
+  async uploadSupplierInvoiceDocument(
+    clinicId: string,
+    supplierInvoiceId: string,
+    file: File,
+  ): Promise<StoredObject> {
+    const mimeType = supplierInvoiceDocumentMimeType(file);
+    if (!mimeType) throw new Error(SUPPLIER_INVOICE_DOCUMENT_RULE);
+    return this.upload(
+      SUPPLIER_INVOICE_DOCUMENTS_BUCKET,
+      clinicId,
+      supplierInvoiceId,
+      file,
+      mimeType,
+    );
   }
 
   async download(bucket: string, path: string): Promise<Blob> {
