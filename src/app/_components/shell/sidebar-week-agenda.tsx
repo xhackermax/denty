@@ -1,7 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { IconArrowUpRight, IconCalendarEvent, IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
+import {
+  IconArrowUpRight,
+  IconCalendarEvent,
+  IconChevronLeft,
+  IconChevronRight,
+} from "@tabler/icons-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -14,8 +19,17 @@ import { useActiveTenant } from "@/shared/tenancy/active-context";
 import styles from "./sidebar-week-agenda.module.css";
 
 const WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"] as const;
-const monthLabel = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" });
-const dayLabel = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const monthLabel = new Intl.DateTimeFormat("es-ES", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const dayLabel = new Intl.DateTimeFormat("es-ES", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
 const asUtcDay = (date: string) => new Date(`${date}T12:00:00Z`);
 
 function countText(count: number): string {
@@ -31,7 +45,13 @@ function titleCase(text: string): string {
  * reuses the dashboard's monthly query cache; patient names are never shown.
  * The compact tablet rail keeps a direct link to today's full agenda.
  */
-export function SidebarWeekAgenda({ active, initialToday }: { active: boolean; initialToday?: string }) {
+export function SidebarWeekAgenda({
+  active,
+  initialToday,
+}: {
+  active: boolean;
+  initialToday?: string;
+}) {
   const { activeSiteId, loading } = useActiveTenant();
   const [today, setToday] = useState(() => initialToday ?? todayMadrid());
   const [month, setMonth] = useState(() => monthOf(initialToday ?? todayMadrid()));
@@ -44,7 +64,7 @@ export function SidebarWeekAgenda({ active, initialToday }: { active: boolean; i
       const next = todayMadrid();
       if (next === today) return;
       setToday(next);
-      setMonth((current) => current === monthOf(today) ? monthOf(next) : current);
+      setMonth((current) => (current === monthOf(today) ? monthOf(next) : current));
     };
     const onVisible = () => {
       if (document.visibilityState !== "hidden") refresh();
@@ -60,15 +80,16 @@ export function SidebarWeekAgenda({ active, initialToday }: { active: boolean; i
   }, [initialToday, today]);
 
   const available = !loading && Boolean(activeSiteId);
+  const queryEnabled = available && active;
   const summary = useQuery({
     queryKey: dentyQueryKeys.appointments.month(month, activeSiteId),
     queryFn: () => getBrowserApi().agenda.monthSummary(month, activeSiteId ?? undefined),
-    enabled: available,
+    enabled: queryEnabled,
     staleTime: 60_000,
   });
-  const isPending = available && summary.isPending;
-  const isError = available && summary.isError;
-  const countReady = available && !isPending && !isError;
+  const isPending = queryEnabled && summary.isPending;
+  const isError = queryEnabled && summary.isError;
+  const countReady = queryEnabled && !isPending && !isError;
   const monthDays = (summary.data?.days ?? []).filter((day) => monthOf(day.date) === month);
   const counts = new Map<string, MonthDaySummary>(monthDays.map((day) => [day.date, day]));
   const total = monthDays.reduce((sum, day) => sum + day.count, 0);
@@ -86,8 +107,12 @@ export function SidebarWeekAgenda({ active, initialToday }: { active: boolean; i
         title="Abrir agenda de hoy"
       >
         <IconCalendarEvent size={22} stroke={1.75} aria-hidden="true" />
-        <span className={styles.railDate} aria-hidden="true">{Number(today.slice(8))}</span>
-        {countReady && showingCurrentMonth && todayCount > 0 ? <span className={styles.railDot} aria-hidden="true" /> : null}
+        <span className={styles.railDate} aria-hidden="true">
+          {Number(today.slice(8))}
+        </span>
+        {countReady && showingCurrentMonth && todayCount > 0 ? (
+          <span className={styles.railDot} aria-hidden="true" />
+        ) : null}
       </Link>
 
       <div className={styles.expanded}>
@@ -112,7 +137,9 @@ export function SidebarWeekAgenda({ active, initialToday }: { active: boolean; i
           >
             <IconChevronLeft size={17} aria-hidden="true" />
           </button>
-          <span className={styles.range} aria-live="polite">{monthTitle}</span>
+          <span className={styles.range} aria-live="polite">
+            {monthTitle}
+          </span>
           <button
             type="button"
             className={styles.control}
@@ -122,14 +149,20 @@ export function SidebarWeekAgenda({ active, initialToday }: { active: boolean; i
             <IconChevronRight size={17} aria-hidden="true" />
           </button>
           {!showingCurrentMonth ? (
-            <button type="button" className={styles.todayButton} onClick={() => setMonth(monthOf(today))}>
+            <button
+              type="button"
+              className={styles.todayButton}
+              onClick={() => setMonth(monthOf(today))}
+            >
               Hoy
             </button>
           ) : null}
         </div>
         <div className={styles.week} role="group" aria-label="Días de la semana">
           {WEEKDAYS.map((weekday) => (
-            <span className={styles.weekday} key={weekday} aria-hidden="true">{weekday}</span>
+            <span className={styles.weekday} key={weekday} aria-hidden="true">
+              {weekday}
+            </span>
           ))}
         </div>
         <div className={styles.monthGrid} role="group" aria-label="Días del mes">
@@ -140,7 +173,11 @@ export function SidebarWeekAgenda({ active, initialToday }: { active: boolean; i
               ? "mes contiguo"
               : !available || isError
                 ? "citas no disponibles"
-                : isPending ? "cargando citas" : countText(count);
+                : !queryEnabled
+                  ? "abre la agenda para consultar citas"
+                  : isPending
+                    ? "cargando citas"
+                    : countText(count);
             return (
               <Link
                 href={`/app/agenda?date=${day.date}`}
@@ -165,7 +202,17 @@ export function SidebarWeekAgenda({ active, initialToday }: { active: boolean; i
           })}
         </div>
         <div className={styles.footer} aria-live="polite">
-          <span>{!available ? "Selecciona una sede" : isPending ? "Cargando citas…" : isError ? "Citas no disponibles" : `${countText(total)} este mes`}</span>
+          <span>
+            {!available
+              ? "Selecciona una sede"
+              : !queryEnabled
+                ? "Abre Agenda para cargar citas"
+                : isPending
+                  ? "Cargando citas…"
+                  : isError
+                    ? "Citas no disponibles"
+                    : `${countText(total)} este mes`}
+          </span>
           <Link href={`/app/agenda?date=${today}`} aria-label="Ver agenda completa">
             Ver día <IconArrowUpRight size={12} aria-hidden="true" />
           </Link>

@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   pathname: { value: "/app/agenda" },
   execute: vi.fn(),
+  patients: vi.fn(),
   recognition: { current: null as null | { emit: (text: string, final: boolean) => void } },
 }));
 
@@ -30,12 +31,16 @@ vi.mock("@/shared/api/browser", () => ({
   }),
 }));
 vi.mock("@/shared/patients/patient-data", () => ({
-  usePatientsQuery: () => ({
+  usePatientsQuery: (...args: unknown[]) => mocks.patients(...args),
+}));
+
+function patientsQueryResult() {
+  return {
     data: {
       items: [{ id: PATIENT_ID, firstName: "Ana", lastName: "López", recordNumber: "120" }],
     },
-  }),
-}));
+  };
+}
 vi.mock("@/shared/ui/device-permissions", () => ({
   queryMediaPermission: mocks.permissionState,
   requestMediaPermission: mocks.permission,
@@ -90,6 +95,7 @@ beforeEach(() => {
   mocks.permission.mockResolvedValue(undefined);
   mocks.interpret.mockRejectedValue(new Error("not used"));
   mocks.execute.mockResolvedValue({ effects: [], pendingConfirmation: false });
+  mocks.patients.mockImplementation(patientsQueryResult);
   vi.stubGlobal("SpeechRecognition", Recognition);
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 });
@@ -118,6 +124,14 @@ async function openPanel() {
 }
 
 describe("VoiceCommandBar", () => {
+  it("defers the patient query until a voice interaction starts", async () => {
+    mount();
+
+    await screen.findByRole("button", { name: "Escuchar comando" });
+
+    expect(mocks.patients).toHaveBeenLastCalledWith(false);
+  });
+
   it("auto-applies a clear dictated odontogram finding while the browser keeps listening", async () => {
     mocks.pathname.value = `/app/patients/${PATIENT_ID}`;
     mount();

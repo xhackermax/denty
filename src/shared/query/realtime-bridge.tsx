@@ -64,6 +64,39 @@ const TABLE_INVALIDATIONS: Record<string, readonly QueryKey[]> = {
   marketing_campaigns: [dentyQueryKeys.campaigns.root, dentyQueryKeys.analytics.root],
 };
 
+const REALTIME_INVALIDATION_DELAY_MS = 100;
+
+/**
+ * Database transactions can publish several row events for the same feature.
+ * Coalescing them preserves freshness while avoiding a refetch storm per row.
+ */
+export function createRealtimeInvalidationBatcher(
+  invalidate: (queryKey: QueryKey) => void,
+  delayMs = REALTIME_INVALIDATION_DELAY_MS,
+) {
+  const queued = new Map<string, QueryKey>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const flush = () => {
+    timer = undefined;
+    const queryKeys = [...queued.values()];
+    queued.clear();
+    for (const queryKey of queryKeys) invalidate(queryKey);
+  };
+
+  return {
+    enqueue(queryKeys: readonly QueryKey[]) {
+      for (const queryKey of queryKeys) queued.set(JSON.stringify(queryKey), queryKey);
+      if (!timer) timer = setTimeout(flush, delayMs);
+    },
+    dispose() {
+      if (timer) clearTimeout(timer);
+      timer = undefined;
+      queued.clear();
+    },
+  };
+}
+
 function tableFromBroadcast(
   message: { payload?: unknown } | Record<string, unknown>,
 ): string | null {
@@ -86,16 +119,20 @@ export function DentyRealtimeBridge() {
   useEffect(() => {
     if (!activeClinicId) return undefined;
     const supabase = getSupabaseBrowserClient();
+    const batcher = createRealtimeInvalidationBatcher((queryKey) => {
+      void queryClient.invalidateQueries({ queryKey });
+    });
     const channel = supabase
       .channel(`clinic:${activeClinicId}`, { config: { private: true } })
       .on("broadcast", { event: "*" }, (message) => {
         const table = tableFromBroadcast(message);
         const keys = table ? TABLE_INVALIDATIONS[table] : undefined;
         const invalidations = keys?.length ? keys : [dentyQueryKeys.dashboard.root];
-        for (const queryKey of invalidations) void queryClient.invalidateQueries({ queryKey });
+        batcher.enqueue(invalidations);
       })
       .subscribe();
     return () => {
+      batcher.dispose();
       void supabase.removeChannel(channel);
     };
   }, [activeClinicId, queryClient]);

@@ -2,9 +2,22 @@
 
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { shiftRange, visibleDates } from "@/domain/agenda";
+import type { AgendaDayCount } from "@/domain/agenda";
 import type { Appointment, CreateAppointment, UpdateAppointment } from "@/shared/api";
 import { getBrowserApi } from "@/shared/api/browser";
 import { dentyQueryKeys } from "@/shared/query";
+
+const AGENDA_PREFETCH_DAY_LIMIT = 3 as const;
+
+export function agendaPrefetchDates(
+  rangeStart: string,
+  dayCount: AgendaDayCount,
+): readonly string[] {
+  const count: AgendaDayCount =
+    dayCount > AGENDA_PREFETCH_DAY_LIMIT ? AGENDA_PREFETCH_DAY_LIMIT : dayCount;
+  return visibleDates(shiftRange(rangeStart, dayCount, 1), count);
+}
 
 export function useAppointmentsQuery(date: string, enabled = true, siteId?: string | null) {
   return useQuery({
@@ -39,7 +52,7 @@ export function useAgendaBlocksRangeQuery(dates: readonly string[], siteId?: str
   });
 }
 
-/** Warm the cache for the ranges either side of the visible one. */
+/** Warm only the next short range; broad bidirectional warming grows route cache quickly. */
 export function usePrefetchAppointmentDays() {
   const queryClient = useQueryClient();
   return (dates: readonly string[], siteId?: string | null) => {
@@ -47,6 +60,8 @@ export function usePrefetchAppointmentDays() {
       void queryClient.prefetchQuery({
         queryKey: dentyQueryKeys.appointments.day(date, siteId),
         queryFn: () => getBrowserApi().appointments.list(date, siteId ?? undefined),
+        staleTime: 60_000,
+        gcTime: 60_000,
       });
     }
   };
