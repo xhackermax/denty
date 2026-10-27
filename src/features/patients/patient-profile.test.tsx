@@ -107,6 +107,9 @@ vi.mock("@/shared/clinical/treatment-flow", () => ({
 vi.mock("./patient-medical-history", () => ({ PatientMedicalHistory: () => null }));
 vi.mock("./patient-clinical-summary", () => ({ PatientClinicalSummary: () => null }));
 vi.mock("./patient-edit-modal", () => ({ PatientEditModal: () => null }));
+vi.mock("@/features/referrals/patient-referrals-card", () => ({
+  PatientReferralsCard: () => null,
+}));
 vi.mock("./patient-photo-capture", () => ({ PatientPhotoCapture: () => null }));
 vi.mock("./dossier/use-patient-dossier", () => ({ usePatientDossierPrinter: () => dossier }));
 

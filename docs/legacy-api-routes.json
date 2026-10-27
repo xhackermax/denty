@@ -1611,6 +1611,96 @@
     },
     {
       "method": "GET",
+      "path": "/api/referrals",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/referrals",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/referrals/:id/confirm",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/referrals/:id/reassign",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/referrals/:id/void",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/referrals/patients/:id",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/referrals/programs",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/referrals/programs",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/referrals/programs/:id",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/referrals/redemptions/:id/reverse",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/referrals/rewards",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/referrals/rewards/:id/approve",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/referrals/rewards/:id/cancel",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/referrals/rewards/:id/redeem",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/referrals/rewards/:id/redemptions",
+      "source": "src/server/denty-supabase/referrals-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/security/audit/verify",
       "source": "apps/api/src/modules/security/routes.ts",
       "kind": "browser"

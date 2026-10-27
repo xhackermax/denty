@@ -43,6 +43,7 @@ import { HorizontalSnapNav, PageHeader, PatientAvatar } from "@/shared/ui";
 import { usePatientDossierPrinter } from "./dossier/use-patient-dossier";
 import { PatientMedicalHistory } from "./patient-medical-history";
 import { PatientEditModal } from "./patient-edit-modal";
+import { PatientReferralsCard } from "@/features/referrals/patient-referrals-card";
 import { PatientUpcomingAppointments, upcomingAppointments } from "./patient-upcoming-appointments";
 import { PatientPhotoCapture } from "./patient-photo-capture";
 import {
@@ -465,6 +466,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
             </Text>
           ) : null}
         </section>
+        <PatientReferralsCard patientId={patientId} patientName={fullName || "Paciente"} />
         <section className={styles.summaryTile}>
           <span className={styles.summaryTileLabel}>Economía</span>
           <Title order={3}>{economyValue}</Title>
