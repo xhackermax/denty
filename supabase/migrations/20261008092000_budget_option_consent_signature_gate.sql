@@ -194,7 +194,7 @@ begin
     'snapshot', to_jsonb(v_snapshot)
   );
 end;
-$function$
+$function$;
 
 revoke execute on function public.finalize_budget_signature(uuid, integer, text, text, jsonb) from public, anon;
 grant execute on function public.finalize_budget_signature(uuid, integer, text, text, jsonb) to authenticated;
