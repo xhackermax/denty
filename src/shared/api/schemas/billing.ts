@@ -73,6 +73,34 @@ export const updateDraftBudgetSchema = z.object({
     .max(200),
 });
 
+export const updateBudgetDiscountsSchema = z.object({
+  patientId: idSchema,
+  expectedVersion: z.number().int().positive(),
+  discountLabel: z.string().trim().max(80).nullable(),
+  discountPercent: z.number().min(0).max(100).multipleOf(0.01),
+  discountAmountCents: z.number().int().nonnegative().max(2_147_483_647),
+  earlyPaymentApplied: z.boolean(),
+});
+
+const discountPercentSchema = z.number().gt(0).max(100).multipleOf(0.01);
+
+export const budgetDiscountPresetSchema = z.object({
+  label: z.string().trim().min(1).max(80),
+  percent: discountPercentSchema,
+});
+
+export const budgetDiscountSettingsSchema = z
+  .object({
+    earlyPaymentEnabled: z.boolean(),
+    earlyPaymentPercent: discountPercentSchema,
+    earlyPaymentTerms: z.string().trim().max(300),
+    maxDiscountPercent: z.number().min(0).max(100).multipleOf(0.01),
+    discountPresets: z.array(budgetDiscountPresetSchema).max(20),
+  })
+  .passthrough();
+
+export const updateBudgetDiscountSettingsSchema = budgetDiscountSettingsSchema.strip();
+
 export const deleteDraftBudgetQuerySchema = z.object({
   patientId: idSchema,
   expectedVersion: z.coerce.number().int().positive(),

@@ -14,12 +14,20 @@ import { buildTreatmentComparisonPrintHtml } from "@/shared/documents/treatment-
 import { buildTreatmentPlanPrintHtml } from "@/shared/documents/treatment-plan-print";
 import { TOOTH_STATE_LABELS } from "@/shared/odontogram/tooth-state-labels";
 import { embedPrintDocument } from "@/shared/print/embed-print-document";
+import { computeBudgetTotals, formatPercent } from "@/domain/budget-discounts";
 
 export interface DossierBudget {
   code: string;
   title?: string | null | undefined;
   status: string;
+  /** Final amount, after discounts. */
   totalCents: number;
+  subtotalCents?: number | undefined;
+  discountLabel?: string | null | undefined;
+  discountPercent?: number | undefined;
+  discountAmountCents?: number | undefined;
+  earlyPaymentPercent?: number | null | undefined;
+  earlyPaymentApplied?: boolean | undefined;
   createdAt?: string | undefined;
   items: readonly {
     description: string;
@@ -148,6 +156,52 @@ function odontogramSection(entities: readonly DentalEntity[]): string {
   }<h3>Hallazgos registrados</h3>${lines}`;
 }
 
+function budgetTotalRows(budget: DossierBudget): string {
+  const totals = computeBudgetTotals({
+    subtotalCents: budget.subtotalCents ?? budget.totalCents,
+    discountPercent: budget.discountPercent,
+    discountAmountCents: budget.discountAmountCents,
+    earlyPaymentPercent: budget.earlyPaymentPercent,
+    earlyPaymentApplied: budget.earlyPaymentApplied,
+  });
+  const row = (label: string, cents: number, className = "") =>
+    `<tr${className ? ` class="${className}"` : ""}><td>${esc(label)}</td><td class="amount">${esc(formatEUR(cents))}</td></tr>`;
+  const rows: string[] = [];
+  if (totals.discountCents > 0 || totals.earlyPaymentCents > 0) {
+    rows.push(row("Subtotal", totals.subtotalCents, "subtotal"));
+    if (totals.discountCents > 0) {
+      const detail = [
+        budget.discountLabel?.trim(),
+        budget.discountPercent ? formatPercent(budget.discountPercent) : null,
+      ].filter(Boolean);
+      rows.push(
+        row(`Descuento${detail.length ? ` (${detail.join(" · ")})` : ""}`, -totals.discountCents),
+      );
+    }
+    if (totals.earlyPaymentCents > 0 && budget.earlyPaymentPercent)
+      rows.push(
+        row(
+          `Pronto pago (${formatPercent(budget.earlyPaymentPercent)})`,
+          -totals.earlyPaymentCents,
+        ),
+      );
+  }
+  rows.push(row("Total", totals.totalCents, "total"));
+  if (
+    !budget.earlyPaymentApplied &&
+    budget.earlyPaymentPercent &&
+    totals.earlyPaymentTotalCents !== null
+  )
+    rows.push(
+      row(
+        `Con pronto pago (−${formatPercent(budget.earlyPaymentPercent)})`,
+        totals.earlyPaymentTotalCents,
+        "muted",
+      ),
+    );
+  return rows.join("");
+}
+
 function budgetsSection(budgets: readonly DossierBudget[]): string {
   return budgets
     .map(
@@ -161,9 +215,7 @@ function budgetsSection(budgets: readonly DossierBudget[]): string {
       (item) =>
         `<tr><td>${esc(item.tooth ? `Diente ${item.tooth} · ${item.description}` : item.description)}</td><td class="amount">${esc(formatEUR(item.totalCents))}</td></tr>`,
     )
-    .join(
-      "",
-    )}<tr class="total"><td>Total</td><td class="amount">${esc(formatEUR(budget.totalCents))}</td></tr></table>
+    .join("")}${budgetTotalRows(budget)}</table>
 </article>`,
     )
     .join("\n");
@@ -346,6 +398,7 @@ export function buildPatientDossierHtml(input: PatientDossierInput): string {
   .list th { background: #f5f5f7; font-size: 10pt; }
   .amount { text-align: right; white-space: nowrap; }
   .lines .total td { font-weight: 700; border-top: 1px solid #1d1d1f; }
+  .lines .subtotal td { border-top: 1px solid #1d1d1f; }
 </style></head><body>
 <header class="cover">
   <div class="clinic">${esc(input.clinicName)}</div>

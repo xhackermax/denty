@@ -60,6 +60,7 @@ import {
 } from "./treatment-flow-steps";
 
 import { BudgetOptions, type BudgetView } from "./budget-options";
+import { BudgetTotalsSummary } from "./budget-totals";
 import { FinancingCalculator } from "./financing-calculator";
 import { RetainedFlowStep } from "./retained-flow-step";
 import { TreatmentPlanDocumentButton } from "./treatment-plan-document-view";
@@ -779,6 +780,10 @@ function SignatureStep({
         {patientName || "El paciente"} acepta el presupuesto {budget.code} por{" "}
         <strong>{formatEUR(budget.totalCents)}</strong>.
       </Text>
+      {(budget.subtotalCents ?? budget.totalCents) !== budget.totalCents ||
+      budget.earlyPaymentPercent ? (
+        <BudgetTotalsSummary budget={budget} />
+      ) : null}
       <TextInput
         label="Nombre de quien firma"
         value={signerName}

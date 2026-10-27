@@ -59,6 +59,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/admin/budget-discounts",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/budget-discounts",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/communications",
       "source": "apps/api/src/modules/communications/routes.ts",
       "kind": "browser"
@@ -1254,6 +1266,12 @@
       "method": "GET",
       "path": "/api/admin/clinical-arguments/history",
       "source": "src/server/denty-supabase/clinical-arguments-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/budgets/:id/discounts",
+      "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
     },
     {

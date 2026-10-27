@@ -6,6 +6,7 @@ import {
   accountingExportQuerySchema,
   allocatePaymentSchema,
   billingSettingsSchema,
+  budgetDiscountSettingsSchema,
   budgetsSchema,
   deleteDraftBudgetQuerySchema,
   deletedDraftBudgetSchema,
@@ -23,6 +24,8 @@ import {
   rectifyInvoiceSchema,
   updateDraftBudgetSchema,
   updateBillingSettingsSchema,
+  updateBudgetDiscountSettingsSchema,
+  updateBudgetDiscountsSchema,
   verifactuStatusSchema,
   verifactuSubmissionResultSchema,
 } from "../schemas/billing";
@@ -37,6 +40,16 @@ export function createBillingResource(client: ApiClient) {
           "/api/admin/billing-settings",
           billingSettingsSchema,
           updateBillingSettingsSchema.parse(payload),
+          { method: "PUT" },
+        ),
+    },
+    discountSettings: {
+      get: () => client.request("/api/admin/budget-discounts", budgetDiscountSettingsSchema),
+      update: (payload: z.input<typeof updateBudgetDiscountSettingsSchema>) =>
+        client.mutation(
+          "/api/admin/budget-discounts",
+          budgetDiscountSettingsSchema,
+          updateBudgetDiscountSettingsSchema.parse(payload),
           { method: "PUT" },
         ),
     },
@@ -56,6 +69,13 @@ export function createBillingResource(client: ApiClient) {
           `/api/budgets/${encodeId(budgetId)}`,
           draftBudgetMutationResultSchema,
           updateDraftBudgetSchema.parse(payload),
+          { method: "PATCH" },
+        ),
+      updateDiscounts: (budgetId: string, payload: z.input<typeof updateBudgetDiscountsSchema>) =>
+        client.mutation(
+          `/api/budgets/${encodeId(budgetId)}/discounts`,
+          draftBudgetMutationResultSchema,
+          updateBudgetDiscountsSchema.parse(payload),
           { method: "PATCH" },
         ),
       deleteDraft: (budgetId: string, patientId: string, expectedVersion: number) => {

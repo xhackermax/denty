@@ -12,6 +12,7 @@ import { AdminTreatmentCatalogPanel } from "./admin-treatment-catalog-panel";
 import { AdminClinicalArgumentsPanel } from "./admin-clinical-arguments-panel";
 import { AdminLaboratoriesPanel } from "./admin-laboratories-panel";
 import { AdminCommunicationsPanel } from "./admin-communications-panel";
+import { AdminBudgetDiscountsPanel } from "./admin-budget-discounts-panel";
 
 export function AdminPage({
   section = "home",
@@ -24,6 +25,7 @@ export function AdminPage({
     | "laboratories"
     | "sites"
     | "payments"
+    | "finance"
     | "communications"
     | "export";
 }) {
@@ -39,15 +41,17 @@ export function AdminPage({
                 ? "Sedes y doctores"
                 : section === "payments"
                   ? "Cobros y datáfonos"
-                  : section === "communications"
-                    ? "Comunicaciones"
-                    : section === "laboratories"
-                      ? "Laboratorios"
-                      : section === "export"
-                        ? "Exportar datos"
-                        : section === "clinical-arguments"
-                          ? "Ventajas y desventajas"
-                          : "Catálogo"
+                  : section === "finance"
+                    ? "Finanzas · descuentos"
+                    : section === "communications"
+                      ? "Comunicaciones"
+                      : section === "laboratories"
+                        ? "Laboratorios"
+                        : section === "export"
+                          ? "Exportar datos"
+                          : section === "clinical-arguments"
+                            ? "Ventajas y desventajas"
+                            : "Catálogo"
         }
         description="Usuarios, sedes y configuración."
       />
@@ -69,6 +73,12 @@ export function AdminPage({
             <span className={styles.cardLinkTitle}>Cobros y datáfonos</span>
             <span className={styles.cardLinkDescription}>
               SumUp y Stripe: emparejar lectores y asignarlos a cada sede
+            </span>
+          </Link>
+          <Link className={styles.cardLink} href="/app/admin/finance">
+            <span className={styles.cardLinkTitle}>Finanzas · descuentos</span>
+            <span className={styles.cardLinkDescription}>
+              Pronto pago y descuentos que se aplican en los presupuestos
             </span>
           </Link>
           <Link className={styles.cardLink} href="/app/admin/catalog">
@@ -105,6 +115,7 @@ export function AdminPage({
       {section === "laboratories" ? <AdminLaboratoriesPanel /> : null}
       {section === "sites" ? <AdminSitesPanel /> : null}
       {section === "payments" ? <AdminPaymentTerminalsPanel /> : null}
+      {section === "finance" ? <AdminBudgetDiscountsPanel /> : null}
       {section === "communications" ? <AdminCommunicationsPanel /> : null}
       {section === "export" ? <AdminExportPanel /> : null}
     </div>

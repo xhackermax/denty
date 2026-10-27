@@ -124,6 +124,8 @@ interface BudgetProjectionRow {
   id: string;
   status: string;
   total_cents: number;
+  // Absent until migration 20261027150000 runs.
+  final_total_cents?: number | null;
   revision: number;
   version: number;
   created_at: string;
@@ -436,7 +438,7 @@ export class PatientRepository {
         limit: 1,
       }),
       this.client.select<BudgetProjectionRow>("budgets", {
-        select: "id,status,total_cents,revision,version,created_at,updated_at",
+        select: "*",
         patient_id: `eq.${patientId}`,
         order: "updated_at.desc",
       }),
@@ -477,7 +479,7 @@ export class PatientRepository {
       budgets: budgets.map((row) => ({
         id: row.id,
         status: row.status,
-        totalCents: row.total_cents,
+        totalCents: row.final_total_cents ?? row.total_cents,
         revision: row.revision,
         version: row.version,
         createdAt: row.created_at,
