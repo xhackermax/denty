@@ -26,6 +26,7 @@ import { ClinicalSyncCard } from "@/shared/clinical/clinical-sync-card";
 import { ClinicalWorkspace } from "@/shared/clinical/clinical-workspace";
 import { TreatmentFlowModal } from "@/shared/clinical/treatment-flow";
 import { useClinicalWorkflowQuery } from "@/shared/clinical/clinical-data";
+import { PatientRecallsCard } from "@/features/recalls/patient-recalls-card";
 import { PatientClinicalSummary } from "./patient-clinical-summary";
 import styles from "@/shared/ui/parity.module.css";
 import {
@@ -472,6 +473,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
             {economyDescription}
           </Text>
         </section>
+        <PatientRecallsCard patientId={patientId} />
       </SimpleGrid>
 
       <PatientPipelineNav

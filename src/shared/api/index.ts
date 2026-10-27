@@ -11,5 +11,6 @@ export * from "./schemas/core";
 export * from "./schemas/engagement";
 export * from "./schemas/portal";
 export * from "./schemas/prescriptions";
+export * from "./schemas/recalls";
 export * from "./schemas/security";
 export * from "./schemas/voice";

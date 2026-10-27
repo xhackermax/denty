@@ -1,9 +1,6 @@
 import { handlePerioDraftsRoute } from "./perio-drafts-route";
 import { handleDiagnosesRoute } from "./diagnoses-route";
-import {
-  handleClinicalArgumentsRoute,
-  isClinicalArgumentsRoute,
-} from "./clinical-arguments-route";
+import { handleClinicalArgumentsRoute, isClinicalArgumentsRoute } from "./clinical-arguments-route";
 import { handleNavigationRoute } from "./navigation-route";
 import { handleNextSlotsRoute } from "./next-slots-route";
 import { ExportRepository } from "./export-repository";
@@ -167,6 +164,7 @@ import {
   resolveSupabasePublicCredentials,
 } from "../supabase/credentials";
 import { SupabaseRestClient, SupabaseRestError } from "../supabase/rest-client";
+import { handleRecallsRoute, isRecallsRoute } from "./recalls-route";
 import { TerminalProviderError, testProviderConnection } from "../payments/terminal-providers";
 import { PaymentTerminalRepository } from "./payment-terminal-repository";
 function json(status: number, body: unknown, headers?: Headers): Response {
@@ -417,6 +415,7 @@ export const LOCALLY_HANDLED_SECTIONS: ReadonlySet<string> = new Set([
   "clinical-plan",
   "navigation",
   "recovery",
+  "recalls",
 ]);
 
 export async function handleSupabaseDentyRoute(
@@ -636,6 +635,7 @@ export async function handleSupabaseDentyRoute(
     const headers = responseHeadersForIdentity(request, identity);
     if (isClinicalArgumentsRoute(parts))
       return await handleClinicalArgumentsRoute(request, parts, identity, headers);
+    if (isRecallsRoute(parts)) return await handleRecallsRoute(request, parts, identity, headers);
     const repo = patientRepository(identity);
     const clinical = clinicalRepository(identity);
     const agenda = agendaRepository(identity);
@@ -649,13 +649,18 @@ export async function handleSupabaseDentyRoute(
     const tasks = taskRepository(identity);
     const prescriptions = prescriptionRepository(identity);
     if (
-      parts.length === 3 && parts[0] === "api" &&
-      parts[1] === "recovery" && parts[2] === "search" && method === "GET"
+      parts.length === 3 &&
+      parts[0] === "api" &&
+      parts[1] === "recovery" &&
+      parts[2] === "search" &&
+      method === "GET"
     ) {
       const permission = requireActorPermission(identity, "patients.read");
       if (permission) return permission;
-      if (!identity.actor.permissions.includes("communications.read") &&
-          !identity.actor.permissions.includes("clinical.read")) {
+      if (
+        !identity.actor.permissions.includes("communications.read") &&
+        !identity.actor.permissions.includes("clinical.read")
+      ) {
         return error(403, "FORBIDDEN", "No tienes permisos para consultar recuperación.");
       }
       const search = new URL(request.url).searchParams;
@@ -679,22 +684,32 @@ export async function handleSupabaseDentyRoute(
       return json(200, await engagement.recoveryPatientSearch(parsed.data), headers);
     }
     if (
-      parts.length === 3 && parts[0] === "api" &&
-      parts[1] === "recovery" && parts[2] === "worklist" && method === "GET"
+      parts.length === 3 &&
+      parts[0] === "api" &&
+      parts[1] === "recovery" &&
+      parts[2] === "worklist" &&
+      method === "GET"
     ) {
       const denied = requireActorPermission(identity, "patients.read");
       if (denied) return denied;
-      if (!identity.actor.permissions.includes("communications.read") &&
-          !identity.actor.permissions.includes("clinical.read")) {
+      if (
+        !identity.actor.permissions.includes("communications.read") &&
+        !identity.actor.permissions.includes("clinical.read")
+      ) {
         return error(403, "FORBIDDEN", "No tienes permisos para consultar recuperación.");
       }
       const url = new URL(request.url);
       const kind = url.searchParams.get("kind") ?? "ALL";
       const page = Number(url.searchParams.get("page") ?? 1);
       const pageSize = Number(url.searchParams.get("pageSize") ?? 25);
-      if (!["ALL", "RECALL", "PLAN", "BUDGET"].includes(kind) ||
-          !Number.isSafeInteger(page) || page < 1 ||
-          !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 50) {
+      if (
+        !["ALL", "RECALL", "PLAN", "BUDGET"].includes(kind) ||
+        !Number.isSafeInteger(page) ||
+        page < 1 ||
+        !Number.isSafeInteger(pageSize) ||
+        pageSize < 1 ||
+        pageSize > 50
+      ) {
         return error(400, "INVALID_RECOVERY_FILTER", "Filtros de recuperación no válidos.");
       }
       return json(200, await engagement.recoveryWorklist({ kind, page, pageSize }), headers);
@@ -808,9 +823,13 @@ export async function handleSupabaseDentyRoute(
       if (d) return d;
       return json(200, await engagement.listCommunications(), headers);
     }
-    if (parts.length === 4 && parts[0] === "api" &&
-        parts[1] === "admin" && parts[2] === "communications" &&
-        parts[3] === "marketing-policy") {
+    if (
+      parts.length === 4 &&
+      parts[0] === "api" &&
+      parts[1] === "admin" &&
+      parts[2] === "communications" &&
+      parts[3] === "marketing-policy"
+    ) {
       if (method === "GET") {
         const d = requireActorPermission(identity, "communications.read");
         if (d) return d;
@@ -819,24 +838,41 @@ export async function handleSupabaseDentyRoute(
       if (method === "PUT") {
         const d = requireActorPermission(identity, "communications.manage");
         if (d) return d;
-        return json(200, await engagement.saveMarketingCommunicationPolicy(
-          await parseJson(request, updateMarketingCommunicationPolicySchema),
-        ), headers);
+        return json(
+          200,
+          await engagement.saveMarketingCommunicationPolicy(
+            await parseJson(request, updateMarketingCommunicationPolicySchema),
+          ),
+          headers,
+        );
       }
     }
-    if (parts.length === 5 && parts[0] === "api" &&
-        parts[1] === "admin" && parts[2] === "communications" &&
-        parts[3] === "campaign-templates" && parts[4] === "preview" &&
-        method === "POST") {
+    if (
+      parts.length === 5 &&
+      parts[0] === "api" &&
+      parts[1] === "admin" &&
+      parts[2] === "communications" &&
+      parts[3] === "campaign-templates" &&
+      parts[4] === "preview" &&
+      method === "POST"
+    ) {
       const d = requireActorPermission(identity, "communications.manage");
       if (d) return d;
-      return json(200, await engagement.previewMarketingMessageTemplate(
-        await parseJson(request, queueMarketingMessageTemplateSchema),
-      ), headers);
+      return json(
+        200,
+        await engagement.previewMarketingMessageTemplate(
+          await parseJson(request, queueMarketingMessageTemplateSchema),
+        ),
+        headers,
+      );
     }
-    if (parts.length === 4 && parts[0] === "api" &&
-        parts[1] === "admin" && parts[2] === "communications" &&
-        parts[3] === "campaign-templates") {
+    if (
+      parts.length === 4 &&
+      parts[0] === "api" &&
+      parts[1] === "admin" &&
+      parts[2] === "communications" &&
+      parts[3] === "campaign-templates"
+    ) {
       if (method === "GET") {
         const denied = requireActorPermission(identity, "communications.read");
         if (denied) return denied;
@@ -845,20 +881,33 @@ export async function handleSupabaseDentyRoute(
       if (method === "PUT") {
         const denied = requireActorPermission(identity, "communications.manage");
         if (denied) return denied;
-        return json(200, await engagement.saveMarketingMessageTemplate(
-          await parseJson(request, saveMarketingMessageTemplateSchema),
-        ), headers);
+        return json(
+          200,
+          await engagement.saveMarketingMessageTemplate(
+            await parseJson(request, saveMarketingMessageTemplateSchema),
+          ),
+          headers,
+        );
       }
     }
-    if (parts.length === 5 && parts[0] === "api" &&
-        parts[1] === "admin" && parts[2] === "communications" &&
-        parts[3] === "campaign-templates" && parts[4] === "queue" &&
-        method === "POST") {
+    if (
+      parts.length === 5 &&
+      parts[0] === "api" &&
+      parts[1] === "admin" &&
+      parts[2] === "communications" &&
+      parts[3] === "campaign-templates" &&
+      parts[4] === "queue" &&
+      method === "POST"
+    ) {
       const denied = requireActorPermission(identity, "communications.manage");
       if (denied) return denied;
-      return json(200, await engagement.queueMarketingMessageTemplate(
-        await parseJson(request, queueMarketingMessageTemplateSchema),
-      ), headers);
+      return json(
+        200,
+        await engagement.queueMarketingMessageTemplate(
+          await parseJson(request, queueMarketingMessageTemplateSchema),
+        ),
+        headers,
+      );
     }
     if (
       parts.length === 4 &&
@@ -1164,13 +1213,20 @@ export async function handleSupabaseDentyRoute(
         return error(403, "FORBIDDEN", "El portal no gestiona tareas internas.");
       const team = await tasks.assignees();
       const currentStaffId = identity.actor.staffId ?? null;
-      return json(200, {
-        // Show colleagues' names on the team board, but only permit authorised recipients.
-        items: team.items,
-        assignableStaffIds: taskAssignmentChoices(identity.actor.role, currentStaffId, team.items)
-          .map((member) => member.id),
-        currentStaffId,
-      }, headers);
+      return json(
+        200,
+        {
+          // Show colleagues' names on the team board, but only permit authorised recipients.
+          items: team.items,
+          assignableStaffIds: taskAssignmentChoices(
+            identity.actor.role,
+            currentStaffId,
+            team.items,
+          ).map((member) => member.id),
+          currentStaffId,
+        },
+        headers,
+      );
     }
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "tasks") {
       if (identity.actor.role === "PATIENT")
@@ -1181,11 +1237,16 @@ export async function handleSupabaseDentyRoute(
         if (payload.assigneeStaffId) {
           const team = await tasks.assignees();
           const allowed = taskAssignmentChoices(
-            identity.actor.role, identity.actor.staffId ?? null, team.items,
+            identity.actor.role,
+            identity.actor.staffId ?? null,
+            team.items,
           );
           if (!allowed.some((person) => person.id === payload.assigneeStaffId)) {
-            return error(403, "TASK_ASSIGNMENT_FORBIDDEN",
-              "Solo puedes asignar tareas a los usuarios autorizados.");
+            return error(
+              403,
+              "TASK_ASSIGNMENT_FORBIDDEN",
+              "Solo puedes asignar tareas a los usuarios autorizados.",
+            );
           }
         }
         return json(201, await tasks.create(payload), headers);
@@ -1217,11 +1278,16 @@ export async function handleSupabaseDentyRoute(
       if (payload.assigneeStaffId) {
         const team = await tasks.assignees();
         const allowed = taskAssignmentChoices(
-          identity.actor.role, identity.actor.staffId ?? null, team.items,
+          identity.actor.role,
+          identity.actor.staffId ?? null,
+          team.items,
         );
         if (!allowed.some((person) => person.id === payload.assigneeStaffId)) {
-          return error(403, "TASK_ASSIGNMENT_FORBIDDEN",
-            "No puedes asignar esta tarea al usuario seleccionado.");
+          return error(
+            403,
+            "TASK_ASSIGNMENT_FORBIDDEN",
+            "No puedes asignar esta tarea al usuario seleccionado.",
+          );
         }
       }
       const { status } = payload;
@@ -2705,7 +2771,11 @@ export async function handleSupabaseDentyRoute(
       if (method === "DELETE")
         return json(200, await clinical.deleteTreatmentStaffTime(treatmentId, staffId), headers);
       const payload = await parseJson(request, saveTreatmentStaffTimeSchema);
-      return json(200, await clinical.saveTreatmentStaffTime(treatmentId, staffId, payload), headers);
+      return json(
+        200,
+        await clinical.saveTreatmentStaffTime(treatmentId, staffId, payload),
+        headers,
+      );
     }
     if (
       parts.length === 4 &&
@@ -2799,22 +2869,35 @@ export async function handleSupabaseDentyRoute(
       responseHeaders.set("content-length", String(blob.size));
       return new Response(blob, { status: 200, headers: responseHeaders });
     }
-    if (parts.length === 3 && parts[0] === "api" &&
-        parts[1] === "documents" && parts[2] === "privacy-notice" &&
-        method === "POST") {
+    if (
+      parts.length === 3 &&
+      parts[0] === "api" &&
+      parts[1] === "documents" &&
+      parts[2] === "privacy-notice" &&
+      method === "POST"
+    ) {
       const denied = requireActorPermission(identity, "documents.write");
       if (denied) return denied;
       const payload = await parseJson(request, createPrivacyNoticeSchema);
       return json(201, await documentRepository(identity).createPrivacyNotice(payload), headers);
     }
-    if (parts.length === 3 && parts[0] === "api" &&
-        parts[1] === "documents" && parts[2] === "debt-acknowledgement" &&
-        method === "POST") {
-      const denied = requireActorPermission(identity, "documents.write") ??
+    if (
+      parts.length === 3 &&
+      parts[0] === "api" &&
+      parts[1] === "documents" &&
+      parts[2] === "debt-acknowledgement" &&
+      method === "POST"
+    ) {
+      const denied =
+        requireActorPermission(identity, "documents.write") ??
         requireActorPermission(identity, "finance.read");
       if (denied) return denied;
       const payload = await parseJson(request, createDebtAcknowledgementSchema);
-      return json(201, await documentRepository(identity).createDebtAcknowledgement(payload), headers);
+      return json(
+        201,
+        await documentRepository(identity).createDebtAcknowledgement(payload),
+        headers,
+      );
     }
     if (parts.length === 2 && parts[0] === "api" && parts[1] === "documents") {
       const documents = documentRepository(identity);
@@ -2829,8 +2912,13 @@ export async function handleSupabaseDentyRoute(
         return json(201, await documents.create(payload), headers);
       }
     }
-    if (parts.length === 4 && parts[0] === "api" &&
-        parts[1] === "documents" && parts[3] === "signature" && method === "GET") {
+    if (
+      parts.length === 4 &&
+      parts[0] === "api" &&
+      parts[1] === "documents" &&
+      parts[3] === "signature" &&
+      method === "GET"
+    ) {
       const denied = requireActorPermission(identity, "documents.read");
       if (denied) return denied;
       const signature = await documentRepository(identity).signatureImage(
@@ -2885,8 +2973,9 @@ export async function handleSupabaseDentyRoute(
       const documentToSign = await documentRepository(identity).get(documentId);
       if (!documentToSign)
         return error(404, "DOCUMENT_NOT_FOUND", "No se encuentra el documento del paciente.");
-      const isAdministrativeAcknowledgement =
-        ["DEBT_ACKNOWLEDGEMENT","PRIVACY_NOTICE"].includes(documentToSign.type);
+      const isAdministrativeAcknowledgement = ["DEBT_ACKNOWLEDGEMENT", "PRIVACY_NOTICE"].includes(
+        documentToSign.type,
+      );
       const denied = isAdministrativeAcknowledgement
         ? requireActorPermission(identity, "documents.write")
         : requireActorPermission(identity, "documents.sign");
