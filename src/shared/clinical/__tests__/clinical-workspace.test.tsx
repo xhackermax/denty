@@ -26,6 +26,7 @@ vi.mock("../clinical-data", () => ({
           id: "plan-a",
           label: "Obturación",
           tooth: "46",
+          treatmentCatalogId: "cat-filling",
           treatmentCode: "FILLING",
           phase: 1,
           priority: 20,
@@ -48,6 +49,7 @@ vi.mock("../clinical-data", () => ({
           id: "plan-a",
           label: "Obturación",
           tooth: "46",
+          treatmentCatalogId: "cat-filling",
           treatmentCode: "FILLING",
           phase: 1,
           priority: 20,
@@ -159,6 +161,22 @@ vi.mock("../clinical-data", () => ({
     error: null,
   }),
   useTreatmentCatalogQuery: () => ({ data: { items: [] } }),
+  useTreatmentStaffTimesQuery: () => ({
+    data: {
+      items: [
+        {
+          id: "time-1",
+          treatmentCatalogId: "cat-filling",
+          staffMemberId: "dr-ruiz",
+          staffName: "Dra. Ruiz",
+          durationMin: 50,
+          appointmentsMin: 2,
+          appointmentsMax: 3,
+          version: 1,
+        },
+      ],
+    },
+  }),
   useAddClinicalPlanItemMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useReorderClinicalPlanMutation: () => ({ mutate: mocks.reorderPlan, isPending: false }),
   useCreateClinicalEncounterMutation: () => ({
@@ -266,9 +284,14 @@ describe("patient budget history", () => {
         <ClinicalWorkspace patientId="patient-1" mode="plan" onOpenGuidedFlow={openFlow} />
       </MantineProvider>,
     );
-    expect(screen.getByText("Plan A · Plan completo")).toBeInTheDocument();
-    expect(screen.getByText(/Plan B · Conservar el diente/)).toBeInTheDocument();
-    expect(screen.getByText(/Plan C · Implante/)).toBeInTheDocument();
+    const board = screen.getByRole("region", { name: "Planes en paralelo" });
+    expect(within(board).getByRole("article", { name: "Plan A" })).toHaveTextContent(
+      "Plan completo",
+    );
+    expect(within(board).getByRole("article", { name: "Plan B" })).toHaveTextContent(
+      "Conservar el diente",
+    );
+    expect(within(board).getByRole("article", { name: "Plan C" })).toHaveTextContent("Implante");
     expect(
       screen.getByRole("button", { name: "Continuar con Plan A a consentimientos" }),
     ).toBeInTheDocument();
@@ -276,6 +299,22 @@ describe("patient budget history", () => {
     fireEvent.click(screen.getByRole("button", { name: "Elegir Plan B" }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar con Plan B a consentimientos" }));
     expect(openFlow).toHaveBeenCalledWith("draft-1");
+  });
+
+  it("estimates each plan's time with the chosen doctor's recorded visits", async () => {
+    // jsdom has no layout; the combobox scrolls the active option into view.
+    Element.prototype.scrollIntoView = vi.fn();
+    renderWorkspace();
+    const board = screen.getByRole("region", { name: "Planes en paralelo" });
+    const time = within(board).getByRole("button", { name: /^Tiempo aproximado/ });
+    const before = time.textContent;
+    fireEvent.click(time);
+    fireEvent.click(screen.getByRole("combobox", { name: "Tiempos según" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Dra. Ruiz" }));
+    expect(time.textContent).not.toBe(before);
+    expect(screen.getByRole("group", { name: "Tiempo aproximado del Plan A" })).toHaveTextContent(
+      "Fase conservadora2–3 citas",
+    );
   });
 
   it("no muestra la tarjeta de estado de sincronización", () => {

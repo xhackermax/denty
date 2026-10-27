@@ -1,71 +1,33 @@
-import type { ComparisonBudget } from "@/domain/plan";
+import {
+  appointmentRange,
+  sumAppointmentRanges,
+  type AppointmentRange,
+  type ComparisonBudget,
+} from "@/domain/plan";
 import { treatmentPhase, type TreatmentPhase } from "@/domain/plan/treatment-phase";
-import { treatmentFamily, type TreatmentFamily } from "@/domain/plan/treatment-plan-document";
 
 import type { BudgetView } from "./budget-options";
-
-interface AppointmentRange {
-  minAppointments: number;
-  maxAppointments: number;
-}
 
 export interface BudgetAppointmentEstimate {
   stages: Array<AppointmentRange & { phase: TreatmentPhase }>;
   total: AppointmentRange;
 }
 
-const APPOINTMENT_RANGES: Record<TreatmentFamily, AppointmentRange> = {
-  extraction: { minAppointments: 1, maxAppointments: 2 },
-  root_canal: { minAppointments: 1, maxAppointments: 2 },
-  periodontal: { minAppointments: 2, maxAppointments: 4 },
-  filling: { minAppointments: 1, maxAppointments: 1 },
-  hygiene: { minAppointments: 1, maxAppointments: 1 },
-  splint: { minAppointments: 2, maxAppointments: 2 },
-  orthodontics: { minAppointments: 8, maxAppointments: 24 },
-  bone_graft: { minAppointments: 2, maxAppointments: 3 },
-  implant: { minAppointments: 3, maxAppointments: 5 },
-  whitening: { minAppointments: 1, maxAppointments: 3 },
-  post: { minAppointments: 1, maxAppointments: 1 },
-  crown: { minAppointments: 2, maxAppointments: 3 },
-  veneer: { minAppointments: 2, maxAppointments: 3 },
-  bridge: { minAppointments: 2, maxAppointments: 3 },
-  removable: { minAppointments: 4, maxAppointments: 5 },
-  other: { minAppointments: 1, maxAppointments: 1 },
-};
-
 /**
  * Orientative clinical visits per budget line. It does not schedule appointments or include
  * maintenance reviews; the clinician confirms the final sequence for the patient.
  */
 export function estimateBudgetAppointments(budget: BudgetView): BudgetAppointmentEstimate {
-  const totals: Record<TreatmentPhase, AppointmentRange> = {
-    primary: { minAppointments: 0, maxAppointments: 0 },
-    secondary: { minAppointments: 0, maxAppointments: 0 },
-  };
-
+  const byPhase: Record<TreatmentPhase, AppointmentRange[]> = { primary: [], secondary: [] };
   for (const item of budget.items) {
-    const phase = treatmentPhase({ treatmentCode: item.description, label: item.description });
-    const range =
-      APPOINTMENT_RANGES[
-        treatmentFamily({ treatmentCode: item.description, label: item.description })
-      ];
-    totals[phase].minAppointments += range.minAppointments;
-    totals[phase].maxAppointments += range.maxAppointments;
+    const line = { treatmentCode: item.description, label: item.description };
+    byPhase[treatmentPhase(line)].push(appointmentRange(line));
   }
 
   const stages = (["primary", "secondary"] as const)
-    .map((phase) => ({ phase, ...totals[phase] }))
+    .map((phase) => ({ phase, ...sumAppointmentRanges(byPhase[phase]) }))
     .filter((stage) => stage.maxAppointments > 0);
-  return {
-    stages,
-    total: stages.reduce(
-      (total, stage) => ({
-        minAppointments: total.minAppointments + stage.minAppointments,
-        maxAppointments: total.maxAppointments + stage.maxAppointments,
-      }),
-      { minAppointments: 0, maxAppointments: 0 },
-    ),
-  };
+  return { stages, total: sumAppointmentRanges(stages) };
 }
 
 /** Only complete proposals, not complementary phase-1/phase-2 invoices, compete. */

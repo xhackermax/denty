@@ -1,0 +1,113 @@
+.scroller {
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+}
+
+/* One grid for every row keeps the same aspect of each option at the same height. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--mirror-columns, 1), minmax(240px, 1fr));
+  gap: 0 12px;
+  min-width: min-content;
+}
+
+.header {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  scroll-snap-align: start;
+  border: 1px solid var(--denty-line);
+  border-radius: 16px;
+  background: var(--denty-card-solid);
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.header[data-selected] {
+  border-color: var(--mantine-color-teal-6);
+}
+
+.toggle {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  gap: 4px 12px;
+  border: 0;
+  border-top: 1px solid var(--denty-line);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 10px 4px;
+  cursor: pointer;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--mantine-color-teal-6);
+  outline-offset: 2px;
+}
+
+/* The title stays readable while the options scroll sideways on a phone. */
+.toggleTitle {
+  grid-column: 1 / -1;
+  position: sticky;
+  left: 4px;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 750;
+  font-size: 0.9rem;
+}
+
+.chevron {
+  transition: transform 150ms ease;
+}
+
+.chevron[data-open] {
+  transform: rotate(180deg);
+}
+
+.summary {
+  color: var(--denty-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  padding-left: 22px;
+}
+
+.body {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  gap: 8px 12px;
+  padding-bottom: 12px;
+}
+
+.body[hidden] {
+  display: none;
+}
+
+.hint {
+  grid-column: 1 / -1;
+  position: sticky;
+  left: 4px;
+  justify-self: start;
+  color: var(--denty-muted);
+  font-size: 0.78rem;
+}
+
+.cell {
+  min-width: 0;
+  border: 1px solid var(--denty-line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+@media (width <= 760px) {
+  .grid {
+    grid-template-columns: repeat(var(--mirror-columns, 1), min(82vw, 320px));
+  }
+}

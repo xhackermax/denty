@@ -9,7 +9,7 @@
  * answering questions instead of repeating explanations. They inform; they do not replace the
  * signed consent for each procedure.
  */
-import { mentions, normalized, treatmentPhase, type TreatmentPhase } from "./treatment-phase";
+import { mentions, normalized, treatmentPhase, type TreatmentPhase } from "./treatment-phase.ts";
 
 export type TreatmentFamily =
   | "extraction"

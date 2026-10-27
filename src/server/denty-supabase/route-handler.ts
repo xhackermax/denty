@@ -37,6 +37,7 @@ import {
   testTerminalProviderSchema,
   updatePaymentTerminalSchema,
   setStaffScheduleSchema,
+  saveTreatmentStaffTimeSchema,
   treatmentCatalogCreateSchema,
   treatmentCatalogUpdateSchema,
   updateUserSchema,
@@ -2670,6 +2671,41 @@ export async function handleSupabaseDentyRoute(
         const payload = await parseJson(request, treatmentCatalogCreateSchema);
         return json(201, await clinical.createTreatmentCatalogItem(payload), headers);
       }
+    }
+    // Per-doctor minutes and visits per treatment. Reading follows the catalog; editing needs
+    // catalog.manage like the catalog itself.
+    if (
+      parts.length === 4 &&
+      parts[0] === "api" &&
+      parts[1] === "admin" &&
+      parts[2] === "treatment-catalog" &&
+      parts[3] === "staff-times" &&
+      method === "GET"
+    ) {
+      if (
+        !identity.actor.permissions.includes("clinical.read") &&
+        !identity.actor.permissions.includes("catalog.manage")
+      ) {
+        return error(403, "FORBIDDEN", "No tienes permiso para consultar el catálogo clínico.");
+      }
+      return json(200, await clinical.listTreatmentStaffTimes(), headers);
+    }
+    if (
+      parts.length === 6 &&
+      parts[0] === "api" &&
+      parts[1] === "admin" &&
+      parts[2] === "treatment-catalog" &&
+      parts[4] === "staff-times" &&
+      (method === "PUT" || method === "DELETE")
+    ) {
+      if (!identity.actor.permissions.includes("catalog.manage"))
+        return error(403, "FORBIDDEN", "No tienes permiso para editar el catálogo clínico.");
+      const treatmentId = decodeURIComponent(parts[3] ?? "");
+      const staffId = decodeURIComponent(parts[5] ?? "");
+      if (method === "DELETE")
+        return json(200, await clinical.deleteTreatmentStaffTime(treatmentId, staffId), headers);
+      const payload = await parseJson(request, saveTreatmentStaffTimeSchema);
+      return json(200, await clinical.saveTreatmentStaffTime(treatmentId, staffId, payload), headers);
     }
     if (
       parts.length === 4 &&

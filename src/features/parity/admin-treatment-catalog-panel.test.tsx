@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { AdminTreatmentCatalogPanel } from "./admin-treatment-catalog-panel";
-const api = vi.hoisted(() => ({ update: vi.fn(), create: vi.fn(), requiresLab: false }));
+const api = vi.hoisted(() => ({
+  update: vi.fn(),
+  create: vi.fn(),
+  saveStaffTime: vi.fn(),
+  removeStaffTime: vi.fn(),
+  requiresLab: false,
+}));
 vi.mock("@/shared/api/browser", () => ({
   getBrowserApi: () => ({
     admin: {
@@ -25,6 +31,49 @@ vi.mock("@/shared/api/browser", () => ({
         }),
         update: api.update,
         create: api.create,
+        staffTimes: {
+          list: async () => ({
+            items: [
+              {
+                id: "time-1",
+                treatmentCatalogId: "crown",
+                staffMemberId: "dr-gil",
+                staffName: "Dr. Gil",
+                durationMin: 70,
+                appointmentsMin: 3,
+                appointmentsMax: 4,
+                version: 1,
+              },
+            ],
+          }),
+          save: api.saveStaffTime,
+          remove: api.removeStaffTime,
+        },
+      },
+      sites: {
+        overview: async () => ({
+          sites: [],
+          staff: [
+            {
+              id: "dr-ruiz",
+              displayName: "Dra. Ruiz",
+              role: "DENTIST",
+              active: true,
+              collegiateNumber: null,
+              hasLogin: true,
+              schedules: [],
+            },
+            {
+              id: "front",
+              displayName: "Recepción",
+              role: "RECEPTION",
+              active: true,
+              collegiateNumber: null,
+              hasLogin: true,
+              schedules: [],
+            },
+          ],
+        }),
       },
     },
   }),
@@ -82,6 +131,61 @@ test("creating a treatment persists the laboratory requirement", async () => {
       expect.objectContaining({ code: "CROWN2", requiresLab: true }),
     ),
   );
+});
+
+test("an administrator records minutes per visit and the usual number of visits", async () => {
+  api.update.mockResolvedValue({});
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Minutos por cita CROWN" }), {
+    target: { value: "45" },
+  });
+  fireEvent.change(screen.getByRole("textbox", { name: "Citas mínimas CROWN" }), {
+    target: { value: "2" },
+  });
+  fireEvent.change(screen.getByRole("textbox", { name: "Citas máximas CROWN" }), {
+    target: { value: "3" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+  await waitFor(() =>
+    expect(api.update).toHaveBeenCalledWith(
+      "crown",
+      expect.objectContaining({ defaultDurationMin: 45, appointmentsMin: 2, appointmentsMax: 3 }),
+    ),
+  );
+});
+
+test("each doctor can have their own times for a treatment", async () => {
+  Element.prototype.scrollIntoView = vi.fn();
+  api.saveStaffTime.mockResolvedValue({});
+  api.removeStaffTime.mockResolvedValue({ deleted: true });
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+  const doctors = screen.getByRole("group", { name: "Tiempos por doctor CROWN" });
+  expect(await within(doctors).findByText(/Dr\. Gil · 70 min por cita · 3–4 citas/)).toBeVisible();
+
+  // Let the clinic's staff list load before opening the doctor picker.
+  await act(async () => {});
+  fireEvent.click(within(doctors).getByRole("combobox", { name: "Doctor CROWN" }));
+  // Only active dentists are offered.
+  // Mantine keeps the dropdown in a transition that jsdom never finishes.
+  const option = await screen.findByRole("option", { name: "Dra. Ruiz", hidden: true });
+  expect(screen.queryByRole("option", { name: "Recepción", hidden: true })).toBeNull();
+  fireEvent.click(option);
+  fireEvent.change(within(doctors).getByRole("textbox", { name: "Minutos del doctor CROWN" }), {
+    target: { value: "60" },
+  });
+  fireEvent.click(within(doctors).getByRole("button", { name: "Guardar doctor" }));
+  await waitFor(() =>
+    expect(api.saveStaffTime).toHaveBeenCalledWith("crown", "dr-ruiz", {
+      durationMin: 60,
+      appointmentsMin: null,
+      appointmentsMax: null,
+    }),
+  );
+
+  fireEvent.click(within(doctors).getByRole("button", { name: "Quitar tiempos de Dr. Gil" }));
+  await waitFor(() => expect(api.removeStaffTime).toHaveBeenCalledWith("crown", "dr-gil"));
 });
 
 test("enabling the requirement exposes the patient's linked laboratory action after saving", async () => {
