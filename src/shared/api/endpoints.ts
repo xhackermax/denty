@@ -10,6 +10,7 @@ import { createClinicalResource } from "./resources/clinical";
 import { createCoreResource } from "./resources/core";
 import { createEngagementResource } from "./resources/engagement";
 import { createPortalResource } from "./resources/portal";
+import { createReferralsResource } from "./resources/referrals";
 import { createNavigationResource } from "./resources/navigation";
 import { createPrescriptionsResource } from "./resources/prescriptions";
 import { createRecallsResource } from "./resources/recalls";
@@ -32,6 +33,7 @@ export function createDentyApi(client: ApiClient) {
     engagement: createEngagementResource(client),
     navigation: createNavigationResource(client),
     portal: createPortalResource(client),
+    referrals: createReferralsResource(client),
     prescriptions: createPrescriptionsResource(client),
     recalls: createRecallsResource(client),
     security: createSecurityResource(client),

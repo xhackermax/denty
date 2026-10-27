@@ -41,6 +41,13 @@ export const PERMISSIONS = [
   "prescription.cancel",
   "prescription.settings.write",
   "prescription.audit.read",
+  "referrals.read",
+  "referrals.manage",
+  "referral_programs.manage",
+  "referral_rewards.read",
+  "referral_rewards.approve",
+  "referral_rewards.redeem",
+  "referral_rewards.reverse",
   "patient.self",
 ] as const;
 
@@ -76,6 +83,10 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     "recalls.manage",
     "prescription.read",
     "prescription.draft.write",
+    "referrals.read",
+    "referrals.manage",
+    "referral_rewards.read",
+    "referral_rewards.redeem",
   ],
   DENTIST: [
     "patients.read",
@@ -98,6 +109,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     "prescription.sign",
     "prescription.cancel",
     "prescription.audit.read",
+    "referrals.read",
+    "referral_rewards.read",
   ],
   ASSISTANT: [
     "patients.read",
@@ -134,6 +147,7 @@ export const ROUTE_PERMISSIONS: Readonly<Record<string, RoutePermission>> = {
   "/app/alerts": "alerts.read",
   "/app/settings": "settings.manage",
   "/app/admin": "users.manage",
+  "/app/referrals": "referrals.read",
 };
 
 export function permissionsForRole(role: Role): Permission[] {

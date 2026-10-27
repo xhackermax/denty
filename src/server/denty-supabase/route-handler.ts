@@ -2,6 +2,7 @@ import { handlePerioDraftsRoute } from "./perio-drafts-route";
 import { handleDiagnosesRoute } from "./diagnoses-route";
 import { handleClinicalArgumentsRoute, isClinicalArgumentsRoute } from "./clinical-arguments-route";
 import { handleNavigationRoute } from "./navigation-route";
+import { handleReferralsRoute, isReferralsRoute } from "./referrals-route";
 import { handleNextSlotsRoute } from "./next-slots-route";
 import { ExportRepository } from "./export-repository";
 import { exportFile } from "./export-file";
@@ -413,6 +414,7 @@ export const LOCALLY_HANDLED_SECTIONS: ReadonlySet<string> = new Set([
   "prescription-settings",
   "payment-terminals",
   "clinical-plan",
+  "referrals",
   "navigation",
   "recovery",
   "recalls",
@@ -633,6 +635,7 @@ export async function handleSupabaseDentyRoute(
     const identity = await resolveRequestIdentity(request);
     if (!identity) return error(401, "UNAUTHENTICATED", "No hay sesión activa.");
     const headers = responseHeadersForIdentity(request, identity);
+    if (isReferralsRoute(parts)) return await handleReferralsRoute(request, parts, identity, headers);
     if (isClinicalArgumentsRoute(parts))
       return await handleClinicalArgumentsRoute(request, parts, identity, headers);
     if (isRecallsRoute(parts)) return await handleRecallsRoute(request, parts, identity, headers);

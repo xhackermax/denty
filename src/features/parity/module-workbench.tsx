@@ -17,6 +17,7 @@ export type ParityModuleKey =
   | "finance"
   | "analysis"
   | "campaigns"
+  | "referrals"
   | "alerts"
   | "attendance"
   | "settings";
@@ -50,6 +51,9 @@ const MODULE_COMPONENTS = {
   ),
   campaigns: dynamic(() =>
     import("./modules/campaigns-module").then((value) => value.CampaignsModule),
+  ),
+  referrals: dynamic(() =>
+    import("@/features/referrals/referrals-module").then((value) => value.ReferralsModule),
   ),
   alerts: dynamic(() => import("./modules/alerts-module").then((value) => value.AlertsModule)),
   attendance: dynamic(() =>
@@ -96,6 +100,10 @@ const TITLES: Record<ParityModuleKey, { title: string; description: string }> = 
   campaigns: {
     title: "Campañas",
     description: "Campañas y resultados.",
+  },
+  referrals: {
+    title: "Pacientes asociados",
+    description: "Quién ha recomendado a quién y qué beneficios corresponden.",
   },
   alerts: {
     title: "Alertas",

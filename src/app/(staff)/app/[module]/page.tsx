@@ -12,6 +12,7 @@ const MODULES = new Set<ParityModuleKey>([
   "finance",
   "analysis",
   "campaigns",
+  "referrals",
   "alerts",
   "attendance",
   "settings",
