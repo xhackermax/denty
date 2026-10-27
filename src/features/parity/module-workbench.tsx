@@ -12,6 +12,7 @@ export type ParityModuleKey =
   | "prescriptions"
   | "communications"
   | "recovery"
+  | "recalls"
   | "documents"
   | "finance"
   | "analysis"
@@ -36,6 +37,9 @@ const MODULE_COMPONENTS = {
   ),
   recovery: dynamic(() =>
     import("./modules/recovery-module").then((value) => value.RecoveryModule),
+  ),
+  recalls: dynamic(() =>
+    import("@/features/recalls/recalls-module").then((value) => value.RecallsModule),
   ),
   documents: dynamic(() =>
     import("./modules/documents-module").then((value) => value.DocumentsModule),
@@ -72,6 +76,10 @@ const TITLES: Record<ParityModuleKey, { title: string; description: string }> = 
   recovery: {
     title: "Recuperación de pacientes",
     description: "Revisiones pendientes, tratamientos sin cita y presupuestos por responder.",
+  },
+  recalls: {
+    title: "Recalls",
+    description: "Revisiones periódicas: a quién llamar, cuándo y con qué resultado.",
   },
   documents: {
     title: "Documentos",

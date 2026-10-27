@@ -108,6 +108,7 @@ vi.mock("./patient-medical-history", () => ({ PatientMedicalHistory: () => null 
 vi.mock("./patient-clinical-summary", () => ({ PatientClinicalSummary: () => null }));
 vi.mock("./patient-edit-modal", () => ({ PatientEditModal: () => null }));
 vi.mock("./patient-photo-capture", () => ({ PatientPhotoCapture: () => null }));
+vi.mock("@/features/recalls/patient-recalls-card", () => ({ PatientRecallsCard: () => null }));
 vi.mock("./dossier/use-patient-dossier", () => ({ usePatientDossierPrinter: () => dossier }));
 
 import { PatientProfile } from "./patient-profile";
