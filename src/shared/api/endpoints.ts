@@ -13,6 +13,7 @@ import { createPortalResource } from "./resources/portal";
 import { createReferralsResource } from "./resources/referrals";
 import { createNavigationResource } from "./resources/navigation";
 import { createPrescriptionsResource } from "./resources/prescriptions";
+import { createRecallsResource } from "./resources/recalls";
 import { createSecurityResource } from "./resources/security";
 import { createVoiceResource } from "./resources/voice";
 import { createStaffDocumentsResource } from "./resources/staff-documents";
@@ -34,6 +35,7 @@ export function createDentyApi(client: ApiClient) {
     portal: createPortalResource(client),
     referrals: createReferralsResource(client),
     prescriptions: createPrescriptionsResource(client),
+    recalls: createRecallsResource(client),
     security: createSecurityResource(client),
     voice: createVoiceResource(client),
     staffDocuments: createStaffDocumentsResource(client),

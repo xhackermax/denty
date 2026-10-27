@@ -1599,6 +1599,66 @@
     },
     {
       "method": "GET",
+      "path": "/api/recalls",
+      "source": "src/server/denty-supabase/recalls-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/recalls/bulk",
+      "source": "src/server/denty-supabase/recalls-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/recalls/candidates",
+      "source": "src/server/denty-supabase/recalls-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/recalls/templates",
+      "source": "src/server/denty-supabase/recalls-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/recalls/templates",
+      "source": "src/server/denty-supabase/recalls-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/recalls/templates/:id",
+      "source": "src/server/denty-supabase/recalls-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/recalls/templates/:id/archive",
+      "source": "src/server/denty-supabase/recalls-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/recalls/templates/:id/assign",
+      "source": "src/server/denty-supabase/recalls-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
+      "path": "/api/recalls/:id/history",
+      "source": "src/server/denty-supabase/recalls-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/recalls/:id/actions",
+      "source": "src/server/denty-supabase/recalls-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/recovery/search",
       "source": "src/server/denty-supabase/route-handler.ts",
       "kind": "browser"
