@@ -411,3 +411,38 @@ export function useSignConsentMutation(patientId: string) {
     },
   });
 }
+
+export function useBudgetDiscountSettingsQuery(enabled = true) {
+  return useQuery({
+    queryKey: dentyQueryKeys.finance.budgetDiscounts,
+    queryFn: () => getBrowserApi().billing.discountSettings.get(),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useUpdateBudgetDiscountsMutation(patientId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      budgetId: string;
+      expectedVersion: number;
+      discountLabel: string | null;
+      discountPercent: number;
+      discountAmountCents: number;
+      earlyPaymentApplied: boolean;
+    }) =>
+      getBrowserApi().billing.budgets.updateDiscounts(input.budgetId, {
+        patientId,
+        expectedVersion: input.expectedVersion,
+        discountLabel: input.discountLabel,
+        discountPercent: input.discountPercent,
+        discountAmountCents: input.discountAmountCents,
+        earlyPaymentApplied: input.earlyPaymentApplied,
+      }),
+    onSuccess: () => {
+      invalidateClinicalPatient(queryClient, patientId);
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.finance.root });
+    },
+  });
+}

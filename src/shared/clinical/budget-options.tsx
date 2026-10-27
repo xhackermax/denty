@@ -27,13 +27,18 @@ import {
 import { DentyApiError } from "@/shared/api/errors";
 import styles from "@/shared/ui/parity.module.css";
 
-import { useCreateScopedBudgetMutation } from "./clinical-data";
+import { BudgetDiscountsPanel } from "./budget-discounts-panel";
+import { BudgetTotalsSummary, type BudgetMoneyView } from "./budget-totals";
+import { useBudgetDiscountSettingsQuery, useCreateScopedBudgetMutation } from "./clinical-data";
 
-export interface BudgetView {
+export interface BudgetView extends BudgetMoneyView {
   id: string;
   code: string;
   status: string;
+  /** What the patient pays, after discounts. */
   totalCents: number;
+  discountCents?: number | undefined;
+  earlyPaymentCents?: number | undefined;
   version?: number | undefined;
   revision?: number | undefined;
   sourcePlanVersion?: number | null | undefined;
@@ -88,11 +93,13 @@ function BudgetCard({
   summary,
   selectable,
   planLabel,
+  earlyPaymentOfferPercent,
 }: {
   budget: BudgetView;
   summary?: string | undefined;
   selectable: boolean;
   planLabel?: string | undefined;
+  earlyPaymentOfferPercent?: number | null | undefined;
 }) {
   return (
     <div className={styles.section} data-budget-scope={budget.scope ?? "plan"}>
@@ -140,9 +147,10 @@ function BudgetCard({
           </div>
         ))}
       </div>
-      <Group justify="flex-end">
-        <Text fw={800}>Total {formatEUR(budget.totalCents)}</Text>
-      </Group>
+      <BudgetTotalsSummary
+        budget={budget}
+        fallbackEarlyPaymentPercent={budget.status === "DRAFT" ? earlyPaymentOfferPercent : null}
+      />
     </div>
   );
 }
@@ -186,6 +194,12 @@ export function BudgetOptions({
   // Bumped only by the retry button: a failure must never re-run the build on its own.
   const [attempt, setAttempt] = useState(0);
   const preparedAttempt = useRef<number | null>(null);
+  // Budgets changed here (discounts) replace the copies held by the parent and this step.
+  const [updated, setUpdated] = useState<Record<string, BudgetView>>({});
+  const discountSettings = useBudgetDiscountSettingsQuery();
+  const earlyPaymentOfferPercent = discountSettings.data?.earlyPaymentEnabled
+    ? discountSettings.data.earlyPaymentPercent
+    : null;
   const latest = useRef({ phases, create, onSelect });
   latest.current = { phases, create, onSelect };
 
@@ -233,13 +247,19 @@ export function BudgetOptions({
     }
   };
 
-  const visible: BudgetView[] =
+  const fresh = (budget: BudgetView): BudgetView => {
+    const newer = updated[budget.id];
+    return newer && (newer.version ?? 0) >= (budget.version ?? 0) ? newer : budget;
+  };
+  const visible: BudgetView[] = (
     mode === "single"
       ? [wholeBudget, ...custom].filter((budget): budget is BudgetView => Boolean(budget))
       : [phaseBudgets.primary, phaseBudgets.secondary].filter((budget): budget is BudgetView =>
           Boolean(budget),
-        );
+        )
+  ).map(fresh);
   const all = visible;
+  const selected = all.find((budget) => budget.id === selectedId) ?? null;
 
   return (
     <Stack gap="sm">
@@ -328,10 +348,23 @@ export function BudgetOptions({
                   ? TREATMENT_PHASE_LABELS[budget.scope].summary
                   : undefined
               }
+              earlyPaymentOfferPercent={earlyPaymentOfferPercent}
             />
           ))}
         </Stack>
       </Radio.Group>
+
+      {selected ? (
+        <BudgetDiscountsPanel
+          key={selected.id}
+          patientId={patientId}
+          budget={selected}
+          onUpdated={(budget) => {
+            setUpdated((current) => ({ ...current, [budget.id]: budget }));
+            onSelect(budget);
+          }}
+        />
+      ) : null}
 
       {all.some((budget) => budget.totalCents === 0) ? (
         <Text size="xs" c="orange">

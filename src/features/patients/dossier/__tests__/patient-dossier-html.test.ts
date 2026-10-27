@@ -156,6 +156,31 @@ describe("buildPatientDossierHtml", () => {
     expect(html).toContain("Diente 36 · Obturación");
   });
 
+  it("prints the subtotal, applied discounts and early-payment offer of a budget", () => {
+    const discounted = buildPatientDossierHtml({
+      ...input,
+      budgets: [
+        {
+          code: "P-2026-2",
+          status: "DRAFT",
+          subtotalCents: 100_000,
+          totalCents: 90_000,
+          discountLabel: "Familiar",
+          discountPercent: 10,
+          discountAmountCents: 0,
+          earlyPaymentPercent: 5,
+          earlyPaymentApplied: false,
+          items: [{ description: "Implante", totalCents: 100_000 }],
+        },
+      ],
+    });
+    const amounts = (text: string) => text.replace(/\u00a0/g, " ");
+    expect(amounts(discounted)).toContain("<td>Subtotal</td><td class=\"amount\">1000,00 €</td>");
+    expect(amounts(discounted)).toContain("Descuento (Familiar · 10 %)</td><td class=\"amount\">-100,00 €");
+    expect(amounts(discounted)).toContain("<td>Total</td><td class=\"amount\">900,00 €</td>");
+    expect(amounts(discounted)).toContain("Con pronto pago (−5 %)</td><td class=\"amount\">855,00 €");
+  });
+
   it("lists appointments newest first with their status", () => {
     const upcoming = html.indexOf("Endodoncia 36");
     const past = html.indexOf("01/09/2026");

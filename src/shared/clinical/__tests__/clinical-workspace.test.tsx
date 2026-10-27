@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   reorderPlan: vi.fn(),
   recordPreference: vi.fn(),
   createAlternative: vi.fn(),
+  updateDiscounts: vi.fn(),
 }));
 
 // The branch editor reads the clinic's phrase changes; the template is enough here.
@@ -196,6 +197,22 @@ vi.mock("../clinical-data", () => ({
     error: null,
     reset: vi.fn(),
   }),
+  useBudgetDiscountSettingsQuery: () => ({
+    data: {
+      earlyPaymentEnabled: true,
+      earlyPaymentPercent: 5,
+      earlyPaymentTerms: "Pagando el total antes de empezar.",
+      maxDiscountPercent: 20,
+      discountPresets: [{ label: "Familiar", percent: 10 }],
+    },
+    isError: false,
+  }),
+  useUpdateBudgetDiscountsMutation: () => ({
+    mutate: mocks.updateDiscounts,
+    isPending: false,
+    isError: false,
+    reset: vi.fn(),
+  }),
 }));
 
 import { ClinicalWorkspace } from "../clinical-workspace";
@@ -334,6 +351,54 @@ describe("patient budget history", () => {
     fireEvent.click(within(history).getAllByRole("button", { name: "Abrir" })[0]!);
     expect(await screen.findByRole("dialog", { name: "Presupuesto P-1-R2" })).toBeInTheDocument();
     expect(screen.getByText("Diente 46 · Obturación")).toBeInTheDocument();
+  });
+
+  it("applies a clinic discount and early payment to a draft budget", async () => {
+    renderWorkspace();
+    fireEvent.click(
+      within(screen.getByRole("region", { name: "Presupuestos" })).getAllByRole("button", {
+        name: "Abrir",
+      })[0]!,
+    );
+    const dialog = await screen.findByRole("dialog", { name: "Presupuesto P-1-R2" });
+    expect(within(dialog).getByText("Con pronto pago (−5 %): 85,50 €")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: /Descuentos y pronto pago/ }));
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Concepto" }), {
+      target: { value: "Familiar" },
+    });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Porcentaje" }), {
+      target: { value: "10" },
+    });
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: /Pronto pago/ }));
+    // 90 € − 10 % = 81 € − 5 % = 76,95 €
+    expect(within(dialog).getAllByText("76,95 €").length).toBeGreaterThan(0);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Aplicar al presupuesto" }));
+    expect(mocks.updateDiscounts).toHaveBeenCalledWith(
+      {
+        budgetId: "draft-1",
+        expectedVersion: 2,
+        discountLabel: "Familiar",
+        discountPercent: 10,
+        discountAmountCents: 0,
+        earlyPaymentApplied: true,
+      },
+      expect.anything(),
+    );
+  });
+
+  it("blocks discounts above the clinic maximum", async () => {
+    renderWorkspace();
+    fireEvent.click(
+      within(screen.getByRole("region", { name: "Presupuestos" })).getAllByRole("button", {
+        name: "Abrir",
+      })[0]!,
+    );
+    const dialog = await screen.findByRole("dialog", { name: "Presupuesto P-1-R2" });
+    fireEvent.click(within(dialog).getByRole("button", { name: /Descuentos y pronto pago/ }));
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Porcentaje" }), {
+      target: { value: "30" },
+    });
+    expect(within(dialog).getByRole("button", { name: "Aplicar al presupuesto" })).toBeDisabled();
   });
 
   it("selects several real budgets and opens a separate comparison page", () => {

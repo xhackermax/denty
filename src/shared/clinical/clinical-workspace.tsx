@@ -26,6 +26,7 @@ import { formatEUR } from "@/domain/money";
 import { comparePlanAlternatives } from "@/domain/plan";
 import {
   useAddClinicalPlanItemMutation,
+  useBudgetDiscountSettingsQuery,
   useDeleteDraftBudgetMutation,
   useClinicalPlanQuery,
   useClinicalSyncQuery,
@@ -42,6 +43,8 @@ import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
 import { DragHandle } from "@/shared/drag/drag-handle";
 import styles from "@/shared/ui/parity.module.css";
 import type { BudgetView } from "./budget-options";
+import { BudgetDiscountsPanel } from "./budget-discounts-panel";
+import { BudgetTotalsSummary } from "./budget-totals";
 import { FinancingCalculator } from "./financing-calculator";
 import { ClinicalPlanBranchBuilder } from "./clinical-plan-branch-builder";
 import { comparableBudgets } from "./budget-comparison";
@@ -195,6 +198,7 @@ export function ClinicalWorkspace({
   const [optimisticOrder, setOptimisticOrder] = useState<string[] | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [openBudget, setOpenBudget] = useState<BudgetView | null>(null);
+  const discountSettings = useBudgetDiscountSettingsQuery(showBudget);
   const [editingBudget, setEditingBudget] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<BudgetView | null>(null);
   const [budgetTitle, setBudgetTitle] = useState("");
@@ -851,15 +855,36 @@ export function ClinicalWorkspace({
                       )}
                   </Alert>
                 ) : null}
-                <Group justify="space-between">
-                  <Text fw={800}>
-                    Total{" "}
-                    {formatEUR(
-                      editingBudget
-                        ? (editedBudgetTotal ?? openBudget.totalCents)
-                        : openBudget.totalCents,
-                    )}
-                  </Text>
+                {editingBudget ? null : (
+                  <BudgetTotalsSummary
+                    budget={openBudget}
+                    fallbackEarlyPaymentPercent={
+                      openBudget.status === "DRAFT" && discountSettings.data?.earlyPaymentEnabled
+                        ? discountSettings.data.earlyPaymentPercent
+                        : null
+                    }
+                  />
+                )}
+                {!editingBudget && openBudget.status === "DRAFT" ? (
+                  <BudgetDiscountsPanel
+                    key={openBudget.id}
+                    patientId={patientId}
+                    budget={openBudget}
+                    onUpdated={setOpenBudget}
+                  />
+                ) : null}
+                <Group justify={editingBudget ? "space-between" : "flex-end"}>
+                  {editingBudget ? (
+                    <Text fw={800}>
+                      {openBudget.subtotalCents !== undefined &&
+                      openBudget.subtotalCents !== openBudget.totalCents
+                        ? "Subtotal "
+                        : "Total "}
+                      {formatEUR(
+                        editedBudgetTotal ?? openBudget.subtotalCents ?? openBudget.totalCents,
+                      )}
+                    </Text>
+                  ) : null}
                   <Group>
                     <Button
                       variant="default"

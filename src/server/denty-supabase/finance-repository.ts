@@ -5,6 +5,7 @@ import type {
   createInvoiceSeriesSchema,
   rectifyInvoiceSchema,
   updateBillingSettingsSchema,
+  updateBudgetDiscountSettingsSchema,
 } from "@/shared/api/schemas/billing";
 import type { PaymentAttempt, PaymentAttemptStore } from "@/server/payments/payment-attempts";
 import type { PaymentProvider } from "@/domain/payment-providers";
@@ -14,11 +15,21 @@ type CreateInvoiceDraft = z.input<typeof createInvoiceDraftSchema>;
 type CreateInvoiceSeries = z.input<typeof createInvoiceSeriesSchema>;
 type RectifyInvoice = z.input<typeof rectifyInvoiceSchema>;
 type UpdateBillingSettings = z.input<typeof updateBillingSettingsSchema>;
+type UpdateBudgetDiscountSettings = z.output<typeof updateBudgetDiscountSettingsSchema>;
+interface BudgetDiscountSettingsRow {
+  early_payment_enabled: boolean;
+  early_payment_percent: number | string;
+  early_payment_terms: string;
+  max_discount_percent: number | string;
+  discount_presets: Array<{ label: string; percent: number }>;
+}
 type J = Record<string, unknown>;
 interface BudgetListRow {
   id: string;
   patient_id: string;
   total_cents: number | string;
+  // Gross total minus discounts; absent until migration 20261027150000 runs.
+  final_total_cents?: number | string | null;
   status: string;
   created_at: string;
 }
@@ -186,6 +197,16 @@ const series = (r: SeriesRow) => ({
   nextNumber: r.next_number,
   active: r.active,
 });
+const budgetDiscountSettings = (r: BudgetDiscountSettingsRow) => ({
+  earlyPaymentEnabled: r.early_payment_enabled,
+  earlyPaymentPercent: Number(r.early_payment_percent),
+  earlyPaymentTerms: r.early_payment_terms,
+  maxDiscountPercent: Number(r.max_discount_percent),
+  discountPresets: (r.discount_presets ?? []).map((preset) => ({
+    label: preset.label,
+    percent: Number(preset.percent),
+  })),
+});
 const settings = (r?: SettingsRow | null) => ({
   fiscalMode: r?.fiscal_mode ?? "NO_VERIFACTU",
   defaultDueDays: r?.default_due_days ?? 0,
@@ -238,7 +259,7 @@ export class FinanceRepository {
   ) {}
   async listBudgets() {
     const rows = await this.client.select<BudgetListRow>("budgets", {
-      select: "id,patient_id,total_cents,status,created_at",
+      select: "*",
       clinic_id: `eq.${this.clinicId}`,
       order: "created_at.desc",
     });
@@ -246,7 +267,7 @@ export class FinanceRepository {
       items: rows.map((r) => ({
         id: r.id,
         patientId: r.patient_id,
-        totalCents: Number(r.total_cents),
+        totalCents: Number(r.final_total_cents ?? r.total_cents),
         status: r.status,
         createdAt: r.created_at,
       })),
@@ -344,6 +365,25 @@ export class FinanceRepository {
           limit: 1,
         })
       )[0],
+    );
+  }
+  async getBudgetDiscountSettings() {
+    return budgetDiscountSettings(
+      await this.client.rpc<BudgetDiscountSettingsRow>("get_budget_discount_settings", {
+        p_clinic_id: this.clinicId,
+      }),
+    );
+  }
+  async updateBudgetDiscountSettings(p: UpdateBudgetDiscountSettings) {
+    return budgetDiscountSettings(
+      await this.client.rpc<BudgetDiscountSettingsRow>("update_budget_discount_settings", {
+        p_clinic_id: this.clinicId,
+        p_early_payment_enabled: p.earlyPaymentEnabled,
+        p_early_payment_percent: p.earlyPaymentPercent,
+        p_early_payment_terms: p.earlyPaymentTerms,
+        p_max_discount_percent: p.maxDiscountPercent,
+        p_discount_presets: p.discountPresets,
+      }),
     );
   }
   async updateBillingSettings(p: UpdateBillingSettings) {

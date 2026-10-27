@@ -62,6 +62,8 @@ import {
   rectifyInvoiceSchema,
   updateDraftBudgetSchema,
   updateBillingSettingsSchema,
+  updateBudgetDiscountSettingsSchema,
+  updateBudgetDiscountsSchema,
 } from "@/shared/api/schemas/billing";
 import { analyticsQuerySchema } from "@/shared/api/schemas/analytics";
 import {
@@ -196,6 +198,12 @@ function budgetMutationError(status: string): Response {
       );
     case "invalid_items":
       return error(400, "BUDGET_ITEMS_INVALID", "Revisa los importes del presupuesto.");
+    case "invalid_discount":
+      return error(
+        400,
+        "BUDGET_DISCOUNT_INVALID",
+        "El descuento supera el máximo permitido en Administración → Finanzas.",
+      );
     case "forbidden":
       return error(403, "FORBIDDEN", "No tienes permiso para modificar este presupuesto.");
     default:
@@ -911,6 +919,29 @@ export async function handleSupabaseDentyRoute(
         ),
         headers,
       );
+    }
+    if (
+      parts.length === 3 &&
+      parts[0] === "api" &&
+      parts[1] === "admin" &&
+      parts[2] === "budget-discounts"
+    ) {
+      if (method === "GET") {
+        if (identity.actor.role === "PATIENT")
+          return error(403, "FORBIDDEN", "El portal no puede consultar los descuentos.");
+        return json(200, await finance.getBudgetDiscountSettings(), headers);
+      }
+      if (method === "PUT") {
+        const d = requireActorPermission(identity, "settings.manage");
+        if (d) return d;
+        return json(
+          200,
+          await finance.updateBudgetDiscountSettings(
+            await parseJson(request, updateBudgetDiscountSettingsSchema),
+          ),
+          headers,
+        );
+      }
     }
     if (
       parts.length === 4 &&
@@ -1935,6 +1966,28 @@ export async function handleSupabaseDentyRoute(
         if (result.status !== "deleted") return budgetMutationError(result.status);
         return json(200, { deleted: true }, headers);
       }
+    }
+    if (
+      parts.length === 4 &&
+      parts[0] === "api" &&
+      parts[1] === "budgets" &&
+      parts[3] === "discounts" &&
+      method === "PATCH"
+    ) {
+      if (
+        !identity.actor.permissions.includes("clinical.write") &&
+        !identity.actor.permissions.includes("finance.write")
+      ) {
+        return error(403, "FORBIDDEN", "No tienes permiso para modificar presupuestos clínicos.");
+      }
+      const payload = await parseJson(request, updateBudgetDiscountsSchema);
+      const result = await clinical.updateBudgetDiscounts(
+        payload.patientId,
+        decodeURIComponent(parts[2] ?? ""),
+        payload,
+      );
+      if (result.status !== "updated") return budgetMutationError(result.status);
+      return json(200, { budget: result.budget }, headers);
     }
     if (
       parts.length === 4 &&

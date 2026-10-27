@@ -237,8 +237,9 @@ export class DocumentRepository {
     if (input.budgetId) {
       const budgets = await this.rest.select<{
         id: string; code: string; status: string; total_cents: number; title: string | null;
+        final_total_cents?: number | null;
       }>("budgets", {
-        select: "id,code,status,total_cents,title", clinic_id: `eq.${this.clinicId}`,
+        select: "*", clinic_id: `eq.${this.clinicId}`,
         patient_id: `eq.${input.patientId}`, id: `eq.${input.budgetId}`, limit: 1,
       });
       const budget = budgets[0];
@@ -272,7 +273,8 @@ export class DocumentRepository {
         sum + (p.status === "COMPLETED" && p.budget_id === budget.id &&
           !allocatedPaymentIds.has(p.id) ? Number(p.amount_cents) : 0), 0);
       paidCents = allocated + direct;
-      totalCents = budget.total_cents;
+      // What the patient accepted to pay, after discounts and early payment.
+      totalCents = budget.final_total_cents ?? budget.total_cents;
       amountCents = totalCents - paidCents;
       reference = `Presupuesto ${budget.code}${budget.title ? ` · ${budget.title}` : ""}`;
     }

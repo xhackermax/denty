@@ -1,3 +1,5 @@
+import { computeBudgetTotals } from "@/domain/budget-discounts";
+
 import { assertProbeable } from "./mouth-guard";
 import { currentOdontogramVersion } from "./odontogram-version";
 import { odontogramSnapshotSchema } from "@/shared/api/schemas/clinical";
@@ -111,6 +113,39 @@ interface BudgetRow {
   // Absent until migration 20261005100000 runs; such budgets cover the whole plan.
   scope?: BudgetScope | null;
   title?: string | null;
+  // Absent until migration 20261027150000 runs; such budgets have no discount.
+  discount_label?: string | null;
+  discount_percent?: number | string | null;
+  discount_amount_cents?: number | null;
+  early_payment_percent?: number | string | null;
+  early_payment_applied?: boolean | null;
+  final_total_cents?: number | null;
+}
+
+/** total_cents is the gross sum of the lines; the API's totalCents is what the patient pays. */
+function budgetMoney(row: BudgetRow) {
+  const earlyPaymentPercent =
+    row.early_payment_percent === null || row.early_payment_percent === undefined
+      ? null
+      : Number(row.early_payment_percent);
+  const totals = computeBudgetTotals({
+    subtotalCents: row.total_cents,
+    discountPercent: Number(row.discount_percent ?? 0),
+    discountAmountCents: row.discount_amount_cents ?? 0,
+    earlyPaymentPercent,
+    earlyPaymentApplied: row.early_payment_applied ?? false,
+  });
+  return {
+    totalCents: row.final_total_cents ?? totals.totalCents,
+    subtotalCents: totals.subtotalCents,
+    discountLabel: row.discount_label ?? null,
+    discountPercent: Number(row.discount_percent ?? 0),
+    discountAmountCents: row.discount_amount_cents ?? 0,
+    discountCents: totals.discountCents,
+    earlyPaymentPercent,
+    earlyPaymentApplied: row.early_payment_applied ?? false,
+    earlyPaymentCents: totals.earlyPaymentCents,
+  };
 }
 
 export type BudgetScope = "plan" | "primary" | "secondary" | "custom";
@@ -141,6 +176,7 @@ type DraftBudgetMutationStatus =
   | "not_editable"
   | "linked"
   | "invalid_items"
+  | "invalid_discount"
   | "forbidden";
 
 interface ConsentRequirementRow {
@@ -342,7 +378,7 @@ export class ClinicalRepository {
             id: budget.id,
             code: budget.code,
             status: budget.status,
-            totalCents: budget.total_cents,
+            totalCents: budgetMoney(budget).totalCents,
             sourcePlanVersion: budget.source_plan_version,
             version: budget.version,
             scope: budget.scope ?? "plan",
@@ -476,6 +512,36 @@ export class ClinicalRepository {
     return { status: result.status };
   }
 
+  async updateBudgetDiscounts(
+    patientId: string,
+    budgetId: string,
+    input: {
+      expectedVersion: number;
+      discountLabel: string | null;
+      discountPercent: number;
+      discountAmountCents: number;
+      earlyPaymentApplied: boolean;
+    },
+  ) {
+    const result = await this.client.rpc<{ status: DraftBudgetMutationStatus }>(
+      "update_budget_discounts",
+      {
+        p_budget_id: budgetId,
+        p_patient_id: patientId,
+        p_expected_version: input.expectedVersion,
+        p_discount_label: input.discountLabel,
+        p_discount_percent: input.discountPercent,
+        p_discount_amount_cents: input.discountAmountCents,
+        p_early_payment_applied: input.earlyPaymentApplied,
+      },
+    );
+    if (result.status === "updated") {
+      const budget = await this.getBudget(budgetId);
+      return budget ? { status: "updated" as const, budget } : { status: "not_found" as const };
+    }
+    return { status: result.status };
+  }
+
   async deleteDraftBudget(
     patientId: string,
     budgetId: string,
@@ -513,7 +579,7 @@ export class ClinicalRepository {
         id: result.budget.id,
         code: result.budget.code,
         status: result.budget.status,
-        totalCents: result.budget.total_cents,
+        ...budgetMoney(result.budget),
         sourcePlanVersion: result.budget.source_plan_version,
         revision: result.budget.revision,
         version: result.budget.version,
@@ -918,7 +984,7 @@ export class ClinicalRepository {
       id: budget.id,
       code: budget.code,
       status: budget.status,
-      totalCents: budget.total_cents,
+      ...budgetMoney(budget),
       sourcePlanVersion: budget.source_plan_version,
       version: budget.version,
       revision: budget.revision,
