@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "currency": "EUR",
+  "socialTariffs": [
+    {
+      "code": "SOCIAL_MONOPARENTAL",
+      "name": "Tarifa social monoparental",
+      "eligibilityLabel": "Familia monoparental con acreditación vigente",
+      "priority": 100,
+      "stackingPolicy": "BEST_PRICE",
+      "rules": [
+        {
+          "treatmentFamily": null,
+          "adjustmentKind": "PERCENT_OFF",
+          "percentOff": 10,
+          "excluded": false
+        },
+        {
+          "treatmentFamily": "IMPLANT",
+          "adjustmentKind": "PERCENT_OFF",
+          "excluded": true
+        },
+        {
+          "treatmentFamily": "ORTHODONTICS",
+          "adjustmentKind": "PERCENT_OFF",
+          "excluded": true
+        },
+        {
+          "treatmentFamily": "LABORATORY",
+          "adjustmentKind": "PERCENT_OFF",
+          "excluded": true
+        }
+      ]
+    },
+    {
+      "code": "SOCIAL_FAMILIA_NUMEROSA",
+      "name": "Tarifa social familia numerosa",
+      "eligibilityLabel": "Título de familia numerosa vigente",
+      "priority": 110,
+      "stackingPolicy": "BEST_PRICE",
+      "rules": [
+        {
+          "treatmentFamily": null,
+          "adjustmentKind": "PERCENT_OFF",
+          "percentOff": 12,
+          "excluded": false
+        },
+        {
+          "treatmentFamily": "IMPLANT",
+          "adjustmentKind": "PERCENT_OFF",
+          "excluded": true
+        },
+        {
+          "treatmentFamily": "ORTHODONTICS",
+          "adjustmentKind": "PERCENT_OFF",
+          "excluded": true
+        },
+        {
+          "treatmentFamily": "LABORATORY",
+          "adjustmentKind": "PERCENT_OFF",
+          "excluded": true
+        }
+      ]
+    }
+  ],
+  "insurancePlans": [
+    {
+      "code": "SEGURO_DENTAL_GENERAL",
+      "carrierName": "Configurar aseguradora",
+      "name": "Plan dental general",
+      "requiresAuthorization": true,
+      "rules": [
+        {
+          "treatmentFamily": "PREVENTION",
+          "coverageKind": "PERCENT_COVERAGE",
+          "percentCovered": 100,
+          "authorizationRequired": false
+        },
+        {
+          "treatmentFamily": "RESTORATIVE",
+          "coverageKind": "PERCENT_COVERAGE",
+          "percentCovered": 50,
+          "authorizationRequired": true
+        },
+        {
+          "treatmentFamily": "IMPLANT",
+          "coverageKind": "FIXED_COVERAGE",
+          "amountCents": 30000,
+          "authorizationRequired": true
+        }
+      ]
+    }
+  ],
+  "applicationOrder": ["SOCIAL_TARIFF_BEST_PRICE", "INSURANCE_COVERAGE", "PATIENT_BALANCE"]
+}

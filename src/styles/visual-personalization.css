@@ -50,8 +50,8 @@ html[data-denty-palette="10"] {
 }
 
 html[data-denty-palette="6"] {
-  --denty-palette-accent: #00DD00;
-  --denty-palette-secondary: #00DD00;
+  --denty-palette-accent: #0D0;
+  --denty-palette-secondary: #0D0;
   --denty-palette-surface: #ECFFEF;
 }
 
@@ -107,6 +107,26 @@ html[data-denty-wallpaper="mesh"]:not([data-denty-wallpaper="none"]) body::befor
 
 html[data-denty-wallpaper]:not([data-denty-wallpaper="none"]) body::before {
   opacity: 1;
+}
+
+/* The wallpaper is ambient, never an information layer. Transform keeps this
+   on the compositor and the visual-preferences toggle remains authoritative. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-denty-animations="on"][data-denty-wallpaper]:not([data-denty-wallpaper="none"]) body::before {
+    animation: denty-wallpaper-drift 34s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+}
+
+
+@keyframes denty-wallpaper-drift {
+  from {
+    transform: scale(1.015) translate3d(-0.35%, -0.25%, 0);
+  }
+
+  to {
+    transform: scale(1.045) translate3d(0.45%, 0.35%, 0);
+  }
 }
 
 /* A user-off toggle takes precedence over decorative CSS effects even if the OS

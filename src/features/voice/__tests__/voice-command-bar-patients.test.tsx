@@ -98,8 +98,8 @@ async function interpret(command: string) {
       </MantineProvider>
     </QueryClientProvider>,
   );
-  fireEvent.click(await screen.findByRole("button", { name: "Escribir comando para Denty" }));
-  const field = await screen.findByRole("textbox", { name: "Escribe o dicta una instrucción" });
+  fireEvent.click(await screen.findByRole("button", { name: "Buscar o dar una orden en Denty" }));
+  const field = await screen.findByRole("textbox", { name: "Busca o da una instrucción" });
   fireEvent.change(field, { target: { value: command } });
   fireEvent.click(screen.getByRole("button", { name: "Interpretar" }));
   return field;

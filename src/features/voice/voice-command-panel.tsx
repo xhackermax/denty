@@ -103,8 +103,8 @@ export function VoiceCommandPanel({
     <Stack gap="sm">
       <Textarea
         ref={inputRef}
-        label="Escribe o dicta una instrucción"
-        placeholder="Marca caries en el dieciséis"
+        label="Busca o da una instrucción"
+        placeholder="Busca a Ana López o marca caries en el dieciséis"
         value={text}
         autosize
         minRows={2}
@@ -147,7 +147,7 @@ export function VoiceCommandPanel({
           aria-controls="voice-command-guide"
           onClick={() => setShowCommandGuide((visible) => !visible)}
         >
-          Comandos de voz
+          Comandos y búsqueda
         </Button>
         {showCommandGuide ? (
           <section

@@ -46,8 +46,8 @@ function setup(overrides: Partial<VoiceCommandPanelProps> = {}) {
 describe("VoiceCommandPanel", () => {
   it("offers one editable field to write or dictate an instruction", () => {
     setup();
-    const field = screen.getByRole("textbox", { name: "Escribe o dicta una instrucción" });
-    expect(field).toHaveAttribute("placeholder", "Marca caries en el dieciséis");
+    const field = screen.getByRole("textbox", { name: "Busca o da una instrucción" });
+    expect(field).toHaveAttribute("placeholder", "Busca a Ana López o marca caries en el dieciséis");
     fireEvent.change(field, { target: { value: "abre la agenda" } });
     expect(field).toHaveValue("abre la agenda");
     expect(screen.getByRole("button", { name: "Micrófono" })).toBeEnabled();
@@ -57,12 +57,12 @@ describe("VoiceCommandPanel", () => {
 
   it("offers voice examples that only populate the editable command field", () => {
     const handlers = setup();
-    fireEvent.click(screen.getByRole("button", { name: "Comandos de voz" }));
+    fireEvent.click(screen.getByRole("button", { name: "Comandos y búsqueda" }));
     expect(
       screen.getByRole("region", { name: "Ejemplos de comandos por área" }),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Abre la agenda/i }));
-    expect(screen.getByRole("textbox", { name: "Escribe o dicta una instrucción" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Busca o da una instrucción" })).toHaveValue(
       "Oye Denty, abre la agenda",
     );
     expect(handlers.onInterpret).not.toHaveBeenCalled();
@@ -77,7 +77,7 @@ describe("VoiceCommandPanel", () => {
 
   it("interprets on Enter but never while the keyboard is composing", () => {
     const handlers = setup({ text: "marca caries en el 16" });
-    const field = screen.getByRole("textbox", { name: "Escribe o dicta una instrucción" });
+    const field = screen.getByRole("textbox", { name: "Busca o da una instrucción" });
     fireEvent.keyDown(field, { key: "Enter", keyCode: 229 });
     fireEvent.compositionStart(field);
     fireEvent.keyDown(field, { key: "Enter" });
@@ -89,7 +89,7 @@ describe("VoiceCommandPanel", () => {
 
   it("defers a tap on Interpretar until the keyboard finishes composing", () => {
     const handlers = setup({ text: "abre la agenda" });
-    const field = screen.getByRole("textbox", { name: "Escribe o dicta una instrucción" });
+    const field = screen.getByRole("textbox", { name: "Busca o da una instrucción" });
     fireEvent.compositionStart(field);
     fireEvent.click(screen.getByRole("button", { name: "Interpretar" }));
     expect(handlers.onInterpret).not.toHaveBeenCalled();
@@ -112,7 +112,7 @@ describe("VoiceCommandPanel", () => {
 
   it("locks the field while listening so dictation cannot overwrite typing", () => {
     const handlers = setup({ text: "marca", listening: true, status: "listening" });
-    const field = screen.getByRole("textbox", { name: "Escribe o dicta una instrucción" });
+    const field = screen.getByRole("textbox", { name: "Busca o da una instrucción" });
     expect(field).toHaveAttribute("readonly");
     fireEvent.keyDown(field, { key: "Enter" });
     expect(handlers.onInterpret).not.toHaveBeenCalled();
@@ -131,7 +131,7 @@ describe("VoiceCommandPanel", () => {
   it("keeps errors next to the field", () => {
     setup({ text: "marca", message: { tone: "error", text: "No se pudo interpretar." } });
     expect(screen.getByRole("alert")).toHaveTextContent("No se pudo interpretar.");
-    expect(screen.getByRole("textbox", { name: "Escribe o dicta una instrucción" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Busca o da una instrucción" })).toHaveValue(
       "marca",
     );
   });

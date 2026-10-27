@@ -2,6 +2,7 @@
 import { ClinicalDragContext } from "@/shared/drag/clinical-drag-context";
 import { dropMinute } from "@/shared/drag/drop-minute";
 import { AgendaDropColumn } from "./agenda-drop-column";
+import { DragOverlay } from "@dnd-kit/core";
 
 import { agendaTreatmentOptions, shortPatientName } from "@/domain";
 import {
@@ -348,6 +349,7 @@ export function AgendaPage() {
   const [pending, setPending] = useState<PendingChange | null>(null);
   const [slotSearchOpened, setSlotSearchOpened] = useState(false);
   const [resizePreview, setResizePreview] = useState<{ id: string; duration: number } | null>(null);
+  const [draggingAppointmentId, setDraggingAppointmentId] = useState<string | null>(null);
   const resizingRef = useRef<{ id: string; startY: number; initialDuration: number } | null>(null);
   const touchRef = useRef<{ x: number; y: number } | null>(null);
   const longPressRef = useRef<{ timer: number; x: number; y: number } | null>(null);
@@ -399,6 +401,7 @@ export function AgendaPage() {
     () => projectApiAppointments(appointmentsQuery.data, patients),
     [appointmentsQuery.data, patients],
   );
+  const draggingAppointment = appointments.find((appointment) => appointment.id === draggingAppointmentId);
   useEffect(() => {
     if (
       requestedAppointmentId &&
@@ -1898,7 +1901,10 @@ export function AgendaPage() {
 
   return (
     <ClinicalDragContext
+      onDragStart={(event) => setDraggingAppointmentId(String(event.active.id))}
+      onDragCancel={() => setDraggingAppointmentId(null)}
       onDragEnd={(event) => {
+        setDraggingAppointmentId(null);
         if (
           transitionPending ||
           moveMutation.isPending ||
@@ -2604,6 +2610,14 @@ export function AgendaPage() {
           </Stack>
         </Modal>
       </div>
+      <DragOverlay dropAnimation={null}>
+        {draggingAppointment ? (
+          <div className={styles.dragGhost} aria-hidden="true">
+            <strong>{draggingAppointment.patientName}</strong>
+            <span className={styles.dragGhostReason}>{draggingAppointment.reason}</span>
+          </div>
+        ) : null}
+      </DragOverlay>
     </ClinicalDragContext>
   );
 }
