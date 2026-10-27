@@ -13,6 +13,7 @@ import { withoutUndefined, type WithoutUndefined } from "@/shared/lib/without-un
 // Deployment trigger: v2
 import {
   archivePatientSchema,
+  dischargePatientSchema,
   createAppointmentSchema,
   createDocumentSchema,
   createDebtAcknowledgementSchema,
@@ -20,6 +21,7 @@ import {
   createLabWorkSchema,
   createPatientSchema,
   labTransitionSchema,
+  readmitPatientSchema,
   restorePatientSchema,
   updateAppointmentSchema,
   updatePatientSchema,
@@ -3283,6 +3285,26 @@ export async function handleSupabaseDentyRoute(
       const patientId = decodeURIComponent(parts[2] ?? "");
       const payload = await parseJson(request, restorePatientSchema);
       return json(200, await repo.restorePatient(patientId, payload), headers);
+    }
+    if (
+      parts.length === 4 &&
+      parts[0] === "api" &&
+      parts[1] === "patients" &&
+      (parts[3] === "discharge" || parts[3] === "readmit")
+    ) {
+      if (identity.actor.role === "PATIENT")
+        return error(403, "FORBIDDEN", "El portal no puede dar de alta fichas.");
+      const patientId = decodeURIComponent(parts[2] ?? "");
+      if (parts[3] === "discharge" && method === "GET")
+        return json(200, await repo.getDischargeSuggestion(patientId), headers);
+      if (parts[3] === "discharge" && method === "POST") {
+        const payload = await parseJson(request, dischargePatientSchema);
+        return json(200, await repo.dischargePatient(patientId, payload), headers);
+      }
+      if (parts[3] === "readmit" && method === "POST") {
+        const payload = await parseJson(request, readmitPatientSchema);
+        return json(200, await repo.readmitPatient(patientId, payload), headers);
+      }
     }
     if (
       parts.length === 4 &&

@@ -14,6 +14,8 @@ import {
   IconPrinter,
   IconReceipt,
   IconRestore,
+  IconRotateClockwise,
+  IconUserCheck,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -31,6 +33,7 @@ import { PatientClinicalSummary } from "./patient-clinical-summary";
 import styles from "@/shared/ui/parity.module.css";
 import {
   useArchivePatientMutation,
+  useReadmitPatientMutation,
   useCancelPatientAppointmentMutation,
   usePatientProjectionQuery,
   usePatientQuery,
@@ -44,6 +47,7 @@ import { HorizontalSnapNav, PageHeader, PatientAvatar } from "@/shared/ui";
 import { usePatientDossierPrinter } from "./dossier/use-patient-dossier";
 import { PatientMedicalHistory } from "./patient-medical-history";
 import { PatientEditModal } from "./patient-edit-modal";
+import { PatientDischargeBanner, PatientDischargeModal } from "./patient-discharge";
 import { PatientReferralsCard } from "@/features/referrals/patient-referrals-card";
 import { PatientUpcomingAppointments, upcomingAppointments } from "./patient-upcoming-appointments";
 import { PatientPhotoCapture } from "./patient-photo-capture";
@@ -123,6 +127,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const updatePatientMutation = useUpdatePatientMutation(patientId);
   const archivePatientMutation = useArchivePatientMutation();
   const restorePatientMutation = useRestorePatientMutation();
+  const readmitPatientMutation = useReadmitPatientMutation();
   const uploadPhotoMutation = useUploadPatientPhotoMutation();
   const cancelAppointmentMutation = useCancelPatientAppointmentMutation(patientId);
   const dossier = usePatientDossierPrinter(patientId);
@@ -135,6 +140,7 @@ export function PatientProfile({ patientId }: { patientId: string }) {
   const [treatmentFlowBudgetId, setTreatmentFlowBudgetId] = useState<string | undefined>(undefined);
   const [photoEditorOpen, setPhotoEditorOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [dischargeOpen, setDischargeOpen] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [medicalProfileOverride, setMedicalProfileOverride] =
     useState<PatientMedicalProfile | null>(null);
@@ -316,6 +322,28 @@ export function PatientProfile({ patientId }: { patientId: string }) {
                   Incidencias clínicas
                 </Menu.Item>
                 <Menu.Divider />
+                {!patient.archivedAt && !patient.dischargedAt ? (
+                  <Menu.Item
+                    leftSection={<IconUserCheck size={16} />}
+                    onClick={() => setDischargeOpen(true)}
+                  >
+                    Dar de alta
+                  </Menu.Item>
+                ) : null}
+                {patient.dischargedAt ? (
+                  <Menu.Item
+                    leftSection={<IconRotateClockwise size={16} />}
+                    disabled={readmitPatientMutation.isPending}
+                    onClick={() =>
+                      readmitPatientMutation.mutate({
+                        patientId,
+                        expectedVersion: patient.version,
+                      })
+                    }
+                  >
+                    Reactivar tratamiento
+                  </Menu.Item>
+                ) : null}
                 {patient.archivedAt ? (
                   <Menu.Item
                     leftSection={<IconRestore size={16} />}
@@ -356,6 +384,11 @@ export function PatientProfile({ patientId }: { patientId: string }) {
               Archivado
             </Badge>
           ) : null}
+          {patient.dischargedAt ? (
+            <Badge color="teal" variant="light">
+              De alta
+            </Badge>
+          ) : null}
           <Badge variant="light">Servidor</Badge>
           {!patient.archivedAt ? (
             <>
@@ -379,7 +412,23 @@ export function PatientProfile({ patientId }: { patientId: string }) {
         </div>
       </section>
 
+      {patient.dischargedAt && !patient.archivedAt ? (
+        <PatientDischargeBanner
+          patientId={patientId}
+          dischargedAt={patient.dischargedAt}
+          reviewMonths={patient.dischargeReviewMonths}
+          hasUpcomingAppointment={upcomingList.length > 0}
+          now={now}
+        />
+      ) : null}
+
       <PatientEditModal patient={patient} opened={editOpen} onClose={() => setEditOpen(false)} />
+      <PatientDischargeModal
+        patientId={patientId}
+        expectedVersion={patient.version}
+        opened={dischargeOpen}
+        onClose={() => setDischargeOpen(false)}
+      />
 
       {photoEditorOpen ? (
         <section className={styles.section}>

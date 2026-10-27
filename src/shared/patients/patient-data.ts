@@ -123,3 +123,49 @@ export function useCancelPatientAppointmentMutation(patientId: string) {
     },
   });
 }
+
+export function useDischargeSuggestionQuery(patientId: string, enabled = true) {
+  return useQuery({
+    queryKey: dentyQueryKeys.patients.dischargeSuggestion(patientId),
+    queryFn: () => getBrowserApi().patients.dischargeSuggestion(patientId),
+    enabled: enabled && Boolean(patientId),
+  });
+}
+
+export function useDischargePatientMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      patientId,
+      expectedVersion,
+      reviewMonths,
+      notes,
+    }: {
+      patientId: string;
+      expectedVersion: number;
+      reviewMonths: 6 | 12;
+      notes?: string;
+    }) =>
+      getBrowserApi().patients.discharge(patientId, {
+        expectedVersion,
+        reviewMonths,
+        ...(notes?.trim() ? { notes: notes.trim() } : {}),
+      }),
+    onSuccess: ({ patient }) => {
+      queryClient.setQueryData(dentyQueryKeys.patients.detail(patient.id), patient);
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.root });
+    },
+  });
+}
+
+export function useReadmitPatientMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ patientId, expectedVersion }: { patientId: string; expectedVersion: number }) =>
+      getBrowserApi().patients.readmit(patientId, { expectedVersion }),
+    onSuccess: (patient) => {
+      queryClient.setQueryData(dentyQueryKeys.patients.detail(patient.id), patient);
+      void queryClient.invalidateQueries({ queryKey: dentyQueryKeys.patients.root });
+    },
+  });
+}

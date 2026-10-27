@@ -80,6 +80,7 @@ vi.mock("@/shared/patients/patient-data", () => ({
   useUpdatePatientMutation: () => mutation,
   useArchivePatientMutation: () => mutation,
   useRestorePatientMutation: () => mutation,
+  useReadmitPatientMutation: () => mutation,
   useUploadPatientPhotoMutation: () => mutation,
   useCancelPatientAppointmentMutation: () => mutation,
 }));
@@ -107,6 +108,13 @@ vi.mock("@/shared/clinical/treatment-flow", () => ({
 vi.mock("./patient-medical-history", () => ({ PatientMedicalHistory: () => null }));
 vi.mock("./patient-clinical-summary", () => ({ PatientClinicalSummary: () => null }));
 vi.mock("./patient-edit-modal", () => ({ PatientEditModal: () => null }));
+vi.mock("./patient-discharge", () => ({
+  PatientDischargeModal: ({ opened }: { opened: boolean }) =>
+    opened ? <div>DISCHARGE-OPEN</div> : null,
+  PatientDischargeBanner: ({ dischargedAt }: { dischargedAt: string }) => (
+    <div>DISCHARGE-BANNER {dischargedAt}</div>
+  ),
+}));
 vi.mock("@/features/referrals/patient-referrals-card", () => ({
   PatientReferralsCard: () => null,
 }));
@@ -251,5 +259,31 @@ describe("PatientProfile next visit context", () => {
       "No se pudo abrir el diálogo de impresión.",
     );
     dossier.notice.error = null;
+  });
+  it("marks a discharged patient and shows the review reminder", () => {
+    const original = patientQuery.data;
+    patientQuery.data = {
+      ...original,
+      dischargedAt: "2026-10-01T10:00:00Z",
+      dischargeReviewMonths: 6,
+    } as typeof original;
+    render(
+      <MantineProvider>
+        <PatientProfile patientId="patient-1" />
+      </MantineProvider>,
+    );
+    expect(screen.getByText("De alta")).toBeInTheDocument();
+    expect(screen.getByText(/DISCHARGE-BANNER 2026-10-01T10:00:00Z/)).toBeInTheDocument();
+    patientQuery.data = original;
+  });
+
+  it("does not show the discharge reminder for a patient in treatment", () => {
+    render(
+      <MantineProvider>
+        <PatientProfile patientId="patient-1" />
+      </MantineProvider>,
+    );
+    expect(screen.queryByText("De alta")).not.toBeInTheDocument();
+    expect(screen.queryByText(/DISCHARGE-BANNER/)).not.toBeInTheDocument();
   });
 });

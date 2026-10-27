@@ -273,6 +273,8 @@ export function AgendaPage() {
   // Arriving from the treatment flow ("Dar cita"): open the form with the plan item chosen.
   const requestedPlanItemId = searchParams.get("planItemId") ?? "";
   const requestedPlanItemHandled = useRef(false);
+  // Arriving from a discharged patient's record: book the maintenance review.
+  const requestedReview = searchParams.get("action") === "review";
   const isMobile = useMediaQuery("(max-width: 48em)") ?? false;
   const { activeClinicId, activeSiteId, setActiveSiteId } = useActiveTenant();
   const { viewSiteId, allSites, showAllSites, showSite } = useAgendaSiteView(
@@ -1200,17 +1202,24 @@ export function AgendaPage() {
   );
 
   useEffect(() => {
-    if (!requestedPlanItemId || !requestedPatientId || opened || requestedPlanItemHandled.current)
+    if (
+      (!requestedPlanItemId && !requestedReview) ||
+      !requestedPatientId ||
+      opened ||
+      requestedPlanItemHandled.current
+    )
       return;
     const column = columns[0];
+    if (requestedReview) requestedPlanItemHandled.current = true;
     openCreate({
       date: column?.date ?? anchor,
       minute: nextQuarterMinute(),
       staffId: column?.staffId ?? null,
       cabinetId: column?.cabinetId ?? null,
+      ...(requestedReview ? { reason: "Revisión de mantenimiento" } : {}),
     });
     // openCreate is recreated every render; only the request itself matters here.
-  }, [requestedPlanItemId, requestedPatientId, columns.length]);
+  }, [requestedPlanItemId, requestedReview, requestedPatientId, columns.length]);
 
   useEffect(() => {
     if (!requestedPlanItemId || requestedPlanItemHandled.current || !opened) return;

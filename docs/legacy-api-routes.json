@@ -1323,6 +1323,24 @@
       "kind": "browser"
     },
     {
+      "method": "GET",
+      "path": "/api/patients/:id/discharge",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/discharge",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/patients/:id/readmit",
+      "source": "src/server/denty-supabase/route-handler.ts",
+      "kind": "browser"
+    },
+    {
       "method": "PUT",
       "path": "/api/patients/:id/source",
       "source": "apps/api/src/modules/patients/attribution-routes.ts",

@@ -33,6 +33,7 @@ interface TreatmentCatalogRow {
   default_duration_min: number | null;
   appointments_min: number | null;
   appointments_max: number | null;
+  review_interval_months?: number | null;
   requires_lab: boolean;
   active: boolean;
   metadata: Record<string, unknown>;
@@ -277,6 +278,7 @@ export interface TreatmentCatalogInput {
   defaultDurationMin?: number | null;
   appointmentsMin?: number | null;
   appointmentsMax?: number | null;
+  reviewIntervalMonths?: number | null;
   requiresLab?: boolean;
   active?: boolean;
   metadata?: Record<string, unknown>;
@@ -865,6 +867,8 @@ export class ClinicalRepository {
       default_duration_min: input.defaultDurationMin ?? null,
       appointments_min: input.appointmentsMin ?? null,
       appointments_max: input.appointmentsMax ?? null,
+      // Only sent when set, so creating treatments keeps working before the column exists.
+      ...(input.reviewIntervalMonths ? { review_interval_months: input.reviewIntervalMonths } : {}),
       requires_lab: input.requiresLab ?? false,
       active: input.active ?? true,
       metadata: input.metadata ?? {},
@@ -887,6 +891,8 @@ export class ClinicalRepository {
       body.default_duration_min = input.defaultDurationMin;
     if (input.appointmentsMin !== undefined) body.appointments_min = input.appointmentsMin;
     if (input.appointmentsMax !== undefined) body.appointments_max = input.appointmentsMax;
+    if (input.reviewIntervalMonths !== undefined)
+      body.review_interval_months = input.reviewIntervalMonths;
     if (input.requiresLab !== undefined) body.requires_lab = input.requiresLab;
     if (input.active !== undefined) body.active = input.active;
     if (input.metadata !== undefined) body.metadata = input.metadata;
@@ -1142,6 +1148,7 @@ function mapTreatmentCatalog(row: TreatmentCatalogRow) {
     defaultDurationMin: row.default_duration_min,
     appointmentsMin: row.appointments_min ?? null,
     appointmentsMax: row.appointments_max ?? null,
+    reviewIntervalMonths: row.review_interval_months ?? null,
     requiresLab: row.requires_lab,
     active: row.active,
     metadata: row.metadata,
