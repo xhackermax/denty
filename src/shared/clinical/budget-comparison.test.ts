@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  budgetOptionSummary,
   comparableBudgets,
   compareBudgetTreatments,
   estimateBudgetAppointments,
@@ -67,5 +68,19 @@ describe("several treatment plans with common and exclusive clinical steps", () 
       { phase: "secondary", minAppointments: 3, maxAppointments: 5 },
     ]);
     expect(estimate.total).toEqual({ minAppointments: 5, maxAppointments: 9 });
+  });
+
+  it("gives a plain-language summary to a removable alternative", () => {
+    expect(budgetOptionSummary(b("removable", [periodontitis, removable]))).toEqual({
+      approach: "Opción esencial",
+      format: "Removible",
+    });
+  });
+
+  it("distinguishes a fixed implant alternative without relying on its custom title", () => {
+    expect(budgetOptionSummary(b("implants", [periodontitis, implant]))).toEqual({
+      approach: "Opción definitiva",
+      format: "Fija",
+    });
   });
 });

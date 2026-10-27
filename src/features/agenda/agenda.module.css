@@ -220,6 +220,29 @@
   opacity: 0.28;
 }
 
+.dragGhost {
+  display: grid;
+  min-width: 180px;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--denty-blue) 62%, var(--denty-line));
+  border-left: 3px solid var(--denty-blue);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--denty-card-solid) 88%, var(--denty-blue) 12%);
+  box-shadow: 0 14px 34px rgb(15 23 42 / 18%);
+  color: var(--denty-text);
+  font-size: 0.78rem;
+  pointer-events: none;
+}
+
+.dragGhostReason {
+  overflow: hidden;
+  color: var(--denty-muted);
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .card[data-status="ARRIVED"],
 .card[data-status="WAITING"],
 .card[data-status="RUNNING_LATE"] {

@@ -119,8 +119,8 @@ function mount() {
 }
 
 async function openPanel() {
-  fireEvent.click(await screen.findByRole("button", { name: "Escribir comando para Denty" }));
-  return screen.findByRole("textbox", { name: "Escribe o dicta una instrucción" });
+  fireEvent.click(await screen.findByRole("button", { name: "Buscar o dar una orden en Denty" }));
+  return screen.findByRole("textbox", { name: "Busca o da una instrucción" });
 }
 
 describe("VoiceCommandBar", () => {
@@ -139,7 +139,7 @@ describe("VoiceCommandBar", () => {
     await waitFor(() => expect(mocks.recognition.current).not.toBeNull());
     mocks.recognition.current?.emit("Oye Denty marca caries", false);
     mocks.recognition.current?.emit("Oye Denty marca caries en el 16", true);
-    const field = await screen.findByRole("textbox", { name: "Escribe o dicta una instrucción" });
+    const field = await screen.findByRole("textbox", { name: "Busca o da una instrucción" });
     await waitFor(() => expect(field).toHaveValue("marca caries en el 16"));
     await waitFor(() => expect(mocks.execute).toHaveBeenCalledTimes(1), { timeout: 1_500 });
     expect(screen.getByRole("button", { name: "Detener escucha" })).toBeInTheDocument();

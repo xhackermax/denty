@@ -118,7 +118,7 @@ function mount() {
 async function startListening() {
   fireEvent.click(await screen.findByRole("button", { name: "Escuchar comando" }));
   await waitFor(() => expect(mocks.start).toHaveBeenCalledTimes(1));
-  return screen.findByRole("textbox", { name: "Escribe o dicta una instrucción" });
+  return screen.findByRole("textbox", { name: "Busca o da una instrucción" });
 }
 
 describe("VoiceCommandBar with Deepgram", () => {
@@ -173,8 +173,8 @@ describe("VoiceCommandBar with Deepgram", () => {
 
   it("keeps what was typed before dictating", async () => {
     mount();
-    fireEvent.click(await screen.findByRole("button", { name: "Escribir comando para Denty" }));
-    const field = await screen.findByRole("textbox", { name: "Escribe o dicta una instrucción" });
+    fireEvent.click(await screen.findByRole("button", { name: "Buscar o dar una orden en Denty" }));
+    const field = await screen.findByRole("textbox", { name: "Busca o da una instrucción" });
     fireEvent.change(field, { target: { value: "Ana López:" } });
     fireEvent.click(screen.getByRole("button", { name: "Micrófono" }));
     await waitFor(() => expect(mocks.start).toHaveBeenCalled());

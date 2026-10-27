@@ -1171,13 +1171,13 @@ function VoiceCommandBarInner({
         withinPortal
       >
         <Popover.Target>
-          <Tooltip label="Escribir o dictar una instrucción">
+          <Tooltip label="Buscar o dar una orden">
             <ActionIcon
               size="lg"
               radius="xl"
               variant="subtle"
               color={error ? "red" : "gray"}
-              aria-label="Escribir comando para Denty"
+              aria-label="Buscar o dar una orden en Denty"
               onClick={() => setPanelOpened((opened) => !opened)}
             >
               <IconSparkles size={18} />

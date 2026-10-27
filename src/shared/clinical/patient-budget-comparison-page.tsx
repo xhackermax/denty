@@ -10,6 +10,7 @@ import {
   comparableBudgets,
   comparisonBudget,
   compareBudgetTreatments,
+  budgetOptionSummary,
   estimateBudgetAppointments,
   type BudgetAppointmentEstimate,
 } from "./budget-comparison";
@@ -255,25 +256,36 @@ function BudgetMirror({ budgets }: { budgets: readonly BudgetView[] }) {
       columns={columns}
       sections={BUDGET_SECTIONS}
       defaultOpen={["treatments"]}
-      header={({ budget, index, estimate }) => (
-        <div className={styles.columnHeader}>
-          <Text size="xs" fw={750} c="dimmed">
-            OPCIÓN {index + 1}
-          </Text>
-          <Title order={3}>{title(budget)}</Title>
-          <Badge variant="outline">{budget.status === "SIGNED" ? "Firmado" : "Borrador"}</Badge>
-          <Title order={2} className={styles.amount}>
-            {formatEUR(budget.totalCents)}
-          </Title>
-          <Text size="xs" c="dimmed">
-            {budget.code}
-          </Text>
-          <div className={styles.headerFacts}>
-            <span>{budget.items.length} procedimientos</span>
-            <strong>{appointmentRangeLabel(estimate.total)}</strong>
+      header={({ budget, index, estimate }) => {
+        const option = budgetOptionSummary(budget);
+        return (
+          <div className={styles.columnHeader}>
+            <Text size="xs" fw={750} c="dimmed">
+              OPCIÓN {index + 1}
+            </Text>
+            <Group gap={6} wrap="wrap" aria-label={`Resumen: ${option.approach}, ${option.format}`}>
+              <Badge variant="light" color="blue">
+                {option.approach}
+              </Badge>
+              <Badge variant="outline" color="teal">
+                {option.format}
+              </Badge>
+            </Group>
+            <Title order={3}>{title(budget)}</Title>
+            <Badge variant="outline">{budget.status === "SIGNED" ? "Firmado" : "Borrador"}</Badge>
+            <Title order={2} className={styles.amount}>
+              {formatEUR(budget.totalCents)}
+            </Title>
+            <Text size="xs" c="dimmed">
+              {budget.code}
+            </Text>
+            <div className={styles.headerFacts}>
+              <span>{budget.items.length} procedimientos</span>
+              <strong>{appointmentRangeLabel(estimate.total)}</strong>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      }}
     />
   );
 }

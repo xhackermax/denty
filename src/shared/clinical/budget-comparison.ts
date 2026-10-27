@@ -5,6 +5,7 @@ import {
   type ComparisonBudget,
 } from "@/domain/plan";
 import { treatmentPhase, type TreatmentPhase } from "@/domain/plan/treatment-phase";
+import { treatmentFamily, type TreatmentFamily } from "@/domain/plan/treatment-plan-document";
 
 import type { BudgetView } from "./budget-options";
 
@@ -13,6 +14,11 @@ export interface BudgetAppointmentEstimate {
   total: AppointmentRange;
 }
 
+export interface BudgetOptionSummary {
+  approach:
+    "Opción esencial" | "Opción definitiva" | "Conservación dental" | "Tratamiento por etapas";
+  format: "Removible" | "Fija" | "Conservadora" | "Mixta";
+}
 /**
  * Orientative clinical visits per budget line. It does not schedule appointments or include
  * maintenance reviews; the clinician confirms the final sequence for the patient.
@@ -28,6 +34,48 @@ export function estimateBudgetAppointments(budget: BudgetView): BudgetAppointmen
     .map((phase) => ({ phase, ...sumAppointmentRanges(byPhase[phase]) }))
     .filter((stage) => stage.maxAppointments > 0);
   return { stages, total: sumAppointmentRanges(stages) };
+}
+
+/**
+ * A patient-facing shorthand for a complete alternative. It is deliberately
+ * derived from the procedures, so a custom budget title cannot make a
+ * removable or implant-led plan look like something it is not.
+ */
+export function budgetOptionSummary(budget: BudgetView): BudgetOptionSummary {
+  const families = new Set(
+    budget.items.map((item) =>
+      treatmentFamily({ treatmentCode: item.description, label: item.description }),
+    ),
+  );
+  const hasRemovable = families.has("removable");
+  const hasFixed = ["implant", "crown", "bridge", "veneer"].some((family) =>
+    families.has(family as TreatmentFamily),
+  );
+  const hasPrimary = budget.items.some(
+    (item) =>
+      treatmentPhase({ treatmentCode: item.description, label: item.description }) === "primary",
+  );
+  const hasSecondary = budget.items.some(
+    (item) =>
+      treatmentPhase({ treatmentCode: item.description, label: item.description }) === "secondary",
+  );
+
+  const format =
+    hasRemovable && hasFixed
+      ? "Mixta"
+      : hasRemovable
+        ? "Removible"
+        : hasFixed
+          ? "Fija"
+          : "Conservadora";
+  const approach = hasRemovable
+    ? "Opción esencial"
+    : hasFixed
+      ? "Opción definitiva"
+      : hasPrimary && hasSecondary
+        ? "Tratamiento por etapas"
+        : "Conservación dental";
+  return { approach, format };
 }
 
 /** Only complete proposals, not complementary phase-1/phase-2 invoices, compete. */
