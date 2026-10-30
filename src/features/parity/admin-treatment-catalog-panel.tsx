@@ -6,6 +6,7 @@ import {
   Button,
   Group,
   NumberInput,
+  Select,
   Stack,
   Switch,
   Text,
@@ -15,6 +16,7 @@ import {
 import { useEffect, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { REVIEW_INTERVAL_OPTIONS, reviewIntervalLabel } from "@/domain/patient-discharge";
 import { getBrowserApi } from "@/shared/api/browser";
 import { DentyApiError } from "@/shared/api/errors";
 import styles from "@/shared/ui/parity.module.css";
@@ -30,6 +32,7 @@ interface CatalogItem {
   defaultDurationMin?: number | null;
   appointmentsMin?: number | null;
   appointmentsMax?: number | null;
+  reviewIntervalMonths?: number | null;
   requiresLab: boolean;
   active: boolean;
   version: number;
@@ -48,6 +51,7 @@ function timesMeta(item: CatalogItem): string {
     item.appointmentsMin || item.appointmentsMax
       ? `${item.appointmentsMin ?? "?"}–${item.appointmentsMax ?? "?"} citas`
       : null,
+    item.reviewIntervalMonths ? `revisión ${item.reviewIntervalMonths} meses` : null,
   ].filter(Boolean);
   return parts.length ? ` · ${parts.join(" · ")}` : "";
 }
@@ -101,6 +105,40 @@ function TimeFields({
   );
 }
 
+type ReviewField = "" | "6" | "12";
+
+function reviewMonths(value: ReviewField): 6 | 12 | null {
+  return value === "6" ? 6 : value === "12" ? 12 : null;
+}
+
+/** Interval suggested when a patient with this treatment is discharged. */
+function ReviewIntervalField({
+  code,
+  value,
+  onChange,
+}: {
+  code?: string;
+  value: ReviewField;
+  onChange: (value: ReviewField) => void;
+}) {
+  return (
+    <Select
+      label="Revisión tras el alta"
+      aria-label={`Revisión tras el alta${code ? ` ${code}` : ""}`}
+      data={[
+        { value: "", label: "Sin definir" },
+        ...REVIEW_INTERVAL_OPTIONS.map((months) => ({
+          value: String(months),
+          label: reviewIntervalLabel(months),
+        })),
+      ]}
+      value={value}
+      allowDeselect={false}
+      onChange={(next) => onChange((next ?? "") as ReviewField)}
+    />
+  );
+}
+
 function errorMessage(error: unknown) {
   return error instanceof DentyApiError ? error.message : "No se pudo guardar el catálogo clínico.";
 }
@@ -115,6 +153,8 @@ export function AdminTreatmentCatalogPanel() {
   const [durationMin, setDurationMin] = useState<NumberField>("");
   const [appointmentsMin, setAppointmentsMin] = useState<NumberField>("");
   const [appointmentsMax, setAppointmentsMax] = useState<NumberField>("");
+  const [reviewInterval, setReviewInterval] = useState<ReviewField>("");
+  const [editReviewInterval, setEditReviewInterval] = useState<ReviewField>("");
   const [editDurationMin, setEditDurationMin] = useState<NumberField>("");
   const [editAppointmentsMin, setEditAppointmentsMin] = useState<NumberField>("");
   const [editAppointmentsMax, setEditAppointmentsMax] = useState<NumberField>("");
@@ -147,6 +187,7 @@ export function AdminTreatmentCatalogPanel() {
         defaultDurationMin: optionalNumber(durationMin),
         appointmentsMin: optionalNumber(appointmentsMin),
         appointmentsMax: optionalNumber(appointmentsMax),
+        reviewIntervalMonths: reviewMonths(reviewInterval),
         requiresLab,
         active: true,
         metadata: {},
@@ -158,6 +199,7 @@ export function AdminTreatmentCatalogPanel() {
       setDurationMin("");
       setAppointmentsMin("");
       setAppointmentsMax("");
+      setReviewInterval("");
       await reload();
       await queryClient.invalidateQueries({ queryKey: dentyQueryKeys.treatmentCatalog.root });
     } catch (caught) {
@@ -179,6 +221,7 @@ export function AdminTreatmentCatalogPanel() {
         defaultDurationMin: optionalNumber(editDurationMin),
         appointmentsMin: optionalNumber(editAppointmentsMin),
         appointmentsMax: optionalNumber(editAppointmentsMax),
+        reviewIntervalMonths: reviewMonths(editReviewInterval),
       });
       setEditingId(null);
       await reload();
@@ -200,6 +243,10 @@ export function AdminTreatmentCatalogPanel() {
       <Text c="dimmed" size="sm" mt={4}>
         Los minutos por cita y el número de citas se usan en la agenda y en el tiempo aproximado de
         cada plan. Si se dejan vacíos, el plan usa una estimación por tipo de tratamiento.
+      </Text>
+      <Text c="dimmed" size="sm" mt={4}>
+        La revisión tras el alta propone cada cuánto vuelve el paciente a mantenimiento al darle de
+        alta (se usa la más corta de sus tratamientos; sin definir, cada 6 meses).
       </Text>
 
       <form onSubmit={createItem}>
@@ -235,6 +282,7 @@ export function AdminTreatmentCatalogPanel() {
             onMin={setAppointmentsMin}
             onMax={setAppointmentsMax}
           />
+          <ReviewIntervalField value={reviewInterval} onChange={setReviewInterval} />
           <Group justify="space-between">
             <Switch
               label="Requiere laboratorio"
@@ -297,6 +345,11 @@ export function AdminTreatmentCatalogPanel() {
                       onMin={setEditAppointmentsMin}
                       onMax={setEditAppointmentsMax}
                     />
+                    <ReviewIntervalField
+                      code={item.code}
+                      value={editReviewInterval}
+                      onChange={setEditReviewInterval}
+                    />
                     <TreatmentStaffTimesEditor treatmentId={item.id} treatmentCode={item.code} />
                   </Stack>
                 ) : (
@@ -340,6 +393,11 @@ export function AdminTreatmentCatalogPanel() {
                       setEditDurationMin(item.defaultDurationMin ?? "");
                       setEditAppointmentsMin(item.appointmentsMin ?? "");
                       setEditAppointmentsMax(item.appointmentsMax ?? "");
+                      setEditReviewInterval(
+                        item.reviewIntervalMonths === 6 || item.reviewIntervalMonths === 12
+                          ? (String(item.reviewIntervalMonths) as ReviewField)
+                          : "",
+                      );
                     }}
                   >
                     Editar

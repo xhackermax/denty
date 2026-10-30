@@ -96,7 +96,7 @@ function daysInMonth(year: number, month: number): number {
 }
 
 /** Same rule as PostgreSQL `date + interval 'n months'`: a missing day falls back to the month's last day. */
-function addMonths(isoDate: string, months: number): string {
+export function addMonths(isoDate: string, months: number): string {
   const { year, month, day } = parseIsoDate(isoDate);
   const index = year * 12 + (month - 1) + months;
   const nextYear = Math.floor(index / 12);
@@ -137,5 +137,6 @@ export function recallReasonLabel(kind: string): string {
   if (review)
     return `Revisión de ${SPECIALTY_LABELS[review.specialty]} · ${STEP_LABELS[review.step]}`;
   if (kind === "NO_SHOW") return "No se presentó a la cita";
+  if (kind === "REVIEW_MAINTENANCE") return "Revisión de mantenimiento (alta)";
   return kind;
 }

@@ -13,6 +13,8 @@ import type {
   PersistedPeriodontalMeasurement,
 } from "@/shared/api/schemas/clinical";
 
+import { suggestDischargeReviewMonths, type DischargeSuggestion } from "@/domain/patient-discharge";
+
 import { nextRecordNumber, normalizeImportedRecordNumber } from "./record-number";
 import { SupabaseRestError, type SupabaseRestClient } from "../supabase/rest-client";
 import { currentOdontogramVersion } from "./odontogram-version";
@@ -37,6 +39,10 @@ interface PatientRow {
   medical_profile: Record<string, unknown> | null;
   archived_at: string | null;
   archived_reason: string | null;
+  // Absent until the patient_discharge_reviews migration is applied.
+  discharged_at?: string | null;
+  discharge_review_months?: number | null;
+  discharge_notes?: string | null;
   version: number;
   created_at: string;
   updated_at: string;
@@ -156,6 +162,7 @@ interface PrescriptionProjectionRow {
 
 interface PatientLifecycleRpcResult {
   conflict?: boolean;
+  reviewDueDate?: string;
   id?: string;
   version?: number;
   archivedAt?: string | null;
@@ -534,6 +541,62 @@ export class PatientRepository {
     return patient;
   }
 
+  /** Review interval suggested by the treatments the patient has had done. */
+  async getDischargeSuggestion(patientId: string): Promise<DischargeSuggestion> {
+    const scope = this.clinicId ? { clinic_id: `eq.${this.clinicId}` } : {};
+    const executions = await this.client.select<{ treatment_code: string | null }>(
+      "clinical_treatment_executions",
+      { select: "treatment_code", patient_id: `eq.${patientId}`, ...scope },
+    );
+    const codes = [
+      ...new Set(executions.map((row) => row.treatment_code?.trim()).filter(Boolean)),
+    ] as string[];
+    if (codes.length === 0) return suggestDischargeReviewMonths([]);
+    const catalog = await this.client.select<{
+      name: string;
+      review_interval_months: number | null;
+    }>("treatment_catalog", {
+      select: "name,review_interval_months",
+      code: `in.(${codes.map((code) => `"${code.replace(/"/g, "")}"`).join(",")})`,
+      review_interval_months: "not.is.null",
+      ...scope,
+    });
+    return suggestDischargeReviewMonths(
+      catalog.map((row) => ({ name: row.name, reviewIntervalMonths: row.review_interval_months })),
+    );
+  }
+
+  async dischargePatient(
+    patientId: string,
+    input: { expectedVersion: number; reviewMonths: number; notes?: string },
+  ) {
+    const result = await this.client.rpc<PatientLifecycleRpcResult>("discharge_patient", {
+      p_patient_id: patientId,
+      p_expected_version: input.expectedVersion,
+      p_review_months: input.reviewMonths,
+      p_notes: input.notes ?? null,
+    });
+    if (result.conflict || !result.reviewDueDate) {
+      throw new SupabaseRestError("La ficha cambió antes de darse de alta.", 409, result);
+    }
+    const patient = await this.getPatient(patientId);
+    if (!patient) throw new SupabaseRestError("Ficha no encontrada tras dar de alta.", 404, result);
+    return { patient, reviewDueDate: result.reviewDueDate };
+  }
+
+  async readmitPatient(patientId: string, input: { expectedVersion: number }) {
+    const result = await this.client.rpc<PatientLifecycleRpcResult>("readmit_patient", {
+      p_patient_id: patientId,
+      p_expected_version: input.expectedVersion,
+    });
+    if (result.conflict) {
+      throw new SupabaseRestError("La ficha cambió antes de reactivarse.", 409, result);
+    }
+    const patient = await this.getPatient(patientId);
+    if (!patient) throw new SupabaseRestError("Ficha no encontrada tras reactivar.", 404, result);
+    return patient;
+  }
+
   private async resolveClinicId(): Promise<string> {
     if (this.clinicId) return this.clinicId;
     throw new SupabaseRestError(
@@ -598,6 +661,9 @@ function rowToPatient(row: PatientRow): Patient {
     photoUrl: nullableText(row.photo_url),
     archivedAt: nullableText(row.archived_at),
     archivedReason: nullableText(row.archived_reason),
+    dischargedAt: nullableText(row.discharged_at),
+    dischargeReviewMonths: row.discharge_review_months ?? null,
+    dischargeNotes: nullableText(row.discharge_notes),
     version: row.version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

@@ -4,6 +4,9 @@ import type { ApiClient } from "../client";
 import {
   appointmentSchema,
   archivePatientSchema,
+  dischargePatientResultSchema,
+  dischargePatientSchema,
+  dischargeSuggestionSchema,
   createAppointmentSchema,
   createDocumentSchema,
   createDebtAcknowledgementSchema,
@@ -17,6 +20,7 @@ import {
   loginRequestSchema,
   passwordResetRequestSchema,
   resetPasswordSchema,
+  readmitPatientSchema,
   restorePatientSchema,
   loginResponseSchema,
   pageSchema,
@@ -143,6 +147,20 @@ export function createCoreResource(client: ApiClient) {
           `/api/patients/${encodeId(id)}/restore`,
           patientSchema,
           restorePatientSchema.parse(payload),
+        ),
+      dischargeSuggestion: (id: string) =>
+        client.request(`/api/patients/${encodeId(id)}/discharge`, dischargeSuggestionSchema),
+      discharge: (id: string, payload: z.input<typeof dischargePatientSchema>) =>
+        client.mutation(
+          `/api/patients/${encodeId(id)}/discharge`,
+          dischargePatientResultSchema,
+          dischargePatientSchema.parse(payload),
+        ),
+      readmit: (id: string, payload: z.input<typeof readmitPatientSchema>) =>
+        client.mutation(
+          `/api/patients/${encodeId(id)}/readmit`,
+          patientSchema,
+          readmitPatientSchema.parse(payload),
         ),
       uploadPhoto: (id: string, file: File) => {
         const form = new FormData();

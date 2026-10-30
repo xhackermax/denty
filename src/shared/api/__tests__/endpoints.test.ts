@@ -275,4 +275,38 @@ describe("createDentyApi", () => {
     expect(fetchImpl.mock.calls[0]?.[0]).toBe("https://api.example.test/api/patients/p1/archive");
     expect(fetchImpl.mock.calls[1]?.[0]).toBe("https://api.example.test/api/patients/p1/restore");
   });
+  it("exposes discharge and readmit as patient lifecycle commands", async () => {
+    const patient = {
+      id: "p1",
+      clinicId: "c1",
+      recordNumber: "000042",
+      firstName: "Ana",
+      lastName: "Ruiz",
+      dischargedAt: "2026-10-27T10:00:00+01:00",
+      dischargeReviewMonths: 6,
+      version: 4,
+      createdAt: "2026-01-01T10:00:00+01:00",
+      updatedAt: "2026-10-27T10:00:00+01:00",
+    };
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ months: 6, basedOn: "Implante" }))
+      .mockResolvedValueOnce(jsonResponse({ patient, reviewDueDate: "2027-04-27" }))
+      .mockResolvedValueOnce(jsonResponse({ ...patient, dischargedAt: null }));
+    const api = createDentyApi(new ApiClient({ baseUrl: "https://api.example.test", fetchImpl }));
+
+    await expect(api.patients.dischargeSuggestion("p1")).resolves.toEqual({
+      months: 6,
+      basedOn: "Implante",
+    });
+    const result = await api.patients.discharge("p1", { expectedVersion: 3, reviewMonths: 6 });
+    expect(result.reviewDueDate).toBe("2027-04-27");
+    await api.patients.readmit("p1", { expectedVersion: 4 });
+
+    expect(fetchImpl.mock.calls[1]?.[0]).toBe("https://api.example.test/api/patients/p1/discharge");
+    expect(fetchImpl.mock.calls[2]?.[0]).toBe("https://api.example.test/api/patients/p1/readmit");
+    expect(() =>
+      api.patients.discharge("p1", { expectedVersion: 3, reviewMonths: 9 as 6 }),
+    ).toThrow();
+  });
 });

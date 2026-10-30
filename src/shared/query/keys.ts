@@ -10,6 +10,8 @@ export const dentyQueryKeys = {
       ["denty", "patients", "list", { includeArchived }, search, page] as const,
     detail: (patientId: string) => ["denty", "patients", "detail", patientId] as const,
     projection: (patientId: string) => ["denty", "patients", "projection", patientId] as const,
+    dischargeSuggestion: (patientId: string) =>
+      ["denty", "patients", "discharge-suggestion", patientId] as const,
   },
   appointments: {
     root: root("appointments"),

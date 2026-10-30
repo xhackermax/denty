@@ -141,6 +141,7 @@ export const treatmentCatalogItemSchema = z.object({
   defaultDurationMin: z.number().int().positive().nullable().optional(),
   appointmentsMin: z.number().int().positive().nullable().optional(),
   appointmentsMax: z.number().int().positive().nullable().optional(),
+  reviewIntervalMonths: z.number().int().positive().nullable().optional(),
   requiresLab: z.boolean(),
   active: z.boolean(),
   metadata: z.record(z.string(), z.unknown()).default({}),
@@ -161,6 +162,11 @@ export const treatmentCatalogCreateSchema = z.object({
   defaultDurationMin: z.number().int().positive().nullable().optional(),
   appointmentsMin: z.number().int().positive().max(60).nullable().optional(),
   appointmentsMax: z.number().int().positive().max(60).nullable().optional(),
+  // Revisión tras el alta: 6 o 12 meses; null deja la decisión al alta.
+  reviewIntervalMonths: z
+    .union([z.literal(6), z.literal(12)])
+    .nullable()
+    .optional(),
   requiresLab: z.boolean().default(false),
   active: z.boolean().default(true),
   metadata: z.record(z.string(), z.unknown()).default({}),

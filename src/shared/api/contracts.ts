@@ -66,6 +66,9 @@ export const patientSchema = z.object({
   nextVisitAt: isoDateTimeSchema.nullable().optional(),
   archivedAt: isoDateTimeSchema.nullable().optional(),
   archivedReason: z.string().nullable().optional(),
+  dischargedAt: isoDateTimeSchema.nullable().optional(),
+  dischargeReviewMonths: z.number().int().positive().nullable().optional(),
+  dischargeNotes: z.string().nullable().optional(),
   version: versionSchema,
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
@@ -106,6 +109,26 @@ export const archivePatientSchema = z.object({
 
 export const restorePatientSchema = z.object({
   expectedVersion: versionSchema,
+});
+
+export const dischargePatientSchema = z.object({
+  expectedVersion: versionSchema,
+  reviewMonths: z.union([z.literal(6), z.literal(12)]),
+  notes: z.string().trim().max(500).optional(),
+});
+
+export const readmitPatientSchema = z.object({
+  expectedVersion: versionSchema,
+});
+
+export const dischargeSuggestionSchema = z.object({
+  months: z.union([z.literal(6), z.literal(12)]),
+  basedOn: z.string().nullable(),
+});
+
+export const dischargePatientResultSchema = z.object({
+  patient: patientSchema,
+  reviewDueDate: isoDateSchema,
 });
 
 export const patientLifecycleResultSchema = z.object({
