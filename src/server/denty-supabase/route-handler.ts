@@ -170,6 +170,7 @@ import {
 } from "../supabase/credentials";
 import { SupabaseRestClient, SupabaseRestError } from "../supabase/rest-client";
 import { handleRecallsRoute, isRecallsRoute } from "./recalls-route";
+import { handleFeedbackNotesRoute, isFeedbackNotesRoute } from "./feedback-notes-route";
 import { TerminalProviderError, testProviderConnection } from "../payments/terminal-providers";
 import { PaymentTerminalRepository } from "./payment-terminal-repository";
 function json(status: number, body: unknown, headers?: Headers): Response {
@@ -428,6 +429,7 @@ export const LOCALLY_HANDLED_SECTIONS: ReadonlySet<string> = new Set([
   "navigation",
   "recovery",
   "recalls",
+  "feedback-notes",
 ]);
 
 export async function handleSupabaseDentyRoute(
@@ -649,6 +651,8 @@ export async function handleSupabaseDentyRoute(
     if (isClinicalArgumentsRoute(parts))
       return await handleClinicalArgumentsRoute(request, parts, identity, headers);
     if (isRecallsRoute(parts)) return await handleRecallsRoute(request, parts, identity, headers);
+    if (isFeedbackNotesRoute(parts))
+      return await handleFeedbackNotesRoute(request, parts, identity, headers);
     const repo = patientRepository(identity);
     const clinical = clinicalRepository(identity);
     const agenda = agendaRepository(identity);

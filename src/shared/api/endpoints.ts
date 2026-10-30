@@ -9,6 +9,7 @@ import { createBillingResource } from "./resources/billing";
 import { createClinicalResource } from "./resources/clinical";
 import { createCoreResource } from "./resources/core";
 import { createEngagementResource } from "./resources/engagement";
+import { createFeedbackNotesResource } from "./resources/feedback-notes";
 import { createPortalResource } from "./resources/portal";
 import { createReferralsResource } from "./resources/referrals";
 import { createNavigationResource } from "./resources/navigation";
@@ -31,6 +32,7 @@ export function createDentyApi(client: ApiClient) {
     diagnoses: createDiagnosesResource(client),
     perioDrafts: createPerioDraftsResource(client),
     engagement: createEngagementResource(client),
+    feedbackNotes: createFeedbackNotesResource(client),
     navigation: createNavigationResource(client),
     portal: createPortalResource(client),
     referrals: createReferralsResource(client),
