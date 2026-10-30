@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 
 import { MOBILE_BAR_SIZE, splitForBar } from "@/domain/navigation";
 import { LogoutButton } from "@/features/auth";
+import { FeedbackInboxButton } from "@/features/feedback/feedback-inbox";
 import {
   NAV_ITEMS,
   moreSections,
@@ -149,6 +150,7 @@ export function DentyAppShell({ children }: { children: ReactNode }) {
               </ActionIcon>
             </Tooltip>
             <VoiceCommandBar />
+            <FeedbackInboxButton />
             <Menu position="bottom-end" width={240} withinPortal>
               <Menu.Target>
                 <ActionIcon variant="subtle" size="lg" aria-label="Ajustes rápidos">

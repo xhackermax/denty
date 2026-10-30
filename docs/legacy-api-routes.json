@@ -1617,6 +1617,24 @@
     },
     {
       "method": "GET",
+      "path": "/api/feedback-notes",
+      "source": "src/server/denty-supabase/feedback-notes-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/feedback-notes",
+      "source": "src/server/denty-supabase/feedback-notes-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "POST",
+      "path": "/api/feedback-notes/:id/status",
+      "source": "src/server/denty-supabase/feedback-notes-route.ts",
+      "kind": "browser"
+    },
+    {
+      "method": "GET",
       "path": "/api/recalls",
       "source": "src/server/denty-supabase/recalls-route.ts",
       "kind": "browser"
